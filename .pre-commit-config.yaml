@@ -1,0 +1,5 @@
+repos:
+- repo: https://github.com/nineyards-robotics/dco-sign-off
+  rev: v1.0.0
+  hooks:
+  - id: dco-sign-off
