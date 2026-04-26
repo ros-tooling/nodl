@@ -1,0 +1,318 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: NoDL - Node Description Language
+description: Schema for describing the interfaces of a ROS 2 node
+type: object
+additionalProperties: false
+
+properties:
+  nodl_version:
+    type: string
+    description: NoDL schema version
+    const: "1"
+  node:
+    $ref: "#/$defs/node_metadata"
+  base:
+    type: string
+    enum: [node, lifecycle_node]
+    description: Built-in ROS 2 base node type this node inherits from
+  fragments:
+    type: array
+    description: NoDL fragments composed into this node (single-level, not recursive)
+    items:
+      $ref: "#/$defs/fragment_ref"
+  parameters:
+    type: object
+    description: Map of parameter name to parameter definition
+    additionalProperties:
+      $ref: "#/$defs/parameter"
+  publishers:
+    type: array
+    description: Topic publishers
+    items:
+      $ref: "#/$defs/topic_endpoint"
+  subscriptions:
+    type: array
+    description: Topic subscriptions
+    items:
+      $ref: "#/$defs/topic_endpoint"
+  service_servers:
+    type: array
+    description: Service servers
+    items:
+      $ref: "#/$defs/service_endpoint"
+  service_clients:
+    type: array
+    description: Service clients
+    items:
+      $ref: "#/$defs/service_endpoint"
+  action_servers:
+    type: array
+    description: Action servers
+    items:
+      $ref: "#/$defs/action_endpoint"
+  action_clients:
+    type: array
+    description: Action clients
+    items:
+      $ref: "#/$defs/action_endpoint"
+
+$defs:
+  fragment_ref:
+    type: object
+    description: Reference to a NoDL fragment
+    required: [ref]
+    additionalProperties: false
+    properties:
+      ref:
+        type: string
+        description: "'nodl://pkg/name' for ament-index fragments, or a relative file path"
+      name:
+        type: string
+        description: Optional label for this fragment in documentation
+
+  node_metadata:
+    type: object
+    description: Node identity metadata
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: Short node name (without namespace)
+        pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
+      namespace:
+        type: string
+        description: Node namespace
+      package:
+        type: string
+        description: Package that provides this node
+        pattern: ^[a-zA-Z][a-zA-Z0-9_]*$
+
+  parameter_type:
+    type: string
+    enum:
+      - bool
+      - int
+      - double
+      - string
+      - byte_array
+      - bool_array
+      - int_array
+      - double_array
+      - string_array
+
+  parameter:
+    type: object
+    description: A ROS 2 parameter definition
+    required:
+      - type
+    additionalProperties: false
+    properties:
+      type:
+        $ref: "#/$defs/parameter_type"
+      description:
+        type: string
+        description: Human-readable description of the parameter
+      default_value:
+        description: Default value (type must match the parameter type)
+      read_only:
+        type: boolean
+        description: If true, can only be set at node startup
+        default: false
+      additional_constraints:
+        type: string
+        description: Free-text additional constraint description
+    allOf:
+      - if:
+          properties:
+            type:
+              const: bool
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: boolean
+      - if:
+          properties:
+            type:
+              const: int
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: integer
+      - if:
+          properties:
+            type:
+              const: double
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: number
+      - if:
+          properties:
+            type:
+              const: string
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: string
+      - if:
+          properties:
+            type:
+              const: byte_array
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: array
+              items:
+                type: integer
+                minimum: 0
+                maximum: 255
+      - if:
+          properties:
+            type:
+              const: bool_array
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: array
+              items:
+                type: boolean
+      - if:
+          properties:
+            type:
+              const: int_array
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: array
+              items:
+                type: integer
+      - if:
+          properties:
+            type:
+              const: double_array
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: array
+              items:
+                type: number
+      - if:
+          properties:
+            type:
+              const: string_array
+          required: [type]
+        then:
+          properties:
+            default_value:
+              type: array
+              items:
+                type: string
+
+  qos:
+    type: object
+    description: QoS configuration
+    additionalProperties: false
+    required:
+      - history
+      - reliability
+    properties:
+      history:
+        description: "KEEP_LAST depth (positive integer) or 'ALL' for KEEP_ALL"
+        oneOf:
+          - type: integer
+            minimum: 1
+          - const: "ALL"
+      reliability:
+        type: string
+        enum: [BEST_EFFORT, RELIABLE]
+      durability:
+        type: string
+        enum: [TRANSIENT_LOCAL, VOLATILE]
+      deadline_ms:
+        type: integer
+        minimum: 0
+      lifespan_ms:
+        type: integer
+        minimum: 0
+      liveliness:
+        type: string
+        enum: [AUTOMATIC, MANUAL_BY_TOPIC]
+      lease_duration_ms:
+        type: integer
+        minimum: 0
+
+  ros_message_type:
+    type: string
+    description: "ROS message type: package/msg/TypeName"
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/msg/[A-Z][a-zA-Z0-9]*$
+
+  ros_service_type:
+    type: string
+    description: "ROS service type: package/srv/TypeName"
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/srv/[A-Z][a-zA-Z0-9]*$
+
+  ros_action_type:
+    type: string
+    description: "ROS action type: package/action/TypeName"
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/action/[A-Z][a-zA-Z0-9]*$
+
+  topic_endpoint:
+    type: object
+    description: A topic publisher or subscription
+    required:
+      - topic
+      - type
+    additionalProperties: false
+    properties:
+      topic:
+        type: string
+        description: Topic name (fully qualified or relative)
+      type:
+        $ref: "#/$defs/ros_message_type"
+      description:
+        type: string
+        description: Human-readable description
+      qos:
+        $ref: "#/$defs/qos"
+
+  service_endpoint:
+    type: object
+    description: A service server or client
+    required:
+      - name
+      - type
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: Service name
+      type:
+        $ref: "#/$defs/ros_service_type"
+      description:
+        type: string
+        description: Human-readable description
+
+  action_endpoint:
+    type: object
+    description: An action server or client
+    required:
+      - name
+      - type
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: Action name
+      type:
+        $ref: "#/$defs/ros_action_type"
+      description:
+        type: string
+        description: Human-readable description

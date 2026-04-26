@@ -1,0 +1,28 @@
+nodl_version: "1"
+node:
+  name: test_node
+parameters:
+  publish_rate:
+    type: double
+    default_value: 10.0
+    description: Publish rate in Hz
+  frame_id:
+    type: string
+    default_value: base_link
+    description: Frame ID for published messages
+  enabled:
+    type: bool
+    default_value: true
+    read_only: true
+publishers:
+  - topic: /output
+    type: std_msgs/msg/String
+    qos:
+      history: 10
+      reliability: RELIABLE
+subscriptions:
+  - topic: /input
+    type: std_msgs/msg/String
+    qos:
+      history: 5
+      reliability: BEST_EFFORT

@@ -1,0 +1,5 @@
+parameters:
+  use_sim_time:
+    type: bool
+    default_value: false
+    description: Use simulation (clock) time instead of wall time

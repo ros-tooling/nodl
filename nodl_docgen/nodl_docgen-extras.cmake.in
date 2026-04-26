@@ -1,0 +1,23 @@
+# Locate the installed nodl_docgen script.
+set(_NODL_DOCGEN_SCRIPT
+  "@PACKAGE_PREFIX_DIR@/lib/nodl_docgen/nodl_docgen")
+
+# Build a PYTHONPATH that includes site-packages from all ament prefix dirs so
+# nodl and nodl_docgen are importable when the cmake custom command runs.
+set(_NODL_DOCGEN_EXTRA_PYTHONPATH "")
+foreach(_prefix IN LISTS CMAKE_PREFIX_PATH AMENT_PREFIX_PATH)
+  file(GLOB _site_pkgs "${_prefix}/lib/python*/site-packages")
+  foreach(_sp IN LISTS _site_pkgs)
+    if(IS_DIRECTORY "${_sp}")
+      if(_NODL_DOCGEN_EXTRA_PYTHONPATH)
+        set(_NODL_DOCGEN_EXTRA_PYTHONPATH "${_NODL_DOCGEN_EXTRA_PYTHONPATH}:${_sp}")
+      else()
+        set(_NODL_DOCGEN_EXTRA_PYTHONPATH "${_sp}")
+      endif()
+    endif()
+  endforeach()
+endforeach()
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+include("${CMAKE_CURRENT_LIST_DIR}/nodl_docgen.cmake")

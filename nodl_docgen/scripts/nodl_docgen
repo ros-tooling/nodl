@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""Generate RST documentation from a NoDL file."""
+import argparse
+from pathlib import Path
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Generate RST documentation from a NoDL file.'
+    )
+    parser.add_argument('--nodl-file', required=True, help='Path to .nodl.yaml input file')
+    parser.add_argument('--output', required=True, help='Path to write the generated .rst file')
+    args = parser.parse_args()
+
+    from nodl.schema import load_nodl
+    from nodl_docgen._generator import generate_rst
+
+    with open(args.nodl_file) as f:
+        doc = load_nodl(f)
+
+    rst = generate_rst(doc)
+
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(rst)
+
+
+if __name__ == '__main__':
+    main()
