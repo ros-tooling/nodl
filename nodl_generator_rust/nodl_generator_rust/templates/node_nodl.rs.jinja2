@@ -1,0 +1,220 @@
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_rust.
+#![allow(dead_code, unused_imports)]
+
+use std::sync::Arc;
+use rclrs::{Node, Publisher, Subscription, Client, RclrsError};
+{% for crate in crates %}
+use {{ crate }};
+{% endfor %}
+
+// ---------------------------------------------------------------------------
+// Topic and service name constants
+// ---------------------------------------------------------------------------
+{% for pub in publishers %}
+pub const TOPIC_{{ pub.const_name }}: &str = "{{ pub.topic }}";
+{% endfor %}
+{% for sub in subscriptions %}
+pub const TOPIC_{{ sub.const_name }}: &str = "{{ sub.topic }}";
+{% endfor %}
+{% for srv in service_servers %}
+pub const SERVICE_{{ srv.const_name }}: &str = "{{ srv.name }}";
+{% endfor %}
+{% for cli in service_clients %}
+pub const SERVICE_{{ cli.const_name }}: &str = "{{ cli.name }}";
+{% endfor %}
+
+// ---------------------------------------------------------------------------
+// Parameter snapshot
+// ---------------------------------------------------------------------------
+{% if parameters %}
+
+#[derive(Debug, Clone)]
+pub struct {{ struct_name }}Params {
+{% for param in parameters %}
+    pub {{ param.name }}: {% if not param.has_default %}Option<{% endif %}{{ param.rust_type }}{% if not param.has_default %}>{% endif %},
+{% endfor %}
+}
+
+/// Declare all parameters on `node` and return a typed snapshot.
+/// Read-only parameters can only be set at startup (via --ros-args -p).
+///
+/// NOTE: The rclrs parameter API may vary by installed version.
+/// Adjust declare_parameter calls if your rclrs differs from the 0.4+ builder API.
+pub fn declare_params(node: &Arc<Node>) -> Result<{{ struct_name }}Params, RclrsError> {
+    Ok({{ struct_name }}Params {
+{% for param in parameters %}
+        {{ param.name }}: {
+            let p = node.declare_parameter("{{ param.name }}");
+            {% if param.has_default %}
+            let p = p.default({{ param.default_expr }});
+            {% endif %}
+            {% if param.read_only %}
+            let _p = p;  // read_only enforcement is ROS-node-launch-time only
+            {% endif %}
+            {% if param.has_default %}
+            p.get()?
+            {% else %}
+            p.optional().get()?
+            {% endif %}
+        },
+{% endfor %}
+    })
+}
+{% else %}
+
+pub fn declare_params(_node: &Arc<Node>) -> Result<(), RclrsError> {
+    Ok(())
+}
+{% endif %}
+
+// ---------------------------------------------------------------------------
+// Publishers
+// ---------------------------------------------------------------------------
+{% if publishers %}
+
+pub struct {{ struct_name }}Publishers {
+{% for pub in publishers %}
+    pub {{ pub.ident }}: Arc<Publisher<{{ pub.rust_type }}>>,
+{% endfor %}
+}
+{% endif %}
+
+// ---------------------------------------------------------------------------
+// Service clients
+// ---------------------------------------------------------------------------
+{% if service_clients %}
+
+pub struct {{ struct_name }}Clients {
+{% for cli in service_clients %}
+    pub {{ cli.ident }}: Arc<Client<{{ cli.rust_type }}>>,
+{% endfor %}
+}
+{% endif %}
+
+// ---------------------------------------------------------------------------
+// Builder — wires subscriptions and service servers, creates publishers
+// ---------------------------------------------------------------------------
+
+pub struct {{ struct_name }}Builder {
+    node: Arc<Node>,
+{% for sub in subscriptions %}
+    {{ sub.builder_method }}: Option<Box<dyn Fn({{ sub.rust_type }}) + Send + Sync + 'static>>,
+{% endfor %}
+{% for srv in service_servers %}
+    {{ srv.builder_method }}: Option<Box<
+        dyn Fn(
+            Arc<rclrs::rmw_request_id_t>,
+            <{{ srv.rust_type }} as rclrs::Service>::Request,
+            Arc<tokio::sync::Mutex<<{{ srv.rust_type }} as rclrs::Service>::Response>>,
+        ) + Send + Sync + 'static
+    >>,
+{% endfor %}
+}
+
+impl {{ struct_name }}Builder {
+    pub fn new(node: Arc<Node>) -> Self {
+        Self {
+            node,
+{% for sub in subscriptions %}
+            {{ sub.builder_method }}: None,
+{% endfor %}
+{% for srv in service_servers %}
+            {{ srv.builder_method }}: None,
+{% endfor %}
+        }
+    }
+
+{% for sub in subscriptions %}
+    pub fn {{ sub.builder_method }}(
+        mut self,
+        f: impl Fn({{ sub.rust_type }}) + Send + Sync + 'static,
+    ) -> Self {
+        self.{{ sub.builder_method }} = Some(Box::new(f));
+        self
+    }
+
+{% endfor %}
+{% for srv in service_servers %}
+    pub fn {{ srv.builder_method }}(
+        mut self,
+        f: impl Fn(
+            Arc<rclrs::rmw_request_id_t>,
+            <{{ srv.rust_type }} as rclrs::Service>::Request,
+            Arc<tokio::sync::Mutex<<{{ srv.rust_type }} as rclrs::Service>::Response>>,
+        ) + Send + Sync + 'static,
+    ) -> Self {
+        self.{{ srv.builder_method }} = Some(Box::new(f));
+        self
+    }
+
+{% endfor %}
+    pub fn build(self) -> Result<{{ struct_name }}Nodl, RclrsError> {
+{% if publishers %}
+        let publishers = {{ struct_name }}Publishers {
+{% for pub in publishers %}
+            {{ pub.ident }}: self.node.create_publisher(
+                TOPIC_{{ pub.const_name }},
+                {{ pub.qos_call }},
+            )?,
+{% endfor %}
+        };
+{% endif %}
+{% for sub in subscriptions %}
+        // Subscription handles must be kept alive; they are stored in the result.
+        let _sub_{{ sub.ident }} = self.node.create_subscription::<{{ sub.rust_type }}, _>(
+            TOPIC_{{ sub.const_name }},
+            {{ sub.qos_call }},
+            self.{{ sub.builder_method }}.unwrap_or_else(|| Box::new(|_| {})),
+        )?;
+{% endfor %}
+{% for srv in service_servers %}
+        let _srv_{{ srv.ident }} = if let Some(cb) = self.{{ srv.builder_method }} {
+            Some(self.node.create_service::<{{ srv.rust_type }}, _>(
+                SERVICE_{{ srv.const_name }}, cb,
+            )?)
+        } else {
+            None
+        };
+{% endfor %}
+{% if service_clients %}
+        let clients = {{ struct_name }}Clients {
+{% for cli in service_clients %}
+            {{ cli.ident }}: self.node.create_client(SERVICE_{{ cli.const_name }})?,
+{% endfor %}
+        };
+{% endif %}
+        Ok({{ struct_name }}Nodl {
+{% if publishers %}
+            publishers,
+{% endif %}
+{% if service_clients %}
+            clients,
+{% endif %}
+{% for sub in subscriptions %}
+            _sub_{{ sub.ident }},
+{% endfor %}
+{% for srv in service_servers %}
+            _srv_{{ srv.ident }},
+{% endfor %}
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Result struct — owns all handles to keep them alive
+// ---------------------------------------------------------------------------
+
+pub struct {{ struct_name }}Nodl {
+{% if publishers %}
+    pub publishers: {{ struct_name }}Publishers,
+{% endif %}
+{% if service_clients %}
+    pub clients: {{ struct_name }}Clients,
+{% endif %}
+{% for sub in subscriptions %}
+    _sub_{{ sub.ident }}: Arc<Subscription<{{ sub.rust_type }}>>,
+{% endfor %}
+{% for srv in service_servers %}
+    _srv_{{ srv.ident }}: Option<Arc<rclrs::Service<{{ srv.rust_type }}>>>,
+{% endfor %}
+}

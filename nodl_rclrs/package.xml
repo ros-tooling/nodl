@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>nodl_rclrs</name>
+  <version>0.1.0</version>
+  <description>Rust runtime support crate for NoDL-generated node code.</description>
+  <maintainer email="emerson@polymathrobotics.com">Emerson Knapp</maintainer>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cargo</buildtool_depend>
+
+  <depend>rclrs</depend>
+
+  <export>
+    <build_type>ament_cargo</build_type>
+  </export>
+</package>

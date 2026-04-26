@@ -1,0 +1,5 @@
+set(_NODL_GENERATOR_RUST_SCRIPT
+  "${CMAKE_CURRENT_LIST_DIR}/../../../lib/nodl_generator_rust/nodl_generate_rust")
+set(_NODL_GENERATOR_RUST_TEMPLATES_DIR
+  "${CMAKE_CURRENT_LIST_DIR}/../../../share/nodl_generator_rust/templates")
+include("${CMAKE_CURRENT_LIST_DIR}/nodl_generate_rust.cmake")
