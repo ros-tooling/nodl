@@ -9,7 +9,6 @@ from rclpy.qos import DurabilityPolicy, HistoryPolicy, LivelinessPolicy, Reliabi
 from nodl.models import (
     ActionEndpoint,
     NodlDocument,
-    NodeMetadata,
     Parameter,
     QoS,
     ServiceEndpoint,
@@ -23,7 +22,7 @@ _PARAM_TYPE_NAMES: dict[int, str | None] = {
     ParameterType.PARAMETER_INTEGER: 'int',
     ParameterType.PARAMETER_DOUBLE: 'double',
     ParameterType.PARAMETER_STRING: 'string',
-    ParameterType.PARAMETER_BYTE_ARRAY: 'byte_array',
+    ParameterType.PARAMETER_BYTE_ARRAY: None,  # not supported by generate_parameter_library
     ParameterType.PARAMETER_BOOL_ARRAY: 'bool_array',
     ParameterType.PARAMETER_INTEGER_ARRAY: 'int_array',
     ParameterType.PARAMETER_DOUBLE_ARRAY: 'double_array',
@@ -63,65 +62,76 @@ _INTERNAL_TOPICS = frozenset([
 _INT64_MAX = 2**63 - 1  # ROS uses this to represent "infinite" / no-deadline
 
 
-def _duration_to_ms(duration) -> int | None:
-    """Convert a builtin_interfaces/Duration to milliseconds.
+def _duration_to_ns(duration) -> int | None:
+    """Convert a builtin_interfaces/Duration to nanoseconds.
 
     Returns None for both zero (unset) and INT64_MAX (ROS infinite sentinel).
     """
     total_ns = duration.sec * 1_000_000_000 + duration.nanosec
     if total_ns == 0 or total_ns >= _INT64_MAX:
         return None
-    return total_ns // 1_000_000
+    return total_ns
 
 
-def _qos_to_model(qos) -> QoS | None:
-    """Convert a rosgraph_msgs.msg.QoSProfile to a QoS model, or None if indeterminate."""
+def _qos_to_model(qos) -> QoS:
+    """Convert a rosgraph_msgs.msg.QoSProfile to a QoS model.
+
+    Always returns a QoS; unknown/unrecognized policies map to SYSTEM_DEFAULT.
+    """
     kwargs: dict = {}
 
     try:
         h = HistoryPolicy(qos.history)
         if h is HistoryPolicy.KEEP_LAST:
-            kwargs['history'] = max(1, qos.depth)
+            kwargs['history'] = 'KEEP_LAST'
+            kwargs['depth'] = max(1, qos.depth)
         elif h is HistoryPolicy.KEEP_ALL:
-            kwargs['history'] = 'ALL'
+            kwargs['history'] = 'KEEP_ALL'
+        else:
+            kwargs['history'] = 'SYSTEM_DEFAULT'
     except ValueError:
-        pass
+        kwargs['history'] = 'SYSTEM_DEFAULT'
 
     try:
         r = ReliabilityPolicy(qos.reliability)
-        if r in (ReliabilityPolicy.RELIABLE, ReliabilityPolicy.BEST_EFFORT):
-            kwargs['reliability'] = r.name
+        if r is ReliabilityPolicy.RELIABLE:
+            kwargs['reliability'] = 'RELIABLE'
+        elif r is ReliabilityPolicy.BEST_EFFORT:
+            kwargs['reliability'] = 'BEST_EFFORT'
+        else:
+            kwargs['reliability'] = 'SYSTEM_DEFAULT'
     except ValueError:
-        pass
-
-    if 'history' not in kwargs or 'reliability' not in kwargs:
-        return None
+        kwargs['reliability'] = 'SYSTEM_DEFAULT'
 
     try:
         d = DurabilityPolicy(qos.durability)
-        if d in (DurabilityPolicy.TRANSIENT_LOCAL, DurabilityPolicy.VOLATILE):
-            kwargs['durability'] = d.name
+        if d is DurabilityPolicy.TRANSIENT_LOCAL:
+            kwargs['durability'] = 'TRANSIENT_LOCAL'
+        elif d is DurabilityPolicy.VOLATILE:
+            kwargs['durability'] = 'VOLATILE'
     except ValueError:
         pass
 
-    deadline_ms = _duration_to_ms(qos.deadline)
-    if deadline_ms is not None:
-        kwargs['deadline_ms'] = deadline_ms
+    deadline_ns = _duration_to_ns(qos.deadline)
+    if deadline_ns is not None:
+        kwargs['deadline_ns'] = deadline_ns
 
-    lifespan_ms = _duration_to_ms(qos.lifespan)
-    if lifespan_ms is not None:
-        kwargs['lifespan_ms'] = lifespan_ms
+    lifespan_ns = _duration_to_ns(qos.lifespan)
+    if lifespan_ns is not None:
+        kwargs['lifespan_ns'] = lifespan_ns
 
     try:
         lv = LivelinessPolicy(qos.liveliness)
-        if lv in (LivelinessPolicy.AUTOMATIC, LivelinessPolicy.MANUAL_BY_TOPIC):
-            kwargs['liveliness'] = lv.name
+        if lv is LivelinessPolicy.AUTOMATIC:
+            kwargs['liveliness'] = 'AUTOMATIC'
+        elif lv is LivelinessPolicy.MANUAL_BY_TOPIC:
+            kwargs['liveliness'] = 'MANUAL_BY_TOPIC'
     except ValueError:
         pass
 
-    lease_ms = _duration_to_ms(qos.liveliness_lease_duration)
-    if lease_ms is not None:
-        kwargs['lease_duration_ms'] = lease_ms
+    lease_ns = _duration_to_ns(qos.liveliness_lease_duration)
+    if lease_ns is not None:
+        kwargs['liveliness_lease_duration_ns'] = lease_ns
 
     return QoS(**kwargs)
 
@@ -172,8 +182,6 @@ def to_nodl(node_msg, *, assume_current_as_default: bool = False) -> NodlDocumen
     assume_current_as_default: if True, treat current parameter values as
         the default_value field in the output.
     """
-    namespace, name = _parse_fqn(node_msg.name)
-
     # Parameters
     param_map: dict[str, Parameter] = {}
     if node_msg.parameters:
@@ -204,7 +212,7 @@ def to_nodl(node_msg, *, assume_current_as_default: bool = False) -> NodlDocumen
     # Publishers
     publishers = [
         TopicEndpoint(
-            topic=topic.name,
+            name=topic.name,
             type=topic.type.name,
             qos=_qos_to_model(topic.qos),
         )
@@ -215,7 +223,7 @@ def to_nodl(node_msg, *, assume_current_as_default: bool = False) -> NodlDocumen
     # Subscriptions
     subscriptions = [
         TopicEndpoint(
-            topic=topic.name,
+            name=topic.name,
             type=topic.type.name,
             qos=_qos_to_model(topic.qos),
         )
@@ -250,7 +258,7 @@ def to_nodl(node_msg, *, assume_current_as_default: bool = False) -> NodlDocumen
     ]
 
     return NodlDocument(
-        node=NodeMetadata(name=name, namespace=namespace),
+        nodl_version=2,
         parameters=param_map or None,
         publishers=publishers or None,
         subscriptions=subscriptions or None,

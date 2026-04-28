@@ -87,10 +87,15 @@ def _default_expr(nodl_type: str, default_value) -> str | None:
 def _qos_call(qos: dict | None) -> str:
     if not qos:
         return 'nodl_rclrs::qos::reliable(10)'
-    history = qos.get('history', 10)
-    depth = 0 if history == 'ALL' else int(history)
-    history_str = 'ALL' if history == 'ALL' else str(depth)
-    reliability = qos.get('reliability', 'RELIABLE')
+    history = qos.get('history', 'SYSTEM_DEFAULT')
+    if history == 'KEEP_ALL':
+        history_str = 'ALL'
+    elif history == 'KEEP_LAST':
+        depth = qos.get('depth', 10)
+        history_str = str(depth)
+    else:  # SYSTEM_DEFAULT
+        history_str = 'SYSTEM_DEFAULT'
+    reliability = qos.get('reliability', 'SYSTEM_DEFAULT')
     durability = qos.get('durability', 'VOLATILE') or 'VOLATILE'
     return (
         f'nodl_rclrs::profile_from_nodl("{history_str}", "{reliability}", "{durability}")'
@@ -102,8 +107,6 @@ def _qos_call(qos: dict | None) -> str:
 # ---------------------------------------------------------------------------
 
 def _build_context(nodl_data: dict, target_name: str) -> dict:
-    node_meta = nodl_data.get('node', {}) or {}
-    node_name = node_meta.get('name', target_name)
     struct_name = _to_pascal(target_name)
 
     crates: set[str] = set()
@@ -111,9 +114,10 @@ def _build_context(nodl_data: dict, target_name: str) -> dict:
     publishers = []
     for pub in (nodl_data.get('publishers') or []):
         crates.add(_ros_type_to_crate(pub['type']))
-        ident = _to_snake(pub['topic'])
+        topic_name = pub['name']
+        ident = _to_snake(topic_name)
         publishers.append({
-            'topic': pub['topic'],
+            'topic': topic_name,
             'rust_type': _ros_type_to_rust(pub['type']),
             'ident': ident,
             'qos_call': _qos_call(pub.get('qos')),
@@ -123,9 +127,10 @@ def _build_context(nodl_data: dict, target_name: str) -> dict:
     subscriptions = []
     for sub in (nodl_data.get('subscriptions') or []):
         crates.add(_ros_type_to_crate(sub['type']))
-        ident = _to_snake(sub['topic'])
+        topic_name = sub['name']
+        ident = _to_snake(topic_name)
         subscriptions.append({
-            'topic': sub['topic'],
+            'topic': topic_name,
             'rust_type': _ros_type_to_rust(sub['type']),
             'ident': ident,
             'qos_call': _qos_call(sub.get('qos')),
@@ -172,7 +177,6 @@ def _build_context(nodl_data: dict, target_name: str) -> dict:
 
     return {
         'target_name': target_name,
-        'node_name': node_name,
         'struct_name': struct_name,
         'crates': sorted(crates),
         'publishers': publishers,

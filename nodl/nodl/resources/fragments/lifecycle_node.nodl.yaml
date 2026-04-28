@@ -1,3 +1,4 @@
+nodl_version: 2
 parameters:
   use_sim_time:
     type: bool
@@ -17,5 +18,9 @@ service_servers:
     type: lifecycle_msgs/srv/GetTransitionGraph
 
 publishers:
-  - topic: ~/transition_event
+  - name: ~/transition_event
     type: lifecycle_msgs/msg/TransitionEvent
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE

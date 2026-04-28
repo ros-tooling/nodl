@@ -92,9 +92,9 @@ class LayeredDocument:
 
         for doc in layers:
             for ep in (doc.publishers or []):
-                publishers[ep.topic] = ep
+                publishers[ep.name] = ep
             for ep in (doc.subscriptions or []):
-                subscriptions[ep.topic] = ep
+                subscriptions[ep.name] = ep
             for ep in (doc.service_servers or []):
                 service_servers[ep.name] = ep
             for ep in (doc.service_clients or []):
@@ -107,7 +107,6 @@ class LayeredDocument:
                 parameters[param_name] = param
 
         return NodlDocument(
-            node=self.main.node,
             nodl_version=self.main.nodl_version,
             parameters=parameters or None,
             publishers=list(publishers.values()) or None,

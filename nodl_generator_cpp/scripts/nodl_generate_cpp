@@ -57,11 +57,14 @@ def _ros_type_to_include(ros_type: str) -> str:
 def _qos_to_cpp(qos: dict | None) -> str:
     if not qos:
         return 'rclcpp::QoS(10)'
-    history = qos.get('history', 10)
-    if history == 'ALL':
+    history = qos.get('history', 'SYSTEM_DEFAULT')
+    depth = qos.get('depth', 10)
+    if history == 'KEEP_ALL':
         base = 'rclcpp::QoS(rclcpp::KeepAll())'
-    else:
-        base = f'rclcpp::QoS({int(history)})'
+    elif history == 'SYSTEM_DEFAULT':
+        base = 'rclcpp::SystemDefaultsQoS()'
+    else:  # KEEP_LAST
+        base = f'rclcpp::QoS({int(depth)})'
     rel = qos.get('reliability')
     if rel == 'BEST_EFFORT':
         base += '.best_effort()'
@@ -113,8 +116,7 @@ def _generate_params_header(params_hpp: Path, params_yaml: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def _build_context(nodl_data: dict, target_name: str, lifecycle: bool) -> dict:
-    node_meta = nodl_data.get('node', {})
-    node_name = node_meta.get('name', target_name)
+    node_name = target_name
     class_name = _snake_to_pascal(target_name) + 'Base'
 
     base_class = (
@@ -139,14 +141,15 @@ def _build_context(nodl_data: dict, target_name: str, lifecycle: bool) -> dict:
         inc = _ros_type_to_include(ros_type)
         if inc not in includes:
             includes.append(inc)
-        ident = _topic_to_identifier(pub['topic'])
+        topic_name = pub['name']
+        ident = _topic_to_identifier(topic_name)
         pub_type = (
             f'rclcpp_lifecycle::LifecyclePublisher<{cpp_type}>'
             if lifecycle else
             f'rclcpp::Publisher<{cpp_type}>'
         )
         publishers.append({
-            'topic': pub['topic'],
+            'topic': topic_name,
             'cpp_type': cpp_type,
             'pub_type': pub_type,
             'member_name': f'pub_{ident}_',
@@ -160,9 +163,10 @@ def _build_context(nodl_data: dict, target_name: str, lifecycle: bool) -> dict:
         inc = _ros_type_to_include(ros_type)
         if inc not in includes:
             includes.append(inc)
-        ident = _topic_to_identifier(sub['topic'])
+        topic_name = sub['name']
+        ident = _topic_to_identifier(topic_name)
         subscriptions.append({
-            'topic': sub['topic'],
+            'topic': topic_name,
             'cpp_type': cpp_type,
             'member_name': f'sub_{ident}_',
             'callback_name': f'on_{ident}',

@@ -91,23 +91,29 @@ def test_qos_to_cpp_default():
 
 
 def test_qos_to_cpp_reliable():
-    result = qos_to_cpp({'history': 10, 'reliability': 'RELIABLE'})
+    result = qos_to_cpp({'history': 'KEEP_LAST', 'depth': 10, 'reliability': 'RELIABLE'})
     assert result == 'rclcpp::QoS(10).reliable()'
 
 
 def test_qos_to_cpp_best_effort():
-    result = qos_to_cpp({'history': 5, 'reliability': 'BEST_EFFORT'})
+    result = qos_to_cpp({'history': 'KEEP_LAST', 'depth': 5, 'reliability': 'BEST_EFFORT'})
     assert result == 'rclcpp::QoS(5).best_effort()'
 
 
 def test_qos_to_cpp_keep_all():
-    result = qos_to_cpp({'history': 'ALL', 'reliability': 'RELIABLE'})
+    result = qos_to_cpp({'history': 'KEEP_ALL', 'reliability': 'RELIABLE'})
     assert result == 'rclcpp::QoS(rclcpp::KeepAll()).reliable()'
+
+
+def test_qos_to_cpp_system_default():
+    result = qos_to_cpp({'history': 'SYSTEM_DEFAULT', 'reliability': 'RELIABLE'})
+    assert result == 'rclcpp::SystemDefaultsQoS().reliable()'
 
 
 def test_qos_to_cpp_transient_local():
     result = qos_to_cpp({
-        'history': 10,
+        'history': 'KEEP_LAST',
+        'depth': 10,
         'reliability': 'RELIABLE',
         'durability': 'TRANSIENT_LOCAL',
     })
@@ -119,26 +125,27 @@ def test_qos_to_cpp_transient_local():
 # ---------------------------------------------------------------------------
 
 _MINIMAL_NODL = {
-    'node': {'name': 'my_node'},
+    'nodl_version': 2,
 }
 
 _FULL_NODL = {
-    'node': {'name': 'test_node'},
+    'nodl_version': 2,
     'parameters': {
         'rate': {'type': 'double', 'default_value': 5.0},
         'name': {'type': 'string', 'read_only': True},
     },
     'publishers': [
         {
-            'topic': '/scan',
+            'name': '/scan',
             'type': 'sensor_msgs/msg/LaserScan',
-            'qos': {'history': 10, 'reliability': 'RELIABLE'},
+            'qos': {'history': 'KEEP_LAST', 'depth': 10, 'reliability': 'RELIABLE'},
         }
     ],
     'subscriptions': [
         {
-            'topic': '/cmd',
+            'name': '/cmd',
             'type': 'std_msgs/msg/String',
+            'qos': {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'},
         }
     ],
 }
@@ -211,9 +218,10 @@ def test_build_context_subscriptions():
 
 def test_build_context_no_duplicate_includes():
     nodl = {
+        'nodl_version': 2,
         'publishers': [
-            {'topic': '/a', 'type': 'std_msgs/msg/String'},
-            {'topic': '/b', 'type': 'std_msgs/msg/String'},
+            {'name': '/a', 'type': 'std_msgs/msg/String', 'qos': {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}},
+            {'name': '/b', 'type': 'std_msgs/msg/String', 'qos': {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}},
         ]
     }
     ctx = build_context(nodl, 'x', lifecycle=False)
@@ -300,7 +308,7 @@ def test_render_cpp_no_declare_parameter():
 
 
 def test_render_hpp_lifecycle():
-    nodl = {'node': {'name': 'my_node'}}
+    nodl = {'nodl_version': 2}
     ctx = build_context(nodl, 'my_node', lifecycle=True)
     hpp = _render('node.hpp.jinja2', ctx)
     assert 'rclcpp_lifecycle::LifecycleNode' in hpp

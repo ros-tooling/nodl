@@ -12,15 +12,38 @@ from jsonschema.validators import Draft202012Validator
 from nodl.models import NodlDocument
 
 _schema_cache: dict | None = None
+_validator_cache: Draft202012Validator | None = None
+
+
+def _load_resource(name: str) -> dict:
+    path = ir.files('nodl') / 'resources' / name
+    return yaml.safe_load(path.read_text(encoding='utf-8'))
 
 
 def load_schema() -> dict:
     """Load and cache the NoDL JSON schema."""
     global _schema_cache
     if _schema_cache is None:
-        schema_path = ir.files('nodl') / 'resources' / 'nodl.schema.yaml'
-        _schema_cache = yaml.safe_load(schema_path.read_text(encoding='utf-8'))
+        _schema_cache = _load_resource('nodl.schema.yaml')
     return _schema_cache
+
+
+def _make_validator() -> Draft202012Validator:
+    """Build a validator with the parameter schema pre-loaded in the store."""
+    global _validator_cache
+    if _validator_cache is None:
+        schema = load_schema()
+        param_schema = _load_resource('parameter.schema.yaml')
+        store = {param_schema['$id']: param_schema}
+        _validator_cache = Draft202012Validator(
+            schema,
+            resolver=Draft202012Validator.VALIDATORS and None,
+        )
+        # Build with a custom registry/store for older jsonschema API
+        from jsonschema import RefResolver
+        resolver = RefResolver.from_schema(schema, store=store)
+        _validator_cache = Draft202012Validator(schema, resolver=resolver)
+    return _validator_cache
 
 
 def validate(data: dict) -> None:
@@ -28,8 +51,7 @@ def validate(data: dict) -> None:
 
     Raises jsonschema.ValidationError on failure.
     """
-    schema = load_schema()
-    Draft202012Validator(schema).validate(data)
+    _make_validator().validate(data)
 
 
 def load_nodl(source: Union[str, bytes, IO], *, format: str | None = None) -> NodlDocument:

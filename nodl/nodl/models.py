@@ -2,35 +2,36 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
 ParameterTypeLiteral = Literal[
     'bool', 'int', 'double', 'string',
-    'byte_array', 'bool_array', 'int_array', 'double_array', 'string_array',
+    'bool_array', 'int_array', 'double_array', 'string_array',
 ]
 
 
 class QoS(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    history: Union[int, Literal['ALL']]
-    reliability: Literal['RELIABLE', 'BEST_EFFORT']
-    durability: Optional[Literal['TRANSIENT_LOCAL', 'VOLATILE']] = None
-    deadline_ms: Optional[int] = None
-    lifespan_ms: Optional[int] = None
-    liveliness: Optional[Literal['AUTOMATIC', 'MANUAL_BY_TOPIC']] = None
-    lease_duration_ms: Optional[int] = None
+    history: Literal['KEEP_LAST', 'KEEP_ALL', 'SYSTEM_DEFAULT']
+    depth: Optional[int] = None
+    reliability: Literal['RELIABLE', 'BEST_EFFORT', 'SYSTEM_DEFAULT', 'BEST_AVAILABLE']
+    durability: Optional[Literal['TRANSIENT_LOCAL', 'VOLATILE', 'SYSTEM_DEFAULT', 'BEST_AVAILABLE']] = None
+    deadline_ns: Optional[int] = None
+    lifespan_ns: Optional[int] = None
+    liveliness: Optional[Literal['AUTOMATIC', 'MANUAL_BY_TOPIC', 'SYSTEM_DEFAULT', 'BEST_AVAILABLE']] = None
+    liveliness_lease_duration_ns: Optional[int] = None
 
 
 class TopicEndpoint(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    topic: str
+    name: str
     type: str
     description: Optional[str] = None
-    qos: Optional[QoS] = None
+    qos: QoS
 
 
 class ServiceEndpoint(BaseModel):
@@ -59,14 +60,6 @@ class Parameter(BaseModel):
     additional_constraints: Optional[str] = None
 
 
-class NodeMetadata(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-
-    name: Optional[str] = None
-    namespace: Optional[str] = None
-    package: Optional[str] = None
-
-
 class FragmentRef(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
@@ -77,8 +70,8 @@ class FragmentRef(BaseModel):
 class NodlDocument(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    nodl_version: Optional[str] = None
-    node: Optional[NodeMetadata] = None
+    nodl_version: Optional[int] = None
+    description: Optional[str] = None
     base: Optional[Literal['node', 'lifecycle_node']] = None
     fragments: Optional[List[FragmentRef]] = None
     parameters: Optional[Dict[str, Parameter]] = None

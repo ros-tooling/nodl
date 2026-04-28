@@ -175,7 +175,7 @@ $defs:
           publisher is considered not alive, in nanoseconds. Zero
           means the lease never expires.
         type: integer
-          minimum: 0
+        minimum: 0
     allOf:
       - if:
           properties:
@@ -204,7 +204,7 @@ $defs:
       type:
         $ref: "#/$defs/rosType"
       qos:
-        $ref: "#/$defs/qos"
+        $ref: "#/$defs/qosProfile"
       description:
         type: string
 
@@ -225,9 +225,9 @@ $defs:
         $ref: "#/$defs/rosName"
         description: Service name.
       type:
-        $ref: "#/$defs/rosServiceType"
+        $ref: "#/$defs/rosType"
       qos:
-        $ref: "#/$defs/qos"
+        $ref: "#/$defs/qosProfile"
       description:
         type: string
 

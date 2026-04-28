@@ -11,6 +11,7 @@ from typing import List
 import pytest
 
 from nodl.conversion import (
+    _duration_to_ns,
     _is_internal_service,
     _is_internal_topic,
     _parse_fqn,
@@ -168,13 +169,14 @@ def test_is_internal_topic_user_topic():
 def test_qos_keep_last():
     qos = QoSProfile(depth=10, history=1)
     result = _qos_to_model(qos)
-    assert result.history == 10
+    assert result.history == 'KEEP_LAST'
+    assert result.depth == 10
 
 
 def test_qos_keep_all():
     qos = QoSProfile(history=2)
     result = _qos_to_model(qos)
-    assert result.history == 'ALL'
+    assert result.history == 'KEEP_ALL'
 
 
 def test_qos_reliable():
@@ -201,38 +203,37 @@ def test_qos_volatile():
     assert result.durability == 'VOLATILE'
 
 
-def test_qos_deadline_ms():
+def test_qos_deadline_ns():
     qos = QoSProfile(deadline=Duration(sec=0, nanosec=100_000_000))  # 100ms
     result = _qos_to_model(qos)
-    assert result.deadline_ms == 100
+    assert result.deadline_ns == 100_000_000
 
 
 def test_qos_zero_duration_omitted():
     qos = QoSProfile(deadline=Duration(sec=0, nanosec=0))
     result = _qos_to_model(qos)
-    assert result.deadline_ms is None
+    assert result.deadline_ns is None
 
 
 def test_qos_infinite_duration_omitted():
-    # INT64_MAX nanoseconds is the ROS sentinel for "no deadline / infinite"
     int64_max_ns = 2**63 - 1
     sec = int64_max_ns // 1_000_000_000
     nanosec = int64_max_ns % 1_000_000_000
     qos = QoSProfile(deadline=Duration(sec=sec, nanosec=nanosec))
     result = _qos_to_model(qos)
-    assert result.deadline_ms is None
+    assert result.deadline_ns is None
 
 
-def test_qos_unknown_history_returns_none():
+def test_qos_unknown_history_uses_system_default():
     qos = QoSProfile(history=0)  # SYSTEM_DEFAULT
     result = _qos_to_model(qos)
-    assert result is None
+    assert result.history == 'SYSTEM_DEFAULT'
 
 
-def test_qos_unknown_reliability_returns_none():
+def test_qos_unknown_reliability_uses_system_default():
     qos = QoSProfile(reliability=0)  # SYSTEM_DEFAULT
     result = _qos_to_model(qos)
-    assert result is None
+    assert result.reliability == 'SYSTEM_DEFAULT'
 
 
 def test_qos_liveliness_automatic():
@@ -275,17 +276,9 @@ def test_empty_node():
     msg = NodeMsg(name='/my_node')
     result = to_nodl(msg)
     assert isinstance(result, NodlDocument)
-    assert result.node.name == 'my_node'
-    assert result.node.namespace == '/'
+    assert result.nodl_version == 2
     assert result.publishers is None
     assert result.parameters is None
-
-
-def test_node_with_namespace():
-    msg = NodeMsg(name='/my_ns/my_node')
-    result = to_nodl(msg)
-    assert result.node.namespace == '/my_ns'
-    assert result.node.name == 'my_node'
 
 
 def test_internal_topics_filtered():
@@ -299,7 +292,7 @@ def test_internal_topics_filtered():
     )
     result = to_nodl(msg)
     assert len(result.publishers) == 1
-    assert result.publishers[0].topic == '/chatter'
+    assert result.publishers[0].name == '/chatter'
 
 
 def test_internal_services_filtered():
@@ -342,9 +335,10 @@ def test_publisher_with_qos():
     )
     result = to_nodl(msg)
     pub = result.publishers[0]
-    assert pub.topic == '/cmd_vel'
+    assert pub.name == '/cmd_vel'
     assert pub.type == 'geometry_msgs/msg/Twist'
-    assert pub.qos.history == 5
+    assert pub.qos.history == 'KEEP_LAST'
+    assert pub.qos.depth == 5
     assert pub.qos.reliability == 'RELIABLE'
     assert pub.qos.durability == 'TRANSIENT_LOCAL'
 
@@ -357,7 +351,7 @@ def test_subscription():
         ],
     )
     result = to_nodl(msg)
-    assert result.subscriptions[0].topic == '/odom'
+    assert result.subscriptions[0].name == '/odom'
 
 
 def test_parameters_basic_types():
@@ -366,6 +360,7 @@ def test_parameters_basic_types():
         ParameterDescriptor(name='count', type=2),        # int
         ParameterDescriptor(name='speed', type=3),        # double
         ParameterDescriptor(name='label', type=4),        # string
+        ParameterDescriptor(name='raw', type=5),          # byte_array — skipped (unsupported)
     ]
     msg = NodeMsg(name='/node', parameters=descriptors)
     result = to_nodl(msg)
@@ -373,6 +368,7 @@ def test_parameters_basic_types():
     assert result.parameters['count'].type == 'int'
     assert result.parameters['speed'].type == 'double'
     assert result.parameters['label'].type == 'string'
+    assert 'raw' not in result.parameters
 
 
 def test_parameter_not_set_skipped():

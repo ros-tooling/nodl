@@ -56,18 +56,18 @@ def test_qos_call_none_defaults_to_reliable_10():
 
 
 def test_qos_call_best_effort():
-    result = _qos_call({'history': 5, 'reliability': 'BEST_EFFORT'})
+    result = _qos_call({'history': 'KEEP_LAST', 'depth': 5, 'reliability': 'BEST_EFFORT'})
     assert 'BEST_EFFORT' in result
     assert '5' in result
 
 
 def test_qos_call_keep_all():
-    result = _qos_call({'history': 'ALL', 'reliability': 'RELIABLE'})
+    result = _qos_call({'history': 'KEEP_ALL', 'reliability': 'RELIABLE'})
     assert 'ALL' in result
 
 
 def test_qos_call_transient_local():
-    result = _qos_call({'history': 10, 'reliability': 'RELIABLE', 'durability': 'TRANSIENT_LOCAL'})
+    result = _qos_call({'history': 'KEEP_LAST', 'depth': 10, 'reliability': 'RELIABLE', 'durability': 'TRANSIENT_LOCAL'})
     assert 'TRANSIENT_LOCAL' in result
 
 
@@ -105,14 +105,16 @@ def test_default_expr_string_array():
 # ---------------------------------------------------------------------------
 
 _FULL_NODL = {
-    'node': {'name': 'my_sensor_node'},
+    'nodl_version': 2,
     'publishers': [
-        {'topic': '/scan', 'type': 'sensor_msgs/msg/LaserScan'},
-        {'topic': '/cloud', 'type': 'sensor_msgs/msg/PointCloud2',
-         'qos': {'history': 5, 'reliability': 'BEST_EFFORT'}},
+        {'name': '/scan', 'type': 'sensor_msgs/msg/LaserScan',
+         'qos': {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}},
+        {'name': '/cloud', 'type': 'sensor_msgs/msg/PointCloud2',
+         'qos': {'history': 'KEEP_LAST', 'depth': 5, 'reliability': 'BEST_EFFORT'}},
     ],
     'subscriptions': [
-        {'topic': '/cmd_vel', 'type': 'geometry_msgs/msg/Twist'},
+        {'name': '/cmd_vel', 'type': 'geometry_msgs/msg/Twist',
+         'qos': {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}},
     ],
     'service_servers': [
         {'name': '/reset', 'type': 'std_srvs/srv/Trigger'},

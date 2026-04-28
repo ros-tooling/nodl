@@ -1,6 +1,4 @@
-nodl_version: "1"
-node:
-  name: test_node
+nodl_version: 2
 parameters:
   publish_rate:
     type: double
@@ -15,14 +13,16 @@ parameters:
     default_value: true
     read_only: true
 publishers:
-  - topic: /output
+  - name: /output
     type: std_msgs/msg/String
     qos:
-      history: 10
+      history: KEEP_LAST
+      depth: 10
       reliability: RELIABLE
 subscriptions:
-  - topic: /input
+  - name: /input
     type: std_msgs/msg/String
     qos:
-      history: 5
+      history: KEEP_LAST
+      depth: 5
       reliability: BEST_EFFORT
