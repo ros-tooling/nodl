@@ -1,5 +1,5 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://github.com/ros2/nodl/schemas/nodl.schema.yaml
+$id: https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/nodl.schema.yaml
 title: NoDL Node Definition
 description: |
   NoDL (Node Definition Language) v2 schema.

@@ -3,7 +3,7 @@
 # If generate_parameter_library adds new features, this schema may need to be updated.
 
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "https://github.com/ros2/nodl/schemas/parameter.schema.yaml"
+$id: "https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/parameter.schema.yaml"
 title: "ROS 2 Parameter Definition Schema"
 description: |
   Schema for a single ROS 2 parameter definition. Shape mirrors
