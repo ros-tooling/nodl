@@ -22,9 +22,12 @@ properties:
       $ref: "#/$defs/fragment_ref"
   parameters:
     type: object
-    description: Map of parameter name to parameter definition
+    description: |
+      ROS parameters declared by this node, keyed by parameter name.
+      Parameter shape is borrowed from generate_parameter_library
+      (see parameter.schema.yaml).
     additionalProperties:
-      $ref: "#/$defs/parameter"
+      $ref: "parameter.schema.yaml#/$defs/parameter_definition"
   publishers:
     type: array
     description: Topic publishers
@@ -99,122 +102,6 @@ $defs:
       - int_array
       - double_array
       - string_array
-
-  parameter:
-    type: object
-    description: A ROS 2 parameter definition
-    required:
-      - type
-    additionalProperties: false
-    properties:
-      type:
-        $ref: "#/$defs/parameter_type"
-      description:
-        type: string
-        description: Human-readable description of the parameter
-      default_value:
-        description: Default value (type must match the parameter type)
-      read_only:
-        type: boolean
-        description: If true, can only be set at node startup
-        default: false
-      additional_constraints:
-        type: string
-        description: Free-text additional constraint description
-    allOf:
-      - if:
-          properties:
-            type:
-              const: bool
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: boolean
-      - if:
-          properties:
-            type:
-              const: int
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: integer
-      - if:
-          properties:
-            type:
-              const: double
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: number
-      - if:
-          properties:
-            type:
-              const: string
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: string
-      - if:
-          properties:
-            type:
-              const: byte_array
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: array
-              items:
-                type: integer
-                minimum: 0
-                maximum: 255
-      - if:
-          properties:
-            type:
-              const: bool_array
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: array
-              items:
-                type: boolean
-      - if:
-          properties:
-            type:
-              const: int_array
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: array
-              items:
-                type: integer
-      - if:
-          properties:
-            type:
-              const: double_array
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: array
-              items:
-                type: number
-      - if:
-          properties:
-            type:
-              const: string_array
-          required: [type]
-        then:
-          properties:
-            default_value:
-              type: array
-              items:
-                type: string
 
   qos:
     type: object
