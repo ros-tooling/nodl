@@ -1,18 +1,17 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>nodl</name>
+  <name>ros2nodl</name>
   <version>0.0.0</version>
-  <description>Node Definition Language (NoDL) metapackage.</description>
+  <description>The ros2 command-line interface for NoDL.</description>
   <maintainer email="hello@alistairenglish.com">Alistair English</maintainer>
   <license>Apache-2.0</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <exec_depend>nodl_schema</exec_depend>
-  <exec_depend>ros2nodl</exec_depend>
+  <depend>nodl_schema</depend>
+  <depend>ros2cli</depend>
+  <depend>python3-yaml</depend>
 
   <export>
-    <build_type>ament_cmake</build_type>
+    <build_type>ament_python</build_type>
   </export>
 </package>

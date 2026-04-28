@@ -5,9 +5,7 @@ package_name = "nodl_schema"
 setup(
     name=package_name,
     version="0.0.0",
-    packages=[package_name, package_name + ".schemas"],
-    package_dir={package_name + ".schemas": "schemas"},
-    package_data={package_name + ".schemas": ["*.yaml"]},
+    packages=[package_name],
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
@@ -19,7 +17,7 @@ setup(
             ],
         ),
     ],
-    install_requires=["setuptools", "pyyaml", "jsonschema"],
+    install_requires=["setuptools", "pyyaml", "jsonschema", "ament_index_python"],
     zip_safe=True,
     maintainer="Alistair English",
     maintainer_email="hello@alistairenglish.com",

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from importlib import resources
+from pathlib import Path
 from typing import Any, List
 
 import yaml
+from ament_index_python.packages import get_package_share_directory
 from jsonschema import Draft202012Validator, RefResolver
 
 _BASE_URI = "https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/"
@@ -13,8 +14,12 @@ _NODL_SCHEMA_URI = _BASE_URI + "nodl.schema.yaml"
 _PARAMETER_SCHEMA_URI = _BASE_URI + "parameter.schema.yaml"
 
 
+def _schemas_dir() -> Path:
+    return Path(get_package_share_directory("nodl_schema")) / "schemas"
+
+
 def _load_schema(name: str) -> dict:
-    with resources.files("nodl_schema.schemas").joinpath(name).open("r") as f:
+    with (_schemas_dir() / name).open("r") as f:
         return yaml.safe_load(f)
 
 
