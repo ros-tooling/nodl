@@ -1,5 +1,29 @@
+---
 repos:
-- repo: https://github.com/nineyards-robotics/dco-sign-off
-  rev: v1.0.0
-  hooks:
-  - id: dco-sign-off
+  - repo: https://github.com/nineyards-robotics/dco-sign-off
+    rev: v1.0.0
+    hooks:
+      - id: dco-sign-off
+
+  - repo: https://github.com/polymathrobotics/polymath_code_standard
+    rev: v2.0.1
+    hooks:
+      # Basic checks and fixes that apply to any text file and the git repository itself
+      - id: polymath-general
+
+      # Enforce and insert copyright headers in source code for the project's license
+      - id: polymath-copyright
+        args: [--license, Apache-2.0, --copyright-org, 'Open Source Robotics Foundation, Inc.']
+
+      # Implementation languages we use in NoDL packages
+      - id: polymath-cpp
+      - id: polymath-python
+      - id: polymath-shell
+      - id: polymath-cmake
+
+      # Markdown/up languages
+      - id: polymath-markdown
+      - id: polymath-xml
+      - id: polymath-toml
+      - id: polymath-json
+      - id: polymath-yaml
