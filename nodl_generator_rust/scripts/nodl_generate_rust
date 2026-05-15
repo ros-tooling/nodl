@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""Generate an rclrs node scaffolding module (.rs) from a NoDL YAML file."""
+from nodl_generator_rust.generator import main
+
+if __name__ == '__main__':
+    main()

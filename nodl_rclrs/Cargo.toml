@@ -1,0 +1,9 @@
+[package]
+name = "nodl_rclrs"
+version = "0.1.0"
+edition = "2021"
+description = "Rust runtime support for NoDL-generated node code"
+license = "Apache-2.0"
+
+[dependencies]
+rclrs = "*"
