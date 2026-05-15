@@ -26,6 +26,7 @@ setup(
         ],
         'ros2nodl.verb': [
             'validate = ros2nodl.verb.validate:ValidateVerb',
+            'describe = ros2nodl.verb.describe:DescribeVerb',
         ],
     },
 )
