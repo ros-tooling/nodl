@@ -1,0 +1,48 @@
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#include "{{ target_name }}.hpp"
+
+{{ class_name }}::{{ class_name }}(const rclcpp::NodeOptions & options)
+: {{ base_class }}("{{ node_name }}", options)
+{% if has_params %}
+, param_listener_(get_node_parameters_interface())
+, params_(param_listener_.get_params())
+{% endif %}
+{
+{% if publishers %}
+  // Create publishers
+{% for pub in publishers %}
+  {{ pub.member_name }} = this->create_publisher<{{ pub.cpp_type }}>(
+    "{{ pub.topic }}", {{ pub.qos_cpp }});
+{% endfor %}
+
+{% endif %}
+{% if subscriptions %}
+  // Create subscriptions
+{% for sub in subscriptions %}
+  {{ sub.member_name }} = this->create_subscription<{{ sub.cpp_type }}>(
+    "{{ sub.topic }}", {{ sub.qos_cpp }},
+    [this]({{ sub.cpp_type }}::ConstSharedPtr msg) { this->{{ sub.callback_name }}(msg); });
+{% endfor %}
+
+{% endif %}
+{% if service_servers %}
+  // Create service servers
+{% for srv in service_servers %}
+  {{ srv.member_name }} = this->create_service<{{ srv.cpp_type }}>(
+    "{{ srv.name }}",
+    [this](
+      {{ srv.cpp_type }}::Request::SharedPtr req,
+      {{ srv.cpp_type }}::Response::SharedPtr res)
+    {
+      this->{{ srv.callback_name }}(req, res);
+    });
+{% endfor %}
+
+{% endif %}
+{% if service_clients %}
+  // Create service clients
+{% for cli in service_clients %}
+  {{ cli.member_name }} = this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}");
+{% endfor %}
+{% endif %}
+}

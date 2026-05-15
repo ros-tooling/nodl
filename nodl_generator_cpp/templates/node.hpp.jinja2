@@ -1,0 +1,71 @@
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#pragma once
+
+#include <memory>
+
+{% for inc in includes %}
+#include <{{ inc }}>
+{% endfor %}
+{% if has_params %}
+#include "{{ target_name }}_params.hpp"
+{% endif %}
+
+class {{ class_name }} : public {{ base_class }}
+{
+public:
+  explicit {{ class_name }}(const rclcpp::NodeOptions & options = rclcpp::NodeOptions{});
+
+  virtual ~{{ class_name }}() = default;
+
+protected:
+{% if has_params %}
+  // --- Parameters (via generate_parameter_library) ---
+  // Declared in initialization order: listener first, then params.
+  {{ params_namespace }}::ParamListener param_listener_;
+  {{ params_namespace }}::Params params_;
+
+{% endif %}
+{% if publishers %}
+  // --- Publishers ---
+{% for pub in publishers %}
+  {{ pub.pub_type }}::SharedPtr {{ pub.member_name }};
+{% endfor %}
+
+{% endif %}
+{% if subscriptions %}
+  // --- Subscription callbacks (pure virtual; implement in derived class) ---
+{% for sub in subscriptions %}
+  virtual void {{ sub.callback_name }}({{ sub.cpp_type }}::ConstSharedPtr msg) = 0;
+{% endfor %}
+
+{% endif %}
+{% if service_servers %}
+  // --- Service server callbacks (pure virtual; implement in derived class) ---
+{% for srv in service_servers %}
+  virtual void {{ srv.callback_name }}(
+    {{ srv.cpp_type }}::Request::SharedPtr request,
+    {{ srv.cpp_type }}::Response::SharedPtr response) = 0;
+{% endfor %}
+
+{% endif %}
+{% if service_clients %}
+  // --- Service clients ---
+{% for cli in service_clients %}
+  rclcpp::Client<{{ cli.cpp_type }}>::SharedPtr {{ cli.member_name }};
+{% endfor %}
+
+{% endif %}
+private:
+{% if subscriptions %}
+  // --- Subscriptions ---
+{% for sub in subscriptions %}
+  rclcpp::Subscription<{{ sub.cpp_type }}>::SharedPtr {{ sub.member_name }};
+{% endfor %}
+{% endif %}
+{% if service_servers %}
+  // --- Service servers ---
+{% for srv in service_servers %}
+  rclcpp::Service<{{ srv.cpp_type }}>::SharedPtr {{ srv.member_name }};
+{% endfor %}
+{% endif %}
+};

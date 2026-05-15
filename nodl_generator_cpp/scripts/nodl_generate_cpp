@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+"""Generate an rclcpp base-node class (.hpp + .cpp) from a NoDL YAML file.
+
+The parameters section of the NoDL document is treated as a
+generate_parameter_library YAML schema.  The generator calls
+generate_parameter_library_py directly to produce the typed parameter header,
+then renders the node base class templates that reference it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+
+# ---------------------------------------------------------------------------
+# Name utilities
+# ---------------------------------------------------------------------------
+
+def _camel_to_snake(name: str) -> str:
+    s = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', name)
+    s = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s)
+    return s.lower()
+
+
+def _snake_to_pascal(name: str) -> str:
+    return ''.join(part.capitalize() for part in name.split('_') if part)
+
+
+def _topic_to_identifier(topic: str) -> str:
+    return re.sub(r'[^a-zA-Z0-9]+', '_', topic.strip('/')).strip('_')
+
+
+# ---------------------------------------------------------------------------
+# ROS type utilities
+# ---------------------------------------------------------------------------
+
+def _ros_type_to_cpp(ros_type: str) -> str:
+    """sensor_msgs/msg/Image -> sensor_msgs::msg::Image"""
+    return ros_type.replace('/', '::')
+
+
+def _ros_type_to_include(ros_type: str) -> str:
+    """sensor_msgs/msg/Image -> sensor_msgs/msg/image.hpp"""
+    parts = ros_type.split('/')
+    parts[-1] = _camel_to_snake(parts[-1])
+    return '/'.join(parts) + '.hpp'
+
+
+# ---------------------------------------------------------------------------
+# QoS utilities
+# ---------------------------------------------------------------------------
+
+def _qos_to_cpp(qos: dict | None) -> str:
+    if not qos:
+        return 'rclcpp::QoS(10)'
+    history = qos.get('history', 'SYSTEM_DEFAULT')
+    depth = qos.get('depth', 10)
+    if history == 'KEEP_ALL':
+        base = 'rclcpp::QoS(rclcpp::KeepAll())'
+    elif history == 'SYSTEM_DEFAULT':
+        base = 'rclcpp::SystemDefaultsQoS()'
+    else:  # KEEP_LAST
+        base = f'rclcpp::QoS({int(depth)})'
+    rel = qos.get('reliability')
+    if rel == 'BEST_EFFORT':
+        base += '.best_effort()'
+    elif rel == 'RELIABLE':
+        base += '.reliable()'
+    dur = qos.get('durability')
+    if dur == 'TRANSIENT_LOCAL':
+        base += '.transient_local()'
+    elif dur == 'VOLATILE':
+        base += '.durability_volatile()'
+    return base
+
+
+# ---------------------------------------------------------------------------
+# generate_parameter_library integration
+# ---------------------------------------------------------------------------
+
+def _write_params_yaml(yaml_path: Path, namespace: str, parameters: dict) -> None:
+    """Write a generate_parameter_library-compatible YAML file.
+
+    The NoDL parameters sub-schema is treated as identical to the
+    generate_parameter_library schema (type, default_value, description,
+    read_only, additional_constraints, validation are all passed through).
+    """
+    try:
+        import yaml
+    except ImportError:
+        sys.exit('PyYAML is required')
+
+    with yaml_path.open('w') as f:
+        yaml.dump({namespace: parameters}, f, default_flow_style=False)
+
+
+def _generate_params_header(params_hpp: Path, params_yaml: Path) -> None:
+    """Call generate_parameter_library_py to produce the typed parameter header."""
+    try:
+        from generate_parameter_library_py.generate_cpp_header import run
+    except ImportError:
+        sys.exit(
+            'generate_parameter_library_py is not importable.\n'
+            'Ensure the package is built and your PYTHONPATH includes its '
+            'site-packages directory.'
+        )
+    run(str(params_hpp), str(params_yaml))
+
+
+# ---------------------------------------------------------------------------
+# Template rendering context
+# ---------------------------------------------------------------------------
+
+def _build_context(nodl_data: dict, target_name: str, lifecycle: bool) -> dict:
+    node_name = target_name
+    class_name = _snake_to_pascal(target_name) + 'Base'
+
+    base_class = (
+        'rclcpp_lifecycle::LifecycleNode' if lifecycle else 'rclcpp::Node'
+    )
+
+    includes: list[str] = []
+    if lifecycle:
+        includes.append('rclcpp_lifecycle/lifecycle_node.hpp')
+        includes.append('rclcpp_lifecycle/lifecycle_publisher.hpp')
+    else:
+        includes.append('rclcpp/rclcpp.hpp')
+
+    parameters: dict = nodl_data.get('parameters') or {}
+    has_params = bool(parameters)
+    params_namespace = target_name
+
+    publishers = []
+    for pub in (nodl_data.get('publishers') or []):
+        ros_type = pub['type']
+        cpp_type = _ros_type_to_cpp(ros_type)
+        inc = _ros_type_to_include(ros_type)
+        if inc not in includes:
+            includes.append(inc)
+        topic_name = pub['name']
+        ident = _topic_to_identifier(topic_name)
+        pub_type = (
+            f'rclcpp_lifecycle::LifecyclePublisher<{cpp_type}>'
+            if lifecycle else
+            f'rclcpp::Publisher<{cpp_type}>'
+        )
+        publishers.append({
+            'topic': topic_name,
+            'cpp_type': cpp_type,
+            'pub_type': pub_type,
+            'member_name': f'pub_{ident}_',
+            'qos_cpp': _qos_to_cpp(pub.get('qos')),
+        })
+
+    subscriptions = []
+    for sub in (nodl_data.get('subscriptions') or []):
+        ros_type = sub['type']
+        cpp_type = _ros_type_to_cpp(ros_type)
+        inc = _ros_type_to_include(ros_type)
+        if inc not in includes:
+            includes.append(inc)
+        topic_name = sub['name']
+        ident = _topic_to_identifier(topic_name)
+        subscriptions.append({
+            'topic': topic_name,
+            'cpp_type': cpp_type,
+            'member_name': f'sub_{ident}_',
+            'callback_name': f'on_{ident}',
+            'qos_cpp': _qos_to_cpp(sub.get('qos')),
+        })
+
+    service_servers = []
+    for srv in (nodl_data.get('service_servers') or []):
+        ros_type = srv['type']
+        cpp_type = _ros_type_to_cpp(ros_type)
+        inc = _ros_type_to_include(ros_type)
+        if inc not in includes:
+            includes.append(inc)
+        ident = _topic_to_identifier(srv['name'])
+        service_servers.append({
+            'name': srv['name'],
+            'cpp_type': cpp_type,
+            'member_name': f'srv_{ident}_',
+            'callback_name': f'on_{ident}',
+        })
+
+    service_clients = []
+    for cli in (nodl_data.get('service_clients') or []):
+        ros_type = cli['type']
+        cpp_type = _ros_type_to_cpp(cli['type'])
+        inc = _ros_type_to_include(ros_type)
+        if inc not in includes:
+            includes.append(inc)
+        ident = _topic_to_identifier(cli['name'])
+        service_clients.append({
+            'name': cli['name'],
+            'cpp_type': cpp_type,
+            'member_name': f'cli_{ident}_',
+        })
+
+    return {
+        'class_name': class_name,
+        'node_name': node_name,
+        'base_class': base_class,
+        'lifecycle': lifecycle,
+        'includes': includes,
+        'has_params': has_params,
+        'params_namespace': params_namespace,
+        'publishers': publishers,
+        'subscriptions': subscriptions,
+        'service_servers': service_servers,
+        'service_clients': service_clients,
+        'target_name': target_name,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Template rendering
+# ---------------------------------------------------------------------------
+
+def _render(templates_dir: Path, template_name: str, context: dict) -> str:
+    try:
+        import jinja2
+    except ImportError:
+        sys.exit('jinja2 is required')
+    loader = jinja2.FileSystemLoader(str(templates_dir))
+    env = jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
+    return env.get_template(template_name).render(**context)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--nodl-file', required=True)
+    parser.add_argument('--output-dir', required=True)
+    parser.add_argument('--target-name', required=True)
+    parser.add_argument('--templates-dir', required=True)
+    parser.add_argument('--lifecycle', action='store_true')
+    args = parser.parse_args()
+
+    try:
+        import yaml
+    except ImportError:
+        sys.exit('PyYAML is required')
+
+    nodl_path = Path(args.nodl_file)
+    if not nodl_path.exists():
+        sys.exit(f'NoDL file not found: {nodl_path}')
+
+    with nodl_path.open() as f:
+        nodl_data = yaml.safe_load(f) or {}
+
+    templates_dir = Path(args.templates_dir)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    context = _build_context(nodl_data, args.target_name, args.lifecycle)
+
+    if context['has_params']:
+        params_yaml = output_dir / f'{args.target_name}_params.yaml'
+        params_hpp = output_dir / f'{args.target_name}_params.hpp'
+        _write_params_yaml(params_yaml, args.target_name, nodl_data['parameters'])
+        _generate_params_header(params_hpp, params_yaml)
+
+    hpp_text = _render(templates_dir, 'node.hpp.jinja2', context)
+    cpp_text = _render(templates_dir, 'node.cpp.jinja2', context)
+
+    (output_dir / f'{args.target_name}.hpp').write_text(hpp_text)
+    (output_dir / f'{args.target_name}.cpp').write_text(cpp_text)
+
+
+if __name__ == '__main__':
+    main()

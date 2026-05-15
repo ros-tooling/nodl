@@ -1,0 +1,37 @@
+# generated from nodl_generator_cpp/nodl_generator_cpp-extras.cmake.in
+
+get_filename_component(_NODL_GENERATOR_CPP_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+
+set(_NODL_GENERATOR_CPP_SCRIPT
+  "${_NODL_GENERATOR_CPP_INSTALL_DIR}/lib/nodl_generator_cpp/nodl_generate_cpp")
+set(_NODL_GENERATOR_CPP_TEMPLATES_DIR
+  "${_NODL_GENERATOR_CPP_INSTALL_DIR}/share/nodl_generator_cpp/templates")
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+# Pull in generate_parameter_library and its runtime deps (fmt, rsl, tcb_span, tl_expected).
+find_package(generate_parameter_library REQUIRED)
+
+# Build a PYTHONPATH that includes site-packages from every prefix in the cmake
+# search path plus AMENT_PREFIX_PATH.  This makes generate_parameter_library_py
+# importable when the generator script runs at build time.
+set(_nodl_pythonpath_dirs "")
+set(_nodl_search_prefixes ${CMAKE_PREFIX_PATH})
+if(DEFINED ENV{AMENT_PREFIX_PATH})
+  string(REPLACE ":" ";" _ament_prefixes "$ENV{AMENT_PREFIX_PATH}")
+  list(APPEND _nodl_search_prefixes ${_ament_prefixes})
+endif()
+list(REMOVE_DUPLICATES _nodl_search_prefixes)
+
+foreach(_prefix ${_nodl_search_prefixes})
+  foreach(_pyver "python3.12" "python3.11" "python3.10" "python3.9")
+    set(_site "${_prefix}/lib/${_pyver}/site-packages")
+    if(EXISTS "${_site}")
+      list(APPEND _nodl_pythonpath_dirs "${_site}")
+    endif()
+  endforeach()
+endforeach()
+list(REMOVE_DUPLICATES _nodl_pythonpath_dirs)
+string(JOIN ":" _NODL_GENERATOR_CPP_EXTRA_PYTHONPATH ${_nodl_pythonpath_dirs})
+
+include("${CMAKE_CURRENT_LIST_DIR}/nodl_generate_cpp.cmake")

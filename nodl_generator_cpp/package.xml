@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>nodl_generator_cpp</name>
+  <version>0.1.0</version>
+  <description>CMake macro to generate an rclcpp base-node class from a NoDL file.</description>
+  <maintainer email="emerson@polymathrobotics.com">Emerson Knapp</maintainer>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>generate_parameter_library</depend>
+  <depend>python3-jinja2</depend>
+  <depend>python3-yaml</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
