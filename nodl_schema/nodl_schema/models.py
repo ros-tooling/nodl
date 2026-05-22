@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, conint, constr
+try:
+    from pydantic.v1 import BaseModel, Extra, Field, conint, constr
+except ImportError:
+    from pydantic import BaseModel, Extra, Field, conint, constr
 
 
 class ScalarType(Enum):
@@ -41,14 +44,6 @@ class ArrayType(Enum):
     int_array = "int_array"
     double_array = "double_array"
     string_array = "string_array"
-
-
-class CustomValidator(RootModel[list[Any] | float | str | bool | None]):
-    root: list[Any] | float | str | bool | None = Field(
-        ...,
-        description="Custom validator with namespace-qualified function name.\nThe function must:\n- Accept rclcpp::Parameter const& as first argument\n- Accept additional arguments matching the YAML specification\n- Return tl::expected<void, std::string> type\n- Be defined in a header file passed to the code generator\n",
-        examples=[None, [1.0, 2.0], ["arg1", "arg2"]],
-    )
 
 
 class History(Enum):
@@ -105,9 +100,9 @@ class QosProfile(BaseModel):
 
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
+    class Config:
+        extra = Extra.forbid
+
     history: History = Field(..., description="History policy.")
     depth: conint(ge=1) | None = Field(
         None, description="Queue depth. Required when history is KEEP_LAST."
@@ -136,14 +131,14 @@ class TopicEndpoint(BaseModel):
 
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    name: constr(pattern=r"^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$") = Field(
+    class Config:
+        extra = Extra.forbid
+
+    name: constr(regex=r"^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$") = Field(
         ..., description="Topic name."
     )
     type: constr(
-        pattern=r"^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$"
+        regex=r"^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$"
     ) = Field(
         ...,
         description="ROS interface type, format package/(msg|srv|action)?/TypeName.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies msg).\n",
@@ -171,14 +166,14 @@ class ServiceEndpoint(BaseModel):
 
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    name: constr(pattern=r"^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$") = Field(
+    class Config:
+        extra = Extra.forbid
+
+    name: constr(regex=r"^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$") = Field(
         ..., description="Service name."
     )
     type: constr(
-        pattern=r"^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$"
+        regex=r"^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$"
     ) = Field(
         ...,
         description="ROS interface type, format package/(msg|srv|action)?/TypeName.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies msg).\n",
@@ -206,14 +201,14 @@ class ActionEndpoint(BaseModel):
 
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    name: constr(pattern=r"^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$") = Field(
+    class Config:
+        extra = Extra.forbid
+
+    name: constr(regex=r"^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$") = Field(
         ..., description="Action name."
     )
     type: constr(
-        pattern=r"^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$"
+        regex=r"^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$"
     ) = Field(
         ...,
         description="ROS interface type, format package/(msg|srv|action)?/TypeName.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies msg).\n",
@@ -238,9 +233,9 @@ class Validation(BaseModel):
 
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
+    class Config:
+        extra = Extra.forbid
+
     bounds__: list[float] | None = Field(
         None,
         alias="bounds<>",
@@ -271,7 +266,7 @@ class Validation(BaseModel):
         description="Single value comparison: [value] or bare value",
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    one_of__: list[list[Any]] | None = Field(
+    one_of__: list[list] | None = Field(
         None,
         alias="one_of<>",
         description="Parameter must be one of the specified values: [[val1, val2, ...]]",
@@ -302,18 +297,18 @@ class Validation(BaseModel):
         description="Single value comparison: [value] or bare value",
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    one_of: list[list[Any]] | None = Field(
+    one_of: list[list] | None = Field(
         None,
         description="Parameter must be one of the specified values: [[val1, val2, ...]]",
         examples=[[["spline", "linear"]], [[0, 1, 2, -1]], [[True, False]]],
     )
-    not_empty__: list[Any] | None = Field(
+    not_empty__: list | None = Field(
         None,
         alias="not_empty<>",
         description="Validator that takes no arguments",
         examples=[None, []],
     )
-    not_empty: list[Any] | None = Field(
+    not_empty: list | None = Field(
         None, description="Validator that takes no arguments", examples=[None, []]
     )
     fixed_size__: list[conint(ge=0)] | conint(ge=0) | None = Field(
@@ -343,13 +338,13 @@ class Validation(BaseModel):
     size_lt: list[conint(ge=0)] | conint(ge=0) | None = Field(
         None, description="Size/length constraint: [length]", examples=[[6], [10], 6]
     )
-    unique__: list[Any] | None = Field(
+    unique__: list | None = Field(
         None,
         alias="unique<>",
         description="Validator that takes no arguments",
         examples=[None, []],
     )
-    subset_of__: list[list[Any]] | None = Field(
+    subset_of__: list[list] | None = Field(
         None,
         alias="subset_of<>",
         description="All array elements must be in the specified set: [[val1, val2, ...]]",
@@ -373,10 +368,10 @@ class Validation(BaseModel):
         description="Single value comparison: [value] or bare value",
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    unique: list[Any] | None = Field(
+    unique: list | None = Field(
         None, description="Validator that takes no arguments", examples=[None, []]
     )
-    subset_of: list[list[Any]] | None = Field(
+    subset_of: list[list] | None = Field(
         None,
         description="All array elements must be in the specified set: [[val1, val2, ...]]",
         examples=[[["x", "y", "z"]], [[1, 2, 3, 4, 5]]],
@@ -399,14 +394,14 @@ class Validation(BaseModel):
 
 
 class ParameterDefinition(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
+    class Config:
+        extra = Extra.forbid
+
     type: (
         ScalarType
         | ArrayType
         | constr(
-            pattern=r"^(string_fixed_[1-9][0-9]*|int_array_fixed_[1-9][0-9]*|double_array_fixed_[1-9][0-9]*|string_array_fixed_[1-9][0-9]*)$"
+            regex=r"^(string_fixed_[1-9][0-9]*|int_array_fixed_[1-9][0-9]*|double_array_fixed_[1-9][0-9]*|string_array_fixed_[1-9][0-9]*)$"
         )
     ) = Field(..., description="The parameter data type")
     default_value: Any | None = Field(
@@ -443,11 +438,11 @@ class NodlDocument(BaseModel):
 
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    nodl_version: Literal[2] = Field(
-        ..., description="NoDL schema major version this document targets."
+    class Config:
+        extra = Extra.forbid
+
+    nodl_version: int = Field(
+        2, const=True, description="NoDL schema major version this document targets."
     )
     description: str | None = Field(
         None, description="Human-readable description of what this node does."

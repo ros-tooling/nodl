@@ -66,15 +66,24 @@ def load_nodl(source: Union[str, bytes, IO]) -> NodlDocument:
         raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
 
     validate(data)
-    return NodlDocument.model_validate(data)
+    # parse_obj is pydantic v1 API, retained as a deprecated alias in v2.
+    # Used so this module works against both rosdep-shipped pydantic v1
+    # (humble/jazzy/kilted) and v2 (lyrical+).
+    return NodlDocument.parse_obj(data)
+
+
+def _to_plain_dict(doc: NodlDocument) -> dict:
+    """Serialize a model to a JSON-compatible dict that drops Nones and unwraps enums.
+
+    Goes via .json() so the result is a plain dict on both pydantic v1 and v2;
+    v2's mode='json' equivalent is not available in v1.
+    """
+    return json.loads(doc.json(exclude_none=True))
 
 
 def dump_nodl(doc: Union[NodlDocument, dict], *, format: str = 'yaml') -> str:
     """Serialize a NodlDocument (or plain dict) to YAML or JSON string."""
-    if isinstance(doc, NodlDocument):
-        data = doc.model_dump(exclude_none=True, mode='json')
-    else:
-        data = doc
+    data = _to_plain_dict(doc) if isinstance(doc, NodlDocument) else doc
     if format == 'json':
         return json.dumps(data, indent=2)
     return yaml.dump(data, default_flow_style=False, allow_unicode=True)

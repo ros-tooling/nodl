@@ -11,7 +11,7 @@ repos:
         name: Regenerate nodl_schema models from JSON schema
         entry: python tools/generate_models.py
         language: python
-        additional_dependencies: [datamodel-code-generator==0.57.0]
+        additional_dependencies: [datamodel-code-generator==0.25.9]
         files: ^(nodl_schema/nodl_schema/schemas/.*\.yaml|tools/generate_models\.py)$
         pass_filenames: false
 
