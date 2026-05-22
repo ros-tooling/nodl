@@ -21,4 +21,5 @@ setup(
         ),
     ],
     zip_safe=True,
+    extras_require={'test': ['pytest']},
 )

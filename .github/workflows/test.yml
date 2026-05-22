@@ -8,15 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  pre_commit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - uses: pre-commit/action@v3.0.1
-
   build_and_test:
     runs-on: ubuntu-latest
     strategy:
@@ -36,7 +27,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
     steps:
-      - uses: ros-tooling/action-ros-ci@v0.3
+      - uses: ros-tooling/action-ros-ci@v0.4
         with:
           package-name: nodl nodl_schema ros2nodl
           target-ros2-distro: ${{ matrix.distro }}
