@@ -235,14 +235,26 @@ def test_string_nodl_version_rejected():
         validate({'nodl_version': '2'})
 
 
-def test_fragments_no_longer_allowed():
-    with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'fragments': [{'ref': 'nodl://pkg/x'}]})
+def test_base_node_accepted():
+    validate({'nodl_version': 2, 'base': 'node'})
 
 
-def test_base_no_longer_allowed():
+def test_base_lifecycle_node_accepted():
+    validate({'nodl_version': 2, 'base': 'lifecycle_node'})
+
+
+def test_base_unknown_rejected():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'base': 'lifecycle_node'})
+        validate({'nodl_version': 2, 'base': 'unknown_base'})
+
+
+def test_fragments_accepted():
+    validate({'nodl_version': 2, 'fragments': [{'ref': 'nodl://pkg/x'}]})
+
+
+def test_fragment_missing_ref_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'fragments': [{'name': 'no_ref'}]})
 
 
 def test_invalid_parameter_type():
