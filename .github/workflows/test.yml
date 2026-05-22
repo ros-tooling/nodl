@@ -7,22 +7,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  generated_files_in_sync:
+  pre_commit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-      - run: pip install datamodel-code-generator==0.57.0
-      - run: python tools/generate_models.py
-      - name: Fail if models.py is stale
-        run: |
-          if ! git diff --exit-code -- nodl_schema/nodl_schema/models.py; then
-            echo "::error::nodl_schema/nodl_schema/models.py is out of sync with the JSON schema."
-            echo "Run tools/generate_models.py locally and commit the result."
-            exit 1
-          fi
+      - uses: pre-commit/action@v3.0.1
 
   build_and_test:
     runs-on: ubuntu-latest
@@ -34,6 +26,10 @@ jobs:
             image: rostooling/setup-ros-docker:ubuntu-jammy-ros-humble-ros-base-latest
           - distro: jazzy
             image: rostooling/setup-ros-docker:ubuntu-noble-ros-jazzy-ros-base-latest
+          - distro: kilted
+            image: rostooling/setup-ros-docker:ubuntu-noble-ros-kilted-ros-base-latest
+          - distro: lyrical
+            image: rostooling/setup-ros-docker:ubuntu-noble-ros-lyrical-ros-base-latest
           - distro: rolling
             image: rostooling/setup-ros-docker:ubuntu-noble-ros-rolling-ros-base-latest
     container:
