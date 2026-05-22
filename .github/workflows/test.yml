@@ -14,25 +14,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: humble
-            image: rostooling/setup-ros-docker:ubuntu-jammy-ros-humble-ros-base-latest
-          - distro: jazzy
-            image: rostooling/setup-ros-docker:ubuntu-noble-ros-jazzy-ros-base-latest
-          - distro: kilted
-            image: rostooling/setup-ros-docker:ubuntu-noble-ros-kilted-ros-base-latest
-          - distro: lyrical
-            image: rostooling/setup-ros-docker:ubuntu-resolute-ros-lyrical-ros-base-latest
-          - distro: rolling
-            image: rostooling/setup-ros-docker:ubuntu-resolute-ros-rolling-ros-base-latest
+          - ros: humble
+            ubuntu: jammy
+          - ros: jazzy
+            ubuntu: noble
+          - ros: kilted
+            ubuntu: noble
+          - ros: lyrical
+            ubuntu: resolute
+          - ros: rolling
+            ubuntu: resolute
     container:
-      image: ${{ matrix.image }}
+      image: rostooling/setup-ros-docker:ubuntu-${{ matrix.ubuntu }}-latest
     steps:
       - uses: ros-tooling/action-ros-ci@v0.4
         with:
           package-name: nodl nodl_schema ros2nodl
-          target-ros2-distro: ${{ matrix.distro }}
+          target-ros2-distro: ${{ matrix.ros }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: colcon-logs-${{ matrix.distro }}
+          name: colcon-logs-${{ matrix.ros }}
           path: ros_ws/log
