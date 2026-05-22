@@ -3,9 +3,11 @@
 <package format="3">
   <name>nodl</name>
   <version>0.0.0</version>
-  <description>Node Definition Language (NoDL) metapackage.</description>
-  <maintainer email="hello@alistairenglish.com">Alistair English</maintainer>
+  <description>ROS 2 Node Definition Language (NoDL) metapackage.</description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
+  <author email="hello@alistairenglish.com">Alistair English</author>
+  <author email="me@emersonknapp.com">Emerson Knapp</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

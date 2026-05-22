@@ -1,12 +1,12 @@
-"""``ros2 nodl validate <files>`` — validate NoDL documents against the schema."""
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+"""``ros2 nodl validate [files...]`` -- validate NoDL documents against the schema."""
 
 import sys
-from pathlib import Path
 
-import yaml
+from jsonschema import ValidationError
 
-from nodl_schema import validate
-
+from nodl_schema import load_nodl
 from ros2nodl.verb import VerbExtension
 
 
@@ -15,23 +15,40 @@ class ValidateVerb(VerbExtension):
 
     def add_arguments(self, parser, cli_name):
         parser.add_argument(
-            "files",
-            nargs="+",
-            type=Path,
-            help="NoDL YAML files to validate.",
+            'files',
+            nargs='*',
+            help='NoDL files to validate. Reads from stdin if none are given.',
         )
 
     def main(self, *, args):
+        if not args.files:
+            return _validate_source(sys.stdin, '<stdin>')
+
         rc = 0
         for path in args.files:
-            with open(path, "r") as f:
-                document = yaml.safe_load(f)
-            errors = validate(document)
-            if errors:
+            try:
+                source = open(path, 'r')
+            except OSError as e:
+                print(f'{path}: {e}', file=sys.stderr)
                 rc = 1
-                print(f"{path}: INVALID", file=sys.stderr)
-                for err in errors:
-                    print(f"  {err}", file=sys.stderr)
-            else:
-                print(f"{path}: ok")
+                continue
+            try:
+                rc |= _validate_source(source, path)
+            finally:
+                source.close()
         return rc
+
+
+def _validate_source(source, label) -> int:
+    try:
+        load_nodl(source)
+    except ValidationError as e:
+        path = ' -> '.join(str(p) for p in e.absolute_path) or '<root>'
+        print(f'{label}: INVALID', file=sys.stderr)
+        print(f'  {path}: {e.message}', file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f'{label}: {e}', file=sys.stderr)
+        return 1
+    print(f'{label}: ok')
+    return 0

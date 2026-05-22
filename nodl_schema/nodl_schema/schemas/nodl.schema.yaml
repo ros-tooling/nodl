@@ -1,4 +1,5 @@
-$schema: https://json-schema.org/draft/2020-12/schema
+---
+$schema: http://json-schema.org/draft-07/schema#
 $id: https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/nodl.schema.yaml
 title: NoDL Node Definition
 description: |
@@ -7,13 +8,12 @@ description: |
   Describes the public ROS interface of a single ROS 2 node:
   parameters, publishers, subscriptions, service servers/clients,
   and action servers/clients. Field names align with rcl_interfaces
-  rosgraph_msgs (Topic, Service, Action) so a NoDL document maps
-  cleanly onto runtime introspection types.
+  and rosgraph_msgs (Topic, Service, Action) so a NoDL document
+  maps cleanly onto runtime introspection types.
 
   Node identity (name, package, namespace) is established by the
   enclosing package and the file's location within it, not declared
   inside the document.
-
 type: object
 additionalProperties: false
 required:
@@ -35,97 +35,82 @@ properties:
       Parameter shape is borrowed from generate_parameter_library
       (see parameter.schema.yaml).
     additionalProperties:
-      $ref: "parameter.schema.yaml#/$defs/parameter_definition"
+      $ref: parameter.schema.yaml#/definitions/parameter_definition
 
   publishers:
     type: array
     description: Topic publishers exposed by this node.
     items:
-      $ref: "#/$defs/topic_endpoint"
+      $ref: '#/definitions/topic_endpoint'
 
   subscriptions:
     type: array
     description: Topic subscriptions consumed by this node.
     items:
-      $ref: "#/$defs/topic_endpoint"
+      $ref: '#/definitions/topic_endpoint'
 
   service_servers:
     type: array
     description: Service servers exposed by this node.
     items:
-      $ref: "#/$defs/service_endpoint"
+      $ref: '#/definitions/service_endpoint'
 
   service_clients:
     type: array
     description: Service clients used by this node.
     items:
-      $ref: "#/$defs/service_endpoint"
+      $ref: '#/definitions/service_endpoint'
 
   action_servers:
     type: array
     description: Action servers exposed by this node.
     items:
-      $ref: "#/$defs/action_endpoint"
+      $ref: '#/definitions/action_endpoint'
 
   action_clients:
     type: array
     description: Action clients used by this node.
     items:
-      $ref: "#/$defs/action_endpoint"
+      $ref: '#/definitions/action_endpoint'
 
-$defs:
-  parameterRef:
-    type: string
-    description: Reference to a declared parameter, of the form ${param:name}.
-    pattern: '^\$\{param:[a-zA-Z_][a-zA-Z0-9_]*\}$'
-
-  templatedName:
+definitions:
+  rosName:
     type: string
     description: |
-      Topic/service/action name. Accepts the three standard ROS name
-      forms — absolute (/foo/bar), relative (foo/bar), and private
-      (~/foo) — and may additionally contain ${param:name} references
-      (resolved from a declared parameter at construction time) or
-      ${for_each_param:name} expansions (declares one endpoint per
-      element of a string_array parameter).
-    pattern: '^[a-zA-Z0-9/_~${}: ]+$'
+      Name of a ROS graph resource (Node, Topic, Service, Action).
+      Accepts the standard name forms -- absolute (/foo/bar),
+      relative (foo/bar), and private (~/foo). Must start with /,
+      ~, or a letter; may contain letters, digits, _, /; and must
+      end with a letter, digit, or _ (not a slash).
+      See https://design.ros2.org/articles/topic_and_service_names.html
+      for more information on names.
+    pattern: ^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$
 
-  rosMessageType:
+  rosType:
     type: string
-    description: ROS message type, format package/msg/TypeName.
-    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/msg/[A-Z][a-zA-Z0-9]*$
+    description: |
+      ROS interface type, format package/(msg|srv|action)?/TypeName.
+      Middle namespace is optional and may be determined by usage
+      context (e.g. a publisher type implies msg).
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$
     examples:
       - std_msgs/msg/String
+      - std_msgs/String
       - geometry_msgs/msg/Twist
-
-  rosServiceType:
-    type: string
-    description: ROS service type, format package/srv/TypeName.
-    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/srv/[A-Z][a-zA-Z0-9]*$
-    examples:
       - std_srvs/srv/Trigger
       - lifecycle_msgs/srv/ChangeState
-
-  rosActionType:
-    type: string
-    description: ROS action type, format package/action/TypeName.
-    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/action/[A-Z][a-zA-Z0-9]*$
-    examples:
       - example_interfaces/action/Fibonacci
       - nav2_msgs/action/NavigateToPose
 
-  qos:
+  qosProfile:
     type: object
     description: |
-      QoS settings. Mirrors rcl_interfaces/QoSProfile field set and
-      naming, but uses string enums in place of RMW integer codes
-      for readability and signed-int nanoseconds in place of
-      builtin_interfaces/Duration for ergonomics — codegen converts
+      QoS profile settings. Mirrors rcl_interfaces/QoSProfile field
+      set and naming, but uses string enums in place of RMW integer
+      codes for readability and signed-int nanoseconds in place of
+      builtin_interfaces/Duration for ergonomics -- codegen converts
       the int to a Duration. UNKNOWN values from the RMW spec are
       excluded; they are only meaningful for runtime observation.
-
-      Any QoS field below may be replaced with a ${param:name}
-      reference to defer resolution to a declared parameter.
     additionalProperties: false
     required:
       - history
@@ -133,56 +118,40 @@ $defs:
     properties:
       history:
         description: History policy.
-        oneOf:
-          - enum: [KEEP_LAST, KEEP_ALL, SYSTEM_DEFAULT]
-          - $ref: "#/$defs/parameterRef"
+        enum: [KEEP_LAST, KEEP_ALL, SYSTEM_DEFAULT]
       depth:
         description: Queue depth. Required when history is KEEP_LAST.
-        oneOf:
-          - type: integer
-            minimum: 1
-          - $ref: "#/$defs/parameterRef"
+        type: integer
+        minimum: 1
       reliability:
         description: Reliability policy.
-        oneOf:
-          - enum: [RELIABLE, BEST_EFFORT, SYSTEM_DEFAULT, BEST_AVAILABLE]
-          - $ref: "#/$defs/parameterRef"
+        enum: [RELIABLE, BEST_EFFORT, SYSTEM_DEFAULT, BEST_AVAILABLE]
       durability:
         description: Durability policy.
-        oneOf:
-          - enum: [TRANSIENT_LOCAL, VOLATILE, SYSTEM_DEFAULT, BEST_AVAILABLE]
-          - $ref: "#/$defs/parameterRef"
+        enum: [TRANSIENT_LOCAL, VOLATILE, SYSTEM_DEFAULT, BEST_AVAILABLE]
       deadline_ns:
         description: |
           Deadline between successive messages, in nanoseconds.
           Zero means no deadline is enforced. Stored as a signed
           64-bit integer (~292 years range).
-        oneOf:
-          - type: integer
-            minimum: 0
-          - $ref: "#/$defs/parameterRef"
+        type: integer
+        minimum: 0
       lifespan_ns:
         description: |
           Maximum age of a message before it is dropped, in
           nanoseconds. Zero means messages never expire.
-        oneOf:
-          - type: integer
-            minimum: 0
-          - $ref: "#/$defs/parameterRef"
+        type: integer
+        minimum: 0
       liveliness:
         description: Liveliness policy.
-        oneOf:
-          - enum: [AUTOMATIC, MANUAL_BY_TOPIC, SYSTEM_DEFAULT, BEST_AVAILABLE]
-          - $ref: "#/$defs/parameterRef"
+        enum: [AUTOMATIC, MANUAL_BY_TOPIC, SYSTEM_DEFAULT, BEST_AVAILABLE]
       liveliness_lease_duration_ns:
         description: |
           Maximum time between liveliness assertions before the
           publisher is considered not alive, in nanoseconds. Zero
           means the lease never expires.
-        oneOf:
-          - type: integer
-            minimum: 0
-          - $ref: "#/$defs/parameterRef"
+        type: integer
+        minimum: 0
     allOf:
       - if:
           properties:
@@ -197,7 +166,7 @@ $defs:
   topic_endpoint:
     type: object
     description: |
-      Topic endpoint — same shape for publishers and subscriptions;
+      Topic endpoint -- same shape for publishers and subscriptions;
       direction is implied by which top-level array contains it.
     additionalProperties: false
     required:
@@ -206,57 +175,55 @@ $defs:
       - qos
     properties:
       name:
-        $ref: "#/$defs/templatedName"
+        $ref: '#/definitions/rosName'
         description: Topic name.
       type:
-        $ref: "#/$defs/rosMessageType"
+        $ref: '#/definitions/rosType'
       qos:
-        $ref: "#/$defs/qos"
+        $ref: '#/definitions/qosProfile'
       description:
         type: string
 
   service_endpoint:
     type: object
     description: |
-      Service endpoint — same shape for servers and clients; direction
-      is implied by which top-level array contains it. request_qos and
-      response_qos are optional (services usually use defaults); when
-      provided they correspond to the underlying request/response
-      topics described by rcl_interfaces/Service.
+      Service endpoint -- same shape for servers and clients;
+      direction is implied by which top-level array contains it.
+      A single qos profile applies; create_service accepts only one
+      QoS input and applies it to both the request and response
+      sides at runtime.
     additionalProperties: false
     required:
       - name
       - type
     properties:
       name:
-        $ref: "#/$defs/templatedName"
+        $ref: '#/definitions/rosName'
         description: Service name.
       type:
-        $ref: "#/$defs/rosServiceType"
-      request_qos:
-        $ref: "#/$defs/qos"
-      response_qos:
-        $ref: "#/$defs/qos"
+        $ref: '#/definitions/rosType'
+      qos:
+        $ref: '#/definitions/qosProfile'
       description:
         type: string
 
   action_endpoint:
     type: object
     description: |
-      Action endpoint — same shape for servers and clients; direction
-      is implied by which top-level array contains it. The underlying
-      decomposition into goal/result/cancel services and feedback/
-      status topics (per rcl_interfaces/Action) is not modelled here;
-      it is an implementation concern.
+      Action endpoint -- same shape for servers and clients;
+      direction is implied by which top-level array contains it.
+      The underlying decomposition into goal/result/cancel services
+      and feedback/status topics (per rcl_interfaces/Action) is not
+      modelled here; it is an implementation concern.
     additionalProperties: false
     required:
       - name
       - type
     properties:
       name:
-        $ref: "#/$defs/templatedName"
+        $ref: '#/definitions/rosName'
         description: Action name.
       type:
-        $ref: "#/$defs/rosActionType"
+        $ref: '#/definitions/rosType'
       description:
         type: string

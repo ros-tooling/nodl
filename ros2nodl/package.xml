@@ -3,13 +3,16 @@
 <package format="3">
   <name>ros2nodl</name>
   <version>0.0.0</version>
-  <description>The ros2 command-line interface for NoDL.</description>
-  <maintainer email="hello@alistairenglish.com">Alistair English</maintainer>
+  <description>ros2cli command entrypoint for NoDL.</description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
+  <author email="hello@alistairenglish.com">Alistair English</author>
+  <author email="me@emersonknapp.com">Emerson Knapp</author>
 
   <depend>nodl_schema</depend>
   <depend>ros2cli</depend>
-  <depend>python3-yaml</depend>
+
+  <test_depend>python3-pytest</test_depend>
 
   <export>
     <build_type>ament_python</build_type>
