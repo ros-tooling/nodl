@@ -1,0 +1,26 @@
+nodl_version: 2
+parameters:
+  use_sim_time:
+    type: bool
+    default_value: false
+    description: Use simulation (clock) time instead of wall time
+
+service_servers:
+  - name: ~/change_state
+    type: lifecycle_msgs/srv/ChangeState
+  - name: ~/get_state
+    type: lifecycle_msgs/srv/GetState
+  - name: ~/get_available_states
+    type: lifecycle_msgs/srv/GetAvailableStates
+  - name: ~/get_available_transitions
+    type: lifecycle_msgs/srv/GetAvailableTransitions
+  - name: ~/get_transition_graph
+    type: lifecycle_msgs/srv/GetTransitionGraph
+
+publishers:
+  - name: ~/transition_event
+    type: lifecycle_msgs/msg/TransitionEvent
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
