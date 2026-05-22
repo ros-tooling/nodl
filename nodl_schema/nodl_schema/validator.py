@@ -55,6 +55,31 @@ def validate(data: dict) -> None:
     _make_validator().validate(data)
 
 
+# Top-level keys that a fragment document must not declare.
+# Fragments are flat ingredients; nested composition is intentionally disallowed in v2.
+_FRAGMENT_FORBIDDEN_KEYS = ('base', 'fragments')
+
+
+def validate_fragment(data: dict) -> None:
+    """Validate a NoDL fragment.
+
+    A fragment must pass the standard schema and additionally must not declare
+    a ``base`` or ``fragments`` key.
+    Nested fragment composition is intentionally disallowed in v2; if a real
+    use case emerges, the constraint can be lifted without a schema change.
+    Raises jsonschema.ValidationError on schema failure or ValueError on a
+    forbidden key.
+    """
+    validate(data)
+    forbidden = [k for k in _FRAGMENT_FORBIDDEN_KEYS if k in data]
+    if forbidden:
+        raise ValueError(
+            'NoDL fragment must not declare '
+            + ', '.join(repr(k) for k in forbidden)
+            + '; nested fragment composition is not supported in v2.'
+        )
+
+
 def load_nodl(source: Union[str, bytes, IO]) -> NodlDocument:
     """Load and validate a NoDL document from a string, bytes, or file-like object.
 
@@ -62,11 +87,22 @@ def load_nodl(source: Union[str, bytes, IO]) -> NodlDocument:
     Raises jsonschema.ValidationError on schema error or pydantic.ValidationError
     on type error.
     """
+    return _load(source, validate)
+
+
+def load_fragment(source: Union[str, bytes, IO]) -> NodlDocument:
+    """Load and validate a NoDL fragment document.
+
+    Same as load_nodl but enforces the no-base / no-fragments constraint.
+    """
+    return _load(source, validate_fragment)
+
+
+def _load(source, validator) -> NodlDocument:
     data = yaml.safe_load(source)
     if not isinstance(data, dict):
         raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
-
-    validate(data)
+    validator(data)
     # parse_obj is pydantic v1 API, retained as a deprecated alias in v2.
     # Used so this module works against both rosdep-shipped pydantic v1
     # (humble/jazzy/kilted) and v2 (lyrical+).
@@ -105,11 +141,19 @@ def main(argv: list[str] | None = None) -> int:
         description='Validate a NoDL file against the schema.',
     )
     parser.add_argument('file', type=Path, help='Path to the NoDL file to validate.')
+    parser.add_argument(
+        '--fragment',
+        action='store_true',
+        help='Validate the file as a fragment (rejects nested base/fragments).',
+    )
     args = parser.parse_args(argv)
 
     try:
         with args.file.open('r') as f:
-            load_nodl(f)
+            if args.fragment:
+                load_fragment(f)
+            else:
+                load_nodl(f)
     except Exception as exc:
         print(f'{args.file}: {exc}', file=sys.stderr)
         return 1

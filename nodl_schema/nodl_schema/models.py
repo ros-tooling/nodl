@@ -14,6 +14,15 @@ except ImportError:
     from pydantic import BaseModel, Extra, Field, conint, constr
 
 
+class Base(Enum):
+    """
+    Built-in ROS 2 base node type this node inherits from.
+    """
+
+    node = 'node'
+    lifecycle_node = 'lifecycle_node'
+
+
 class ScalarType(Enum):
     """
     Scalar types:
@@ -46,6 +55,24 @@ class ArrayType(Enum):
     int_array = 'int_array'
     double_array = 'double_array'
     string_array = 'string_array'
+
+
+class FragmentRef(BaseModel):
+    """
+    Reference to a NoDL fragment.
+    """
+
+    class Config:
+        extra = Extra.forbid
+
+    ref: str = Field(
+        ...,
+        description="'nodl://pkg/name' for ament-index fragments, or a relative file path.\n",
+    )
+    name: Optional[str] = Field(
+        None,
+        description='Optional label for this fragment in documentation and merge order.',
+    )
 
 
 class History(Enum):
@@ -434,6 +461,11 @@ class NodlDocument(BaseModel):
 
     nodl_version: int = Field(2, const=True, description='NoDL schema major version this document targets.')
     description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
+    base: Optional[Base] = Field(None, description='Built-in ROS 2 base node type this node inherits from.')
+    fragments: Optional[list[FragmentRef]] = Field(
+        None,
+        description='NoDL fragments composed into this node (single-level, not recursive).',
+    )
     parameters: Optional[dict[str, ParameterDefinition]] = Field(
         None,
         description='ROS parameters declared by this node, keyed by parameter name.\nParameter shape is borrowed from ``generate_parameter_library``\n(see ``parameter.schema.yaml``).\n',
