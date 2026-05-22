@@ -1,26 +1,35 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-# ament_nodl_register_node(executable
-#   FILE <path>
-#   [PACKAGE <pkg>]    # defaults to ${PROJECT_NAME}
-# )
 #
-# Registers a NoDL composition root (node description file) in the ament
-# resource index under resource type 'nodl_nodes', keyed as
-# '<package>__<executable>'.
+# Register a NoDL document for an executable in the ament resource index.
 #
-# This allows tools like nodl_test and nodl_docgen to discover the NoDL
-# spec for any executable by package and name without requiring hardcoded
-# paths.
+# Publishes the contents of a NoDL file under the ``nodl_nodes`` resource type.
+# The resource key is ``<package>__<executable>``.
+# Tools like ``nodl_test`` and ``nodl_docgen`` use this to locate the spec by package and executable name.
 #
-# The NoDL file content is stored as the resource value so that consumers
-# can retrieve it via:
+# Consumers retrieve the content via::
+#
 #   ament_index_python.packages.get_resource('nodl_nodes', '<pkg>__<exe>')
 #
-# Example:
+# The source file is also installed under ``share/<package>/nodl/`` for direct filesystem access.
+#
+# Example::
+#
 #   ament_nodl_register_node(my_node
 #     FILE nodl/my_node.nodl.yaml
 #   )
+#
+# :param executable_name: name of the executable this NoDL document describes.
+#   Combined with PACKAGE to form the resource key.
+# :type executable_name: string
+# :param FILE: path to the NoDL file describing the executable's interface.
+#   May be absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
+# :type FILE: string
+# :param PACKAGE: package name to use in the resource key.
+#   Defaults to ``${PROJECT_NAME}``.
+# :type PACKAGE: string
+#
+# @public
 #
 function(ament_nodl_register_node executable_name)
   cmake_parse_arguments(_ANN "" "FILE;PACKAGE" "" ${ARGN})

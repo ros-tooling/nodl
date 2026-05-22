@@ -3,9 +3,11 @@
 <package format="3">
   <name>ament_nodl</name>
   <version>0.1.0</version>
-  <description>CMake macros for registering NoDL node descriptions and fragments with the ament index.</description>
-  <maintainer email="emerson@polymathrobotics.com">Emerson Knapp</maintainer>
-  <license>Apache License 2.0</license>
+  <description>CMake macros for registering NoDL documents with the ament index.</description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
+  <license>Apache-2.0</license>
+  <author email="hello@alistairenglish.com">Alistair English</author>
+  <author email="me@emersonknapp.com">Emerson Knapp</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
