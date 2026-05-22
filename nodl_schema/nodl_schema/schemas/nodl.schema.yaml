@@ -28,6 +28,17 @@ properties:
     type: string
     description: Human-readable description of what this node does.
 
+  base:
+    type: string
+    enum: [node, lifecycle_node]
+    description: Built-in ROS 2 base node type this node inherits from.
+
+  fragments:
+    type: array
+    description: NoDL fragments composed into this node (single-level, not recursive).
+    items:
+      $ref: '#/definitions/fragment_ref'
+
   parameters:
     type: object
     description: |
@@ -74,6 +85,20 @@ properties:
       $ref: '#/definitions/action_endpoint'
 
 definitions:
+  fragment_ref:
+    type: object
+    description: Reference to a NoDL fragment.
+    required: [ref]
+    additionalProperties: false
+    properties:
+      ref:
+        type: string
+        description: |
+          'nodl://pkg/name' for ament-index fragments, or a relative file path.
+      name:
+        type: string
+        description: Optional label for this fragment in documentation and merge order.
+
   rosName:
     type: string
     description: |
