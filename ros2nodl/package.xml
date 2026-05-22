@@ -4,7 +4,7 @@
   <name>ros2nodl</name>
   <version>0.0.0</version>
   <description>ros2cli command entrypoint for NoDL.</description>
-  <maintainer email="rosgraphwg@googlegroups.com">ROSGraph Working Group</maintainer>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="hello@alistairenglish.com">Alistair English</author>
   <author email="me@emersonknapp.com">Emerson Knapp</author>
