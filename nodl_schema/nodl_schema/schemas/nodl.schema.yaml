@@ -1,3 +1,4 @@
+---
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/nodl.schema.yaml
 title: NoDL Node Definition
@@ -13,7 +14,6 @@ description: |
   Node identity (name, package, namespace) is established by the
   enclosing package and the file's location within it, not declared
   inside the document.
-
 type: object
 additionalProperties: false
 required:
@@ -35,43 +35,43 @@ properties:
       Parameter shape is borrowed from generate_parameter_library
       (see parameter.schema.yaml).
     additionalProperties:
-      $ref: "parameter.schema.yaml#/$defs/parameter_definition"
+      $ref: parameter.schema.yaml#/$defs/parameter_definition
 
   publishers:
     type: array
     description: Topic publishers exposed by this node.
     items:
-      $ref: "#/$defs/topic_endpoint"
+      $ref: '#/$defs/topic_endpoint'
 
   subscriptions:
     type: array
     description: Topic subscriptions consumed by this node.
     items:
-      $ref: "#/$defs/topic_endpoint"
+      $ref: '#/$defs/topic_endpoint'
 
   service_servers:
     type: array
     description: Service servers exposed by this node.
     items:
-      $ref: "#/$defs/service_endpoint"
+      $ref: '#/$defs/service_endpoint'
 
   service_clients:
     type: array
     description: Service clients used by this node.
     items:
-      $ref: "#/$defs/service_endpoint"
+      $ref: '#/$defs/service_endpoint'
 
   action_servers:
     type: array
     description: Action servers exposed by this node.
     items:
-      $ref: "#/$defs/action_endpoint"
+      $ref: '#/$defs/action_endpoint'
 
   action_clients:
     type: array
     description: Action clients used by this node.
     items:
-      $ref: "#/$defs/action_endpoint"
+      $ref: '#/$defs/action_endpoint'
 
 $defs:
   rosName:
@@ -84,7 +84,7 @@ $defs:
       end with a letter, digit, or _ (not a slash).
       See https://design.ros2.org/articles/topic_and_service_names.html
       for more information on names.
-    pattern: '^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$'
+    pattern: ^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$
 
   rosType:
     type: string
@@ -92,7 +92,7 @@ $defs:
       ROS interface type, format package/(msg|srv|action)?/TypeName.
       Middle namespace is optional and may be determined by usage
       context (e.g. a publisher type implies msg).
-    pattern: '^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$'
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$
     examples:
       - std_msgs/msg/String
       - std_msgs/String
@@ -175,12 +175,12 @@ $defs:
       - qos
     properties:
       name:
-        $ref: "#/$defs/rosName"
+        $ref: '#/$defs/rosName'
         description: Topic name.
       type:
-        $ref: "#/$defs/rosType"
+        $ref: '#/$defs/rosType'
       qos:
-        $ref: "#/$defs/qosProfile"
+        $ref: '#/$defs/qosProfile'
       description:
         type: string
 
@@ -198,12 +198,12 @@ $defs:
       - type
     properties:
       name:
-        $ref: "#/$defs/rosName"
+        $ref: '#/$defs/rosName'
         description: Service name.
       type:
-        $ref: "#/$defs/rosType"
+        $ref: '#/$defs/rosType'
       qos:
-        $ref: "#/$defs/qosProfile"
+        $ref: '#/$defs/qosProfile'
       description:
         type: string
 
@@ -221,9 +221,9 @@ $defs:
       - type
     properties:
       name:
-        $ref: "#/$defs/rosName"
+        $ref: '#/$defs/rosName'
         description: Action name.
       type:
-        $ref: "#/$defs/rosType"
+        $ref: '#/$defs/rosType'
       description:
         type: string
