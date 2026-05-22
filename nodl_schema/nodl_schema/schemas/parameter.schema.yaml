@@ -3,7 +3,7 @@
 # Source: https://github.com/PickNikRobotics/generate_parameter_library
 # If generate_parameter_library adds new features, this schema may need to be updated.
 
-$schema: https://json-schema.org/draft/2020-12/schema
+$schema: http://json-schema.org/draft-07/schema#
 $id: https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/parameter.schema.yaml
 title: ROS 2 Parameter Definition Schema
 description: |
@@ -13,7 +13,7 @@ description: |
   (type, default_value, validation, etc.); composing many parameters
   into a node-level document is left to the consumer.
 
-$defs:
+definitions:
   # Individual parameter definition
   parameter_definition:
     type: object
@@ -22,9 +22,9 @@ $defs:
     additionalProperties: false
     properties:
       type:
-        $ref: '#/$defs/parameter_type'
+        $ref: '#/definitions/parameter_type'
       default_value:
-        $ref: '#/$defs/default_value'
+        $ref: '#/definitions/default_value'
       description:
         type: string
         description: Human-readable description displayed by `ros2 param describe`
@@ -38,15 +38,15 @@ $defs:
         description: Custom constraint metadata (e.g., JSON schema) - not validated by the library
         default: ''
       validation:
-        $ref: '#/$defs/validation'
+        $ref: '#/definitions/validation'
 
   # Supported parameter types
   parameter_type:
     description: The parameter data type
     oneOf:
-      - $ref: '#/$defs/scalar_type'
-      - $ref: '#/$defs/array_type'
-      - $ref: '#/$defs/fixed_size_type'
+      - $ref: '#/definitions/scalar_type'
+      - $ref: '#/definitions/array_type'
+      - $ref: '#/definitions/fixed_size_type'
 
   scalar_type:
     type: string
@@ -117,84 +117,84 @@ $defs:
     properties:
       # Value validators (for scalar numeric types) - with <> suffix
       bounds<>:
-        $ref: '#/$defs/bounds_validator'
+        $ref: '#/definitions/bounds_validator'
       lt<>:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       gt<>:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       lt_eq<>:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       gt_eq<>:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       one_of<>:
-        $ref: '#/$defs/one_of_validator'
+        $ref: '#/definitions/one_of_validator'
 
       # Value validators (for scalar numeric types) - without <> suffix
       bounds:
-        $ref: '#/$defs/bounds_validator'
+        $ref: '#/definitions/bounds_validator'
       lt:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       gt:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       lt_eq:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       gt_eq:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       one_of:
-        $ref: '#/$defs/one_of_validator'
+        $ref: '#/definitions/one_of_validator'
 
       # String validators - with <> suffix
       not_empty<>:
-        $ref: '#/$defs/no_arg_validator'
+        $ref: '#/definitions/no_arg_validator'
 
       # String validators - without <> suffix
       not_empty:
-        $ref: '#/$defs/no_arg_validator'
+        $ref: '#/definitions/no_arg_validator'
 
       # Size validators (for strings and arrays) - with <> suffix
       fixed_size<>:
-        $ref: '#/$defs/size_validator'
+        $ref: '#/definitions/size_validator'
       size_gt<>:
-        $ref: '#/$defs/size_validator'
+        $ref: '#/definitions/size_validator'
       size_lt<>:
-        $ref: '#/$defs/size_validator'
+        $ref: '#/definitions/size_validator'
 
       # Size validators (for strings and arrays) - without <> suffix
       fixed_size:
-        $ref: '#/$defs/size_validator'
+        $ref: '#/definitions/size_validator'
       size_gt:
-        $ref: '#/$defs/size_validator'
+        $ref: '#/definitions/size_validator'
       size_lt:
-        $ref: '#/$defs/size_validator'
+        $ref: '#/definitions/size_validator'
 
       # Array validators - with <> suffix
       unique<>:
-        $ref: '#/$defs/no_arg_validator'
+        $ref: '#/definitions/no_arg_validator'
       subset_of<>:
-        $ref: '#/$defs/subset_of_validator'
+        $ref: '#/definitions/subset_of_validator'
       element_bounds<>:
-        $ref: '#/$defs/bounds_validator'
+        $ref: '#/definitions/bounds_validator'
       lower_element_bounds<>:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       upper_element_bounds<>:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
 
       # Array validators - without <> suffix
       unique:
-        $ref: '#/$defs/no_arg_validator'
+        $ref: '#/definitions/no_arg_validator'
       subset_of:
-        $ref: '#/$defs/subset_of_validator'
+        $ref: '#/definitions/subset_of_validator'
       element_bounds:
-        $ref: '#/$defs/bounds_validator'
+        $ref: '#/definitions/bounds_validator'
       lower_element_bounds:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
       upper_element_bounds:
-        $ref: '#/$defs/comparison_validator'
+        $ref: '#/definitions/comparison_validator'
 
     patternProperties:
       # Custom validators with namespace-qualified names (e.g., "custom_validators::my_func")
       ^[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)+$:
-        $ref: '#/$defs/custom_validator'
+        $ref: '#/definitions/custom_validator'
 
   # Validator argument types
   bounds_validator:

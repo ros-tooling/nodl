@@ -10,12 +10,12 @@ from typing import IO, Union
 
 import yaml
 from jsonschema import RefResolver
-from jsonschema.validators import Draft202012Validator
+from jsonschema.validators import Draft7Validator
 
 from nodl_schema.models import NodlDocument
 
 _schema_cache: dict | None = None
-_validator_cache: Draft202012Validator | None = None
+_validator_cache: Draft7Validator | None = None
 
 
 def _load_resource(name: str) -> dict:
@@ -31,7 +31,7 @@ def load_schema() -> dict:
     return _schema_cache
 
 
-def _make_validator() -> Draft202012Validator:
+def _make_validator() -> Draft7Validator:
     """Build a validator with the parameter schema pre-loaded so $refs resolve."""
     global _validator_cache
     if _validator_cache is None:
@@ -42,7 +42,7 @@ def _make_validator() -> Draft202012Validator:
             param_schema.get('$id', ''): param_schema,
         }
         resolver = RefResolver.from_schema(schema, store=store)
-        _validator_cache = Draft202012Validator(schema, resolver=resolver)
+        _validator_cache = Draft7Validator(schema, resolver=resolver)
     return _validator_cache
 
 

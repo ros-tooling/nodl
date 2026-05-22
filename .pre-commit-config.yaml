@@ -11,7 +11,7 @@ repos:
         name: Regenerate nodl_schema models from JSON schema
         entry: python tools/generate_models.py
         language: python
-        additional_dependencies: [datamodel-code-generator==0.25.9]
+        additional_dependencies: [datamodel-code-generator==0.25.9, ruff==0.11.5]
         files: ^(nodl_schema/nodl_schema/schemas/.*\.yaml|tools/generate_models\.py)$
         pass_filenames: false
 
@@ -24,12 +24,10 @@ repos:
       # Enforce and insert copyright headers in source code for the project's license
       - id: polymath-copyright
         args: [--license, Apache-2.0, --copyright-org, 'Open Source Robotics Foundation, Inc.', --reuse-style]
-        exclude: ^nodl_schema/nodl_schema/models.py
 
       # Implementation languages we use in NoDL packages
       - id: polymath-cpp
       - id: polymath-python
-        exclude: ^nodl_schema/nodl_schema/models.py
       - id: polymath-shell
       - id: polymath-cmake
 

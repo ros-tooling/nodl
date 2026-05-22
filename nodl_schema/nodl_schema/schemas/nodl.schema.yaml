@@ -1,5 +1,5 @@
 ---
-$schema: https://json-schema.org/draft/2020-12/schema
+$schema: http://json-schema.org/draft-07/schema#
 $id: https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/nodl.schema.yaml
 title: NoDL Node Definition
 description: |
@@ -35,45 +35,45 @@ properties:
       Parameter shape is borrowed from generate_parameter_library
       (see parameter.schema.yaml).
     additionalProperties:
-      $ref: parameter.schema.yaml#/$defs/parameter_definition
+      $ref: parameter.schema.yaml#/definitions/parameter_definition
 
   publishers:
     type: array
     description: Topic publishers exposed by this node.
     items:
-      $ref: '#/$defs/topic_endpoint'
+      $ref: '#/definitions/topic_endpoint'
 
   subscriptions:
     type: array
     description: Topic subscriptions consumed by this node.
     items:
-      $ref: '#/$defs/topic_endpoint'
+      $ref: '#/definitions/topic_endpoint'
 
   service_servers:
     type: array
     description: Service servers exposed by this node.
     items:
-      $ref: '#/$defs/service_endpoint'
+      $ref: '#/definitions/service_endpoint'
 
   service_clients:
     type: array
     description: Service clients used by this node.
     items:
-      $ref: '#/$defs/service_endpoint'
+      $ref: '#/definitions/service_endpoint'
 
   action_servers:
     type: array
     description: Action servers exposed by this node.
     items:
-      $ref: '#/$defs/action_endpoint'
+      $ref: '#/definitions/action_endpoint'
 
   action_clients:
     type: array
     description: Action clients used by this node.
     items:
-      $ref: '#/$defs/action_endpoint'
+      $ref: '#/definitions/action_endpoint'
 
-$defs:
+definitions:
   rosName:
     type: string
     description: |
@@ -175,12 +175,12 @@ $defs:
       - qos
     properties:
       name:
-        $ref: '#/$defs/rosName'
+        $ref: '#/definitions/rosName'
         description: Topic name.
       type:
-        $ref: '#/$defs/rosType'
+        $ref: '#/definitions/rosType'
       qos:
-        $ref: '#/$defs/qosProfile'
+        $ref: '#/definitions/qosProfile'
       description:
         type: string
 
@@ -198,12 +198,12 @@ $defs:
       - type
     properties:
       name:
-        $ref: '#/$defs/rosName'
+        $ref: '#/definitions/rosName'
         description: Service name.
       type:
-        $ref: '#/$defs/rosType'
+        $ref: '#/definitions/rosType'
       qos:
-        $ref: '#/$defs/qosProfile'
+        $ref: '#/definitions/qosProfile'
       description:
         type: string
 
@@ -221,9 +221,9 @@ $defs:
       - type
     properties:
       name:
-        $ref: '#/$defs/rosName'
+        $ref: '#/definitions/rosName'
         description: Action name.
       type:
-        $ref: '#/$defs/rosType'
+        $ref: '#/definitions/rosType'
       description:
         type: string
