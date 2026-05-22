@@ -5,15 +5,25 @@ repos:
     hooks:
       - id: dco-sign-off
 
+  - repo: local
+    hooks:
+      - id: generate-nodl-models
+        name: Regenerate nodl_schema models from JSON schema
+        entry: python tools/generate_models.py
+        language: python
+        additional_dependencies: [datamodel-code-generator==0.25.9, ruff==0.11.5]
+        files: ^(nodl_schema/nodl_schema/schemas/.*\.yaml|tools/generate_models\.py)$
+        pass_filenames: false
+
   - repo: https://github.com/polymathrobotics/polymath_code_standard
-    rev: v2.0.1
+    rev: v2.1.3
     hooks:
       # Basic checks and fixes that apply to any text file and the git repository itself
       - id: polymath-general
 
       # Enforce and insert copyright headers in source code for the project's license
       - id: polymath-copyright
-        args: [--license, Apache-2.0, --copyright-org, 'Open Source Robotics Foundation, Inc.']
+        args: [--license, Apache-2.0, --copyright-org, 'Open Source Robotics Foundation, Inc.', --reuse-style]
 
       # Implementation languages we use in NoDL packages
       - id: polymath-cpp
