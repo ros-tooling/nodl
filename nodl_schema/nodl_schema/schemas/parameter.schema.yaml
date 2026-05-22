@@ -275,7 +275,7 @@ $defs:
       - type: array
         maxItems: 0
     examples:
-      - 
+      -
       - []
 
   custom_validator:
@@ -293,6 +293,6 @@ $defs:
       - type: string
       - type: boolean
     examples:
-      - 
+      -
       - [1.0, 2.0]
       - [arg1, arg2]
