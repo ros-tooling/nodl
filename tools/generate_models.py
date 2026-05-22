@@ -126,7 +126,6 @@ def main() -> int:
         '3.10',
         '--use-schema-description',
         '--use-standard-collections',
-        '--use-union-operator',
         '--collapse-root-models',
         '--class-name',
         'NodlDocument',

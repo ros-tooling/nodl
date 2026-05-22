@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Union
 
 try:
     from pydantic.v1 import BaseModel, Extra, Field, conint, constr
@@ -106,19 +106,19 @@ class QosProfile(BaseModel):
         extra = Extra.forbid
 
     history: History = Field(..., description='History policy.')
-    depth: conint(ge=1) | None = Field(None, description='Queue depth. Required when history is KEEP_LAST.')
+    depth: Optional[conint(ge=1)] = Field(None, description='Queue depth. Required when history is KEEP_LAST.')
     reliability: Reliability = Field(..., description='Reliability policy.')
-    durability: Durability | None = Field(None, description='Durability policy.')
-    deadline_ns: conint(ge=0) | None = Field(
+    durability: Optional[Durability] = Field(None, description='Durability policy.')
+    deadline_ns: Optional[conint(ge=0)] = Field(
         None,
         description='Deadline between successive messages, in nanoseconds.\nZero means no deadline is enforced. Stored as a signed\n64-bit integer (~292 years range).\n',
     )
-    lifespan_ns: conint(ge=0) | None = Field(
+    lifespan_ns: Optional[conint(ge=0)] = Field(
         None,
         description='Maximum age of a message before it is dropped, in\nnanoseconds. Zero means messages never expire.\n',
     )
-    liveliness: Liveliness | None = Field(None, description='Liveliness policy.')
-    liveliness_lease_duration_ns: conint(ge=0) | None = Field(
+    liveliness: Optional[Liveliness] = Field(None, description='Liveliness policy.')
+    liveliness_lease_duration_ns: Optional[conint(ge=0)] = Field(
         None,
         description='Maximum time between liveliness assertions before the\npublisher is considered not alive, in nanoseconds. Zero\nmeans the lease never expires.\n',
     )
@@ -149,7 +149,7 @@ class TopicEndpoint(BaseModel):
         ],
     )
     qos: QosProfile
-    description: str | None = None
+    description: Optional[str] = None
 
 
 class ServiceEndpoint(BaseModel):
@@ -179,8 +179,8 @@ class ServiceEndpoint(BaseModel):
             'nav2_msgs/action/NavigateToPose',
         ],
     )
-    qos: QosProfile | None = None
-    description: str | None = None
+    qos: Optional[QosProfile] = None
+    description: Optional[str] = None
 
 
 class ActionEndpoint(BaseModel):
@@ -210,7 +210,7 @@ class ActionEndpoint(BaseModel):
             'nav2_msgs/action/NavigateToPose',
         ],
     )
-    description: str | None = None
+    description: Optional[str] = None
 
 
 class Validation(BaseModel):
@@ -224,153 +224,153 @@ class Validation(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    bounds__: list[float] | None = Field(
+    bounds__: Optional[list[float]] = Field(
         None,
         alias='bounds<>',
         description='Inclusive bounds checking: [lower, upper]',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
-    lt__: list[float] | float | None = Field(
+    lt__: Optional[Union[list[float], float]] = Field(
         None,
         alias='lt<>',
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    gt__: list[float] | float | None = Field(
+    gt__: Optional[Union[list[float], float]] = Field(
         None,
         alias='gt<>',
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    lt_eq__: list[float] | float | None = Field(
+    lt_eq__: Optional[Union[list[float], float]] = Field(
         None,
         alias='lt_eq<>',
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    gt_eq__: list[float] | float | None = Field(
+    gt_eq__: Optional[Union[list[float], float]] = Field(
         None,
         alias='gt_eq<>',
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    one_of__: list[list] | None = Field(
+    one_of__: Optional[list[list]] = Field(
         None,
         alias='one_of<>',
         description='Parameter must be one of the specified values: [[val1, val2, ...]]',
         examples=[[['spline', 'linear']], [[0, 1, 2, -1]], [[True, False]]],
     )
-    bounds: list[float] | None = Field(
+    bounds: Optional[list[float]] = Field(
         None,
         description='Inclusive bounds checking: [lower, upper]',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
-    lt: list[float] | float | None = Field(
+    lt: Optional[Union[list[float], float]] = Field(
         None,
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    gt: list[float] | float | None = Field(
+    gt: Optional[Union[list[float], float]] = Field(
         None,
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    lt_eq: list[float] | float | None = Field(
+    lt_eq: Optional[Union[list[float], float]] = Field(
         None,
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    gt_eq: list[float] | float | None = Field(
+    gt_eq: Optional[Union[list[float], float]] = Field(
         None,
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    one_of: list[list] | None = Field(
+    one_of: Optional[list[list]] = Field(
         None,
         description='Parameter must be one of the specified values: [[val1, val2, ...]]',
         examples=[[['spline', 'linear']], [[0, 1, 2, -1]], [[True, False]]],
     )
-    not_empty__: list | None = Field(
+    not_empty__: Optional[list] = Field(
         None,
         alias='not_empty<>',
         description='Validator that takes no arguments',
         examples=[None, []],
     )
-    not_empty: list | None = Field(None, description='Validator that takes no arguments', examples=[None, []])
-    fixed_size__: list[conint(ge=0)] | conint(ge=0) | None = Field(
+    not_empty: Optional[list] = Field(None, description='Validator that takes no arguments', examples=[None, []])
+    fixed_size__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None,
         alias='fixed_size<>',
         description='Size/length constraint: [length]',
         examples=[[6], [10], 6],
     )
-    size_gt__: list[conint(ge=0)] | conint(ge=0) | None = Field(
+    size_gt__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None,
         alias='size_gt<>',
         description='Size/length constraint: [length]',
         examples=[[6], [10], 6],
     )
-    size_lt__: list[conint(ge=0)] | conint(ge=0) | None = Field(
+    size_lt__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None,
         alias='size_lt<>',
         description='Size/length constraint: [length]',
         examples=[[6], [10], 6],
     )
-    fixed_size: list[conint(ge=0)] | conint(ge=0) | None = Field(
+    fixed_size: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None, description='Size/length constraint: [length]', examples=[[6], [10], 6]
     )
-    size_gt: list[conint(ge=0)] | conint(ge=0) | None = Field(
+    size_gt: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None, description='Size/length constraint: [length]', examples=[[6], [10], 6]
     )
-    size_lt: list[conint(ge=0)] | conint(ge=0) | None = Field(
+    size_lt: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None, description='Size/length constraint: [length]', examples=[[6], [10], 6]
     )
-    unique__: list | None = Field(
+    unique__: Optional[list] = Field(
         None,
         alias='unique<>',
         description='Validator that takes no arguments',
         examples=[None, []],
     )
-    subset_of__: list[list] | None = Field(
+    subset_of__: Optional[list[list]] = Field(
         None,
         alias='subset_of<>',
         description='All array elements must be in the specified set: [[val1, val2, ...]]',
         examples=[[['x', 'y', 'z']], [[1, 2, 3, 4, 5]]],
     )
-    element_bounds__: list[float] | None = Field(
+    element_bounds__: Optional[list[float]] = Field(
         None,
         alias='element_bounds<>',
         description='Inclusive bounds checking: [lower, upper]',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
-    lower_element_bounds__: list[float] | float | None = Field(
+    lower_element_bounds__: Optional[Union[list[float], float]] = Field(
         None,
         alias='lower_element_bounds<>',
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    upper_element_bounds__: list[float] | float | None = Field(
+    upper_element_bounds__: Optional[Union[list[float], float]] = Field(
         None,
         alias='upper_element_bounds<>',
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    unique: list | None = Field(None, description='Validator that takes no arguments', examples=[None, []])
-    subset_of: list[list] | None = Field(
+    unique: Optional[list] = Field(None, description='Validator that takes no arguments', examples=[None, []])
+    subset_of: Optional[list[list]] = Field(
         None,
         description='All array elements must be in the specified set: [[val1, val2, ...]]',
         examples=[[['x', 'y', 'z']], [[1, 2, 3, 4, 5]]],
     )
-    element_bounds: list[float] | None = Field(
+    element_bounds: Optional[list[float]] = Field(
         None,
         description='Inclusive bounds checking: [lower, upper]',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
-    lower_element_bounds: list[float] | float | None = Field(
+    lower_element_bounds: Optional[Union[list[float], float]] = Field(
         None,
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    upper_element_bounds: list[float] | float | None = Field(
+    upper_element_bounds: Optional[Union[list[float], float]] = Field(
         None,
         description='Single value comparison: [value] or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
@@ -381,27 +381,27 @@ class ParameterDefinition(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    type: (
-        ScalarType
-        | ArrayType
-        | constr(
+    type: Union[
+        ScalarType,
+        ArrayType,
+        constr(
             regex=r'^(string_fixed_[1-9][0-9]*|int_array_fixed_[1-9][0-9]*|double_array_fixed_[1-9][0-9]*|string_array_fixed_[1-9][0-9]*)$'
-        )
-    ) = Field(..., description='The parameter data type')
-    default_value: Any | None = Field(
+        ),
+    ] = Field(..., description='The parameter data type')
+    default_value: Optional[Any] = Field(
         None,
         description='Initial value for the parameter. Type must match the declared parameter type.\nIf omitted, the parameter becomes required at initialization.\nSupports: bool, int, double (including NaN, Inf, scientific notation), string,\nand arrays of these types.\n',
     )
-    description: str | None = Field('', description='Human-readable description displayed by `ros2 param describe`')
-    read_only: bool | None = Field(
+    description: Optional[str] = Field('', description='Human-readable description displayed by `ros2 param describe`')
+    read_only: Optional[bool] = Field(
         False,
         description='If true, parameter can only be set at launch, not dynamically',
     )
-    additional_constraints: str | None = Field(
+    additional_constraints: Optional[str] = Field(
         '',
         description='Custom constraint metadata (e.g., JSON schema) - not validated by the library',
     )
-    validation: Validation | None = None
+    validation: Optional[Validation] = None
 
 
 class NodlDocument(BaseModel):
@@ -424,14 +424,14 @@ class NodlDocument(BaseModel):
         extra = Extra.forbid
 
     nodl_version: int = Field(2, const=True, description='NoDL schema major version this document targets.')
-    description: str | None = Field(None, description='Human-readable description of what this node does.')
-    parameters: dict[str, ParameterDefinition] | None = Field(
+    description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
+    parameters: Optional[dict[str, ParameterDefinition]] = Field(
         None,
         description='ROS parameters declared by this node, keyed by parameter name.\nParameter shape is borrowed from generate_parameter_library\n(see parameter.schema.yaml).\n',
     )
-    publishers: list[TopicEndpoint] | None = Field(None, description='Topic publishers exposed by this node.')
-    subscriptions: list[TopicEndpoint] | None = Field(None, description='Topic subscriptions consumed by this node.')
-    service_servers: list[ServiceEndpoint] | None = Field(None, description='Service servers exposed by this node.')
-    service_clients: list[ServiceEndpoint] | None = Field(None, description='Service clients used by this node.')
-    action_servers: list[ActionEndpoint] | None = Field(None, description='Action servers exposed by this node.')
-    action_clients: list[ActionEndpoint] | None = Field(None, description='Action clients used by this node.')
+    publishers: Optional[list[TopicEndpoint]] = Field(None, description='Topic publishers exposed by this node.')
+    subscriptions: Optional[list[TopicEndpoint]] = Field(None, description='Topic subscriptions consumed by this node.')
+    service_servers: Optional[list[ServiceEndpoint]] = Field(None, description='Service servers exposed by this node.')
+    service_clients: Optional[list[ServiceEndpoint]] = Field(None, description='Service clients used by this node.')
+    action_servers: Optional[list[ActionEndpoint]] = Field(None, description='Action servers exposed by this node.')
+    action_clients: Optional[list[ActionEndpoint]] = Field(None, description='Action clients used by this node.')
