@@ -49,19 +49,13 @@ function(ament_nodl_register_node executable_name)
       "ament_nodl_register_node: file not found at configure time: ${_abs_file}")
   endif()
 
-  file(READ "${_abs_file}" _nodl_content)
-
-  set(_resource_key "${_ANN_PACKAGE}__${executable_name}")
-  set(_marker_dir
-    "${CMAKE_CURRENT_BINARY_DIR}/ament_nodl/nodl_nodes")
-  file(MAKE_DIRECTORY "${_marker_dir}")
-  file(WRITE "${_marker_dir}/${_resource_key}" "${_nodl_content}")
-
+  # Both installs reference the source file directly so they pick up its
+  # current bytes at install time, not a snapshot from configure time.
   install(
-    FILES "${_marker_dir}/${_resource_key}"
-    DESTINATION "share/ament_index/resource_index/nodl_nodes")
+    FILES "${_abs_file}"
+    DESTINATION "share/ament_index/resource_index/nodl_nodes"
+    RENAME "${_ANN_PACKAGE}__${executable_name}")
 
-  # Also install the source file under the package share directory.
   install(
     FILES "${_abs_file}"
     DESTINATION "share/${_ANN_PACKAGE}/nodl")
