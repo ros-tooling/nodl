@@ -11,6 +11,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # Pull in generate_parameter_library and its runtime deps (fmt, rsl, tcb_span, tl_expected).
 find_package(generate_parameter_library REQUIRED)
+find_package(parameter_traits REQUIRED)
 
 # Build a PYTHONPATH that includes site-packages from every prefix in the cmake
 # search path plus AMENT_PREFIX_PATH.  This makes generate_parameter_library_py

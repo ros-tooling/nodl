@@ -12,6 +12,7 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>generate_parameter_library</depend>
+  <depend>parameter_traits</depend>
   <depend>python3-jinja2</depend>
   <depend>python3-yaml</depend>
 

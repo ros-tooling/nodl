@@ -67,5 +67,6 @@ macro(nodl_generate_cpp target nodl_file)
     tcb_span::tcb_span
     tl::expected
     tl_expected::tl_expected
+    parameter_traits::parameter_traits
   )
 endmacro()
