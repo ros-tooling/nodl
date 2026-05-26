@@ -9,12 +9,18 @@ tree without re-invoking CMake.
 
 from pathlib import Path
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
 from ament_index_python.resources import get_resource
 
 
 def _share(pkg: str = 'test_ament_nodl') -> Path:
-    return Path(get_package_share_directory('test_ament_nodl'))
+    # Real packages resolve through the ament index.
+    # Virtual packages used only as a PACKAGE override aren't registered, so we
+    # resolve them as siblings under the registering package's install prefix.
+    try:
+        return Path(get_package_share_directory(pkg))
+    except PackageNotFoundError:
+        return Path(get_package_share_directory('test_ament_nodl')).parent / pkg
 
 
 # ---------------------------------------------------------------------------
