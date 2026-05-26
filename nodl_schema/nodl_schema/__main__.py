@@ -2,10 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Entry point for ``python -m nodl_schema``.
 
-Delegates to nodl_schema.validator.main so the CLI logic lives next to the
-library functions it exercises. Kept as a separate module so ``python -m
-nodl_schema`` does not double-import nodl_schema.validator
-(which __init__.py already pulls in) and emit a RuntimeWarning.
+Delegates to nodl_schema.validator.main.
 """
 
 import sys

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import importlib.resources as ir
 import json
+from pathlib import Path
 from typing import IO, Union
 
 import yaml
@@ -103,17 +104,15 @@ def main(argv: list[str] | None = None) -> int:
         prog='python -m nodl_schema',
         description='Validate a NoDL file against the schema.',
     )
-    parser.add_argument('file', help='Path to the NoDL file to validate.')
+    parser.add_argument('file', type=Path, help='Path to the NoDL file to validate.')
     args = parser.parse_args(argv)
 
     try:
-        with open(args.file, 'r', encoding='utf-8') as f:
-            data = yaml.safe_load(f)
-        if not isinstance(data, dict):
-            raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
-        validate(data)
+        with args.file.open('r') as f:
+            load_nodl(f)
     except Exception as exc:
         print(f'{args.file}: {exc}', file=sys.stderr)
         return 1
+
     print(f'{args.file}: ok')
     return 0

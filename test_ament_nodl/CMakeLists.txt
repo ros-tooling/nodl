@@ -9,7 +9,7 @@ find_package(ament_nodl REQUIRED)
 # Default PACKAGE resolves to ${PROJECT_NAME}.
 ament_nodl_register_node(basic_node FILE test/fixtures/basic_node.nodl.yaml)
 
-# Explicit PACKAGE override; the resource key and install destination both pick it up.
+# Explicit PACKAGE override. The resource key and install destination both pick it up.
 ament_nodl_register_node(custom_exe
   FILE test/fixtures/alt_pkg_node.nodl.yaml
   PACKAGE custom_pkg)

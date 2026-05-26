@@ -32,16 +32,16 @@
 # @public
 #
 function(ament_nodl_register_node executable_name)
-  cmake_parse_arguments(_ANN "" "FILE;PACKAGE" "" ${ARGN})
+  cmake_parse_arguments(_ARGS "" "FILE;PACKAGE" "" ${ARGN})
 
-  if(NOT _ANN_FILE)
+  if(NOT _ARGS_FILE)
     message(FATAL_ERROR "ament_nodl_register_node: FILE is required")
   endif()
-  if(NOT _ANN_PACKAGE)
-    set(_ANN_PACKAGE "${PROJECT_NAME}")
+  if(NOT _ARGS_PACKAGE)
+    set(_ARGS_PACKAGE "${PROJECT_NAME}")
   endif()
 
-  get_filename_component(_abs_file "${_ANN_FILE}" ABSOLUTE
+  get_filename_component(_abs_file "${_ARGS_FILE}" ABSOLUTE
     BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
   if(NOT EXISTS "${_abs_file}")
@@ -49,32 +49,31 @@ function(ament_nodl_register_node executable_name)
       "ament_nodl_register_node: file not found at configure time: ${_abs_file}")
   endif()
 
-  # Validate the file at build time so authoring errors surface during the
-  # downstream package's build, not at runtime.
-  # ninja/make re-runs this only when ${_abs_file} changes.
+  # Validate the file at build time so authoring errors surface when registering, not downstream when consuming.
+  # This only runs when ${_abs_file} changes.
   set(_stamp_dir "${CMAKE_CURRENT_BINARY_DIR}/ament_nodl/nodl_nodes")
-  set(_stamp "${_stamp_dir}/${_ANN_PACKAGE}__${executable_name}.valid.stamp")
+  set(_stamp "${_stamp_dir}/${_ARGS_PACKAGE}__${executable_name}.valid.stamp")
   file(MAKE_DIRECTORY "${_stamp_dir}")
   add_custom_command(
     OUTPUT "${_stamp}"
     DEPENDS "${_abs_file}"
     COMMAND "${Python3_EXECUTABLE}" -m nodl_schema "${_abs_file}"
     COMMAND "${CMAKE_COMMAND}" -E touch "${_stamp}"
-    COMMENT "Validating NoDL node ${_ANN_PACKAGE}/${executable_name}"
+    COMMENT "Validating NoDL node ${_ARGS_PACKAGE}/${executable_name}"
     VERBATIM
   )
-  add_custom_target(_ament_nodl_validate_node_${_ANN_PACKAGE}__${executable_name} ALL
+  add_custom_target(_ament_nodl_validate_node_${_ARGS_PACKAGE}__${executable_name} ALL
     DEPENDS "${_stamp}"
   )
 
-  # Both installs reference the source file directly so they pick up its
-  # current bytes at install time, not a snapshot from configure time.
+  # Install to ament index
   install(
     FILES "${_abs_file}"
     DESTINATION "share/ament_index/resource_index/nodl_nodes"
-    RENAME "${_ANN_PACKAGE}__${executable_name}")
+    RENAME "${_ARGS_PACKAGE}__${executable_name}")
 
+  # Install to package's share directory
   install(
     FILES "${_abs_file}"
-    DESTINATION "share/${_ANN_PACKAGE}/nodl")
+    DESTINATION "share/${_ARGS_PACKAGE}/nodl")
 endfunction()

@@ -10,8 +10,6 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <!-- nodl_schema provides the validator (python -m nodl_schema.validator) -->
-  <!-- that the register_* macros invoke at downstream-build time. -->
   <exec_depend>nodl_schema</exec_depend>
 
   <export>
