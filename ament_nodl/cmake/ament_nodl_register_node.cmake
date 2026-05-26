@@ -49,6 +49,24 @@ function(ament_nodl_register_node executable_name)
       "ament_nodl_register_node: file not found at configure time: ${_abs_file}")
   endif()
 
+  # Validate the file at build time so authoring errors surface during the
+  # downstream package's build, not at runtime.
+  # ninja/make re-runs this only when ${_abs_file} changes.
+  set(_stamp_dir "${CMAKE_CURRENT_BINARY_DIR}/ament_nodl/nodl_nodes")
+  set(_stamp "${_stamp_dir}/${_ANN_PACKAGE}__${executable_name}.valid.stamp")
+  file(MAKE_DIRECTORY "${_stamp_dir}")
+  add_custom_command(
+    OUTPUT "${_stamp}"
+    DEPENDS "${_abs_file}"
+    COMMAND "${Python3_EXECUTABLE}" -m nodl_schema "${_abs_file}"
+    COMMAND "${CMAKE_COMMAND}" -E touch "${_stamp}"
+    COMMENT "Validating NoDL node ${_ANN_PACKAGE}/${executable_name}"
+    VERBATIM
+  )
+  add_custom_target(_ament_nodl_validate_node_${_ANN_PACKAGE}__${executable_name} ALL
+    DEPENDS "${_stamp}"
+  )
+
   # Both installs reference the source file directly so they pick up its
   # current bytes at install time, not a snapshot from configure time.
   install(
