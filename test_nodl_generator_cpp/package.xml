@@ -12,6 +12,7 @@
 
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
+  <depend>example_interfaces</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
 

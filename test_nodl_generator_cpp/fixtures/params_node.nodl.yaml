@@ -12,17 +12,3 @@ parameters:
     type: bool
     default_value: true
     read_only: true
-publishers:
-  - name: /output
-    type: std_msgs/msg/String
-    qos:
-      history: KEEP_LAST
-      depth: 10
-      reliability: RELIABLE
-subscriptions:
-  - name: /input
-    type: std_msgs/msg/String
-    qos:
-      history: KEEP_LAST
-      depth: 5
-      reliability: BEST_EFFORT

@@ -1,0 +1,7 @@
+nodl_version: 2
+service_servers:
+  - name: /add
+    type: example_interfaces/srv/AddTwoInts
+service_clients:
+  - name: /delegate_add
+    type: example_interfaces/srv/AddTwoInts
