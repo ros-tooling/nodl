@@ -1,19 +1,19 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>nodl</name>
+  <name>test_ament_nodl</name>
   <version>0.0.0</version>
-  <description>ROS 2 Node Definition Language (NoDL) metapackage.</description>
+  <description>Integration tests for the ament_nodl CMake macros.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
-  <author email="hello@alistairenglish.com">Alistair English</author>
   <author email="me@emersonknapp.com">Emerson Knapp</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_nodl</buildtool_depend>
 
-  <exec_depend>ament_nodl</exec_depend>
-  <exec_depend>nodl_schema</exec_depend>
-  <exec_depend>ros2nodl</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_index_python</test_depend>
+  <test_depend>python3-pytest</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

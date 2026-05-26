@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import importlib.resources as ir
 import json
+from pathlib import Path
 from typing import IO, Union
 
 import yaml
@@ -87,3 +88,31 @@ def dump_nodl(doc: Union[NodlDocument, dict], *, format: str = 'yaml') -> str:
     if format == 'json':
         return json.dumps(data, indent=2)
     return yaml.dump(data, default_flow_style=False, allow_unicode=True)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """``python -m nodl_schema <file>`` -- validate a NoDL file.
+
+    Exits 0 on success, 1 on validation failure or I/O error.
+    Designed for invocation from CMake macros (ament_nodl_register_node and
+    siblings) so files are checked at build time, not at runtime.
+    """
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(
+        prog='python -m nodl_schema',
+        description='Validate a NoDL file against the schema.',
+    )
+    parser.add_argument('file', type=Path, help='Path to the NoDL file to validate.')
+    args = parser.parse_args(argv)
+
+    try:
+        with args.file.open('r') as f:
+            load_nodl(f)
+    except Exception as exc:
+        print(f'{args.file}: {exc}', file=sys.stderr)
+        return 1
+
+    print(f'{args.file}: ok')
+    return 0

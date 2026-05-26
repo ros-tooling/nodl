@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: ros-tooling/action-ros-ci@v0.4
         with:
-          package-name: nodl nodl_schema ros2nodl
+          package-name: ament_nodl nodl nodl_schema ros2nodl test_ament_nodl
           target-ros2-distro: ${{ matrix.ros }}
       - uses: actions/upload-artifact@v4
         if: always()

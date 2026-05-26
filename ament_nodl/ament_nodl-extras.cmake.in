@@ -1,0 +1,4 @@
+# Resolves ${Python3_EXECUTABLE} for the build-time validation step the macros invoke.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+include("${CMAKE_CURRENT_LIST_DIR}/ament_nodl_register_node.cmake")

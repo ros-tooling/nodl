@@ -1,0 +1,4 @@
+{
+  "nodl_version": 2,
+  "description": "Test node using the JSON frontend; the macro should treat it the same as YAML."
+}
