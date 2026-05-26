@@ -14,7 +14,7 @@ ament_nodl_register_node(custom_exe
   FILE test/fixtures/alt_pkg_node.nodl.yaml
   PACKAGE custom_pkg)
 
-# Non-yaml frontend; the macro is extension-agnostic and just copies bytes.
+# Non-yaml frontend. Make sure the macro is extension-agnostic.
 ament_nodl_register_node(json_node FILE test/fixtures/json_node.nodl.json)
 
 if(BUILD_TESTING)

@@ -13,13 +13,8 @@ from ament_index_python.packages import get_package_share_directory
 from ament_index_python.resources import get_resource
 
 
-def _share() -> Path:
+def _share(pkg: str = 'test_ament_nodl') -> Path:
     return Path(get_package_share_directory('test_ament_nodl'))
-
-
-def _install_share_root() -> Path:
-    # share/<pkg> -> share/
-    return _share().parent
 
 
 # ---------------------------------------------------------------------------
@@ -35,8 +30,7 @@ def test_default_package_uses_project_name():
 
 
 def test_explicit_package_override():
-    # PACKAGE custom_pkg makes the key custom_pkg__custom_exe even though the registering
-    # package is test_ament_nodl.
+    # PACKAGE custom_pkg makes the key custom_pkg__custom_exe even though the registering package is test_ament_nodl.
     content, _ = get_resource('nodl_nodes', 'custom_pkg__custom_exe')
     assert 'explicit PACKAGE override' in content
 
@@ -71,5 +65,5 @@ def test_json_source_file_installed():
 
 def test_source_file_installed_under_override_package():
     # PACKAGE override redirects the source-file install to share/<override>/nodl/.
-    target = _install_share_root() / 'custom_pkg' / 'nodl' / 'alt_pkg_node.nodl.yaml'
+    target = _share('custom_pkg') / 'nodl' / 'alt_pkg_node.nodl.yaml'
     assert target.is_file()
