@@ -20,6 +20,7 @@ ament_nodl_register_node(json_node FILE test/fixtures/json_node.nodl.json)
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(register_node_tests test/test_register_node.py)
+  ament_add_pytest_test(macro_rejection_tests test/test_macro_rejection.py)
 endif()
 
 ament_package()
