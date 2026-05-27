@@ -1,0 +1,37 @@
+---
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sphinx:
+    name: Build Sphinx docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install doc build dependencies
+        run: pip install ./nodl/doc[docs]
+
+      # Mirror the ReadTheDocs build but treat warnings as errors so a broken
+      # cross-reference or missing schema field fails the GitHub check, not just
+      # the next RTD build.
+      - name: Build docs
+        run: sphinx-build -b html -W --keep-going nodl/doc nodl/doc/_build
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nodl-docs-html
+          path: nodl/doc/_build
+          retention-days: 14
