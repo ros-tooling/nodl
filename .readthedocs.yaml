@@ -1,0 +1,20 @@
+---
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+# Read the Docs build configuration. See https://docs.readthedocs.io/en/stable/config-file/v2.html.
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    python: '3.12'
+
+sphinx:
+  configuration: nodl/doc/conf.py
+  fail_on_warning: false
+
+python:
+  install:
+    - path: nodl/doc
+      extra_requirements:
+        - docs

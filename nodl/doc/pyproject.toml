@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+[project]
+name = "nodl-docs"
+version = "0.0.0"
+description = "Documentation build for the NoDL project."
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=7",
+    "myst-parser>=2",
+    "sphinx-rtd-theme>=2",
+    "sphinx-jsonschema>=1.19",
+]
