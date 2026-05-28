@@ -1,0 +1,17 @@
+---
+nodl_version: 2
+description: Test fragment that adds the standard tf2 listener subscriptions.
+subscriptions:
+  - name: /tf
+    type: tf2_msgs/msg/TFMessage
+    qos:
+      history: KEEP_LAST
+      depth: 100
+      reliability: RELIABLE
+  - name: /tf_static
+    type: tf2_msgs/msg/TFMessage
+    qos:
+      history: KEEP_LAST
+      depth: 100
+      reliability: RELIABLE
+      durability: TRANSIENT_LOCAL
