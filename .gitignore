@@ -1,2 +1,4 @@
 __pycache__/
 /.ruff.toml
+
+/nodl/doc/_build/

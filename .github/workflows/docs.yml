@@ -13,21 +13,17 @@ jobs:
   sphinx:
     name: Build Sphinx docs
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nodl/doc
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.12'
-
-      - name: Install doc build dependencies
-        run: pip install ./nodl/doc[docs]
-
-      # Mirror the ReadTheDocs build but treat warnings as errors so a broken
-      # cross-reference or missing schema field fails the GitHub check, not just
-      # the next RTD build.
-      - name: Build docs
-        run: sphinx-build -b html -W --keep-going nodl/doc nodl/doc/_build
+          python-version: 3.11
+          activate-environment: true
+      - run: uv sync --all-extras
+      - run: uv run poe build
 
       - uses: actions/upload-artifact@v4
         if: always()

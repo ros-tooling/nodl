@@ -12,4 +12,10 @@ docs = [
     "myst-parser>=2",
     "sphinx-rtd-theme>=2",
     "sphinx-jsonschema>=1.19",
+    "poethepoet>=0.27",
 ]
+
+[tool.poe.tasks]
+# Mirror the ReadTheDocs build but treat warnings as errors.
+# So, a broken cross-reference or missing schema field fails the GitHub check.
+build = "sphinx-build -b html -W --keep-going . ./_build"

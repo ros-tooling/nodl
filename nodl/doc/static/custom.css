@@ -1,0 +1,4 @@
+.rst-content table.docutils td {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
