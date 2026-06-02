@@ -44,4 +44,4 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['static']
 html_css_files = ['custom.css']
 
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', '.venv']
