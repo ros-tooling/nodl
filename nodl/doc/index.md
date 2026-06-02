@@ -1,0 +1,30 @@
+# NoDL
+
+NoDL (Node Definition Language) is a schema and toolkit to describe a ROS 2 node's interface: parameters, topics (publishers and subscriptions), services (clients and servers), and actions (clients and servers).
+
+:::{note}
+**Status: v2 development.** The schema and APIs are not yet stable. Expect breaking changes until v2 is announced for distribution.
+:::
+
+## Documentation
+
+```{toctree}
+:maxdepth: 2
+
+concepts
+schema
+roadmap
+```
+
+## Packages
+
+- **`nodl`** - the entrypoint metapackage containing core documentation and dependency on subpackages.
+- **`nodl_schema`** — the NoDL Schema. Provides a Python-based document validator and typed object data model for working with schema objects.
+- **`ros2nodl`** — `ros2 nodl <verb>` ros2cli extension providing NoDL operations.
+- **`ament_nodl`** — CMake macros for registering NoDL documents with the ament index.
+
+Per-package documentation will land here as each package's surface stabilizes.
+
+## Source
+
+Repository: <https://github.com/ros-tooling/nodl>

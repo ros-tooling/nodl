@@ -1,0 +1,33 @@
+---
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sphinx:
+    name: Build Sphinx docs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nodl/doc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: 3.11
+          activate-environment: true
+      - run: uv sync --all-extras
+      - run: uv run poe build
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nodl-docs-html
+          path: nodl/doc/_build
+          retention-days: 14
