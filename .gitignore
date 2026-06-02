@@ -2,3 +2,4 @@ __pycache__/
 /.ruff.toml
 
 /nodl/doc/_build/
+/nodl/doc/_generated/

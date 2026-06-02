@@ -1,9 +1,9 @@
 # NoDL Schema reference
 
 The NoDL schema is [JSON Schema Draft 7](https://json-schema.org/draft-07).
-The folloring reference is generated from {repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`, which is the canonical source.
+The following reference is generated from {repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`, which is the canonical source.
 
-```{jsonschema} ../../nodl_schema/nodl_schema/schemas/nodl.schema.yaml
+```{json:schema} https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/nodl.schema.yaml
 ```
 
 ## Parameter schema
@@ -12,7 +12,8 @@ Parameter definitions reference the subschema {repo}`nodl_schema/nodl_schema/sch
 
 This is a formalization of the implicit schema defined by [`generate_parameter_library`](https://github.com/pickNikRobotics/generate_parameter_library) - NoDL builds on that work rather than reinventing the wheel.
 
-```{jsonschema} ../../nodl_schema/nodl_schema/schemas/parameter.schema.yaml
+```{json:schema} https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/parameter.schema.yaml#/definitions/parameter_definition
+:title: Parameter definition
 ```
 
 ## JSON Schema Version

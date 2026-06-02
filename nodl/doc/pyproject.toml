@@ -10,8 +10,11 @@ requires-python = ">=3.10"
 docs = [
     "sphinx>=7",
     "myst-parser>=2",
-    "sphinx-rtd-theme>=2",
-    "sphinx-jsonschema>=1.19",
+    # Theme + its built-in JSON Schema domain (json:schema directive/role),
+    # which replaces sphinx-jsonschema and sphinx-rtd-theme.
+    "sphinx-immaterial>=0.12",
+    # Enables json_schema_validate so a malformed schema fails the build.
+    "jsonschema>=4",
     "poethepoet>=0.27",
 ]
 
