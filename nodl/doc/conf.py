@@ -17,11 +17,13 @@ extensions = [
     'sphinx.ext.extlinks',
 ]
 
-# {repo}`path/to/file` renders as a GitHub blob link.
-# READTHEDOCS_GIT_IDENTIFIER is set by Read the Docs to the branch/tag being built,
-# so PR previews link to the PR's branch automatically.
-# Local and GitHub Actions builds default to main via the fallback.
-_repo_ref = os.environ.get('READTHEDOCS_GIT_IDENTIFIER', 'main')
+if os.environ.get('READTHEDOCS_VERSION_TYPE') == 'external':
+    # For PR builds RTD sets it to the PR number, which is not a valid GitHub ref, so we substitute the commit SHA instead.
+    _repo_ref = os.environ.get('READTHEDOCS_GIT_COMMIT_HASH', 'main')
+else:
+    # For branch/tag builds (including local/GitHub Actions), this is the readable ref name.
+    _repo_ref = os.environ.get('READTHEDOCS_GIT_IDENTIFIER', 'main')
+
 extlinks = {
     'repo': (f'https://github.com/ros-tooling/nodl/blob/{_repo_ref}/%s', '%s'),
 }
