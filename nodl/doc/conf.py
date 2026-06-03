@@ -77,6 +77,13 @@ for _filename, _doc in _docs_schemas.items():
     _rewrite_schema_refs(_doc, _ref_map)
     (_SCHEMA_DST / _filename).write_text(yaml.safe_dump(_doc, sort_keys=False, allow_unicode=True))
 
+    # Emit an RST snippet with one `.. json:schema::` directive per definition, in
+    # source order, so schema.md can `.. include::` it instead of hand-listing every
+    # type. New definitions then appear in the docs automatically. Written as .txt
+    # so Sphinx doesn't treat it as a standalone source document.
+    _directives = '\n'.join(f'.. json:schema:: {_ref_map[name]}' for name in _doc.get('definitions', {}))
+    (_SCHEMA_DST / f'{_filename.split(".")[0]}_definitions.txt').write_text(_directives + '\n')
+
 # Patterns are relative to this source dir; the domain skips anything in
 # exclude_patterns, so _generated/ is intentionally left out of those.
 json_schemas = ['_generated/schemas/*.yaml']
