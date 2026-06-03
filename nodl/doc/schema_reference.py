@@ -1,13 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Build-time helpers for the JSON-domain schema reference rendered by schema.md.
-
-Two adaptations let the sphinx-immaterial JSON domain present the canonical
-nodl_schema schemas well; ``conf.py`` calls both from ``setup()``:
-
-* :func:`mirror_schemas_for_docs` copies the schemas in with display-friendly ids.
-* :func:`patch_object_value_type` makes maps show their value type.
-"""
+"""Build-time helpers for the JSON-domain schema reference rendered by schema.md."""
 
 import re
 from pathlib import Path
@@ -17,8 +10,8 @@ import yaml
 _HERE = Path(__file__).parent
 SCHEMA_SRC = _HERE / '..' / '..' / 'nodl_schema' / 'nodl_schema' / 'schemas'
 SCHEMA_DST = _HERE / '_generated' / 'schemas'
-# Where the mirrored schemas land, relative to the Sphinx source dir (== _HERE);
-# this is the value conf.py feeds to the json_schemas config.
+# Where the mirrored schemas land, relative to the Sphinx source dir (== _HERE)
+# This is the value conf.py feeds to the json_schemas config
 SCHEMA_GLOB = '_generated/schemas/*.yaml'
 
 _DEFINITION_REF = re.compile(r'#/definitions/(?P<name>\w+)$')
@@ -45,10 +38,10 @@ def _rewrite_refs(node, ref_map: dict) -> None:
 
 
 def _drop_redundant_keys(node) -> None:
-    """Drop the ``<>``-suffixed validator keys, which duplicate the plain ones.
+    """
+    Drop the ``<>``-suffixed validator keys, which duplicate the plain ones.
 
-    The schema documents the two forms as equivalent, and the ``<>`` produces an
-    anchor that doesn't round-trip (HTML-escaped in the id but not the href).
+    The schema documents the two forms as equivalent, and the ``<>`` produces an HTML anchor that renders weird.
     """
     if isinstance(node, dict):
         properties = node.get('properties')
@@ -63,21 +56,21 @@ def _drop_redundant_keys(node) -> None:
 
 
 def mirror_schemas_for_docs() -> None:
-    """Copy the canonical schemas into ``_generated/``, rewritten for presentation.
+    """
+    Copy the canonical schemas into ``_generated/``, rewritten for presentation.
 
-    The domain only discovers files under the docs source dir, and the canonical
-    schemas identify and reference one another with raw.githubusercontent URLs
-    pinned to ``main`` -- noisy when rendered ("array of https://.../nodl...") and
-    pointing at the wrong ref on PR/branch builds. Swapping every ``$id``/``$ref``
-    for a short name makes the reference read "array of TopicEndpoint" with links
-    resolving on-page. We also emit one ``.. json:schema::`` directive per
-    definition so schema.md can ``.. include::`` it rather than list every type.
-    The canonical schemas are untouched; only these copies change.
+    Two reasons to copy rather than point the domain at the originals:
+
+    * The domain only discovers files beneath the docs source dir.
+    * Their cross-references are relative ``$id``s and ``#/definitions/<name>`` pointers,
+      which the domain renders verbatim as long, repeated paths.
+      Swapping every ``$id``/``$ref`` for a short name makes the reference read "array of TopicEndpoint" with links.
+
+    Also, emit one ``.. json:schema::`` directive per type definition, so ``schema.md`` doesn't have to do it manually.
     """
     SCHEMA_DST.mkdir(parents=True, exist_ok=True)
     schemas = {p.name: yaml.safe_load(p.read_text()) for p in SCHEMA_SRC.glob('*.schema.yaml')}
-    # Definition names are unique across files, so one map also covers the
-    # cross-file ref (nodl's parameters -> parameter.schema.yaml).
+    # Definition names are unique across files, so one map also covers the cross-file ref for parameters.
     ref_map = {name: _short_id(name) for doc in schemas.values() for name in doc.get('definitions', {})}
 
     for filename, doc in schemas.items():
@@ -95,12 +88,11 @@ def mirror_schemas_for_docs() -> None:
 
 
 def patch_object_value_type() -> None:
-    """Render a map's value type, e.g. "object of ParameterDefinition".
+    """
+    Render a map's value type, e.g. "object of ParameterDefinition".
 
-    The JSON domain renders every object as a bare "object" and ignores
-    ``additionalProperties``, dropping the value type of string->schema maps like
-    NoDL's ``parameters``. Append " of <value type>" (a link when the value is a
-    ``$ref``), wrapping the original so an upstream change falls back to "object".
+    The JSON domain renders every object as a bare "object" and ignores ``additionalProperties.$ref``.
+    This is a monkeypatch on ``spinx_immaterial.apidoc.json.domain.directive``.
     """
     import docutils.nodes
     from sphinx_immaterial.apidoc.json import domain

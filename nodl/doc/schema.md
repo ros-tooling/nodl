@@ -1,7 +1,12 @@
 # NoDL Schema reference
 
-The NoDL schema is [JSON Schema Draft 7](https://json-schema.org/draft-07).
 The following reference is generated from {repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`, which is the canonical source.
+
+## Schema Version
+
+The NoDL schema is [JSON Schema Draft 7](https://json-schema.org/draft-07).
+This was chosen chosen to trivially support all live ROS 2 distributions - the key limitation being the system packages available on Ubuntu 22.04 Jammy with ROS 2 Humble.
+After Humble EOL in May 2027, we will consider updating to a newer JSON Schema draft version.
 
 ## Node document
 
@@ -25,8 +30,3 @@ This is a formalization of the implicit schema defined by [`generate_parameter_l
 ```{eval-rst}
 .. include:: _generated/schemas/parameter_definitions.txt
 ```
-
-## JSON Schema Version
-
-JSON Schema Draft 7 is chosen to trivially support all live ROS 2 distributions - the key limitation being the system packages available on Ubuntu 22.04 Jammy with ROS 2 Humble.
-After Humble EOL in May 2027, we may consider updating to a newer JSON Schema draft version.

@@ -4,16 +4,16 @@
 
 import os
 import sys
+from pathlib import Path
 
 # Make this directory importable so the local schema_reference helper resolves.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# (sys.path entries must be str, not Path, or the import machinery ignores them.)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import schema_reference
 
 project = 'NoDL'
 copyright = '2026, Open Source Robotics Foundation, Inc.'
 author = 'NoDL contributors'
-
-# Status banner; bump once the project stabilizes.
 html_title = 'NoDL (v2, in development)'
 
 extensions = [
@@ -23,12 +23,9 @@ extensions = [
     'sphinx.ext.extlinks',
 ]
 
-
 # -- Schema reference rendering ----------------------------------------------
-# schema.md documents the canonical nodl_schema schemas via the sphinx-immaterial
-# JSON domain; schema_reference.py prepares them (see setup() at the bottom).
-# _generated/ is deliberately kept out of exclude_patterns so the domain can
-# discover the mirrored files.
+# schema.md documents the canonical nodl_schema schemas via the sphinx-immaterial JSON domain
+# schema_reference.py prepares them
 json_schemas = [schema_reference.SCHEMA_GLOB]
 json_schema_validate = True
 

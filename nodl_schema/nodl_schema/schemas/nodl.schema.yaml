@@ -1,6 +1,6 @@
 ---
 $schema: http://json-schema.org/draft-07/schema#
-$id: https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/nodl.schema.yaml
+$id: nodl.schema.yaml
 title: NoDL Node Definition
 description: |
   NoDL (Node Definition Language) v2 schema.
