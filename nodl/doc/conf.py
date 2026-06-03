@@ -22,6 +22,33 @@ extensions = [
     'sphinx.ext.extlinks',
 ]
 
+
+# The JSON domain renders an object's type as a bare "object" and ignores
+# `additionalProperties`, so a string->schema map like NoDL's `parameters` loses
+# its value type. Extend the object type line to append "of <value type>" (a
+# linked cross-reference when the value is a `$ref`). Wraps the original so any
+# upstream change degrades to the stock "object" rendering.
+def _patch_json_object_type_line() -> None:
+    import docutils.nodes
+    from sphinx_immaterial.apidoc.json import domain as _json_domain
+
+    _directive = _json_domain.JsonSchemaDirective
+    _original = _directive._get_type_description_line_object
+
+    def _with_additional_properties(self, schema_node):
+        line = _original(self, schema_node)
+        extra = schema_node.get('additionalProperties')
+        if isinstance(extra, dict):
+            extra_line = self._get_type_description_line(extra)
+            if extra_line:
+                return (line or []) + [docutils.nodes.emphasis('', ' of ')] + extra_line
+        return line
+
+    _directive._get_type_description_line_object = _with_additional_properties
+
+
+_patch_json_object_type_line()
+
 # -- Schema sources ----------------------------------------------------------
 # The canonical schemas live in the nodl_schema package. The immaterial JSON
 # domain only discovers files beneath this docs source dir, so mirror them into
@@ -65,6 +92,24 @@ def _rewrite_schema_refs(node, ref_map: dict) -> None:
             _rewrite_schema_refs(item, ref_map)
 
 
+def _drop_redundant_keys(node) -> None:
+    """Drop the `<>`-suffixed validator keys, which duplicate the plain ones.
+
+    The schema documents the two forms as equivalent, and the `<>` produces an
+    anchor that doesn't round-trip (HTML-escaped in the id but not the href).
+    """
+    if isinstance(node, dict):
+        properties = node.get('properties')
+        if isinstance(properties, dict):
+            for key in [k for k in properties if k.endswith('<>')]:
+                del properties[key]
+        for value in node.values():
+            _drop_redundant_keys(value)
+    elif isinstance(node, list):
+        for item in node:
+            _drop_redundant_keys(item)
+
+
 _docs_schemas = {p.name: yaml.safe_load(p.read_text()) for p in _SCHEMA_SRC.glob('*.schema.yaml')}
 # Definition names are unique across both files, so one global map suffices and
 # also resolves the cross-file ref (nodl's parameters -> parameter.schema.yaml).
@@ -75,6 +120,7 @@ for _filename, _doc in _docs_schemas.items():
     for _name, _definition in _doc.get('definitions', {}).items():
         _definition['$id'] = _ref_map[_name]
     _rewrite_schema_refs(_doc, _ref_map)
+    _drop_redundant_keys(_doc)
     (_SCHEMA_DST / _filename).write_text(yaml.safe_dump(_doc, sort_keys=False, allow_unicode=True))
 
     # Emit an RST snippet with one `.. json:schema::` directive per definition, in

@@ -7,8 +7,8 @@ description: |
 
   Describes the public ROS interface of a single ROS 2 node:
   parameters, publishers, subscriptions, service servers/clients,
-  and action servers/clients. Field names align with rcl_interfaces
-  and rosgraph_msgs (Topic, Service, Action) so a NoDL document
+  and action servers/clients. Field names align with ``rcl_interfaces``
+  and ``rosgraph_msgs`` (``Topic``, ``Service``, ``Action``) so a NoDL document
   maps cleanly onto runtime introspection types.
 
   Node identity (name, package, namespace) is established by the
@@ -32,8 +32,8 @@ properties:
     type: object
     description: |
       ROS parameters declared by this node, keyed by parameter name.
-      Parameter shape is borrowed from generate_parameter_library
-      (see parameter.schema.yaml).
+      Parameter shape is borrowed from ``generate_parameter_library``
+      (see ``parameter.schema.yaml``).
     additionalProperties:
       $ref: parameter.schema.yaml#/definitions/parameter_definition
 
@@ -78,10 +78,10 @@ definitions:
     type: string
     description: |
       Name of a ROS graph resource (Node, Topic, Service, Action).
-      Accepts the standard name forms -- absolute (/foo/bar),
-      relative (foo/bar), and private (~/foo). Must start with /,
-      ~, or a letter; may contain letters, digits, _, /; and must
-      end with a letter, digit, or _ (not a slash).
+      Accepts the standard name forms -- absolute (``/foo/bar``),
+      relative (``foo/bar``), and private (``~/foo``). Must start with ``/``,
+      ``~``, or a letter; may contain letters, digits, ``_``, ``/``; and must
+      end with a letter, digit, or ``_`` (not a slash).
       See https://design.ros2.org/articles/topic_and_service_names.html
       for more information on names.
     pattern: ^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$
@@ -89,9 +89,9 @@ definitions:
   rosType:
     type: string
     description: |
-      ROS interface type, format package/(msg|srv|action)?/TypeName.
+      ROS interface type, format ``package/(msg|srv|action)?/TypeName``.
       Middle namespace is optional and may be determined by usage
-      context (e.g. a publisher type implies msg).
+      context (e.g. a publisher type implies ``msg``).
     pattern: ^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$
     examples:
       - std_msgs/msg/String
@@ -105,11 +105,11 @@ definitions:
   qosProfile:
     type: object
     description: |
-      QoS profile settings. Mirrors rcl_interfaces/QoSProfile field
-      set and naming, but uses string enums in place of RMW integer
+      QoS profile settings. Mirrors ``rcl_interfaces/QoSProfile`` field
+      set and naming, but uses string enums in place of ``RMW`` integer
       codes for readability and signed-int nanoseconds in place of
-      builtin_interfaces/Duration for ergonomics -- codegen converts
-      the int to a Duration. UNKNOWN values from the RMW spec are
+      ``builtin_interfaces/Duration`` for ergonomics -- codegen converts
+      the int to a ``Duration``. ``UNKNOWN`` values from the ``RMW`` spec are
       excluded; they are only meaningful for runtime observation.
     additionalProperties: false
     required:
@@ -120,7 +120,7 @@ definitions:
         description: History policy.
         enum: [KEEP_LAST, KEEP_ALL, SYSTEM_DEFAULT]
       depth:
-        description: Queue depth. Required when history is KEEP_LAST.
+        description: Queue depth. Required when ``history`` is ``KEEP_LAST``.
         type: integer
         minimum: 1
       reliability:
@@ -189,7 +189,7 @@ definitions:
     description: |
       Service endpoint -- same shape for servers and clients;
       direction is implied by which top-level array contains it.
-      A single qos profile applies; create_service accepts only one
+      A single qos profile applies; ``create_service`` accepts only one
       QoS input and applies it to both the request and response
       sides at runtime.
     additionalProperties: false
@@ -213,7 +213,7 @@ definitions:
       Action endpoint -- same shape for servers and clients;
       direction is implied by which top-level array contains it.
       The underlying decomposition into goal/result/cancel services
-      and feedback/status topics (per rcl_interfaces/Action) is not
+      and feedback/status topics (per ``rcl_interfaces/Action``) is not
       modelled here; it is an implementation concern.
     additionalProperties: false
     required:
