@@ -4,13 +4,13 @@
 # If generate_parameter_library adds new features, this schema may need to be updated.
 
 $schema: http://json-schema.org/draft-07/schema#
-$id: https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/schemas/parameter.schema.yaml
+$id: parameter.schema.yaml
 title: ROS 2 Parameter Definition Schema
 description: |
   Schema for a single ROS 2 parameter definition. Shape mirrors
-  generate_parameter_library so the same definition can drive both
+  ``generate_parameter_library`` so the same definition can drive both
   documentation and code generation. Validates one parameter at a time
-  (type, default_value, validation, etc.); composing many parameters
+  (``type``, ``default_value``, ``validation``, etc.); composing many parameters
   into a node-level document is left to the consumer.
 
 definitions:
@@ -27,7 +27,7 @@ definitions:
         $ref: '#/definitions/default_value'
       description:
         type: string
-        description: Human-readable description displayed by `ros2 param describe`
+        description: Human-readable description displayed by ``ros2 param describe``
         default: ''
       read_only:
         type: boolean
@@ -58,11 +58,11 @@ definitions:
       - none
     description: |
       Scalar types:
-      - bool: C++ bool, Python bool
-      - int: C++ int64_t, Python int
-      - double: C++ double, Python float
-      - string: C++ std::string, Python str
-      - none: No code generated (used for structure-only nodes)
+      - ``bool``: C++ ``bool``, Python ``bool``
+      - ``int``: C++ ``int64_t``, Python ``int``
+      - ``double``: C++ ``double``, Python ``float``
+      - ``string``: C++ ``std::string``, Python ``str``
+      - ``none``: No code generated (used for structure-only nodes)
 
   array_type:
     type: string
@@ -73,23 +73,23 @@ definitions:
       - string_array
     description: |
       Array types:
-      - bool_array: C++ std::vector<bool>, Python [bool]
-      - int_array: C++ std::vector<int64_t>, Python [int]
-      - double_array: C++ std::vector<double>, Python [float]
-      - string_array: C++ std::vector<std::string>, Python [str]
+      - ``bool_array``: C++ ``std::vector<bool>``, Python ``[bool]``
+      - ``int_array``: C++ ``std::vector<int64_t>``, Python ``[int]``
+      - ``double_array``: C++ ``std::vector<double>``, Python ``[float]``
+      - ``string_array``: C++ ``std::vector<std::string>``, Python ``[str]``
 
   fixed_size_type:
     type: string
     pattern: ^(string_fixed_[1-9][0-9]*|int_array_fixed_[1-9][0-9]*|double_array_fixed_[1-9][0-9]*|string_array_fixed_[1-9][0-9]*)$
     description: |
-      Fixed-size types with pattern <base_type>_fixed_<size>:
-      - string_fixed_XX: C++ rsl::StaticString<XX>, Python str (max XX chars)
-      - int_array_fixed_XX: C++ rsl::StaticVector<int64_t, XX>, Python [int] (max XX elements)
-      - double_array_fixed_XX: C++ rsl::StaticVector<double, XX>, Python [float] (max XX elements)
-      - string_array_fixed_XX: C++ rsl::StaticVector<std::string, XX>, Python [str] (max XX elements)
+      Fixed-size types with pattern ``<base_type>_fixed_<size>``:
+      - ``string_fixed_XX``: C++ ``rsl::StaticString<XX>``, Python ``str`` (max XX chars)
+      - ``int_array_fixed_XX``: C++ ``rsl::StaticVector<int64_t, XX>``, Python ``[int]`` (max XX elements)
+      - ``double_array_fixed_XX``: C++ ``rsl::StaticVector<double, XX>``, Python ``[float]`` (max XX elements)
+      - ``string_array_fixed_XX``: C++ ``rsl::StaticVector<std::string, XX>``, Python ``[str]`` (max XX elements)
 
-      Note: bool_array_fixed is NOT supported.
-      Fixed-size types automatically get a size_lt<> validator with value size+1.
+      Note: ``bool_array_fixed`` is NOT supported.
+      Fixed-size types automatically get a ``size_lt<>`` validator with value size+1.
     examples:
       - string_fixed_25
       - int_array_fixed_5
@@ -103,7 +103,7 @@ definitions:
     description: |
       Initial value for the parameter. Type must match the declared parameter type.
       If omitted, the parameter becomes required at initialization.
-      Supports: bool, int, double (including NaN, Inf, scientific notation), string,
+      Supports: ``bool``, ``int``, ``double`` (including ``NaN``, ``Inf``, scientific notation), ``string``,
       and arrays of these types.
 
   # Validation rules
@@ -111,8 +111,8 @@ definitions:
     type: object
     description: |
       Dictionary of validation function names and their arguments.
-      Validators can be specified with or without the <> suffix (both are equivalent).
-      For example: "bounds<>: [0, 100]" is the same as "bounds: [0, 100]"
+      Validators can be specified with or without the ``<>`` suffix (both are equivalent).
+      For example: ``bounds<>: [0, 100]`` is the same as ``bounds: [0, 100]``
     additionalProperties: false
     properties:
       # Value validators (for scalar numeric types) - with <> suffix
@@ -198,7 +198,7 @@ definitions:
 
   # Validator argument types
   bounds_validator:
-    description: 'Inclusive bounds checking: [lower, upper]'
+    description: 'Inclusive bounds checking: ``[lower, upper]``'
     type: array
     items:
       type: number
@@ -210,7 +210,7 @@ definitions:
       - [-1.0, 1.0]
 
   comparison_validator:
-    description: 'Single value comparison: [value] or bare value'
+    description: 'Single value comparison: ``[value]`` or bare value'
     oneOf:
       - type: array
         items:
@@ -227,7 +227,7 @@ definitions:
       - 0.5
 
   size_validator:
-    description: 'Size/length constraint: [length]'
+    description: 'Size/length constraint: ``[length]``'
     oneOf:
       - type: array
         items:
@@ -244,7 +244,7 @@ definitions:
       - 6
 
   one_of_validator:
-    description: 'Parameter must be one of the specified values: [[val1, val2, ...]]'
+    description: 'Parameter must be one of the specified values: ``[[val1, val2, ...]]``'
     type: array
     items:
       type: array
@@ -257,7 +257,7 @@ definitions:
       - [[true, false]]
 
   subset_of_validator:
-    description: 'All array elements must be in the specified set: [[val1, val2, ...]]'
+    description: 'All array elements must be in the specified set: ``[[val1, val2, ...]]``'
     type: array
     items:
       type: array
@@ -282,9 +282,9 @@ definitions:
     description: |
       Custom validator with namespace-qualified function name.
       The function must:
-      - Accept rclcpp::Parameter const& as first argument
+      - Accept ``rclcpp::Parameter const&`` as first argument
       - Accept additional arguments matching the YAML specification
-      - Return tl::expected<void, std::string> type
+      - Return ``tl::expected<void, std::string>`` type
       - Be defined in a header file passed to the code generator
     oneOf:
       - type: 'null'

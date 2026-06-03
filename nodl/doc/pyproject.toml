@@ -1,5 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "nodl-docs"
 version = "0.0.0"
@@ -10,10 +14,18 @@ requires-python = ">=3.10"
 docs = [
     "sphinx>=7",
     "myst-parser>=2",
-    "sphinx-rtd-theme>=2",
-    "sphinx-jsonschema>=1.19",
+    # Theme + its built-in JSON Schema domain (json:schema directive/role),
+    # which replaces sphinx-jsonschema and sphinx-rtd-theme.
+    "sphinx-immaterial>=0.12",
+    # Enables json_schema_validate so a malformed schema fails the build.
+    "jsonschema>=4",
     "poethepoet>=0.27",
 ]
+
+# This project exists only to pull in the docs dependencies, it ships no importable modules.
+# Disable setuptools' flat-layout discovery, which would otherwise fail on finding multiple top-level modules.
+[tool.setuptools]
+py-modules = []
 
 [tool.poe.tasks]
 # Mirror the ReadTheDocs build but treat warnings as errors.

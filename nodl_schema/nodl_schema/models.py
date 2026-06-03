@@ -17,11 +17,11 @@ except ImportError:
 class ScalarType(Enum):
     """
     Scalar types:
-    - bool: C++ bool, Python bool
-    - int: C++ int64_t, Python int
-    - double: C++ double, Python float
-    - string: C++ std::string, Python str
-    - none: No code generated (used for structure-only nodes)
+    - ``bool``: C++ ``bool``, Python ``bool``
+    - ``int``: C++ ``int64_t``, Python ``int``
+    - ``double``: C++ ``double``, Python ``float``
+    - ``string``: C++ ``std::string``, Python ``str``
+    - ``none``: No code generated (used for structure-only nodes)
 
     """
 
@@ -35,10 +35,10 @@ class ScalarType(Enum):
 class ArrayType(Enum):
     """
     Array types:
-    - bool_array: C++ std::vector<bool>, Python [bool]
-    - int_array: C++ std::vector<int64_t>, Python [int]
-    - double_array: C++ std::vector<double>, Python [float]
-    - string_array: C++ std::vector<std::string>, Python [str]
+    - ``bool_array``: C++ ``std::vector<bool>``, Python ``[bool]``
+    - ``int_array``: C++ ``std::vector<int64_t>``, Python ``[int]``
+    - ``double_array``: C++ ``std::vector<double>``, Python ``[float]``
+    - ``string_array``: C++ ``std::vector<std::string>``, Python ``[str]``
 
     """
 
@@ -93,11 +93,11 @@ class Liveliness(Enum):
 
 class QosProfile(BaseModel):
     """
-    QoS profile settings. Mirrors rcl_interfaces/QoSProfile field
-    set and naming, but uses string enums in place of RMW integer
+    QoS profile settings. Mirrors ``rcl_interfaces/QoSProfile`` field
+    set and naming, but uses string enums in place of ``RMW`` integer
     codes for readability and signed-int nanoseconds in place of
-    builtin_interfaces/Duration for ergonomics -- codegen converts
-    the int to a Duration. UNKNOWN values from the RMW spec are
+    ``builtin_interfaces/Duration`` for ergonomics -- codegen converts
+    the int to a ``Duration``. ``UNKNOWN`` values from the ``RMW`` spec are
     excluded; they are only meaningful for runtime observation.
 
     """
@@ -106,7 +106,7 @@ class QosProfile(BaseModel):
         extra = Extra.forbid
 
     history: History = Field(..., description='History policy.')
-    depth: Optional[conint(ge=1)] = Field(None, description='Queue depth. Required when history is KEEP_LAST.')
+    depth: Optional[conint(ge=1)] = Field(None, description='Queue depth. Required when ``history`` is ``KEEP_LAST``.')
     reliability: Reliability = Field(..., description='Reliability policy.')
     durability: Optional[Durability] = Field(None, description='Durability policy.')
     deadline_ns: Optional[conint(ge=0)] = Field(
@@ -137,7 +137,7 @@ class TopicEndpoint(BaseModel):
     name: constr(regex=r'^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$') = Field(..., description='Topic name.')
     type: constr(regex=r'^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$') = Field(
         ...,
-        description='ROS interface type, format package/(msg|srv|action)?/TypeName.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies msg).\n',
+        description='ROS interface type, format ``package/(msg|srv|action)?/TypeName``.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies ``msg``).\n',
         examples=[
             'std_msgs/msg/String',
             'std_msgs/String',
@@ -156,7 +156,7 @@ class ServiceEndpoint(BaseModel):
     """
     Service endpoint -- same shape for servers and clients;
     direction is implied by which top-level array contains it.
-    A single qos profile applies; create_service accepts only one
+    A single qos profile applies; ``create_service`` accepts only one
     QoS input and applies it to both the request and response
     sides at runtime.
 
@@ -168,7 +168,7 @@ class ServiceEndpoint(BaseModel):
     name: constr(regex=r'^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$') = Field(..., description='Service name.')
     type: constr(regex=r'^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$') = Field(
         ...,
-        description='ROS interface type, format package/(msg|srv|action)?/TypeName.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies msg).\n',
+        description='ROS interface type, format ``package/(msg|srv|action)?/TypeName``.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies ``msg``).\n',
         examples=[
             'std_msgs/msg/String',
             'std_msgs/String',
@@ -188,7 +188,7 @@ class ActionEndpoint(BaseModel):
     Action endpoint -- same shape for servers and clients;
     direction is implied by which top-level array contains it.
     The underlying decomposition into goal/result/cancel services
-    and feedback/status topics (per rcl_interfaces/Action) is not
+    and feedback/status topics (per ``rcl_interfaces/Action``) is not
     modelled here; it is an implementation concern.
 
     """
@@ -199,7 +199,7 @@ class ActionEndpoint(BaseModel):
     name: constr(regex=r'^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$') = Field(..., description='Action name.')
     type: constr(regex=r'^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$') = Field(
         ...,
-        description='ROS interface type, format package/(msg|srv|action)?/TypeName.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies msg).\n',
+        description='ROS interface type, format ``package/(msg|srv|action)?/TypeName``.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies ``msg``).\n',
         examples=[
             'std_msgs/msg/String',
             'std_msgs/String',
@@ -216,8 +216,8 @@ class ActionEndpoint(BaseModel):
 class Validation(BaseModel):
     """
     Dictionary of validation function names and their arguments.
-    Validators can be specified with or without the <> suffix (both are equivalent).
-    For example: "bounds<>: [0, 100]" is the same as "bounds: [0, 100]"
+    Validators can be specified with or without the ``<>`` suffix (both are equivalent).
+    For example: ``bounds<>: [0, 100]`` is the same as ``bounds: [0, 100]``
 
     """
 
@@ -227,67 +227,67 @@ class Validation(BaseModel):
     bounds__: Optional[list[float]] = Field(
         None,
         alias='bounds<>',
-        description='Inclusive bounds checking: [lower, upper]',
+        description='Inclusive bounds checking: ``[lower, upper]``',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
     lt__: Optional[Union[list[float], float]] = Field(
         None,
         alias='lt<>',
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     gt__: Optional[Union[list[float], float]] = Field(
         None,
         alias='gt<>',
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     lt_eq__: Optional[Union[list[float], float]] = Field(
         None,
         alias='lt_eq<>',
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     gt_eq__: Optional[Union[list[float], float]] = Field(
         None,
         alias='gt_eq<>',
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     one_of__: Optional[list[list]] = Field(
         None,
         alias='one_of<>',
-        description='Parameter must be one of the specified values: [[val1, val2, ...]]',
+        description='Parameter must be one of the specified values: ``[[val1, val2, ...]]``',
         examples=[[['spline', 'linear']], [[0, 1, 2, -1]], [[True, False]]],
     )
     bounds: Optional[list[float]] = Field(
         None,
-        description='Inclusive bounds checking: [lower, upper]',
+        description='Inclusive bounds checking: ``[lower, upper]``',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
     lt: Optional[Union[list[float], float]] = Field(
         None,
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     gt: Optional[Union[list[float], float]] = Field(
         None,
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     lt_eq: Optional[Union[list[float], float]] = Field(
         None,
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     gt_eq: Optional[Union[list[float], float]] = Field(
         None,
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     one_of: Optional[list[list]] = Field(
         None,
-        description='Parameter must be one of the specified values: [[val1, val2, ...]]',
+        description='Parameter must be one of the specified values: ``[[val1, val2, ...]]``',
         examples=[[['spline', 'linear']], [[0, 1, 2, -1]], [[True, False]]],
     )
     not_empty__: Optional[list] = Field(
@@ -300,29 +300,35 @@ class Validation(BaseModel):
     fixed_size__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None,
         alias='fixed_size<>',
-        description='Size/length constraint: [length]',
+        description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
     )
     size_gt__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None,
         alias='size_gt<>',
-        description='Size/length constraint: [length]',
+        description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
     )
     size_lt__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
         None,
         alias='size_lt<>',
-        description='Size/length constraint: [length]',
+        description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
     )
     fixed_size: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
-        None, description='Size/length constraint: [length]', examples=[[6], [10], 6]
+        None,
+        description='Size/length constraint: ``[length]``',
+        examples=[[6], [10], 6],
     )
     size_gt: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
-        None, description='Size/length constraint: [length]', examples=[[6], [10], 6]
+        None,
+        description='Size/length constraint: ``[length]``',
+        examples=[[6], [10], 6],
     )
     size_lt: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
-        None, description='Size/length constraint: [length]', examples=[[6], [10], 6]
+        None,
+        description='Size/length constraint: ``[length]``',
+        examples=[[6], [10], 6],
     )
     unique__: Optional[list] = Field(
         None,
@@ -333,46 +339,46 @@ class Validation(BaseModel):
     subset_of__: Optional[list[list]] = Field(
         None,
         alias='subset_of<>',
-        description='All array elements must be in the specified set: [[val1, val2, ...]]',
+        description='All array elements must be in the specified set: ``[[val1, val2, ...]]``',
         examples=[[['x', 'y', 'z']], [[1, 2, 3, 4, 5]]],
     )
     element_bounds__: Optional[list[float]] = Field(
         None,
         alias='element_bounds<>',
-        description='Inclusive bounds checking: [lower, upper]',
+        description='Inclusive bounds checking: ``[lower, upper]``',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
     lower_element_bounds__: Optional[Union[list[float], float]] = Field(
         None,
         alias='lower_element_bounds<>',
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     upper_element_bounds__: Optional[Union[list[float], float]] = Field(
         None,
         alias='upper_element_bounds<>',
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     unique: Optional[list] = Field(None, description='Validator that takes no arguments', examples=[None, []])
     subset_of: Optional[list[list]] = Field(
         None,
-        description='All array elements must be in the specified set: [[val1, val2, ...]]',
+        description='All array elements must be in the specified set: ``[[val1, val2, ...]]``',
         examples=[[['x', 'y', 'z']], [[1, 2, 3, 4, 5]]],
     )
     element_bounds: Optional[list[float]] = Field(
         None,
-        description='Inclusive bounds checking: [lower, upper]',
+        description='Inclusive bounds checking: ``[lower, upper]``',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
     lower_element_bounds: Optional[Union[list[float], float]] = Field(
         None,
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
     upper_element_bounds: Optional[Union[list[float], float]] = Field(
         None,
-        description='Single value comparison: [value] or bare value',
+        description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
 
@@ -390,9 +396,12 @@ class ParameterDefinition(BaseModel):
     ] = Field(..., description='The parameter data type')
     default_value: Optional[Any] = Field(
         None,
-        description='Initial value for the parameter. Type must match the declared parameter type.\nIf omitted, the parameter becomes required at initialization.\nSupports: bool, int, double (including NaN, Inf, scientific notation), string,\nand arrays of these types.\n',
+        description='Initial value for the parameter. Type must match the declared parameter type.\nIf omitted, the parameter becomes required at initialization.\nSupports: ``bool``, ``int``, ``double`` (including ``NaN``, ``Inf``, scientific notation), ``string``,\nand arrays of these types.\n',
     )
-    description: Optional[str] = Field('', description='Human-readable description displayed by `ros2 param describe`')
+    description: Optional[str] = Field(
+        '',
+        description='Human-readable description displayed by ``ros2 param describe``',
+    )
     read_only: Optional[bool] = Field(
         False,
         description='If true, parameter can only be set at launch, not dynamically',
@@ -410,8 +419,8 @@ class NodlDocument(BaseModel):
 
     Describes the public ROS interface of a single ROS 2 node:
     parameters, publishers, subscriptions, service servers/clients,
-    and action servers/clients. Field names align with rcl_interfaces
-    and rosgraph_msgs (Topic, Service, Action) so a NoDL document
+    and action servers/clients. Field names align with ``rcl_interfaces``
+    and ``rosgraph_msgs`` (``Topic``, ``Service``, ``Action``) so a NoDL document
     maps cleanly onto runtime introspection types.
 
     Node identity (name, package, namespace) is established by the
@@ -427,7 +436,7 @@ class NodlDocument(BaseModel):
     description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
     parameters: Optional[dict[str, ParameterDefinition]] = Field(
         None,
-        description='ROS parameters declared by this node, keyed by parameter name.\nParameter shape is borrowed from generate_parameter_library\n(see parameter.schema.yaml).\n',
+        description='ROS parameters declared by this node, keyed by parameter name.\nParameter shape is borrowed from ``generate_parameter_library``\n(see ``parameter.schema.yaml``).\n',
     )
     publishers: Optional[list[TopicEndpoint]] = Field(None, description='Topic publishers exposed by this node.')
     subscriptions: Optional[list[TopicEndpoint]] = Field(None, description='Topic subscriptions consumed by this node.')
