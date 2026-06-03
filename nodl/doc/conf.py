@@ -3,10 +3,11 @@
 """Sphinx configuration for the NoDL project documentation."""
 
 import os
-import re
-from pathlib import Path
+import sys
 
-import yaml
+# Make this directory importable so the local schema_reference helper resolves.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import schema_reference
 
 project = 'NoDL'
 copyright = '2026, Open Source Robotics Foundation, Inc.'
@@ -23,116 +24,12 @@ extensions = [
 ]
 
 
-# The JSON domain renders an object's type as a bare "object" and ignores
-# `additionalProperties`, so a string->schema map like NoDL's `parameters` loses
-# its value type. Extend the object type line to append "of <value type>" (a
-# linked cross-reference when the value is a `$ref`). Wraps the original so any
-# upstream change degrades to the stock "object" rendering.
-def _patch_json_object_type_line() -> None:
-    import docutils.nodes
-    from sphinx_immaterial.apidoc.json import domain as _json_domain
-
-    _directive = _json_domain.JsonSchemaDirective
-    _original = _directive._get_type_description_line_object
-
-    def _with_additional_properties(self, schema_node):
-        line = _original(self, schema_node)
-        extra = schema_node.get('additionalProperties')
-        if isinstance(extra, dict):
-            extra_line = self._get_type_description_line(extra)
-            if extra_line:
-                return (line or []) + [docutils.nodes.emphasis('', ' of ')] + extra_line
-        return line
-
-    _directive._get_type_description_line_object = _with_additional_properties
-
-
-_patch_json_object_type_line()
-
-# -- Schema sources ----------------------------------------------------------
-# The canonical schemas live in the nodl_schema package. The immaterial JSON
-# domain only discovers files beneath this docs source dir, so mirror them into
-# _generated/ at build time.
-#
-# The mirrored copies are also rewritten for presentation (see _docs_id below):
-# the canonical schemas identify themselves and cross-reference one another with
-# fully-qualified raw.githubusercontent.com URLs pinned to `main`. Rendered
-# verbatim those are both noisy ("array of https://.../nodl.schema.yaml#/...")
-# and wrong for PR/branch builds, which document a different ref than `main`.
-# We replace every `$id`/`$ref` in the copies with short, branch-agnostic names
-# so the rendered reference reads "array of TopicEndpoint" and links resolve to
-# documented sections on the same page. The canonical schemas (and the URLs real
-# consumers resolve) are untouched; only the docs copies change.
-_DOC_DIR = Path(__file__).parent.resolve()
-_SCHEMA_SRC = _DOC_DIR / '..' / '..' / 'nodl_schema' / 'nodl_schema' / 'schemas'
-_SCHEMA_DST = _DOC_DIR / '_generated' / 'schemas'
-_SCHEMA_DST.mkdir(parents=True, exist_ok=True)
-
-# Short display id for a schema or `#/definitions/<name>` definition key.
-# `topic_endpoint`/`qosProfile` -> `TopicEndpoint`/`QosProfile`.
-_REF_DEFINITION_RE = re.compile(r'#/definitions/(?P<name>\w+)$')
-
-
-def _docs_id(name: str) -> str:
-    return ''.join(part[:1].upper() + part[1:] for part in name.split('_'))
-
-
-def _rewrite_schema_refs(node, ref_map: dict) -> None:
-    """Rewrite every `$ref` in-place to its short id, recursively."""
-    if isinstance(node, dict):
-        for key, value in node.items():
-            if key == '$ref' and isinstance(value, str):
-                match = _REF_DEFINITION_RE.search(value)
-                if match:
-                    node[key] = ref_map[match.group('name')]
-            else:
-                _rewrite_schema_refs(value, ref_map)
-    elif isinstance(node, list):
-        for item in node:
-            _rewrite_schema_refs(item, ref_map)
-
-
-def _drop_redundant_keys(node) -> None:
-    """Drop the `<>`-suffixed validator keys, which duplicate the plain ones.
-
-    The schema documents the two forms as equivalent, and the `<>` produces an
-    anchor that doesn't round-trip (HTML-escaped in the id but not the href).
-    """
-    if isinstance(node, dict):
-        properties = node.get('properties')
-        if isinstance(properties, dict):
-            for key in [k for k in properties if k.endswith('<>')]:
-                del properties[key]
-        for value in node.values():
-            _drop_redundant_keys(value)
-    elif isinstance(node, list):
-        for item in node:
-            _drop_redundant_keys(item)
-
-
-_docs_schemas = {p.name: yaml.safe_load(p.read_text()) for p in _SCHEMA_SRC.glob('*.schema.yaml')}
-# Definition names are unique across both files, so one global map suffices and
-# also resolves the cross-file ref (nodl's parameters -> parameter.schema.yaml).
-_ref_map = {name: _docs_id(name) for doc in _docs_schemas.values() for name in doc.get('definitions', {})}
-for _filename, _doc in _docs_schemas.items():
-    # Drop the ".schema.yaml" suffix for the top-level id (nodl.schema.yaml -> Nodl).
-    _doc['$id'] = _docs_id(_filename.split('.')[0])
-    for _name, _definition in _doc.get('definitions', {}).items():
-        _definition['$id'] = _ref_map[_name]
-    _rewrite_schema_refs(_doc, _ref_map)
-    _drop_redundant_keys(_doc)
-    (_SCHEMA_DST / _filename).write_text(yaml.safe_dump(_doc, sort_keys=False, allow_unicode=True))
-
-    # Emit an RST snippet with one `.. json:schema::` directive per definition, in
-    # source order, so schema.md can `.. include::` it instead of hand-listing every
-    # type. New definitions then appear in the docs automatically. Written as .txt
-    # so Sphinx doesn't treat it as a standalone source document.
-    _directives = '\n'.join(f'.. json:schema:: {_ref_map[name]}' for name in _doc.get('definitions', {}))
-    (_SCHEMA_DST / f'{_filename.split(".")[0]}_definitions.txt').write_text(_directives + '\n')
-
-# Patterns are relative to this source dir; the domain skips anything in
-# exclude_patterns, so _generated/ is intentionally left out of those.
-json_schemas = ['_generated/schemas/*.yaml']
+# -- Schema reference rendering ----------------------------------------------
+# schema.md documents the canonical nodl_schema schemas via the sphinx-immaterial
+# JSON domain; schema_reference.py prepares them (see setup() at the bottom).
+# _generated/ is deliberately kept out of exclude_patterns so the domain can
+# discover the mirrored files.
+json_schemas = [schema_reference.SCHEMA_GLOB]
 json_schema_validate = True
 
 # -- GitHub source links -----------------------------------------------------
@@ -199,3 +96,9 @@ html_theme_options = {
 }
 
 exclude_patterns = ['_build', '.venv', 'Thumbs.db', '.DS_Store']
+
+
+def setup(app):
+    """Prepare the schema reference before the JSON domain reads the schemas."""
+    schema_reference.mirror_schemas_for_docs()
+    schema_reference.patch_object_value_type()
