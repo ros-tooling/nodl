@@ -1,5 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "nodl-docs"
 version = "0.0.0"
@@ -17,6 +21,11 @@ docs = [
     "jsonschema>=4",
     "poethepoet>=0.27",
 ]
+
+# This project exists only to pull in the docs dependencies, it ships no importable modules.
+# Disable setuptools' flat-layout discovery, which would otherwise fail on finding multiple top-level modules.
+[tool.setuptools]
+py-modules = []
 
 [tool.poe.tasks]
 # Mirror the ReadTheDocs build but treat warnings as errors.

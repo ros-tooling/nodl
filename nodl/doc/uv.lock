@@ -441,7 +441,7 @@ wheels = [
 [[package]]
 name = "nodl-docs"
 version = "0.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 
 [package.optional-dependencies]
 docs = [
