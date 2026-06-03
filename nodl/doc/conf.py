@@ -55,6 +55,12 @@ source_suffix = {
 
 # -- HTML output (sphinx-immaterial) -----------------------------------------
 html_theme = 'sphinx_immaterial'
+# Paths are relative to this dir; Sphinx copies them into _static automatically.
+# The logo/favicon are committed assets derived from the full-res nodl_logo.png:
+#   convert nodl_logo.png -resize 200x -strip nodl_logo_small.png
+#   convert nodl_logo.png -background none -define icon:auto-resize=16,32,48 nodl_favicon.ico
+html_logo = 'nodl_logo_small.png'
+html_favicon = 'nodl_favicon.ico'
 html_theme_options = {
     'icon': {'repo': 'fontawesome/brands/github'},
     'repo_url': 'https://github.com/ros-tooling/nodl',
