@@ -1,6 +1,6 @@
 # NoDL - Node Definition Language
 
-<img src="nodl/doc/nodl_logo.jpg" alt="NoDL logo" width="300">
+<img src="nodl/doc/nodl_logo.png" alt="NoDL logo" width="300">
 
 NoDL (Node Definition Language) is a schema and toolkit to describe a ROS 2 node's interface: parameters, topics (publishers and subscriptions), services (clients and servers), and actions (clients and servers).
 
