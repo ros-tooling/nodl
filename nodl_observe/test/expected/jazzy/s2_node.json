@@ -1,0 +1,2508 @@
+{
+  "name": "/s2/s2_node",
+  "parameters": [
+    {
+      "name": "max_count",
+      "type": 2,
+      "description": "",
+      "additional_constraints": "",
+      "read_only": false,
+      "dynamic_typing": false,
+      "floating_point_range": [],
+      "integer_range": []
+    },
+    {
+      "name": "mode",
+      "type": 4,
+      "description": "operating mode",
+      "additional_constraints": "",
+      "read_only": true,
+      "dynamic_typing": false,
+      "floating_point_range": [],
+      "integer_range": []
+    },
+    {
+      "name": "speed",
+      "type": 3,
+      "description": "",
+      "additional_constraints": "",
+      "read_only": false,
+      "dynamic_typing": false,
+      "floating_point_range": [],
+      "integer_range": []
+    },
+    {
+      "name": "start_type_description_service",
+      "type": 1,
+      "description": "If enabled, start the ~/get_type_description service.",
+      "additional_constraints": "",
+      "read_only": true,
+      "dynamic_typing": false,
+      "floating_point_range": [],
+      "integer_range": []
+    },
+    {
+      "name": "use_sim_time",
+      "type": 1,
+      "description": "",
+      "additional_constraints": "",
+      "read_only": false,
+      "dynamic_typing": false,
+      "floating_point_range": [],
+      "integer_range": []
+    }
+  ],
+  "parameter_values": [
+    {
+      "type": 2,
+      "bool_value": false,
+      "integer_value": 10,
+      "double_value": 0.0,
+      "string_value": "",
+      "byte_array_value": [],
+      "bool_array_value": [],
+      "integer_array_value": [],
+      "double_array_value": [],
+      "string_array_value": []
+    },
+    {
+      "type": 4,
+      "bool_value": false,
+      "integer_value": 0,
+      "double_value": 0.0,
+      "string_value": "auto",
+      "byte_array_value": [],
+      "bool_array_value": [],
+      "integer_array_value": [],
+      "double_array_value": [],
+      "string_array_value": []
+    },
+    {
+      "type": 3,
+      "bool_value": false,
+      "integer_value": 0,
+      "double_value": 1.5,
+      "string_value": "",
+      "byte_array_value": [],
+      "bool_array_value": [],
+      "integer_array_value": [],
+      "double_array_value": [],
+      "string_array_value": []
+    },
+    {
+      "type": 1,
+      "bool_value": true,
+      "integer_value": 0,
+      "double_value": 0.0,
+      "string_value": "",
+      "byte_array_value": [],
+      "bool_array_value": [],
+      "integer_array_value": [],
+      "double_array_value": [],
+      "string_array_value": []
+    },
+    {
+      "type": 1,
+      "bool_value": false,
+      "integer_value": 0,
+      "double_value": 0.0,
+      "string_value": "",
+      "byte_array_value": [],
+      "bool_array_value": [],
+      "integer_array_value": [],
+      "double_array_value": [],
+      "string_array_value": []
+    }
+  ],
+  "publishers": [
+    {
+      "name": "/parameter_events",
+      "type": {
+        "name": "rcl_interfaces/msg/ParameterEvent",
+        "hash": {
+          "version": 1,
+          "value": [
+            4,
+            62,
+            98,
+            119,
+            128,
+            252,
+            173,
+            135,
+            162,
+            45,
+            34,
+            91,
+            194,
+            160,
+            55,
+            54,
+            29,
+            186,
+            113,
+            63,
+            202,
+            106,
+            107,
+            159,
+            75,
+            134,
+            154,
+            90,
+            160,
+            57,
+            50,
+            4
+          ]
+        }
+      },
+      "qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        },
+        "lifespan": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        },
+        "history": 3,
+        "reliability": 1,
+        "durability": 2,
+        "liveliness": 1,
+        "liveliness_lease_duration": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        }
+      }
+    },
+    {
+      "name": "/rosout",
+      "type": {
+        "name": "rcl_interfaces/msg/Log",
+        "hash": {
+          "version": 1,
+          "value": [
+            226,
+            140,
+            226,
+            84,
+            202,
+            138,
+            188,
+            6,
+            171,
+            249,
+            39,
+            115,
+            183,
+            70,
+            2,
+            205,
+            191,
+            17,
+            110,
+            211,
+            79,
+            186,
+            242,
+            148,
+            251,
+            159,
+            129,
+            218,
+            159,
+            49,
+            142,
+            172
+          ]
+        }
+      },
+      "qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        },
+        "lifespan": {
+          "sec": 10,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 1,
+        "durability": 1,
+        "liveliness": 1,
+        "liveliness_lease_duration": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        }
+      }
+    },
+    {
+      "name": "/s2/be_pub",
+      "type": {
+        "name": "std_msgs/msg/String",
+        "hash": {
+          "version": 1,
+          "value": [
+            223,
+            102,
+            140,
+            116,
+            4,
+            130,
+            187,
+            212,
+            143,
+            179,
+            157,
+            118,
+            167,
+            13,
+            253,
+            75,
+            213,
+            157,
+            177,
+            40,
+            128,
+            33,
+            116,
+            53,
+            3,
+            37,
+            158,
+            148,
+            143,
+            107,
+            26,
+            24
+          ]
+        }
+      },
+      "qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        },
+        "lifespan": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        },
+        "history": 3,
+        "reliability": 2,
+        "durability": 2,
+        "liveliness": 1,
+        "liveliness_lease_duration": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        }
+      }
+    },
+    {
+      "name": "/s2/tl_pub",
+      "type": {
+        "name": "std_msgs/msg/String",
+        "hash": {
+          "version": 1,
+          "value": [
+            223,
+            102,
+            140,
+            116,
+            4,
+            130,
+            187,
+            212,
+            143,
+            179,
+            157,
+            118,
+            167,
+            13,
+            253,
+            75,
+            213,
+            157,
+            177,
+            40,
+            128,
+            33,
+            116,
+            53,
+            3,
+            37,
+            158,
+            148,
+            143,
+            107,
+            26,
+            24
+          ]
+        }
+      },
+      "qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        },
+        "lifespan": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        },
+        "history": 3,
+        "reliability": 1,
+        "durability": 1,
+        "liveliness": 1,
+        "liveliness_lease_duration": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        }
+      }
+    }
+  ],
+  "subscriptions": [
+    {
+      "name": "/s2/dl_sub",
+      "type": {
+        "name": "std_msgs/msg/String",
+        "hash": {
+          "version": 1,
+          "value": [
+            223,
+            102,
+            140,
+            116,
+            4,
+            130,
+            187,
+            212,
+            143,
+            179,
+            157,
+            118,
+            167,
+            13,
+            253,
+            75,
+            213,
+            157,
+            177,
+            40,
+            128,
+            33,
+            116,
+            53,
+            3,
+            37,
+            158,
+            148,
+            143,
+            107,
+            26,
+            24
+          ]
+        }
+      },
+      "qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 2,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        },
+        "history": 3,
+        "reliability": 1,
+        "durability": 2,
+        "liveliness": 1,
+        "liveliness_lease_duration": {
+          "sec": 9223372036,
+          "nanosec": 854775807
+        }
+      }
+    }
+  ],
+  "service_clients": [
+    {
+      "name": "/s2/multiply",
+      "request_type": {
+        "name": "example_interfaces/srv/AddTwoInts",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "example_interfaces/srv/AddTwoInts",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    }
+  ],
+  "service_servers": [
+    {
+      "name": "/s2/add",
+      "request_type": {
+        "name": "example_interfaces/srv/AddTwoInts",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "example_interfaces/srv/AddTwoInts",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    },
+    {
+      "name": "/s2/s2_node/describe_parameters",
+      "request_type": {
+        "name": "rcl_interfaces/srv/DescribeParameters",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "rcl_interfaces/srv/DescribeParameters",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    },
+    {
+      "name": "/s2/s2_node/get_parameter_types",
+      "request_type": {
+        "name": "rcl_interfaces/srv/GetParameterTypes",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "rcl_interfaces/srv/GetParameterTypes",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    },
+    {
+      "name": "/s2/s2_node/get_parameters",
+      "request_type": {
+        "name": "rcl_interfaces/srv/GetParameters",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "rcl_interfaces/srv/GetParameters",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    },
+    {
+      "name": "/s2/s2_node/get_type_description",
+      "request_type": {
+        "name": "type_description_interfaces/srv/GetTypeDescription",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "type_description_interfaces/srv/GetTypeDescription",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    },
+    {
+      "name": "/s2/s2_node/list_parameters",
+      "request_type": {
+        "name": "rcl_interfaces/srv/ListParameters",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "rcl_interfaces/srv/ListParameters",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    },
+    {
+      "name": "/s2/s2_node/set_parameters",
+      "request_type": {
+        "name": "rcl_interfaces/srv/SetParameters",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "rcl_interfaces/srv/SetParameters",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    },
+    {
+      "name": "/s2/s2_node/set_parameters_atomically",
+      "request_type": {
+        "name": "rcl_interfaces/srv/SetParametersAtomically",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "request_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      },
+      "response_type": {
+        "name": "rcl_interfaces/srv/SetParametersAtomically",
+        "hash": {
+          "version": 1,
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "response_qos": {
+        "depth": 0,
+        "deadline": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "lifespan": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "history": 3,
+        "reliability": 3,
+        "durability": 3,
+        "liveliness": 4,
+        "liveliness_lease_duration": {
+          "sec": 0,
+          "nanosec": 0
+        }
+      }
+    }
+  ],
+  "action_clients": [
+    {
+      "name": "/s2/compute",
+      "send_goal": {
+        "name": "/s2/compute/_action/send_goal",
+        "request_type": {
+          "name": "example_interfaces/action/Fibonacci_SendGoal",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "request_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "response_type": {
+          "name": "example_interfaces/action/Fibonacci_SendGoal",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "response_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        }
+      },
+      "get_result": {
+        "name": "/s2/compute/_action/get_result",
+        "request_type": {
+          "name": "example_interfaces/action/Fibonacci_GetResult",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "request_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "response_type": {
+          "name": "example_interfaces/action/Fibonacci_GetResult",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "response_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        }
+      },
+      "cancel_goal": {
+        "name": "/s2/compute/_action/cancel_goal",
+        "request_type": {
+          "name": "action_msgs/srv/CancelGoal",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "request_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "response_type": {
+          "name": "action_msgs/srv/CancelGoal",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "response_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        }
+      },
+      "feedback": {
+        "name": "/s2/compute/_action/feedback",
+        "type": {
+          "name": "example_interfaces/action/Fibonacci_FeedbackMessage",
+          "hash": {
+            "version": 1,
+            "value": [
+              193,
+              222,
+              113,
+              175,
+              213,
+              46,
+              73,
+              168,
+              156,
+              83,
+              216,
+              38,
+              35,
+              102,
+              136,
+              65,
+              133,
+              188,
+              10,
+              2,
+              247,
+              140,
+              224,
+              81,
+              196,
+              228,
+              107,
+              10,
+              127,
+              229,
+              155,
+              178
+            ]
+          }
+        },
+        "qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          },
+          "lifespan": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          },
+          "history": 3,
+          "reliability": 1,
+          "durability": 2,
+          "liveliness": 1,
+          "liveliness_lease_duration": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          }
+        }
+      },
+      "status": {
+        "name": "/s2/compute/_action/status",
+        "type": {
+          "name": "action_msgs/msg/GoalStatusArray",
+          "hash": {
+            "version": 1,
+            "value": [
+              108,
+              22,
+              132,
+              176,
+              15,
+              23,
+              125,
+              55,
+              67,
+              143,
+              235,
+              230,
+              231,
+              9,
+              252,
+              78,
+              43,
+              13,
+              66,
+              72,
+              220,
+              164,
+              133,
+              73,
+              70,
+              249,
+              237,
+              139,
+              48,
+              205,
+              168,
+              62
+            ]
+          }
+        },
+        "qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          },
+          "lifespan": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          },
+          "history": 3,
+          "reliability": 1,
+          "durability": 1,
+          "liveliness": 1,
+          "liveliness_lease_duration": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          }
+        }
+      }
+    }
+  ],
+  "action_servers": [
+    {
+      "name": "/s2/fib",
+      "send_goal": {
+        "name": "/s2/fib/_action/send_goal",
+        "request_type": {
+          "name": "example_interfaces/action/Fibonacci_SendGoal",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "request_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "response_type": {
+          "name": "example_interfaces/action/Fibonacci_SendGoal",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "response_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        }
+      },
+      "get_result": {
+        "name": "/s2/fib/_action/get_result",
+        "request_type": {
+          "name": "example_interfaces/action/Fibonacci_GetResult",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "request_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "response_type": {
+          "name": "example_interfaces/action/Fibonacci_GetResult",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "response_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        }
+      },
+      "cancel_goal": {
+        "name": "/s2/fib/_action/cancel_goal",
+        "request_type": {
+          "name": "action_msgs/srv/CancelGoal",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "request_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        },
+        "response_type": {
+          "name": "action_msgs/srv/CancelGoal",
+          "hash": {
+            "version": 1,
+            "value": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "response_qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "lifespan": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "history": 3,
+          "reliability": 3,
+          "durability": 3,
+          "liveliness": 4,
+          "liveliness_lease_duration": {
+            "sec": 0,
+            "nanosec": 0
+          }
+        }
+      },
+      "feedback": {
+        "name": "/s2/fib/_action/feedback",
+        "type": {
+          "name": "example_interfaces/action/Fibonacci_FeedbackMessage",
+          "hash": {
+            "version": 1,
+            "value": [
+              193,
+              222,
+              113,
+              175,
+              213,
+              46,
+              73,
+              168,
+              156,
+              83,
+              216,
+              38,
+              35,
+              102,
+              136,
+              65,
+              133,
+              188,
+              10,
+              2,
+              247,
+              140,
+              224,
+              81,
+              196,
+              228,
+              107,
+              10,
+              127,
+              229,
+              155,
+              178
+            ]
+          }
+        },
+        "qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          },
+          "lifespan": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          },
+          "history": 3,
+          "reliability": 1,
+          "durability": 2,
+          "liveliness": 1,
+          "liveliness_lease_duration": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          }
+        }
+      },
+      "status": {
+        "name": "/s2/fib/_action/status",
+        "type": {
+          "name": "action_msgs/msg/GoalStatusArray",
+          "hash": {
+            "version": 1,
+            "value": [
+              108,
+              22,
+              132,
+              176,
+              15,
+              23,
+              125,
+              55,
+              67,
+              143,
+              235,
+              230,
+              231,
+              9,
+              252,
+              78,
+              43,
+              13,
+              66,
+              72,
+              220,
+              164,
+              133,
+              73,
+              70,
+              249,
+              237,
+              139,
+              48,
+              205,
+              168,
+              62
+            ]
+          }
+        },
+        "qos": {
+          "depth": 0,
+          "deadline": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          },
+          "lifespan": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          },
+          "history": 3,
+          "reliability": 1,
+          "durability": 1,
+          "liveliness": 1,
+          "liveliness_lease_duration": {
+            "sec": 9223372036,
+            "nanosec": 854775807
+          }
+        }
+      }
+    }
+  ]
+}
