@@ -9,7 +9,9 @@
   <author email="hello@alistairenglish.com">Alistair English</author>
   <author email="me@emersonknapp.com">Emerson Knapp</author>
 
+  <depend>nodl_observe</depend>
   <depend>nodl_schema</depend>
+  <depend>rosgraph_msgs</depend>
   <depend>ros2cli</depend>
 
   <test_depend>python3-pytest</test_depend>
