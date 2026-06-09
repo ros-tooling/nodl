@@ -31,11 +31,18 @@ pytest.importorskip('nodl_observe')
 pytest.importorskip('rosgraph_msgs')
 
 import rclpy.executors  # noqa: E402  (after importorskip)
+import rclpy.qos  # noqa: E402
 import yaml  # noqa: E402
 
 from nodl_observe import latched_qos  # noqa: E402
 
 from ros2nodl.verb.describe import DescribeVerb, _infer_format  # noqa: E402
+
+# Live observation requires Iron+ (REP-2011 type hashes / int32-safe QoS
+# durations); pre-Iron distros (Humble) are a tracked follow-up.  The
+# pure-argument tests below still run everywhere; only the smoke tests that
+# actually observe a node are gated.  BEST_AVAILABLE presence is the Iron+ proxy.
+_IRON_PLUS = hasattr(rclpy.qos.ReliabilityPolicy, 'BEST_AVAILABLE')
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -154,6 +161,9 @@ class TestDescribeVerbBadArgs:
 # ROS smoke tests — require rclpy + nodl_observe + a running target node
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(
+    not _IRON_PLUS,
+    reason='live observation requires Iron+ (pre-Iron / Humble is a follow-up)')
 class TestDescribeVerbSmoke:
 
     def test_exit_code_zero(self, target_node, capsys):

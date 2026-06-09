@@ -36,22 +36,31 @@ _RELIABILITY = {
     ReliabilityPolicy.RELIABLE: QoSProfileMsg.RELIABILITY_RELIABLE,
     ReliabilityPolicy.BEST_EFFORT: QoSProfileMsg.RELIABILITY_BEST_EFFORT,
     ReliabilityPolicy.UNKNOWN: QoSProfileMsg.RELIABILITY_UNKNOWN,
-    ReliabilityPolicy.BEST_AVAILABLE: QoSProfileMsg.RELIABILITY_BEST_AVAILABLE,
 }
 _DURABILITY = {
     DurabilityPolicy.SYSTEM_DEFAULT: QoSProfileMsg.DURABILITY_SYSTEM_DEFAULT,
     DurabilityPolicy.TRANSIENT_LOCAL: QoSProfileMsg.DURABILITY_TRANSIENT_LOCAL,
     DurabilityPolicy.VOLATILE: QoSProfileMsg.DURABILITY_VOLATILE,
     DurabilityPolicy.UNKNOWN: QoSProfileMsg.DURABILITY_UNKNOWN,
-    DurabilityPolicy.BEST_AVAILABLE: QoSProfileMsg.DURABILITY_BEST_AVAILABLE,
 }
 _LIVELINESS = {
     LivelinessPolicy.SYSTEM_DEFAULT: QoSProfileMsg.LIVELINESS_SYSTEM_DEFAULT,
     LivelinessPolicy.AUTOMATIC: QoSProfileMsg.LIVELINESS_AUTOMATIC,
     LivelinessPolicy.MANUAL_BY_TOPIC: QoSProfileMsg.LIVELINESS_MANUAL_BY_TOPIC,
     LivelinessPolicy.UNKNOWN: QoSProfileMsg.LIVELINESS_UNKNOWN,
-    LivelinessPolicy.BEST_AVAILABLE: QoSProfileMsg.LIVELINESS_BEST_AVAILABLE,
 }
+
+# ``BEST_AVAILABLE`` is a request-time policy added in Iron; it does not exist
+# in Humble's ``rclpy.qos`` enums.  It can never be an *observed* value, so we
+# add it only where the running rclpy defines it -- keeping the package
+# importable on Humble while still mapping it on Iron+ if it ever appears.
+for _enum, _table, _const in (
+    (ReliabilityPolicy, _RELIABILITY, 'RELIABILITY_BEST_AVAILABLE'),
+    (DurabilityPolicy, _DURABILITY, 'DURABILITY_BEST_AVAILABLE'),
+    (LivelinessPolicy, _LIVELINESS, 'LIVELINESS_BEST_AVAILABLE'),
+):
+    if hasattr(_enum, 'BEST_AVAILABLE'):
+        _table[_enum.BEST_AVAILABLE] = getattr(QoSProfileMsg, _const)
 
 
 def qos_to_msg(qos: QoSProfile) -> QoSProfileMsg:

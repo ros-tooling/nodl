@@ -78,6 +78,13 @@ from rosgraph_msgs.msg import QoSProfile as _QoSMsg  # noqa: E402
 from nodl_observe import observe_node  # noqa: E402
 from nodl_observe.serialization import to_yaml  # noqa: E402
 
+# Observation requires Iron+ (REP-2011 type hashes / BEST_AVAILABLE QoS /
+# int32-safe infinite durations); pre-Iron distros (Humble) are a tracked
+# follow-up.  BEST_AVAILABLE presence is the Iron+ proxy.
+if not hasattr(ReliabilityPolicy, 'BEST_AVAILABLE'):
+    pytest.skip('requires Iron+ (pre-Iron / Humble support is a follow-up)',
+                allow_module_level=True)
+
 # Goldens are deduplicated across (distro, RMW) because implicit endpoint sets,
 # QoS observability, and type hashes can shift between ROS releases *and*
 # middlewares -- but most combinations observe the *same* thing.  `_base/` holds

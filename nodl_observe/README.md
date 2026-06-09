@@ -61,13 +61,15 @@ These are locked in by tests across the RMW matrix — if a future rclpy/RMW
 exposes service QoS or changes history/depth propagation, the affected golden
 *and* the targeted assertion both move, flagging it.
 
-Requires a `rosgraph_msgs` that provides `Node.msg`. These graph messages
-landed in rolling first and are now released across **jazzy** (`2.0.4`, via
-ros2-testing), **kilted** (`2.3.2`, via ros2-testing), **lyrical** (`2.4.5`),
-and **rolling** (`2.5.0`); version numbers are not comparable across distros.
-**humble** has no `Node.msg` yet — there the package still builds and its
-observation tests skip (the import guard catches the missing message) until the
-message is released for it.
+Requires **Iron or newer** and a `rosgraph_msgs` that provides `Node.msg`. The
+graph messages are now released across jazzy (`2.0.4`), kilted (`2.3.2`),
+lyrical (`2.4.5`), rolling (`2.5.0`), and even humble (`1.2.3`) — all via
+ros2-testing where they lead the main index. **Humble works as a message but
+not as a runtime target**: it predates Iron, so it lacks REP-2011 topic type
+hashes and the `BEST_AVAILABLE` QoS enum, and its `builtin_interfaces/Duration`
+overflows on an infinite QoS deadline. The observation tests are therefore
+capability-gated to Iron+ (so humble's CI leg skips cleanly); full pre-Iron
+support is a tracked follow-up.
 
 ## Tests and golden files
 

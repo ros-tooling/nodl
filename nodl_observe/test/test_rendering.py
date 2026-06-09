@@ -34,6 +34,13 @@ import pytest
 pytest.importorskip('nodl_observe')
 pytest.importorskip('rosidl_runtime_py')
 
+# Goldens are Iron+ observations (REP-2011 type hashes etc.); pre-Iron distros
+# (Humble) are a tracked follow-up.  BEST_AVAILABLE presence is the Iron+ proxy.
+from rclpy.qos import ReliabilityPolicy as _RP  # noqa: E402
+if not hasattr(_RP, 'BEST_AVAILABLE'):
+    pytest.skip('requires Iron+ (pre-Iron / Humble support is a follow-up)',
+                allow_module_level=True)
+
 import yaml  # noqa: E402
 
 from rosgraph_msgs.msg import Node as NodeMsg  # noqa: E402

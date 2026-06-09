@@ -51,12 +51,15 @@ def _interface_type(type_name: str, source_hash=None) -> InterfaceType:
 def build_topic(name: str, endpoint_info) -> Topic:
     """Build a ``Topic`` (publisher or subscription) from a ``TopicEndpointInfo``.
 
-    The endpoint info carries the observed QoS *and* the RIHS type hash, so a
-    topic endpoint is fully observable.
+    The endpoint info carries the observed QoS and, on Iron+ (REP-2011), the
+    RIHS type hash.  Older distros (Humble) have no ``topic_type_hash`` on
+    ``TopicEndpointInfo`` -- there the hash is simply left unset rather than
+    fabricated, the same honest-unknown treatment service type hashes get.
     """
     topic = Topic()
     topic.name = name
-    topic.type = _interface_type(endpoint_info.topic_type, endpoint_info.topic_type_hash)
+    topic.type = _interface_type(
+        endpoint_info.topic_type, getattr(endpoint_info, 'topic_type_hash', None))
     topic.qos = qos_to_msg(endpoint_info.qos_profile)
     return topic
 

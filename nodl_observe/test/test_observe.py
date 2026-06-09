@@ -25,6 +25,17 @@ from rclpy.qos import (  # noqa: E402
     QoSProfile,
     ReliabilityPolicy,
 )
+
+# nodl_observe observation requires Iron+ : REP-2011 topic type hashes (the
+# rclpy.type_hash import just below is itself Iron+-only), the BEST_AVAILABLE
+# QoS enum, and int32-safe infinite QoS durations.  Pre-Iron distros (Humble)
+# lack all three; supporting them is a tracked follow-up, so skip the module
+# rather than crash.  This gate must precede the Iron+ imports.  BEST_AVAILABLE
+# presence is the Iron+ proxy.
+if not hasattr(ReliabilityPolicy, 'BEST_AVAILABLE'):
+    pytest.skip('requires Iron+ (pre-Iron / Humble support is a follow-up)',
+                allow_module_level=True)
+
 from rclpy.type_hash import TypeHash as RclTypeHash  # noqa: E402
 from rosgraph_msgs.msg import QoSProfile as QoSProfileMsg  # noqa: E402
 
