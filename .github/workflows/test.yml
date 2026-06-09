@@ -13,6 +13,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # nodl_observe's QoS introspection differs per RMW (e.g. cyclonedds
+        # propagates history/depth over discovery, fastrtps does not), so it is
+        # tested against both; its goldens are keyed by (distro, RMW).  Other
+        # packages are RMW-agnostic but harmlessly re-run on both legs.
+        rmw: [rmw_fastrtps_cpp, rmw_cyclonedds_cpp]
+        ros: [humble, jazzy, kilted, lyrical, rolling]
         include:
           - ros: humble
             ubuntu: jammy
@@ -26,7 +32,11 @@ jobs:
             ubuntu: resolute
     container:
       image: rostooling/setup-ros-docker:ubuntu-${{ matrix.ubuntu }}-latest
+    env:
+      RMW_IMPLEMENTATION: ${{ matrix.rmw }}
     steps:
+      - name: Install the matrix RMW
+        run: apt-get update && apt-get install -y --no-install-recommends ros-${{ matrix.ros }}-${{ matrix.rmw == 'rmw_cyclonedds_cpp' && 'rmw-cyclonedds-cpp' || 'rmw-fastrtps-cpp' }}
       - uses: ros-tooling/action-ros-ci@v0.4
         with:
           package-name: ament_nodl nodl nodl_observe nodl_schema ros2nodl test_ament_nodl
@@ -34,5 +44,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: colcon-logs-${{ matrix.ros }}
+          name: colcon-logs-${{ matrix.ros }}-${{ matrix.rmw }}
           path: ros_ws/log

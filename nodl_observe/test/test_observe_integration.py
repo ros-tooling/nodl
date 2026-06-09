@@ -76,19 +76,38 @@ from std_msgs.msg import String  # noqa: E402
 from nodl_observe import observe_node  # noqa: E402
 from nodl_observe.serialization import to_yaml  # noqa: E402
 
-# Goldens are per-distro: implicit endpoint sets, QoS observability, and type
-# hashes can all shift between ROS releases, so each distro in CI carries its
-# own golden set.  A distro without goldens skips (with a bootstrap hint)
-# rather than diffing against another release's files.
+# Goldens are keyed by (distro, RMW): implicit endpoint sets, QoS observability,
+# and type hashes can all shift between ROS releases *and* middleware
+# implementations.  Resolution is most-specific-first -- a per-RMW golden under
+# expected/<distro>/<rmw>/ wins, falling back to a shared expected/<distro>/
+# golden.  That fallback is the "grouping": when every RMW on a distro observes
+# the same thing, the set is committed once at the <distro> level instead of
+# being duplicated per RMW.  A target with no golden either way skips with a
+# bootstrap hint rather than diffing against another distro/RMW's files.
 _ROS_DISTRO = os.environ.get('ROS_DISTRO', 'unknown')
-_EXPECTED_DIR = os.path.join(os.path.dirname(__file__), 'expected', _ROS_DISTRO)
+_RMW = os.environ.get('RMW_IMPLEMENTATION', 'rmw_fastrtps_cpp')
+_EXPECTED = os.path.join(os.path.dirname(__file__), 'expected')
+# REGEN always writes the most-specific (per-RMW) location; the maintainer
+# promotes a set to the shared <distro> level once RMWs are confirmed identical.
+_REGEN_DIR = os.path.join(_EXPECTED, _ROS_DISTRO, _RMW)
 _REGEN = os.environ.get('REGEN_GOLDENS') == '1'
 _OBSERVE_TIMEOUT = 10.0
 
-if not _REGEN and not os.path.isdir(_EXPECTED_DIR):
+
+def _resolve_golden(basename):
+    """Return the golden path for *basename*, most-specific first, or ``None``."""
+    for directory in (_REGEN_DIR, os.path.join(_EXPECTED, _ROS_DISTRO)):
+        path = os.path.join(directory, f'{basename}.yaml')
+        if os.path.exists(path):
+            return path
+    return None
+
+
+if not _REGEN and _resolve_golden('s1_node') is None:
     pytest.skip(
-        f'no goldens for ROS distro {_ROS_DISTRO!r} (expected at '
-        f'{_EXPECTED_DIR}); run with REGEN_GOLDENS=1 to bootstrap them',
+        f'no goldens for ROS distro {_ROS_DISTRO!r} / RMW {_RMW!r} (looked under '
+        f'{_REGEN_DIR} and {os.path.join(_EXPECTED, _ROS_DISTRO)}); '
+        'run with REGEN_GOLDENS=1 to bootstrap them',
         allow_module_level=True)
 
 
@@ -226,10 +245,6 @@ class _ScenarioGraph:
         return False
 
 
-def _golden_path(basename):
-    return os.path.join(_EXPECTED_DIR, f'{basename}.yaml')
-
-
 def _observe_scenario(scenario):
     """Run one scenario, returning ``{basename: yaml_text}`` for every target."""
     builder, targets = _SCENARIOS[scenario]
@@ -269,20 +284,22 @@ _ALL_TARGETS = [
 def test_observation_matches_golden(scenario, basename):
     """Observed YAML matches the committed golden (or regenerates it)."""
     actual = _render(scenario)[basename]
-    path = _golden_path(basename)
 
     if _REGEN:
-        os.makedirs(_EXPECTED_DIR, exist_ok=True)
+        os.makedirs(_REGEN_DIR, exist_ok=True)
+        path = os.path.join(_REGEN_DIR, f'{basename}.yaml')
         with open(path, 'w') as fh:
             fh.write(actual)
         pytest.skip(f'REGEN_GOLDENS: wrote {path}')
 
-    assert os.path.exists(path), (
-        f'Missing golden {path!r}. Run with REGEN_GOLDENS=1 to generate it.')
+    path = _resolve_golden(basename)
+    assert path is not None, (
+        f'Missing golden for {basename!r} (distro {_ROS_DISTRO!r}, RMW {_RMW!r}). '
+        'Run with REGEN_GOLDENS=1 to generate it.')
     with open(path) as fh:
         expected = fh.read()
     assert actual == expected, (
-        f'Observation of {basename} drifted from its golden.\n'
+        f'Observation of {basename} drifted from its golden ({path}).\n'
         f'Re-run with REGEN_GOLDENS=1 if this change is intended.')
 
 
@@ -356,12 +373,23 @@ class TestS2FullSurface:
         be = _find(msg.publishers, '/s2/be_pub')
         assert be.qos.reliability == QoSMsg.RELIABILITY_BEST_EFFORT
         tl = _find(msg.publishers, '/s2/tl_pub')
-        # TRANSIENT_LOCAL durability is observable over DDS discovery; the
-        # history policy (KEEP_ALL on the wire) is *not* propagated by
-        # rmw_fastrtps_cpp and comes back HISTORY_UNKNOWN -- the golden records
-        # that honestly rather than fabricating the requested value.
+        # Reliability, durability, and deadline are observable over DDS
+        # discovery on every RMW; history/depth observability is RMW-specific
+        # and locked in per RMW (the golden records the exact bytes, this
+        # asserts the documented intent):
+        #   rmw_fastrtps_cpp  -- does NOT propagate history/depth over
+        #       discovery: history -> HISTORY_UNKNOWN, depth -> 0.
+        #   rmw_cyclonedds_cpp -- DOES propagate them: the requested
+        #       HISTORY_KEEP_ALL is observed.
+        # If a future RMW/rclpy changes this, its golden diff *and* this
+        # assertion both move, flagging the change rather than hiding it.
         assert tl.qos.durability == QoSMsg.DURABILITY_TRANSIENT_LOCAL
-        assert tl.qos.history == QoSMsg.HISTORY_UNKNOWN
+        expected_history = {
+            'rmw_fastrtps_cpp': QoSMsg.HISTORY_UNKNOWN,
+            'rmw_cyclonedds_cpp': QoSMsg.HISTORY_KEEP_ALL,
+        }.get(_RMW)
+        if expected_history is not None:
+            assert tl.qos.history == expected_history
         dl = _find(msg.subscriptions, '/s2/dl_sub')
         assert dl.qos.deadline.sec == 2
 

@@ -44,23 +44,40 @@ Not every `Node.msg` field is observable from an external process:
 | service servers / clients | name and types only; **QoS is reported as `*_UNKNOWN`** — there is no info-by-service API in rclpy/rmw — and the type hash is unset |
 | action servers / clients | derived: the hidden `<action>/_action/*` entities are folded into each `Action` entry (topics get real QoS, services get UNKNOWN). Orphan `_action/*` entities stay flat — nothing is discarded |
 
-Per-RMW gaps surface honestly rather than being papered over. Under the
-pinned test RMW (`rmw_fastrtps_cpp`), the history policy of a remote endpoint
-is **not** propagated over DDS discovery: a `KEEP_ALL` publisher is observed
-(and golden-recorded) as `HISTORY_UNKNOWN`, while reliability, durability,
-depth, and deadline come through. These limits are locked in by tests — if a
-future rclpy exposes service QoS or history propagation, a test fails and
-flags the upgrade opportunity.
+**Per-RMW gaps surface honestly rather than being papered over**, and which
+QoS policies a remote endpoint exposes over DDS discovery genuinely differs by
+middleware. Reliability, durability, and deadline come through everywhere;
+history and depth do not:
+
+| QoS field on a remote topic | `rmw_fastrtps_cpp` | `rmw_cyclonedds_cpp` |
+|---|---|---|
+| reliability / durability / deadline | observed | observed |
+| history policy | `*_UNKNOWN` (not propagated) | observed (e.g. `KEEP_ALL`) |
+| depth | `0` (not propagated) | observed (actual depth) |
+
+These limits are locked in by tests against **both** RMWs — observation never
+fabricates a requested-but-unobserved value, and the golden for each
+`(distro, RMW)` records exactly what that combination reports. If a future
+rclpy/RMW exposes service QoS or changes history/depth propagation, the
+golden diff *and* the targeted assertion both move, flagging it.
 
 Requires `rosgraph_msgs >= 2.0.4` (the release that introduces `Node.msg`).
 
 ## Tests and golden files
 
-`test/expected/<ROS_DISTRO>/` holds golden YAML/JSON renders of three
-scenario graphs (minimal, full-surface, multi-node isolation). Goldens are
-per-distro because implicit endpoint sets and QoS observability shift between
-releases; a distro without goldens skips with a bootstrap hint. Regenerate
-with `REGEN_GOLDENS=1` and inspect the diff before committing.
+`test/expected/<ROS_DISTRO>/<RMW>/` holds golden YAML renders of three scenario
+graphs (minimal, full-surface, multi-node isolation). Goldens are keyed by
+`(distro, RMW)` because implicit endpoint sets and QoS observability shift
+between releases *and* middlewares; when every RMW on a distro observes the
+same thing, the set is committed once at the `<distro>/` level instead (the
+test resolves most-specific first). A `(distro, RMW)` with no golden skips with
+a bootstrap hint. Regenerate with `REGEN_GOLDENS=1` and inspect the diff before
+committing.
+
+Only one representation (YAML) is committed per `(distro, RMW)` — it is the
+canonical, human-readable form. The JSON renderer is proven by an equivalence
+test (both renders of the same message must parse to the same structure), so
+no duplicate JSON golden is stored.
 
 The golden YAMLs are real `rosgraph_msgs/Node` samples and double as input
 fixtures for Describe — a NoDL converter can be developed against them
