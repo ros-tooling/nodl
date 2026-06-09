@@ -61,7 +61,13 @@ fabricates a requested-but-unobserved value, and the golden for each
 rclpy/RMW exposes service QoS or changes history/depth propagation, the
 golden diff *and* the targeted assertion both move, flagging it.
 
-Requires `rosgraph_msgs >= 2.0.4` (the release that introduces `Node.msg`).
+Requires a `rosgraph_msgs` that provides `Node.msg`. These graph messages are
+released on the **jazzy** line (≥ 2.0.4) but have **not** yet landed elsewhere
+— kilted's `rosgraph_msgs` (2.3.1) ships `Clock` only, and current rolling
+likewise lacks them — so version numbers are not comparable across distros.
+Where `Node.msg` is absent the package still builds; its observation tests
+skip (the import guard catches the missing message) until the messages
+propagate to that distro.
 
 ## Tests and golden files
 
