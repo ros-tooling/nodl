@@ -42,10 +42,10 @@ from rosidl_runtime_py import set_message_fields  # noqa: E402
 
 from nodl_observe.serialization import to_json, to_yaml  # noqa: E402
 
-# Same (distro, RMW) golden resolution as the layer-2 integration tests, which
-# produce these inputs: per-RMW under expected/<distro>/<rmw>/, falling back to
-# a shared expected/<distro>/ golden.  (Kept in sync with that module; the two
-# test layers are independent so a shared import would couple their collection.)
+# Same deduplicated golden resolution as the layer-2 integration tests, which
+# produce these inputs: most-specific first over expected/<distro>/<rmw>/, then
+# expected/<rmw>/, then expected/_base/.  (Kept in sync with that module; the
+# two test layers are independent so a shared import would couple collection.)
 _ROS_DISTRO = os.environ.get('ROS_DISTRO', 'unknown')
 _RMW = os.environ.get('RMW_IMPLEMENTATION', 'rmw_fastrtps_cpp')
 _EXPECTED = os.path.join(os.path.dirname(__file__), 'expected')
@@ -57,7 +57,8 @@ _GOLDENS = ['s1_node', 's2_node', 's3_node_a', 's3_node_b']
 def _resolve_golden(basename):
     """Return the golden path for *basename*, most-specific first, or ``None``."""
     for directory in (os.path.join(_EXPECTED, _ROS_DISTRO, _RMW),
-                      os.path.join(_EXPECTED, _ROS_DISTRO)):
+                      os.path.join(_EXPECTED, _RMW),
+                      os.path.join(_EXPECTED, '_base')):
         path = os.path.join(directory, f'{basename}.yaml')
         if os.path.exists(path):
             return path

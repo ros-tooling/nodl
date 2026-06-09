@@ -23,18 +23,25 @@ jobs:
         ros: [humble, jazzy, kilted, lyrical, rolling]
         # `ubuntu` is mapped per ROS distro here and merged into every (ros, rmw)
         # combination above (add a distro by extending both `ros` and this list).
+        # `requires_node_msg: true` marks distros that ship Node.msg and so MUST
+        # run observe (a missing message there is a failure, not a silent skip).
+        # humble has no Node.msg yet -> left unflagged so it skips cleanly.  Flip
+        # a distro on once its rosgraph_msgs carries Node.msg.
         include:
           - ros: humble
             ubuntu: jammy
           - ros: jazzy
             ubuntu: noble
-            requires_node_msg: true   # observe MUST run here; fail if it can't
+            requires_node_msg: true   # rosgraph_msgs 2.0.4 (via ros2-testing)
           - ros: kilted
             ubuntu: noble
+            requires_node_msg: true   # rosgraph_msgs 2.3.2 (via ros2-testing)
           - ros: lyrical
             ubuntu: resolute
+            requires_node_msg: true   # rosgraph_msgs 2.4.5
           - ros: rolling
             ubuntu: resolute
+            requires_node_msg: true   # rosgraph_msgs 2.5.0
     container:
       image: rostooling/setup-ros-docker:ubuntu-${{ matrix.ubuntu }}-latest
     env:

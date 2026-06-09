@@ -78,48 +78,39 @@ from rosgraph_msgs.msg import QoSProfile as _QoSMsg  # noqa: E402
 from nodl_observe import observe_node  # noqa: E402
 from nodl_observe.serialization import to_yaml  # noqa: E402
 
-# ---- RMW extension point ---------------------------------------------------
-# Adding an RMW to the test matrix is intended to be "drop in goldens":
-#   1. add it to the CI matrix `rmw:` list in .github/workflows/test.yml -- the
-#      install step derives the apt package name (`rmw_x_cpp` -> `rmw-x-cpp`),
-#   2. run `REGEN_GOLDENS=1` under that distro+RMW to bootstrap its goldens
-#      (the harness needs no per-RMW setup -- every node runs in one process /
-#      one session, so even a router-based RMW like zenoh discovers without a
-#      separate daemon), inspect the diff, commit,
-#   3. if its history-over-discovery behaviour diverges, add it below.
-# The one QoS field whose *value* (not just bytes) we assert per RMW is the
-# history policy: some middlewares propagate it over discovery, some do not.
-# Depth varies too but is captured wholly by the golden, so it needs no entry.
-# An RMW absent from this map simply skips the targeted history assertion (its
-# golden still locks the full message).
-_HISTORY_OVER_DISCOVERY = {
-    'rmw_fastrtps_cpp': _QoSMsg.HISTORY_UNKNOWN,     # not propagated (depth -> 0)
-    'rmw_cyclonedds_cpp': _QoSMsg.HISTORY_KEEP_ALL,  # propagated (actual depth)
-    'rmw_zenoh_cpp': _QoSMsg.HISTORY_KEEP_ALL,       # propagated (actual depth)
-}
-# ----------------------------------------------------------------------------
-
-# Goldens are keyed by (distro, RMW): implicit endpoint sets, QoS observability,
-# and type hashes can all shift between ROS releases *and* middleware
-# implementations.  Resolution is most-specific-first -- a per-RMW golden under
-# expected/<distro>/<rmw>/ wins, falling back to a shared expected/<distro>/
-# golden.  That fallback is the "grouping": when every RMW on a distro observes
-# the same thing, the set is committed once at the <distro> level instead of
-# being duplicated per RMW.  A target with no golden either way skips with a
-# bootstrap hint rather than diffing against another distro/RMW's files.
+# Goldens are deduplicated across (distro, RMW) because implicit endpoint sets,
+# QoS observability, and type hashes can shift between ROS releases *and*
+# middlewares -- but most combinations observe the *same* thing.  `_base/` holds
+# the full/canonical observation; an override is committed only where a
+# combination differs from it, at the least-specific level that captures the
+# difference:
+#   expected/_base/<scenario>.yaml             -- the full observation (most combos)
+#   expected/<rmw>/<scenario>.yaml             -- an RMW-inherent gap (every distro)
+#   expected/<distro>/<rmw>/<scenario>.yaml    -- a distro+RMW-specific gap
+# Resolution is most-specific-first.  REGEN writes the most-specific location;
+# the maintainer then promotes a golden to <rmw>/ or _base/ and deletes the
+# redundant copies (the resolver works either way, so this is cleanup not
+# correctness).  A combination with no golden anywhere skips with a hint.
 _ROS_DISTRO = os.environ.get('ROS_DISTRO', 'unknown')
 _RMW = os.environ.get('RMW_IMPLEMENTATION', 'rmw_fastrtps_cpp')
 _EXPECTED = os.path.join(os.path.dirname(__file__), 'expected')
-# REGEN always writes the most-specific (per-RMW) location; the maintainer
-# promotes a set to the shared <distro> level once RMWs are confirmed identical.
 _REGEN_DIR = os.path.join(_EXPECTED, _ROS_DISTRO, _RMW)
 _REGEN = os.environ.get('REGEN_GOLDENS') == '1'
 _OBSERVE_TIMEOUT = 10.0
 
 
+def _golden_search_dirs():
+    """Golden directories for the active (distro, RMW), most-specific first."""
+    return (
+        os.path.join(_EXPECTED, _ROS_DISTRO, _RMW),  # distro+RMW-specific gap
+        os.path.join(_EXPECTED, _RMW),               # RMW-inherent gap (any distro)
+        os.path.join(_EXPECTED, '_base'),            # the full/canonical observation
+    )
+
+
 def _resolve_golden(basename):
     """Return the golden path for *basename*, most-specific first, or ``None``."""
-    for directory in (_REGEN_DIR, os.path.join(_EXPECTED, _ROS_DISTRO)):
+    for directory in _golden_search_dirs():
         path = os.path.join(directory, f'{basename}.yaml')
         if os.path.exists(path):
             return path
@@ -129,7 +120,7 @@ def _resolve_golden(basename):
 if not _REGEN and _resolve_golden('s1_node') is None:
     pytest.skip(
         f'no goldens for ROS distro {_ROS_DISTRO!r} / RMW {_RMW!r} (looked under '
-        f'{_REGEN_DIR} and {os.path.join(_EXPECTED, _ROS_DISTRO)}); '
+        f'{", ".join(_golden_search_dirs())}); '
         'run with REGEN_GOLDENS=1 to bootstrap them',
         allow_module_level=True)
 
@@ -395,16 +386,12 @@ class TestS2FullSurface:
         be = _find(msg.publishers, '/s2/be_pub')
         assert be.qos.reliability == _QoSMsg.RELIABILITY_BEST_EFFORT
         tl = _find(msg.publishers, '/s2/tl_pub')
-        # Reliability, durability, and deadline are observable over discovery on
-        # every RMW; history (and depth) observability is RMW-specific -- see
-        # _HISTORY_OVER_DISCOVERY.  The golden records the exact bytes; this
-        # asserts the documented per-RMW intent, and an unmapped RMW skips only
-        # this line.  If a future RMW/rclpy changes the behaviour, its golden
-        # diff *and* this assertion both move, flagging it rather than hiding it.
+        # Reliability, durability, and deadline propagate over discovery on every
+        # (distro, RMW); history and depth do NOT on some combinations (jazzy's
+        # older fastrtps reports them UNKNOWN/0; cyclonedds reports a KEEP_ALL
+        # queue's depth as 0).  Those combination-specific values are captured
+        # exactly by the per-(distro, RMW) goldens, not re-asserted here.
         assert tl.qos.durability == _QoSMsg.DURABILITY_TRANSIENT_LOCAL
-        expected_history = _HISTORY_OVER_DISCOVERY.get(_RMW)
-        if expected_history is not None:
-            assert tl.qos.history == expected_history
         dl = _find(msg.subscriptions, '/s2/dl_sub')
         assert dl.qos.deadline.sec == 2
 

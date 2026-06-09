@@ -44,62 +44,72 @@ Not every `Node.msg` field is observable from an external process:
 | service servers / clients | name and types only; **QoS is reported as `*_UNKNOWN`** — there is no info-by-service API in rclpy/rmw — and the type hash is unset |
 | action servers / clients | derived: the hidden `<action>/_action/*` entities are folded into each `Action` entry (topics get real QoS, services get UNKNOWN). Orphan `_action/*` entities stay flat — nothing is discarded |
 
-**Per-RMW gaps surface honestly rather than being papered over**, and which
-QoS policies a remote endpoint exposes over discovery genuinely differs by
-middleware. Reliability, durability, and deadline come through everywhere;
-history and depth do not:
+**Per-RMW gaps surface honestly rather than being papered over.** The *full*
+observation — every QoS policy a remote endpoint exposes over discovery — is
+the baseline; some `(distro, RMW)` combinations observe strictly *less*, and
+those gaps are recorded faithfully (never fabricated). Reliability, durability,
+and deadline come through everywhere; the two known gaps are:
 
-| QoS field on a remote topic | `rmw_fastrtps_cpp` | `rmw_cyclonedds_cpp` / `rmw_zenoh_cpp` |
-|---|---|---|
-| reliability / durability / deadline | observed | observed |
-| history policy | `*_UNKNOWN` (not propagated) | observed (e.g. `KEEP_ALL`) |
-| depth | `0` (not propagated) | observed (actual depth) |
+- **`rmw_fastrtps_cpp` on jazzy** does not propagate history or depth over
+  discovery (`history → UNKNOWN`, `depth → 0`). Newer fastrtps (kilted onward)
+  does — so this is version-specific, not inherent to fastrtps.
+- **`rmw_cyclonedds_cpp`** reports a `KEEP_ALL` queue's `depth` as `0` (it does
+  observe the `KEEP_ALL` history policy). `rmw_zenoh_cpp` reports the actual
+  depth.
 
-These limits are locked in by tests against **every** RMW — observation never
-fabricates a requested-but-unobserved value, and the golden for each
-`(distro, RMW)` records exactly what that combination reports. If a future
-rclpy/RMW exposes service QoS or changes history/depth propagation, the
-golden diff *and* the targeted assertion both move, flagging it.
+These are locked in by tests across the RMW matrix — if a future rclpy/RMW
+exposes service QoS or changes history/depth propagation, the affected golden
+*and* the targeted assertion both move, flagging it.
 
 Requires a `rosgraph_msgs` that provides `Node.msg`. These graph messages
-landed in rolling first and were backported to the **jazzy** line (≥ 2.0.4),
-the only one shipping in a pullable image today; version numbers are not
-comparable across distros (kilted's `rosgraph_msgs` 2.3.1 ships `Clock` only,
-its backport release not yet cut; rolling/lyrical are on Ubuntu 26.04 images
-that aren't published yet). Where `Node.msg` is absent the package still
-builds; its observation tests skip (the import guard catches the missing
-message) until the message is available on that distro.
+landed in rolling first and are now released across **jazzy** (`2.0.4`, via
+ros2-testing), **kilted** (`2.3.2`, via ros2-testing), **lyrical** (`2.4.5`),
+and **rolling** (`2.5.0`); version numbers are not comparable across distros.
+**humble** has no `Node.msg` yet — there the package still builds and its
+observation tests skip (the import guard catches the missing message) until the
+message is released for it.
 
 ## Tests and golden files
 
-`test/expected/<ROS_DISTRO>/<RMW>/` holds golden YAML renders of three scenario
-graphs (minimal, full-surface, multi-node isolation). Goldens are keyed by
-`(distro, RMW)` because implicit endpoint sets and QoS observability shift
-between releases *and* middlewares; when every RMW on a distro observes the
-same thing, the set is committed once at the `<distro>/` level instead (the
-test resolves most-specific first). A `(distro, RMW)` with no golden skips with
-a bootstrap hint. Regenerate with `REGEN_GOLDENS=1` and inspect the diff before
-committing.
+Golden YAML renders of three scenario graphs (minimal, full-surface,
+multi-node isolation) are **deduplicated** across `(distro, RMW)`: most
+combinations observe the same thing, so the common result is stored once and
+only genuine differences get their own file. The test resolves most-specific
+first:
 
-Only one representation (YAML) is committed per `(distro, RMW)` — it is the
-canonical, human-readable form. The JSON renderer is proven by an equivalence
-test (both renders of the same message must parse to the same structure), so
-no duplicate JSON golden is stored.
+```
+test/expected/
+  _base/<scenario>.yaml            # the full/canonical observation (most combos)
+  <rmw>/<scenario>.yaml            # an RMW-inherent difference, on every distro
+  <distro>/<rmw>/<scenario>.yaml   # a distro+RMW-specific difference
+```
+
+For example, four distros × three RMWs collapse to: `_base/` (the full
+observation), `rmw_cyclonedds_cpp/s2_node.yaml` (cyclonedds's `KEEP_ALL`
+depth-0 quirk, all distros), and `jazzy/rmw_fastrtps_cpp/` (jazzy's older
+fastrtps, which alone drops history/depth). A `(distro, RMW)` with no golden
+anywhere skips with a bootstrap hint.
+
+Only one representation (YAML) is committed — the canonical, human-readable
+form. The JSON renderer is proven by an equivalence test (both renders of the
+same message must parse to the same structure), so no duplicate JSON golden is
+stored.
 
 **Adding an RMW or distro to CI** is designed to be "drop in goldens":
 
 1. add it to the `rmw:` (or `ros:`/`ubuntu:`) matrix in
    `.github/workflows/test.yml` — the install step derives the apt package
    name from the RMW (`rmw_x_cpp` → `ros-<distro>-rmw-x-cpp`);
-2. run the integration tests under that `(distro, RMW)` with
-   `REGEN_GOLDENS=1`, inspect the diff, and commit the new goldens;
-3. only if its history-over-discovery behaviour diverges, add an entry to
-   `_HISTORY_OVER_DISCOVERY` in `test_observe_integration.py` (otherwise the
-   golden alone locks its message).
+2. run the integration tests under that `(distro, RMW)` with `REGEN_GOLDENS=1`
+   (writes the most-specific `<distro>/<rmw>/` location), then **promote**: if
+   the new goldens match an existing `_base/` or `<rmw>/` set, delete the
+   redundant copies; otherwise keep them as the override.
 
-The harness needs no per-RMW setup: every scenario runs in one process / one
-session, so even a router-based middleware like `rmw_zenoh_cpp` discovers
-without a separate daemon.
+The golden for each `(distro, RMW)` is the lock on its exact observed values
+(including the per-combination history/depth differences). The harness needs no
+per-RMW setup — every scenario runs in one process / one session, so even a
+router-based middleware like `rmw_zenoh_cpp` discovers without a separate
+daemon.
 
 The golden YAMLs are real `rosgraph_msgs/Node` samples and double as input
 fixtures for Describe — a NoDL converter can be developed against them
