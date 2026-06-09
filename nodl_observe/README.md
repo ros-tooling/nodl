@@ -49,7 +49,7 @@ QoS policies a remote endpoint exposes over discovery genuinely differs by
 middleware. Reliability, durability, and deadline come through everywhere;
 history and depth do not:
 
-| QoS field on a remote topic | `rmw_fastrtps_cpp` | `rmw_cyclonedds_cpp` |
+| QoS field on a remote topic | `rmw_fastrtps_cpp` | `rmw_cyclonedds_cpp` / `rmw_zenoh_cpp` |
 |---|---|---|
 | reliability / durability / deadline | observed | observed |
 | history policy | `*_UNKNOWN` (not propagated) | observed (e.g. `KEEP_ALL`) |

@@ -13,13 +13,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # nodl_observe's QoS introspection differs per RMW (cyclonedds
-        # propagates history/depth over discovery, fastrtps does not), so it is
+        # nodl_observe's QoS introspection differs per RMW (cyclonedds and zenoh
+        # propagate history/depth over discovery, fastrtps does not), so it is
         # tested against each; its goldens are keyed by (distro, RMW).  Adding an
         # RMW here is "drop in goldens": the install step below derives its apt
         # package name, and the test harness needs no per-RMW setup.  Other
         # packages are RMW-agnostic but harmlessly re-run on every leg.
-        rmw: [rmw_fastrtps_cpp, rmw_cyclonedds_cpp]
+        rmw: [rmw_fastrtps_cpp, rmw_cyclonedds_cpp, rmw_zenoh_cpp]
         ros: [humble, jazzy, kilted, lyrical, rolling]
         # `ubuntu` is mapped per ROS distro here and merged into every (ros, rmw)
         # combination above (add a distro by extending both `ros` and this list).

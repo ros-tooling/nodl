@@ -95,6 +95,7 @@ from nodl_observe.serialization import to_yaml  # noqa: E402
 _HISTORY_OVER_DISCOVERY = {
     'rmw_fastrtps_cpp': _QoSMsg.HISTORY_UNKNOWN,     # not propagated (depth -> 0)
     'rmw_cyclonedds_cpp': _QoSMsg.HISTORY_KEEP_ALL,  # propagated (actual depth)
+    'rmw_zenoh_cpp': _QoSMsg.HISTORY_KEEP_ALL,       # propagated (actual depth)
 }
 # ----------------------------------------------------------------------------
 
