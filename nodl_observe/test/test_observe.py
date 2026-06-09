@@ -28,7 +28,7 @@ from rclpy.qos import (  # noqa: E402
 from rclpy.type_hash import TypeHash as RclTypeHash  # noqa: E402
 from rosgraph_msgs.msg import QoSProfile as QoSProfileMsg  # noqa: E402
 
-from nodl_observe import _split_fqn  # noqa: E402
+from nodl_observe._observe import _split_fqn  # noqa: E402
 from nodl_observe._endpoints import (  # noqa: E402
     build_service_endpoints,
     build_topic_endpoints,
