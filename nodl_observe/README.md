@@ -45,7 +45,7 @@ Not every `Node.msg` field is observable from an external process:
 | action servers / clients | derived: the hidden `<action>/_action/*` entities are folded into each `Action` entry (topics get real QoS, services get UNKNOWN). Orphan `_action/*` entities stay flat — nothing is discarded |
 
 **Per-RMW gaps surface honestly rather than being papered over**, and which
-QoS policies a remote endpoint exposes over DDS discovery genuinely differs by
+QoS policies a remote endpoint exposes over discovery genuinely differs by
 middleware. Reliability, durability, and deadline come through everywhere;
 history and depth do not:
 
@@ -55,7 +55,7 @@ history and depth do not:
 | history policy | `*_UNKNOWN` (not propagated) | observed (e.g. `KEEP_ALL`) |
 | depth | `0` (not propagated) | observed (actual depth) |
 
-These limits are locked in by tests against **both** RMWs — observation never
+These limits are locked in by tests against **every** RMW — observation never
 fabricates a requested-but-unobserved value, and the golden for each
 `(distro, RMW)` records exactly what that combination reports. If a future
 rclpy/RMW exposes service QoS or changes history/depth propagation, the
@@ -85,6 +85,21 @@ Only one representation (YAML) is committed per `(distro, RMW)` — it is the
 canonical, human-readable form. The JSON renderer is proven by an equivalence
 test (both renders of the same message must parse to the same structure), so
 no duplicate JSON golden is stored.
+
+**Adding an RMW or distro to CI** is designed to be "drop in goldens":
+
+1. add it to the `rmw:` (or `ros:`/`ubuntu:`) matrix in
+   `.github/workflows/test.yml` — the install step derives the apt package
+   name from the RMW (`rmw_x_cpp` → `ros-<distro>-rmw-x-cpp`);
+2. run the integration tests under that `(distro, RMW)` with
+   `REGEN_GOLDENS=1`, inspect the diff, and commit the new goldens;
+3. only if its history-over-discovery behaviour diverges, add an entry to
+   `_HISTORY_OVER_DISCOVERY` in `test_observe_integration.py` (otherwise the
+   golden alone locks its message).
+
+The harness needs no per-RMW setup: every scenario runs in one process / one
+session, so even a router-based middleware like `rmw_zenoh_cpp` discovers
+without a separate daemon.
 
 The golden YAMLs are real `rosgraph_msgs/Node` samples and double as input
 fixtures for Describe — a NoDL converter can be developed against them

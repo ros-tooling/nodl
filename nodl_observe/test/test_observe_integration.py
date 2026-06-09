@@ -73,8 +73,30 @@ from rclpy.qos import (  # noqa: E402
 
 from std_msgs.msg import String  # noqa: E402
 
+from rosgraph_msgs.msg import QoSProfile as _QoSMsg  # noqa: E402
+
 from nodl_observe import observe_node  # noqa: E402
 from nodl_observe.serialization import to_yaml  # noqa: E402
+
+# ---- RMW extension point ---------------------------------------------------
+# Adding an RMW to the test matrix is intended to be "drop in goldens":
+#   1. add it to the CI matrix `rmw:` list in .github/workflows/test.yml -- the
+#      install step derives the apt package name (`rmw_x_cpp` -> `rmw-x-cpp`),
+#   2. run `REGEN_GOLDENS=1` under that distro+RMW to bootstrap its goldens
+#      (the harness needs no per-RMW setup -- every node runs in one process /
+#      one session, so even a router-based RMW like zenoh discovers without a
+#      separate daemon), inspect the diff, commit,
+#   3. if its history-over-discovery behaviour diverges, add it below.
+# The one QoS field whose *value* (not just bytes) we assert per RMW is the
+# history policy: some middlewares propagate it over discovery, some do not.
+# Depth varies too but is captured wholly by the golden, so it needs no entry.
+# An RMW absent from this map simply skips the targeted history assertion (its
+# golden still locks the full message).
+_HISTORY_OVER_DISCOVERY = {
+    'rmw_fastrtps_cpp': _QoSMsg.HISTORY_UNKNOWN,     # not propagated (depth -> 0)
+    'rmw_cyclonedds_cpp': _QoSMsg.HISTORY_KEEP_ALL,  # propagated (actual depth)
+}
+# ----------------------------------------------------------------------------
 
 # Goldens are keyed by (distro, RMW): implicit endpoint sets, QoS observability,
 # and type hashes can all shift between ROS releases *and* middleware
@@ -369,25 +391,17 @@ class TestS2FullSurface:
 
     def test_varied_topic_qos_captured(self):
         msg = _node_from_golden('s2_node')
-        from rosgraph_msgs.msg import QoSProfile as QoSMsg
         be = _find(msg.publishers, '/s2/be_pub')
-        assert be.qos.reliability == QoSMsg.RELIABILITY_BEST_EFFORT
+        assert be.qos.reliability == _QoSMsg.RELIABILITY_BEST_EFFORT
         tl = _find(msg.publishers, '/s2/tl_pub')
-        # Reliability, durability, and deadline are observable over DDS
-        # discovery on every RMW; history/depth observability is RMW-specific
-        # and locked in per RMW (the golden records the exact bytes, this
-        # asserts the documented intent):
-        #   rmw_fastrtps_cpp  -- does NOT propagate history/depth over
-        #       discovery: history -> HISTORY_UNKNOWN, depth -> 0.
-        #   rmw_cyclonedds_cpp -- DOES propagate them: the requested
-        #       HISTORY_KEEP_ALL is observed.
-        # If a future RMW/rclpy changes this, its golden diff *and* this
-        # assertion both move, flagging the change rather than hiding it.
-        assert tl.qos.durability == QoSMsg.DURABILITY_TRANSIENT_LOCAL
-        expected_history = {
-            'rmw_fastrtps_cpp': QoSMsg.HISTORY_UNKNOWN,
-            'rmw_cyclonedds_cpp': QoSMsg.HISTORY_KEEP_ALL,
-        }.get(_RMW)
+        # Reliability, durability, and deadline are observable over discovery on
+        # every RMW; history (and depth) observability is RMW-specific -- see
+        # _HISTORY_OVER_DISCOVERY.  The golden records the exact bytes; this
+        # asserts the documented per-RMW intent, and an unmapped RMW skips only
+        # this line.  If a future RMW/rclpy changes the behaviour, its golden
+        # diff *and* this assertion both move, flagging it rather than hiding it.
+        assert tl.qos.durability == _QoSMsg.DURABILITY_TRANSIENT_LOCAL
+        expected_history = _HISTORY_OVER_DISCOVERY.get(_RMW)
         if expected_history is not None:
             assert tl.qos.history == expected_history
         dl = _find(msg.subscriptions, '/s2/dl_sub')
@@ -397,12 +411,11 @@ class TestS2FullSurface:
         # The documented can't-observe limitation, locked in: services were
         # created with explicit non-default QoS, yet the observed QoS is UNKNOWN.
         msg = _node_from_golden('s2_node')
-        from rosgraph_msgs.msg import QoSProfile as QoSMsg
         add = _find(msg.service_servers, '/s2/add')
-        assert add.request_qos.reliability == QoSMsg.RELIABILITY_UNKNOWN
-        assert add.request_qos.durability == QoSMsg.DURABILITY_UNKNOWN
+        assert add.request_qos.reliability == _QoSMsg.RELIABILITY_UNKNOWN
+        assert add.request_qos.durability == _QoSMsg.DURABILITY_UNKNOWN
         mul = _find(msg.service_clients, '/s2/multiply')
-        assert mul.response_qos.reliability == QoSMsg.RELIABILITY_UNKNOWN
+        assert mul.response_qos.reliability == _QoSMsg.RELIABILITY_UNKNOWN
 
     def test_actions_folded_not_flat(self):
         msg = _node_from_golden('s2_node')
@@ -444,15 +457,14 @@ class TestS3Isolation:
         assert not msg.action_servers, "A has no actions; B's must not leak in"
 
     def test_shared_topic_carries_targets_own_qos(self):
-        from rosgraph_msgs.msg import QoSProfile as QoSMsg
         # A publishes /s3/shared RELIABLE; B subscribes BEST_EFFORT.  Each
         # golden must carry its *own* node's QoS, never the peer's.
         msg_a = _node_from_golden('s3_node_a')
         shared_a = _find(msg_a.publishers, '/s3/shared')
-        assert shared_a.qos.reliability == QoSMsg.RELIABILITY_RELIABLE
+        assert shared_a.qos.reliability == _QoSMsg.RELIABILITY_RELIABLE
         msg_b = _node_from_golden('s3_node_b')
         shared_b = _find(msg_b.subscriptions, '/s3/shared')
-        assert shared_b.qos.reliability == QoSMsg.RELIABILITY_BEST_EFFORT
+        assert shared_b.qos.reliability == _QoSMsg.RELIABILITY_BEST_EFFORT
 
 
 # --------------------------------------------------------------------------- #

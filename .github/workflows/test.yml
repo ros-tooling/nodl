@@ -13,17 +13,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # nodl_observe's QoS introspection differs per RMW (e.g. cyclonedds
+        # nodl_observe's QoS introspection differs per RMW (cyclonedds
         # propagates history/depth over discovery, fastrtps does not), so it is
-        # tested against both; its goldens are keyed by (distro, RMW).  Other
-        # packages are RMW-agnostic but harmlessly re-run on both legs.
+        # tested against each; its goldens are keyed by (distro, RMW).  Adding an
+        # RMW here is "drop in goldens": the install step below derives its apt
+        # package name, and the test harness needs no per-RMW setup.  Other
+        # packages are RMW-agnostic but harmlessly re-run on every leg.
         rmw: [rmw_fastrtps_cpp, rmw_cyclonedds_cpp]
         ros: [humble, jazzy, kilted, lyrical, rolling]
+        # `ubuntu` is mapped per ROS distro here and merged into every (ros, rmw)
+        # combination above (add a distro by extending both `ros` and this list).
         include:
           - ros: humble
             ubuntu: jammy
           - ros: jazzy
             ubuntu: noble
+            requires_node_msg: true   # observe MUST run here; fail if it can't
           - ros: kilted
             ubuntu: noble
           - ros: lyrical
@@ -36,11 +41,44 @@ jobs:
       RMW_IMPLEMENTATION: ${{ matrix.rmw }}
     steps:
       - name: Install the matrix RMW
-        run: apt-get update && apt-get install -y --no-install-recommends ros-${{ matrix.ros }}-${{ matrix.rmw == 'rmw_cyclonedds_cpp' && 'rmw-cyclonedds-cpp' || 'rmw-fastrtps-cpp' }}
+        # apt package name is the RMW impl name with underscores -> hyphens
+        # (rmw_zenoh_cpp -> ros-<distro>-rmw-zenoh-cpp), so any RMW just works.
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            "ros-${{ matrix.ros }}-$(echo '${{ matrix.rmw }}' | tr '_' '-')"
+      - name: Prefer a rosgraph_msgs that ships Node.msg (best-effort bridge)
+        # Node.msg reaches ros2-testing ahead of the main index on some distros
+        # (e.g. jazzy 2.0.4).  Pull just that package from testing if newer; a
+        # no-op where it is not.  Never fail the build -- a leg without Node.msg
+        # simply skips the observation tests.
+        continue-on-error: true
+        run: |
+          key=$(ls /usr/share/keyrings/ros2*archive-keyring.gpg 2>/dev/null | head -1) || true
+          [ -n "$key" ] || exit 0
+          echo "deb [signed-by=$key] http://packages.ros.org/ros2-testing/ubuntu ${{ matrix.ubuntu }} main" \
+            > /etc/apt/sources.list.d/ros2-testing.list
+          apt-get update || true
+          apt-get install -y --only-upgrade "ros-${{ matrix.ros }}-rosgraph-msgs" || true
+          rm -f /etc/apt/sources.list.d/ros2-testing.list
+          apt-get update || true
       - uses: ros-tooling/action-ros-ci@v0.4
         with:
           package-name: ament_nodl nodl nodl_observe nodl_schema ros2nodl test_ament_nodl
           target-ros2-distro: ${{ matrix.ros }}
+      - name: Require Node.msg where the distro must support observe
+        # Guards against the silent-skip trap: a leg whose rosgraph_msgs lacks
+        # Node.msg skips every observation test (pytest.importorskip) and still
+        # reports green.  On distros that are supposed to support observe, turn
+        # that into a loud failure.  Flip `requires_node_msg: true` for a distro
+        # once it ships Node.msg.
+        if: matrix.requires_node_msg
+        run: |
+          idl="/opt/ros/${{ matrix.ros }}/share/rosgraph_msgs/msg/Node.idl"
+          test -f "$idl" || {
+            echo "::error::rosgraph_msgs on ${{ matrix.ros }} lacks Node.msg ($idl missing) -- observation tests would silently skip. Failing instead."
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
