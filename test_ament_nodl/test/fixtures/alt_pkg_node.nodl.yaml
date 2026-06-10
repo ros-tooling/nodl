@@ -1,3 +1,5 @@
 ---
 nodl_version: 2
-description: Test node registered under an explicit PACKAGE override.
+main:
+  nodl_version: 2
+  description: Test node registered under an explicit PACKAGE override.

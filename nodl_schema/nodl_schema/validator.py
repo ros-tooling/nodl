@@ -1,6 +1,13 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""NoDL schema loading, validation, and serialization."""
+"""NoDL schema loading, validation, and serialization.
+
+Two schemas are validated here:
+
+* a NoDL **document** (``nodl.schema.yaml``) -- a possibly-partial node interface.
+* a NoDL **node** (``node.schema.yaml``) -- a whole-node composition of
+  ``base`` + ``mixins`` + ``main``, where each layer is a document.
+"""
 
 from __future__ import annotations
 
@@ -13,10 +20,12 @@ import yaml
 from jsonschema import RefResolver
 from jsonschema.validators import Draft7Validator
 
+from nodl_schema.composition import Node
 from nodl_schema.models import NodlDocument
 
+_document_validator: Draft7Validator | None = None
+_node_validator: Draft7Validator | None = None
 _schema_cache: dict | None = None
-_validator_cache: Draft7Validator | None = None
 
 
 def _load_resource(name: str) -> dict:
@@ -25,59 +34,51 @@ def _load_resource(name: str) -> dict:
 
 
 def load_schema() -> dict:
-    """Load and cache the NoDL JSON schema."""
+    """Load and cache the NoDL document JSON schema."""
     global _schema_cache
     if _schema_cache is None:
         _schema_cache = _load_resource('nodl.schema.yaml')
     return _schema_cache
 
 
-def _make_validator() -> Draft7Validator:
-    """Build a validator with the parameter schema pre-loaded so $refs resolve."""
-    global _validator_cache
-    if _validator_cache is None:
-        schema = load_schema()
-        param_schema = _load_resource('parameter.schema.yaml')
-        store = {
-            'parameter.schema.yaml': param_schema,
-            param_schema.get('$id', ''): param_schema,
-        }
-        resolver = RefResolver.from_schema(schema, store=store)
-        _validator_cache = Draft7Validator(schema, resolver=resolver)
-    return _validator_cache
+def _resource_store() -> dict:
+    """Build a $ref store so cross-file refs (node -> document -> parameter) resolve."""
+    document = load_schema()
+    parameter = _load_resource('parameter.schema.yaml')
+    return {
+        'nodl.schema.yaml': document,
+        document.get('$id', ''): document,
+        'parameter.schema.yaml': parameter,
+        parameter.get('$id', ''): parameter,
+    }
+
+
+def _make_validator(schema: dict) -> Draft7Validator:
+    store = _resource_store()
+    resolver = RefResolver.from_schema(schema, store=store)
+    return Draft7Validator(schema, resolver=resolver)
 
 
 def validate(data: dict) -> None:
-    """Validate a plain dict against the NoDL JSON schema.
+    """Validate a plain dict against the NoDL document schema.
 
     Raises jsonschema.ValidationError on failure.
     """
-    _make_validator().validate(data)
+    global _document_validator
+    if _document_validator is None:
+        _document_validator = _make_validator(load_schema())
+    _document_validator.validate(data)
 
 
-# Top-level keys that a fragment document must not declare.
-# Fragments are flat ingredients; nested composition is intentionally disallowed in v2.
-_FRAGMENT_FORBIDDEN_KEYS = ('base', 'fragments')
+def validate_node(data: dict) -> None:
+    """Validate a plain dict against the NoDL node (composition) schema.
 
-
-def validate_fragment(data: dict) -> None:
-    """Validate a NoDL fragment.
-
-    A fragment must pass the standard schema and additionally must not declare
-    a ``base`` or ``fragments`` key.
-    Nested fragment composition is intentionally disallowed in v2; if a real
-    use case emerges, the constraint can be lifted without a schema change.
-    Raises jsonschema.ValidationError on schema failure or ValueError on a
-    forbidden key.
+    Raises jsonschema.ValidationError on failure.
     """
-    validate(data)
-    forbidden = [k for k in _FRAGMENT_FORBIDDEN_KEYS if k in data]
-    if forbidden:
-        raise ValueError(
-            'NoDL fragment must not declare '
-            + ', '.join(repr(k) for k in forbidden)
-            + '; nested fragment composition is not supported in v2.'
-        )
+    global _node_validator
+    if _node_validator is None:
+        _node_validator = _make_validator(_load_resource('node.schema.yaml'))
+    _node_validator.validate(data)
 
 
 def load_nodl(source: Union[str, bytes, IO]) -> NodlDocument:
@@ -87,29 +88,27 @@ def load_nodl(source: Union[str, bytes, IO]) -> NodlDocument:
     Raises jsonschema.ValidationError on schema error or pydantic.ValidationError
     on type error.
     """
-    return _load(source, validate)
+    return NodlDocument.parse_obj(_load(source, validate))
 
 
-def load_fragment(source: Union[str, bytes, IO]) -> NodlDocument:
-    """Load and validate a NoDL fragment document.
+def load_node(source: Union[str, bytes, IO]) -> Node:
+    """Load and validate a NoDL node (composition) document.
 
-    Same as load_nodl but enforces the no-base / no-fragments constraint.
+    Same input handling as load_nodl, but validates and parses the
+    base/main/mixins composition schema.
     """
-    return _load(source, validate_fragment)
+    return Node.parse_obj(_load(source, validate_node))
 
 
-def _load(source, validator) -> NodlDocument:
+def _load(source, validator) -> dict:
     data = yaml.safe_load(source)
     if not isinstance(data, dict):
         raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
     validator(data)
-    # parse_obj is pydantic v1 API, retained as a deprecated alias in v2.
-    # Used so this module works against both rosdep-shipped pydantic v1
-    # (humble/jazzy/kilted) and v2 (lyrical+).
-    return NodlDocument.parse_obj(data)
+    return data
 
 
-def _to_plain_dict(doc: NodlDocument) -> dict:
+def _to_plain_dict(doc: Union[NodlDocument, Node]) -> dict:
     """Serialize a model to a JSON-compatible dict that drops Nones and unwraps enums.
 
     Goes via .json() so the result is a plain dict on both pydantic v1 and v2;
@@ -118,9 +117,9 @@ def _to_plain_dict(doc: NodlDocument) -> dict:
     return json.loads(doc.json(exclude_none=True))
 
 
-def dump_nodl(doc: Union[NodlDocument, dict], *, format: str = 'yaml') -> str:
-    """Serialize a NodlDocument (or plain dict) to YAML or JSON string."""
-    data = _to_plain_dict(doc) if isinstance(doc, NodlDocument) else doc
+def dump_nodl(doc: Union[NodlDocument, Node, dict], *, format: str = 'yaml') -> str:
+    """Serialize a NodlDocument or Node (or plain dict) to a YAML or JSON string."""
+    data = _to_plain_dict(doc) if not isinstance(doc, dict) else doc
     if format == 'json':
         return json.dumps(data, indent=2)
     return yaml.dump(data, default_flow_style=False, allow_unicode=True)
@@ -131,7 +130,8 @@ def main(argv: list[str] | None = None) -> int:
 
     Exits 0 on success, 1 on validation failure or I/O error.
     Designed for invocation from CMake macros (ament_nodl_register_node and
-    siblings) so files are checked at build time, not at runtime.
+    ament_nodl_register_document) so files are checked at build time, not at
+    runtime.
     """
     import argparse
     import sys
@@ -142,16 +142,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument('file', type=Path, help='Path to the NoDL file to validate.')
     parser.add_argument(
-        '--fragment',
+        '--node',
         action='store_true',
-        help='Validate the file as a fragment (rejects nested base/fragments).',
+        help='Validate the file as a NoDL node composition (base/main/mixins) rather than a document.',
     )
     args = parser.parse_args(argv)
 
     try:
         with args.file.open('r') as f:
-            if args.fragment:
-                load_fragment(f)
+            if args.node:
+                load_node(f)
             else:
                 load_nodl(f)
     except Exception as exc:

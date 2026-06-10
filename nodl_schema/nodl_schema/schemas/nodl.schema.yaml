@@ -3,13 +3,15 @@ $schema: http://json-schema.org/draft-07/schema#
 $id: nodl.schema.yaml
 title: NoDL Node Definition
 description: |
-  NoDL (Node Definition Language) v2 schema.
+  NoDL (Node Definition Language) v2 document schema.
 
-  Describes the public ROS interface of a single ROS 2 node:
-  parameters, publishers, subscriptions, service servers/clients,
-  and action servers/clients. Field names align with ``rcl_interfaces``
-  and ``rosgraph_msgs`` (``Topic``, ``Service``, ``Action``) so a NoDL document
-  maps cleanly onto runtime introspection types.
+  Describes a ROS 2 node interface -- but not necessarily a *whole*
+  node's interface: parameters, publishers, subscriptions, service
+  servers/clients, and action servers/clients. A document may be
+  partial; whole nodes are assembled from documents by the Node schema
+  (``node.schema.yaml``) via base + mixins + main. Field names align
+  with ``rcl_interfaces`` and ``rosgraph_msgs`` (``Topic``, ``Service``,
+  ``Action``) so a document maps cleanly onto runtime introspection types.
 
   Node identity (name, package, namespace) is established by the
   enclosing package and the file's location within it, not declared
@@ -27,17 +29,6 @@ properties:
   description:
     type: string
     description: Human-readable description of what this node does.
-
-  base:
-    type: string
-    enum: [node, lifecycle_node]
-    description: Built-in ROS 2 base node type this node inherits from.
-
-  fragments:
-    type: array
-    description: NoDL fragments composed into this node (single-level, not recursive).
-    items:
-      $ref: '#/definitions/fragment_ref'
 
   parameters:
     type: object
@@ -85,20 +76,6 @@ properties:
       $ref: '#/definitions/action_endpoint'
 
 definitions:
-  fragment_ref:
-    type: object
-    description: Reference to a NoDL fragment.
-    required: [ref]
-    additionalProperties: false
-    properties:
-      ref:
-        type: string
-        description: |
-          'nodl://pkg/name' for ament-index fragments, or a relative file path.
-      name:
-        type: string
-        description: Optional label for this fragment in documentation and merge order.
-
   rosName:
     type: string
     description: |

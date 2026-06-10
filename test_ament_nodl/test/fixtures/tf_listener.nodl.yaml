@@ -1,6 +1,6 @@
 ---
 nodl_version: 2
-description: Test fragment that adds the standard tf2 listener subscriptions.
+description: Test mixin document that adds the standard tf2 listener subscriptions.
 subscriptions:
   - name: /tf
     type: tf2_msgs/msg/TFMessage
