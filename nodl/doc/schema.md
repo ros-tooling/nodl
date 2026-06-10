@@ -1,12 +1,26 @@
 # NoDL Schema reference
 
-The following reference is generated from {repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`, which is the canonical source.
+NoDL has two schemas, both generated below from their canonical sources:
+
+- a **node** ({repo}`nodl_schema/nodl_schema/schemas/node.schema.yaml`) -- a whole-node composition of `base` + `mixins` + `main`.
+- a **document** ({repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`) -- a (possibly partial) node interface, used for each composition layer.
+
+See [Concepts](concepts.md#composition-documents-into-nodes) for how the two relate.
 
 ## Schema Version
 
 The NoDL schema is [JSON Schema Draft 7](https://json-schema.org/draft-07).
 This was chosen chosen to trivially support all live ROS 2 distributions - the key limitation being the system packages available on Ubuntu 22.04 Jammy with ROS 2 Humble.
 After Humble EOL in May 2027, we will consider updating to a newer JSON Schema draft version.
+
+## Node composition
+
+A node composes a whole interface from a built-in `base`, the node's own `main` document, and zero or more `mixins`. `main` is a [node document](#node-document); each mixin is a reference (`nodl://<package>/<name>` or a relative path) or an in-place document.
+
+```{eval-rst}
+.. json:schema:: Node
+   :title: NoDL node
+```
 
 ## Node document
 

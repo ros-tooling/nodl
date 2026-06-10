@@ -1,9 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Register a NoDL document for an executable in the ament resource index.
+# Register a NoDL node composition for an executable in the ament resource index.
 #
-# Publishes the contents of a NoDL file under the ``nodl_nodes`` resource type.
+# The file is a NoDL node (``node.schema.yaml``): a ``base`` + ``mixins`` + ``main``
+# composition describing the executable's whole interface.
+#
+# Publishes the contents of the file under the ``nodl_nodes`` resource type.
 # The resource key is ``<package>__<executable>``.
 # Tools like ``nodl_test`` and ``nodl_docgen`` use this to locate the spec by package and executable name.
 #
@@ -57,7 +60,7 @@ function(ament_nodl_register_node executable_name)
   add_custom_command(
     OUTPUT "${_stamp}"
     DEPENDS "${_abs_file}"
-    COMMAND "${Python3_EXECUTABLE}" -m nodl_schema "${_abs_file}"
+    COMMAND "${Python3_EXECUTABLE}" -m nodl_schema --node "${_abs_file}"
     COMMAND "${CMAKE_COMMAND}" -E touch "${_stamp}"
     COMMENT "Validating NoDL node ${_ARGS_PACKAGE}/${executable_name}"
     VERBATIM

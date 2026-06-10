@@ -1,6 +1,6 @@
 ---
 nodl_version: 2
-description: Test fragment registered under an explicit PACKAGE override.
+description: Test mixin document registered under an explicit PACKAGE override.
 publishers:
   - name: ~/diagnostics
     type: diagnostic_msgs/msg/DiagnosticArray

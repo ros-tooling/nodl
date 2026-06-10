@@ -29,10 +29,27 @@ parameters:
 _INVALID_NOT_A_MAPPING = '- just a list\n'
 
 
-def _run(file: Path, *, fragment: bool = False) -> subprocess.CompletedProcess:
+_VALID_NODE = """\
+nodl_version: 2
+base: lifecycle_node
+main:
+  nodl_version: 2
+  publishers:
+    - name: ~/status
+      type: std_msgs/msg/String
+      qos:
+        history: KEEP_LAST
+        depth: 10
+        reliability: RELIABLE
+mixins:
+  - nodl://other_pkg/telemetry
+"""
+
+
+def _run(file: Path, *, node: bool = False) -> subprocess.CompletedProcess:
     cmd = [sys.executable, '-m', 'nodl_schema']
-    if fragment:
-        cmd.append('--fragment')
+    if node:
+        cmd.append('--node')
     cmd.append(str(file))
     return subprocess.run(cmd, capture_output=True, text=True)
 
@@ -75,38 +92,36 @@ def test_json_frontend_supported(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# --fragment mode
+# --node mode (composition schema)
 # ---------------------------------------------------------------------------
 
 
-def test_valid_fragment_exits_zero(tmp_path: Path):
-    # A fragment with publishers / subscriptions but no base/fragments passes.
-    f = tmp_path / 'frag.nodl.yaml'
-    f.write_text(_VALID)
-    result = _run(f, fragment=True)
+def test_valid_node_exits_zero(tmp_path: Path):
+    f = tmp_path / 'node.nodl.yaml'
+    f.write_text(_VALID_NODE)
+    result = _run(f, node=True)
     assert result.returncode == 0, result.stderr
 
 
-def test_fragment_with_base_rejected(tmp_path: Path):
-    f = tmp_path / 'bad_frag.nodl.yaml'
+def test_node_without_main_rejected(tmp_path: Path):
+    f = tmp_path / 'no_main.nodl.yaml'
     f.write_text('nodl_version: 2\nbase: node\n')
-    result = _run(f, fragment=True)
+    result = _run(f, node=True)
     assert result.returncode == 1
     assert str(f) in result.stderr
-    assert "'base'" in result.stderr
 
 
-def test_fragment_with_fragments_rejected(tmp_path: Path):
-    f = tmp_path / 'bad_frag.nodl.yaml'
-    f.write_text('nodl_version: 2\nfragments:\n  - ref: nodl://pkg/other\n')
-    result = _run(f, fragment=True)
+def test_document_rejected_in_node_mode(tmp_path: Path):
+    # A plain document (no main) is not a valid node composition.
+    f = tmp_path / 'doc.nodl.yaml'
+    f.write_text(_VALID)
+    result = _run(f, node=True)
     assert result.returncode == 1
-    assert "'fragments'" in result.stderr
 
 
-def test_fragment_with_invalid_schema_still_rejected(tmp_path: Path):
-    # Schema validation happens before the fragment-only check.
-    f = tmp_path / 'doubly_bad.nodl.yaml'
-    f.write_text(_INVALID_BAD_PARAM_TYPE)
-    result = _run(f, fragment=True)
+def test_node_rejected_in_document_mode(tmp_path: Path):
+    # A node composition has a `main` key the document schema forbids.
+    f = tmp_path / 'node.nodl.yaml'
+    f.write_text(_VALID_NODE)
+    result = _run(f)
     assert result.returncode == 1

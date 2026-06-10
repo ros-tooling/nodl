@@ -44,9 +44,11 @@ _INNER_PACKAGE_XML = textwrap.dedent("""<?xml version="1.0"?>
 
 _INVALID_NODL = textwrap.dedent("""
     nodl_version: 2
-    parameters:
-      bad:
-        type: not_a_real_type
+    main:
+      nodl_version: 2
+      parameters:
+        bad:
+          type: not_a_real_type
 """).lstrip()
 
 

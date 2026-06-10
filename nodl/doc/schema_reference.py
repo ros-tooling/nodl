@@ -15,6 +15,7 @@ SCHEMA_DST = _HERE / '_generated' / 'schemas'
 SCHEMA_GLOB = '_generated/schemas/*.yaml'
 
 _DEFINITION_REF = re.compile(r'#/definitions/(?P<name>\w+)$')
+_FILE_REF = re.compile(r'^(?P<stem>\w+)\.schema\.yaml$')
 
 
 def _short_id(name: str) -> str:
@@ -23,13 +24,20 @@ def _short_id(name: str) -> str:
 
 
 def _rewrite_refs(node, ref_map: dict) -> None:
-    """Replace every ``#/definitions/<name>`` $ref with its short id, in place."""
+    """Rewrite each $ref to a short display id, in place.
+
+    Handles both ``#/definitions/<name>`` (a definition in any schema) and a
+    whole-file ref like ``nodl.schema.yaml`` (e.g. the node schema's ``main``).
+    """
     if isinstance(node, dict):
         for key, value in node.items():
             if key == '$ref' and isinstance(value, str):
-                match = _DEFINITION_REF.search(value)
-                if match:
-                    node[key] = ref_map[match.group('name')]
+                definition = _DEFINITION_REF.search(value)
+                whole_file = _FILE_REF.match(value)
+                if definition:
+                    node[key] = ref_map[definition.group('name')]
+                elif whole_file:
+                    node[key] = _short_id(whole_file.group('stem'))
             else:
                 _rewrite_refs(value, ref_map)
     elif isinstance(node, list):

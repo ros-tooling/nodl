@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Resolution of NoDL composition (base + fragments) into a LayeredDocument."""
+"""Resolution of NoDL node composition (base + mixins + main) into a LayeredDocument."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from nodl_schema.composition import Node
 from nodl_schema.models import (
     ActionEndpoint,
     NodlDocument,
@@ -17,70 +18,69 @@ from nodl_schema.models import (
     TopicEndpoint,
 )
 
-_BUILTIN_BASES = frozenset(['node', 'lifecycle_node'])
-
 
 def _load_builtin(base: str) -> NodlDocument:
-    from nodl_schema.validator import load_fragment
+    from nodl_schema.validator import load_nodl
 
-    path = ir.files('nodl_schema') / 'schemas' / 'fragments' / f'{base}.nodl.yaml'
-    return load_fragment(path.read_text(encoding='utf-8'))
+    path = ir.files('nodl_schema') / 'schemas' / 'bases' / f'{base}.nodl.yaml'
+    return load_nodl(path.read_text(encoding='utf-8'))
 
 
-def _load_ament_fragment(pkg: str, name: str) -> NodlDocument:
+def _load_ament_document(pkg: str, name: str) -> NodlDocument:
     try:
         from ament_index_python.packages import get_resource
     except ImportError as exc:
         raise ImportError('ament_index_python is required to resolve nodl:// URIs') from exc
-    # Key format mirrors ament_nodl_register_fragment: pkg__name
+    # Key format mirrors ament_nodl_register_document: pkg__name
     resource_key = f'{pkg}__{name}'
     try:
-        content, _ = get_resource('nodl_fragments', resource_key)
+        content, _ = get_resource('nodl_documents', resource_key)
     except KeyError:
         raise FileNotFoundError(
-            f'NoDL fragment not found in ament index: {pkg}/{name} (looked up as nodl_fragments/{resource_key})'
+            f'NoDL document not found in ament index: {pkg}/{name} (looked up as nodl_documents/{resource_key})'
         )
-    from nodl_schema.validator import load_fragment
+    from nodl_schema.validator import load_nodl
 
-    return load_fragment(content)
+    return load_nodl(content)
 
 
 def _resolve_ref(ref: str, source_path: Optional[Path] = None) -> NodlDocument:
+    """Resolve a mixin reference string to a NoDL document."""
     if ref.startswith('nodl://'):
         rest = ref[len('nodl://') :]
         parts = rest.split('/', 1)
         if len(parts) != 2:
             raise ValueError(f'Invalid nodl:// URI: {ref!r} -- expected nodl://pkg/name')
-        return _load_ament_fragment(parts[0], parts[1])
+        return _load_ament_document(parts[0], parts[1])
     if source_path is None:
-        raise ValueError(f'Cannot resolve relative fragment ref {ref!r} without a source path')
+        raise ValueError(f'Cannot resolve relative mixin ref {ref!r} without a source path')
     full_path = (source_path.parent / ref).resolve()
     if not full_path.exists():
-        raise FileNotFoundError(f'Fragment file not found: {full_path}')
-    from nodl_schema.validator import load_fragment
+        raise FileNotFoundError(f'Mixin document not found: {full_path}')
+    from nodl_schema.validator import load_nodl
 
-    return load_fragment(full_path.read_text(encoding='utf-8'))
+    return load_nodl(full_path.read_text(encoding='utf-8'))
 
 
 @dataclass
 class LayeredDocument:
-    """A NoDL document with its resolved composition layers, keyed by label."""
+    """A NoDL node with its resolved composition layers."""
 
     main: NodlDocument
     base: Optional[NodlDocument] = None
     base_name: Optional[str] = None
-    fragments: Dict[str, NodlDocument] = field(default_factory=dict)
+    mixins: List[NodlDocument] = field(default_factory=list)
 
     def merged(self) -> NodlDocument:
         """Merge all layers into a flat NodlDocument.
 
-        Layers applied in order: base -> named fragments (insertion order) -> main.
+        Layers applied in order: base -> mixins (declared order) -> main.
         Later layers win on duplicate names.
         """
         layers: List[NodlDocument] = []
         if self.base is not None:
             layers.append(self.base)
-        layers.extend(self.fragments.values())
+        layers.extend(self.mixins)
         layers.append(self.main)
 
         publishers: Dict[str, TopicEndpoint] = {}
@@ -119,32 +119,25 @@ class LayeredDocument:
         )
 
 
-def resolve(doc: NodlDocument, source_path: Optional[Path] = None) -> LayeredDocument:
-    """Resolve a NodlDocument's base and fragments into a LayeredDocument.
+def resolve(node: Node, source_path: Optional[Path] = None) -> LayeredDocument:
+    """Resolve a Node's base and mixins into a LayeredDocument.
 
-    source_path: filesystem path to the NoDL file, used to resolve relative refs.
-    Fragments are single-level only -- fragment files are not themselves resolved.
+    source_path: filesystem path to the node file, used to resolve relative
+    mixin refs. Mixins are single-level only -- referenced documents are not
+    themselves resolved (a document cannot declare base/mixins).
     """
-    # doc.base is an enum on pydantic v2 and may be either enum or string on v1
-    # depending on how the document was constructed. Normalize to the string value.
+    # node.base is an enum on pydantic v2 and may be enum or str on v1.
     base_name: Optional[str] = None
-    if doc.base is not None:
-        base_name = doc.base.value if hasattr(doc.base, 'value') else doc.base
+    if node.base is not None:
+        base_name = node.base.value if hasattr(node.base, 'value') else node.base
 
-    base_doc: Optional[NodlDocument] = None
-    if base_name is not None:
-        if base_name not in _BUILTIN_BASES:
-            raise ValueError(f'Unknown base {base_name!r}. Must be one of: {sorted(_BUILTIN_BASES)}')
-        base_doc = _load_builtin(base_name)
+    base_doc = _load_builtin(base_name) if base_name is not None else None
 
-    fragment_docs: Dict[str, NodlDocument] = {}
-    for frag_ref in doc.fragments or []:
-        label = frag_ref.name or frag_ref.ref
-        fragment_docs[label] = _resolve_ref(frag_ref.ref, source_path=source_path)
+    mixin_docs: List[NodlDocument] = []
+    for mixin in node.mixins or []:
+        if isinstance(mixin, NodlDocument):
+            mixin_docs.append(mixin)
+        else:
+            mixin_docs.append(_resolve_ref(mixin, source_path=source_path))
 
-    return LayeredDocument(
-        main=doc,
-        base=base_doc,
-        base_name=base_name,
-        fragments=fragment_docs,
-    )
+    return LayeredDocument(main=node.main, base=base_doc, base_name=base_name, mixins=mixin_docs)

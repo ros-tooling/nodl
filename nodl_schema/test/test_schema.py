@@ -8,7 +8,7 @@ import json
 import pytest
 from jsonschema import ValidationError
 
-from nodl_schema import dump_nodl, load_nodl, load_schema, validate
+from nodl_schema import dump_nodl, load_nodl, load_schema, validate, validate_node
 from nodl_schema.models import NodlDocument
 
 _MIN_QOS = {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}
@@ -235,26 +235,54 @@ def test_string_nodl_version_rejected():
         validate({'nodl_version': '2'})
 
 
-def test_base_node_accepted():
-    validate({'nodl_version': 2, 'base': 'node'})
+def test_document_rejects_composition_keys():
+    # Composition lives on the node schema; documents must not carry base/main/mixins.
+    for key, value in (('base', 'node'), ('main', {'nodl_version': 2}), ('mixins', ['nodl://pkg/x'])):
+        with pytest.raises(ValidationError):
+            validate({'nodl_version': 2, key: value})
 
 
-def test_base_lifecycle_node_accepted():
-    validate({'nodl_version': 2, 'base': 'lifecycle_node'})
+# ---------------------------------------------------------------------------
+# validate_node -- the Node composition schema
+# ---------------------------------------------------------------------------
 
 
-def test_base_unknown_rejected():
+def test_node_minimal_accepted():
+    validate_node({'nodl_version': 2, 'main': {'nodl_version': 2}})
+
+
+def test_node_with_base_and_mixins_accepted():
+    validate_node({
+        'nodl_version': 2,
+        'base': 'lifecycle_node',
+        'main': {
+            'nodl_version': 2,
+            'publishers': [{'name': '~/s', 'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}],
+        },
+        'mixins': ['nodl://pkg/telemetry', {'nodl_version': 2}],
+    })
+
+
+def test_node_missing_main_rejected():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'base': 'unknown_base'})
+        validate_node({'nodl_version': 2, 'base': 'node'})
 
 
-def test_fragments_accepted():
-    validate({'nodl_version': 2, 'fragments': [{'ref': 'nodl://pkg/x'}]})
-
-
-def test_fragment_missing_ref_rejected():
+def test_node_unknown_base_rejected():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'fragments': [{'name': 'no_ref'}]})
+        validate_node({'nodl_version': 2, 'main': {'nodl_version': 2}, 'base': 'nope'})
+
+
+def test_node_main_must_be_valid_document():
+    # main is validated against the document schema; an unknown key fails.
+    with pytest.raises(ValidationError):
+        validate_node({'nodl_version': 2, 'main': {'nodl_version': 2, 'bogus': 1}})
+
+
+def test_node_mixin_scalar_rejected():
+    # A mixin entry must be a ref string or an in-place document, not a bare scalar.
+    with pytest.raises(ValidationError):
+        validate_node({'nodl_version': 2, 'main': {'nodl_version': 2}, 'mixins': [5]})
 
 
 def test_invalid_parameter_type():
