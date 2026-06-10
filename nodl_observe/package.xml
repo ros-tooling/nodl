@@ -1,18 +1,18 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>ros2nodl</name>
+  <name>nodl_observe</name>
   <version>0.0.0</version>
-  <description>ros2cli command entrypoint for NoDL.</description>
+  <description>Observe a running ROS node and produce its runtime description as a rosgraph_msgs/Node message.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="hello@alistairenglish.com">Alistair English</author>
   <author email="me@emersonknapp.com">Emerson Knapp</author>
 
-  <depend>nodl_observe</depend>
-  <depend>nodl_schema</depend>
+  <depend>rclpy</depend>
+  <depend>rcl_interfaces</depend>
   <depend>rosgraph_msgs</depend>
-  <depend>ros2cli</depend>
+  <depend>rosidl_runtime_py</depend>
 
   <test_depend>python3-pytest</test_depend>
 

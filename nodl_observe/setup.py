@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from setuptools import find_packages, setup
 
-package_name = 'ros2nodl'
+package_name = 'nodl_observe'
 
 setup(
     name=package_name,
@@ -14,16 +14,4 @@ setup(
     ],
     extras_require={'test': ['pytest']},
     zip_safe=True,
-    entry_points={
-        'ros2cli.command': [
-            'nodl = ros2nodl.command.nodl:NodlCommand',
-        ],
-        'ros2cli.extension_point': [
-            'ros2nodl.verb = ros2nodl.verb:VerbExtension',
-        ],
-        'ros2nodl.verb': [
-            'describe = ros2nodl.verb.describe:DescribeVerb',
-            'validate = ros2nodl.verb.validate:ValidateVerb',
-        ],
-    },
 )
