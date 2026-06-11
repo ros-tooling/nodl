@@ -1,0 +1,14 @@
+type: 'rosdoc2 config'
+version: 1
+
+---
+settings:
+    always_run_sphinx_apidoc: true
+    generate_package_index: true
+
+builders:
+    - sphinx: {
+        name: 'ros2nodl',
+        sphinx_sourcedir: 'doc',
+        output_dir: ''
+    }

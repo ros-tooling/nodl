@@ -43,3 +43,5 @@ repos:
       - id: polymath-toml
       - id: polymath-json
       - id: polymath-yaml
+        # rosdoc2.yaml uses a mandated two-document layout (header, then `---`, then config) that yamlfix rejects.
+        exclude: (^|/)rosdoc2\.yaml$
