@@ -1,16 +1,16 @@
 # NoDL Concepts
 
-A NoDL **interface definition** declares a ROS 2 node's public interface.
-It can be consumed:
+NoDL (Node Definition Language) is not a single schema but a small family of JSON Schemas that describe a ROS 2 node's interface at increasing granularity:
+
+- a **parameter definition** — a single ROS 2 parameter (type, default value, validation, ...), matching the shape used by [`generate_parameter_library`](https://github.com/pickNikRobotics/generate_parameter_library).
+- an **interface definition** — a (possibly partial) node interface: parameters, topics, services, and actions.
+- a **node definition** — a _whole_ node's interface, [composed](#composition) from interface definitions.
+
+A NoDL file can be consumed:
 
 1. at **runtime** by conformance testing and health monitoring
 1. at **build time** by code generators
 1. at **documentation time** to describe a node for its users
-
-NoDL distinguishes two things:
-
-- an **interface definition** — an interface, which may be only _part_ of a node's interface.
-- a **node definition** — a _whole_ node's interface, [composed](#composition) from interface definitions.
 
 ## Node identity
 
@@ -58,9 +58,9 @@ Tools should not assume any particular extension (such as `.nodl.yaml`) or a sin
 
 ## Validation
 
-NoDL files are validated both at build time (by the `ament_nodl` CMake macros, before install) and at runtime (by `nodl_schema.load_interface` / `load_node`).
-Authoring errors surface during the build of the package that owns the file, not at runtime, so a misconfigured node never ships.
+`ros2 nodl validate <file>` accepts any NoDL file and checks it against the matching schema, auto-detecting whether it is a parameter, interface, or node definition (`nodl_schema.load_nodl`); `load_parameter` / `load_interface` / `load_node` validate a known kind.
 
+NoDL files are also validated at build time by the `ament_nodl` CMake macros, before install, so authoring errors surface during the build of the package that owns the file, not at runtime — a misconfigured node never ships.
 The `ament_nodl` package registers files into the ament index and validates them as it does:
 
 - `ament_nodl_register_node(<exe> FILE ...)` registers a node definition (under the `nodl_nodes` resource type) for an executable.

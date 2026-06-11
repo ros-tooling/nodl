@@ -8,7 +8,15 @@ import json
 import pytest
 from jsonschema import ValidationError
 
-from nodl_schema import dump_nodl, load_interface, load_interface_schema, validate_interface, validate_node
+from nodl_schema import (
+    dump_nodl,
+    load_interface,
+    load_interface_schema,
+    load_nodl,
+    validate_interface,
+    validate_node,
+    validate_parameter,
+)
 from nodl_schema.models import Interface
 
 _MIN_QOS = {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}
@@ -283,6 +291,58 @@ def test_node_mixin_scalar_rejected():
     # A mixin entry must be a ref string or an in-place document, not a bare scalar.
     with pytest.raises(ValidationError):
         validate_node({'nodl_version': 2, 'main': {'nodl_version': 2}, 'mixins': [5]})
+
+
+# ---------------------------------------------------------------------------
+# load_nodl -- auto-detect node vs interface definition
+# ---------------------------------------------------------------------------
+
+
+def test_load_nodl_detects_interface():
+    from nodl_schema import Interface
+
+    doc = load_nodl('nodl_version: 2\nparameters:\n  p: {type: int}\n')
+    assert isinstance(doc, Interface)
+
+
+def test_load_nodl_detects_node():
+    from nodl_schema import Node
+
+    doc = load_nodl('nodl_version: 2\nbase: node\nmain:\n  nodl_version: 2\n')
+    assert isinstance(doc, Node)
+
+
+def test_load_nodl_node_validated_as_node():
+    # A node missing its required `main` is rejected as a node, not misread as an interface.
+    with pytest.raises(ValidationError):
+        load_nodl('nodl_version: 2\nbase: node\n')
+
+
+def test_load_nodl_detects_parameter():
+    from nodl_schema import ParameterDefinition
+
+    # No nodl_version -> a bare parameter definition (the genparamlib shape).
+    doc = load_nodl('type: double\ndefault_value: 1.0\nvalidation:\n  bounds<>: [0.0, 10.0]\n')
+    assert isinstance(doc, ParameterDefinition)
+
+
+# ---------------------------------------------------------------------------
+# validate_parameter -- the genparamlib parameter schema
+# ---------------------------------------------------------------------------
+
+
+def test_validate_parameter_accepts_single_param():
+    validate_parameter({'type': 'double', 'default_value': 1.0, 'description': 'speed'})
+
+
+def test_validate_parameter_rejects_bad_type():
+    with pytest.raises(ValidationError):
+        validate_parameter({'type': 'not_a_real_type'})
+
+
+def test_validate_parameter_requires_type():
+    with pytest.raises(ValidationError):
+        validate_parameter({'default_value': 1.0})
 
 
 def test_invalid_parameter_type():

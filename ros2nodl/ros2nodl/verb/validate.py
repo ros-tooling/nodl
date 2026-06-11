@@ -1,17 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""``ros2 nodl validate [files...]`` -- validate NoDL interface definitions against the schema."""
+"""``ros2 nodl validate [files...]`` -- validate NoDL files against the schema.
+
+Accepts any NoDL file and validates it against the matching schema, auto-detecting
+whether it is a node definition or an interface definition.
+"""
 
 import sys
 
 from jsonschema import ValidationError
 
-from nodl_schema import load_interface
+from nodl_schema import load_nodl
 from ros2nodl.verb import VerbExtension
 
 
 class ValidateVerb(VerbExtension):
-    """Validate NoDL interface definition(s) against the NoDL schema."""
+    """Validate NoDL file(s) -- node or interface definitions -- against the NoDL schema."""
 
     def add_arguments(self, parser, cli_name):
         parser.add_argument(
@@ -41,7 +45,7 @@ class ValidateVerb(VerbExtension):
 
 def _validate_source(source, label) -> int:
     try:
-        load_interface(source)
+        load_nodl(source)
     except ValidationError as e:
         path = ' -> '.join(str(p) for p in e.absolute_path) or '<root>'
         print(f'{label}: INVALID', file=sys.stderr)

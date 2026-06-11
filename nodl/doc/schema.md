@@ -1,11 +1,12 @@
 # NoDL Schema reference
 
-NoDL has two schemas, both generated below from their canonical sources:
+NoDL is a family of schemas, all generated below from their canonical sources:
 
 - a **node definition** ({repo}`nodl_schema/nodl_schema/schemas/node.schema.yaml`) -- a whole-node composition of `base` + `mixins` + `main`.
 - an **interface definition** ({repo}`nodl_schema/nodl_schema/schemas/interface.schema.yaml`) -- a (possibly partial) node interface, used for each composition layer.
+- a **parameter definition** ({repo}`nodl_schema/nodl_schema/schemas/parameter.schema.yaml`) -- a single ROS 2 parameter (the `generate_parameter_library` shape), reused wherever parameters appear.
 
-See [Concepts](concepts.md#composition) for how the two relate.
+See [Concepts](concepts.md#composition) for how they relate.
 
 ## Schema Version
 

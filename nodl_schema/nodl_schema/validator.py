@@ -21,11 +21,17 @@ import yaml
 from jsonschema import RefResolver
 from jsonschema.validators import Draft7Validator
 
-from nodl_schema.models import Interface, Node
+from nodl_schema.models import Interface, Node, ParameterDefinition
 
 _interface_validator: Draft7Validator | None = None
 _node_validator: Draft7Validator | None = None
+_parameter_validator: Draft7Validator | None = None
 _interface_schema_cache: dict | None = None
+
+# A single parameter definition validates against the parameter schema's
+# parameter_definition (the genparamlib-derived shape; the schema's root is a
+# library of definitions, not a document).
+_PARAMETER_SCHEMA = {'$ref': 'parameter.schema.yaml#/definitions/parameter_definition'}
 
 
 def _load_resource(name: str) -> dict:
@@ -81,6 +87,18 @@ def validate_node(data: dict) -> None:
     _node_validator.validate(data)
 
 
+def validate_parameter(data: dict) -> None:
+    """Validate a plain dict against the NoDL parameter definition schema.
+
+    This is the genparamlib-derived shape of a single ROS 2 parameter.
+    Raises jsonschema.ValidationError on failure.
+    """
+    global _parameter_validator
+    if _parameter_validator is None:
+        _parameter_validator = _make_validator(_PARAMETER_SCHEMA)
+    _parameter_validator.validate(data)
+
+
 def load_interface(source: Union[str, bytes, IO]) -> Interface:
     """Load and validate a NoDL interface definition from a string, bytes, or file-like object.
 
@@ -100,6 +118,41 @@ def load_node(source: Union[str, bytes, IO]) -> Node:
     return Node.parse_obj(_load(source, validate_node))
 
 
+def load_parameter(source: Union[str, bytes, IO]) -> ParameterDefinition:
+    """Load and validate a single NoDL parameter definition."""
+    return ParameterDefinition.parse_obj(_load(source, validate_parameter))
+
+
+# Keys that only a node definition carries; their presence distinguishes a node
+# definition from an interface definition (which forbids them).
+_NODE_ONLY_KEYS = ('base', 'main', 'mixins')
+
+
+def load_nodl(source: Union[str, bytes, IO]) -> Union[Interface, Node, ParameterDefinition]:
+    """Load and validate any NoDL file, auto-detecting which schema it satisfies.
+
+    NoDL is a family of schemas, and this dispatches across all of them:
+
+    * no ``nodl_version`` -> a single parameter definition (the genparamlib shape).
+    * ``nodl_version`` plus a composition key (``base``/``main``/``mixins``) -> a node definition.
+    * ``nodl_version`` otherwise -> an interface definition.
+
+    Use load_interface / load_node / load_parameter directly when the kind is
+    known and should be enforced.
+    """
+    data = yaml.safe_load(source)
+    if not isinstance(data, dict):
+        raise ValueError('NoDL file must be a YAML/JSON mapping at the top level')
+    if 'nodl_version' not in data:
+        validate_parameter(data)
+        return ParameterDefinition.parse_obj(data)
+    if any(key in data for key in _NODE_ONLY_KEYS):
+        validate_node(data)
+        return Node.parse_obj(data)
+    validate_interface(data)
+    return Interface.parse_obj(data)
+
+
 def _load(source, validator) -> dict:
     data = yaml.safe_load(source)
     if not isinstance(data, dict):
@@ -108,7 +161,7 @@ def _load(source, validator) -> dict:
     return data
 
 
-def _to_plain_dict(doc: Union[Interface, Node]) -> dict:
+def _to_plain_dict(doc: Union[Interface, Node, ParameterDefinition]) -> dict:
     """Serialize a model to a JSON-compatible dict that drops Nones and unwraps enums.
 
     Goes via .json() so the result is a plain dict on both pydantic v1 and v2;
@@ -117,8 +170,8 @@ def _to_plain_dict(doc: Union[Interface, Node]) -> dict:
     return json.loads(doc.json(exclude_none=True))
 
 
-def dump_nodl(doc: Union[Interface, Node, dict], *, format: str = 'yaml') -> str:
-    """Serialize an Interface or Node (or plain dict) to a YAML or JSON string."""
+def dump_nodl(doc: Union[Interface, Node, ParameterDefinition, dict], *, format: str = 'yaml') -> str:
+    """Serialize an Interface, Node, or ParameterDefinition (or plain dict) to YAML/JSON."""
     data = _to_plain_dict(doc) if not isinstance(doc, dict) else doc
     if format == 'json':
         return json.dumps(data, indent=2)
@@ -138,22 +191,32 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(
         prog='python -m nodl_schema',
-        description='Validate a NoDL file against the schema.',
+        description='Validate a NoDL file against one of the NoDL schemas.',
     )
     parser.add_argument('file', type=Path, help='Path to the NoDL file to validate.')
-    parser.add_argument(
+    # The kind is explicit so build-time registration enforces it (e.g. an
+    # interface registration must reject a node file). Default: interface.
+    kind = parser.add_mutually_exclusive_group()
+    kind.add_argument(
         '--node',
-        action='store_true',
-        help='Validate the file as a node definition (base/main/mixins) rather than an interface definition.',
+        dest='loader',
+        action='store_const',
+        const=load_node,
+        help='Validate as a node definition (base/main/mixins).',
     )
+    kind.add_argument(
+        '--parameter',
+        dest='loader',
+        action='store_const',
+        const=load_parameter,
+        help='Validate as a single parameter definition.',
+    )
+    parser.set_defaults(loader=load_interface)
     args = parser.parse_args(argv)
 
     try:
         with args.file.open('r') as f:
-            if args.node:
-                load_node(f)
-            else:
-                load_interface(f)
+            args.loader(f)
     except Exception as exc:
         print(f'{args.file}: {exc}', file=sys.stderr)
         return 1
