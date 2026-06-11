@@ -1,21 +1,22 @@
 ---
 $schema: http://json-schema.org/draft-07/schema#
-$id: nodl.schema.yaml
-title: NoDL Node Definition
+$id: interface.schema.yaml
+title: NoDL Interface Definition
 description: |
-  NoDL (Node Definition Language) v2 document schema.
+  NoDL (Node Definition Language) v2 interface definition schema.
 
   Describes a ROS 2 node interface -- but not necessarily a *whole*
   node's interface: parameters, publishers, subscriptions, service
-  servers/clients, and action servers/clients. A document may be
-  partial; whole nodes are assembled from documents by the Node schema
-  (``node.schema.yaml``) via base + mixins + main. Field names align
-  with ``rcl_interfaces`` and ``rosgraph_msgs`` (``Topic``, ``Service``,
-  ``Action``) so a document maps cleanly onto runtime introspection types.
+  servers/clients, and action servers/clients. An interface definition
+  may be partial; whole nodes are assembled from interface definitions by
+  the node definition schema (``node.schema.yaml``) via base + mixins +
+  main. Field names align with ``rcl_interfaces`` and ``rosgraph_msgs``
+  (``Topic``, ``Service``, ``Action``) so an interface definition maps
+  cleanly onto runtime introspection types.
 
   Node identity (name, package, namespace) is established by the
   enclosing package and the file's location within it, not declared
-  inside the document.
+  inside the interface definition.
 type: object
 additionalProperties: false
 required:

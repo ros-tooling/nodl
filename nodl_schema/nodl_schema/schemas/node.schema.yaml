@@ -1,14 +1,14 @@
 ---
 $schema: http://json-schema.org/draft-07/schema#
 $id: node.schema.yaml
-title: NoDL Node
+title: NoDL Node Definition
 description: |
-  A NoDL Node composes a *whole* ROS 2 node interface from layers:
+  A NoDL node definition composes a *whole* ROS 2 node interface from layers:
 
   - ``base`` -- an optional built-in ROS 2 node type whose interface is inherited.
-  - ``main`` -- the interface this node's implementation owns (a NoDL document).
-  - ``mixins`` -- zero or more additional NoDL documents merged in by reference
-    or in place.
+  - ``main`` -- the interface this node's implementation owns (an interface definition).
+  - ``mixins`` -- zero or more additional interface definitions merged in by
+    reference or in place.
 
   Code generation works *forward* from ``base`` + ``main`` and ignores
   ``mixins``. Documentation and conformance testing use the fully merged
@@ -32,24 +32,25 @@ properties:
     enum: [node, lifecycle_node]
     description: |
       Built-in ROS 2 base node type whose interface this node inherits.
-      Resolves to a built-in NoDL document shipped with ``nodl_schema``.
+      Resolves to a built-in interface definition shipped with ``nodl_schema``.
 
   main:
     description: |
-      The interface this node's implementation owns, as an in-place NoDL
-      document. Code generation implements exactly this layer.
-    $ref: nodl.schema.yaml
+      The interface this node's implementation owns, as an in-place interface
+      definition. Code generation implements exactly this layer.
+    $ref: interface.schema.yaml
 
   mixins:
     type: array
     description: |
-      Additional NoDL documents merged into this node's interface for
+      Additional interface definitions merged into this node's interface for
       documentation and conformance, but ignored by code generation.
       Each entry is either a reference -- an ament-index locator
       ``nodl://<package>/<name>`` or a path relative to this file -- or an
-      in-place NoDL document (an escape hatch when no registered document exists).
+      in-place interface definition (an escape hatch when no registered
+      interface definition exists).
     items:
       oneOf:
         - type: string
-          description: Reference to a NoDL document -- ``nodl://<package>/<name>`` or a relative path.
-        - $ref: nodl.schema.yaml
+          description: Reference to an interface definition -- ``nodl://<package>/<name>`` or a relative path.
+        - $ref: interface.schema.yaml

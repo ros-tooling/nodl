@@ -27,7 +27,7 @@ def _rewrite_refs(node, ref_map: dict) -> None:
     """Rewrite each $ref to a short display id, in place.
 
     Handles both ``#/definitions/<name>`` (a definition in any schema) and a
-    whole-file ref like ``nodl.schema.yaml`` (e.g. the node schema's ``main``).
+    whole-file ref like ``interface.schema.yaml`` (e.g. the node schema's ``main``).
     """
     if isinstance(node, dict):
         for key, value in node.items():
@@ -82,7 +82,7 @@ def mirror_schemas_for_docs() -> None:
     ref_map = {name: _short_id(name) for doc in schemas.values() for name in doc.get('definitions', {})}
 
     for filename, doc in schemas.items():
-        stem = filename.split('.')[0]  # nodl.schema.yaml -> nodl
+        stem = filename.split('.')[0]  # interface.schema.yaml -> interface
         doc['$id'] = _short_id(stem)
         for name, definition in doc.get('definitions', {}).items():
             definition['$id'] = ref_map[name]

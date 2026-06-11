@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from nodl_schema.composition import Node
-from nodl_schema.models import NodlDocument, ParameterDefinition, QosProfile, TopicEndpoint
+from nodl_schema.models import Interface, Node, ParameterDefinition, QosProfile, TopicEndpoint
 from nodl_schema.resolve import resolve
 
 _SYS_QOS = QosProfile(history='SYSTEM_DEFAULT', reliability='SYSTEM_DEFAULT')
@@ -18,7 +17,7 @@ _SYS_QOS = QosProfile(history='SYSTEM_DEFAULT', reliability='SYSTEM_DEFAULT')
 
 def _node(**kwargs) -> Node:
     """Build a Node, defaulting main to an empty document."""
-    kwargs.setdefault('main', NodlDocument(nodl_version=2))
+    kwargs.setdefault('main', Interface(nodl_version=2))
     return Node(nodl_version=2, **kwargs)
 
 
@@ -31,7 +30,7 @@ def test_resolve_no_base_or_mixins():
     layered = resolve(_node())
     assert layered.base is None
     assert layered.mixins == []
-    assert layered.merged() == NodlDocument(nodl_version=2)
+    assert layered.merged() == Interface(nodl_version=2)
 
 
 def test_resolve_base_node_loads_use_sim_time():
@@ -98,7 +97,7 @@ def test_resolve_inplace_mixin_document():
     # The escape hatch: a mixin may be an in-place NoDL document instead of a ref.
     node = _node(
         mixins=[
-            NodlDocument(
+            Interface(
                 nodl_version=2, publishers=[TopicEndpoint(name='/inline', type='std_msgs/msg/String', qos=_SYS_QOS)]
             )
         ]
@@ -120,7 +119,7 @@ def test_resolve_relative_mixin_without_source_raises():
 
 
 def test_resolve_mixin_declaring_composition_keys_rejected(tmp_path: Path):
-    # A mixin document is validated as a NoDL document, which forbids composition
+    # A mixin is validated as an interface definition, which forbids composition
     # keys -- so a referenced file that declares base/main/mixins is rejected.
     mixin = tmp_path / 'bad.nodl.yaml'
     mixin.write_text('nodl_version: 2\nmain:\n  nodl_version: 2\n')
@@ -130,7 +129,7 @@ def test_resolve_mixin_declaring_composition_keys_rejected(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# LayeredDocument.merged() -- layer precedence
+# ResolvedNode.merged() -- layer precedence
 # ---------------------------------------------------------------------------
 
 
@@ -138,7 +137,7 @@ def test_merged_main_wins_over_base():
     """Main document's parameter overrides the base's."""
     node = _node(
         base='node',
-        main=NodlDocument(
+        main=Interface(
             nodl_version=2,
             parameters={'use_sim_time': ParameterDefinition(type='bool', default_value=True)},
         ),
@@ -150,11 +149,11 @@ def test_merged_main_wins_over_base():
 
 def test_merged_main_wins_over_mixin():
     node = _node(
-        main=NodlDocument(
+        main=Interface(
             nodl_version=2,
             parameters={'p': ParameterDefinition(type='int', default_value=2)},
         ),
-        mixins=[NodlDocument(nodl_version=2, parameters={'p': ParameterDefinition(type='int', default_value=1)})],
+        mixins=[Interface(nodl_version=2, parameters={'p': ParameterDefinition(type='int', default_value=1)})],
     )
     merged = resolve(node).merged()
     assert merged.parameters['p'].default_value == 2
@@ -174,7 +173,7 @@ def test_merged_combines_publishers_from_all_layers(tmp_path: Path):
     """)
     )
     node = _node(
-        main=NodlDocument(
+        main=Interface(
             nodl_version=2,
             publishers=[TopicEndpoint(name='/from_main', type='std_msgs/msg/String', qos=_SYS_QOS)],
         ),

@@ -4,9 +4,10 @@
 
 Two schemas are validated here:
 
-* a NoDL **document** (``nodl.schema.yaml``) -- a possibly-partial node interface.
-* a NoDL **node** (``node.schema.yaml``) -- a whole-node composition of
-  ``base`` + ``mixins`` + ``main``, where each layer is a document.
+* an **interface definition** (``interface.schema.yaml``) -- a possibly-partial
+  node interface.
+* a **node definition** (``node.schema.yaml``) -- a whole-node composition of
+  ``base`` + ``mixins`` + ``main``, where each layer is an interface definition.
 """
 
 from __future__ import annotations
@@ -20,12 +21,11 @@ import yaml
 from jsonschema import RefResolver
 from jsonschema.validators import Draft7Validator
 
-from nodl_schema.composition import Node
-from nodl_schema.models import NodlDocument
+from nodl_schema.models import Interface, Node
 
-_document_validator: Draft7Validator | None = None
+_interface_validator: Draft7Validator | None = None
 _node_validator: Draft7Validator | None = None
-_schema_cache: dict | None = None
+_interface_schema_cache: dict | None = None
 
 
 def _load_resource(name: str) -> dict:
@@ -33,21 +33,21 @@ def _load_resource(name: str) -> dict:
     return yaml.safe_load(path.read_text(encoding='utf-8'))
 
 
-def load_schema() -> dict:
-    """Load and cache the NoDL document JSON schema."""
-    global _schema_cache
-    if _schema_cache is None:
-        _schema_cache = _load_resource('nodl.schema.yaml')
-    return _schema_cache
+def load_interface_schema() -> dict:
+    """Load and cache the NoDL interface definition JSON schema."""
+    global _interface_schema_cache
+    if _interface_schema_cache is None:
+        _interface_schema_cache = _load_resource('interface.schema.yaml')
+    return _interface_schema_cache
 
 
 def _resource_store() -> dict:
-    """Build a $ref store so cross-file refs (node -> document -> parameter) resolve."""
-    document = load_schema()
+    """Build a $ref store so cross-file refs (node -> interface -> parameter) resolve."""
+    interface = load_interface_schema()
     parameter = _load_resource('parameter.schema.yaml')
     return {
-        'nodl.schema.yaml': document,
-        document.get('$id', ''): document,
+        'interface.schema.yaml': interface,
+        interface.get('$id', ''): interface,
         'parameter.schema.yaml': parameter,
         parameter.get('$id', ''): parameter,
     }
@@ -59,19 +59,19 @@ def _make_validator(schema: dict) -> Draft7Validator:
     return Draft7Validator(schema, resolver=resolver)
 
 
-def validate(data: dict) -> None:
-    """Validate a plain dict against the NoDL document schema.
+def validate_interface(data: dict) -> None:
+    """Validate a plain dict against the NoDL interface definition schema.
 
     Raises jsonschema.ValidationError on failure.
     """
-    global _document_validator
-    if _document_validator is None:
-        _document_validator = _make_validator(load_schema())
-    _document_validator.validate(data)
+    global _interface_validator
+    if _interface_validator is None:
+        _interface_validator = _make_validator(load_interface_schema())
+    _interface_validator.validate(data)
 
 
 def validate_node(data: dict) -> None:
-    """Validate a plain dict against the NoDL node (composition) schema.
+    """Validate a plain dict against the NoDL node definition (composition) schema.
 
     Raises jsonschema.ValidationError on failure.
     """
@@ -81,20 +81,20 @@ def validate_node(data: dict) -> None:
     _node_validator.validate(data)
 
 
-def load_nodl(source: Union[str, bytes, IO]) -> NodlDocument:
-    """Load and validate a NoDL document from a string, bytes, or file-like object.
+def load_interface(source: Union[str, bytes, IO]) -> Interface:
+    """Load and validate a NoDL interface definition from a string, bytes, or file-like object.
 
     JSON is a subset of YAML, so both are accepted through yaml.safe_load.
     Raises jsonschema.ValidationError on schema error or pydantic.ValidationError
     on type error.
     """
-    return NodlDocument.parse_obj(_load(source, validate))
+    return Interface.parse_obj(_load(source, validate_interface))
 
 
 def load_node(source: Union[str, bytes, IO]) -> Node:
-    """Load and validate a NoDL node (composition) document.
+    """Load and validate a NoDL node definition (composition).
 
-    Same input handling as load_nodl, but validates and parses the
+    Same input handling as load_interface, but validates and parses the
     base/main/mixins composition schema.
     """
     return Node.parse_obj(_load(source, validate_node))
@@ -103,12 +103,12 @@ def load_node(source: Union[str, bytes, IO]) -> Node:
 def _load(source, validator) -> dict:
     data = yaml.safe_load(source)
     if not isinstance(data, dict):
-        raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
+        raise ValueError('NoDL file must be a YAML/JSON mapping at the top level')
     validator(data)
     return data
 
 
-def _to_plain_dict(doc: Union[NodlDocument, Node]) -> dict:
+def _to_plain_dict(doc: Union[Interface, Node]) -> dict:
     """Serialize a model to a JSON-compatible dict that drops Nones and unwraps enums.
 
     Goes via .json() so the result is a plain dict on both pydantic v1 and v2;
@@ -117,8 +117,8 @@ def _to_plain_dict(doc: Union[NodlDocument, Node]) -> dict:
     return json.loads(doc.json(exclude_none=True))
 
 
-def dump_nodl(doc: Union[NodlDocument, Node, dict], *, format: str = 'yaml') -> str:
-    """Serialize a NodlDocument or Node (or plain dict) to a YAML or JSON string."""
+def dump_nodl(doc: Union[Interface, Node, dict], *, format: str = 'yaml') -> str:
+    """Serialize an Interface or Node (or plain dict) to a YAML or JSON string."""
     data = _to_plain_dict(doc) if not isinstance(doc, dict) else doc
     if format == 'json':
         return json.dumps(data, indent=2)
@@ -130,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
 
     Exits 0 on success, 1 on validation failure or I/O error.
     Designed for invocation from CMake macros (ament_nodl_register_node and
-    ament_nodl_register_document) so files are checked at build time, not at
+    ament_nodl_register_interface) so files are checked at build time, not at
     runtime.
     """
     import argparse
@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         '--node',
         action='store_true',
-        help='Validate the file as a NoDL node composition (base/main/mixins) rather than a document.',
+        help='Validate the file as a node definition (base/main/mixins) rather than an interface definition.',
     )
     args = parser.parse_args(argv)
 
@@ -153,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.node:
                 load_node(f)
             else:
-                load_nodl(f)
+                load_interface(f)
     except Exception as exc:
         print(f'{args.file}: {exc}', file=sys.stderr)
         return 1

@@ -2,10 +2,10 @@
 
 NoDL has two schemas, both generated below from their canonical sources:
 
-- a **node** ({repo}`nodl_schema/nodl_schema/schemas/node.schema.yaml`) -- a whole-node composition of `base` + `mixins` + `main`.
-- a **document** ({repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`) -- a (possibly partial) node interface, used for each composition layer.
+- a **node definition** ({repo}`nodl_schema/nodl_schema/schemas/node.schema.yaml`) -- a whole-node composition of `base` + `mixins` + `main`.
+- an **interface definition** ({repo}`nodl_schema/nodl_schema/schemas/interface.schema.yaml`) -- a (possibly partial) node interface, used for each composition layer.
 
-See [Concepts](concepts.md#composition-documents-into-nodes) for how the two relate.
+See [Concepts](concepts.md#composition) for how the two relate.
 
 ## Schema Version
 
@@ -15,25 +15,25 @@ After Humble EOL in May 2027, we will consider updating to a newer JSON Schema d
 
 ## Node composition
 
-A node composes a whole interface from a built-in `base`, the node's own `main` document, and zero or more `mixins`. `main` is a [node document](#node-document); each mixin is a reference (`nodl://<package>/<name>` or a relative path) or an in-place document.
+A node definition composes a whole interface from a built-in `base`, the node's own `main` interface, and zero or more `mixins`. `main` is an [interface definition](#interface-definition); each mixin is a reference (`nodl://<package>/<name>` or a relative path) or an in-place interface definition.
 
 ```{eval-rst}
 .. json:schema:: Node
-   :title: NoDL node
+   :title: NoDL node definition
 ```
 
-## Node document
+## Interface definition
 
 ```{eval-rst}
-.. json:schema:: Nodl
-   :title: NoDL document
+.. json:schema:: Interface
+   :title: NoDL interface definition
 ```
 
-A node document references these shared types (generated from the schema's
+An interface definition references these shared types (generated from the schema's
 `definitions`, see {repo}`nodl/doc/conf.py`):
 
 ```{eval-rst}
-.. include:: _generated/schemas/nodl_definitions.txt
+.. include:: _generated/schemas/interface_definitions.txt
 ```
 
 ## Parameter schema

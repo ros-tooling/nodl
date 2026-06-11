@@ -111,16 +111,16 @@ def test_node_without_main_rejected(tmp_path: Path):
     assert str(f) in result.stderr
 
 
-def test_document_rejected_in_node_mode(tmp_path: Path):
-    # A plain document (no main) is not a valid node composition.
-    f = tmp_path / 'doc.nodl.yaml'
+def test_interface_rejected_in_node_mode(tmp_path: Path):
+    # A plain interface definition (no main) is not a valid node definition.
+    f = tmp_path / 'iface.nodl.yaml'
     f.write_text(_VALID)
     result = _run(f, node=True)
     assert result.returncode == 1
 
 
-def test_node_rejected_in_document_mode(tmp_path: Path):
-    # A node composition has a `main` key the document schema forbids.
+def test_node_rejected_in_interface_mode(tmp_path: Path):
+    # A node definition has a `main` key the interface schema forbids.
     f = tmp_path / 'node.nodl.yaml'
     f.write_text(_VALID_NODE)
     result = _run(f)

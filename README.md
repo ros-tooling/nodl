@@ -12,7 +12,7 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
 - [nodl/](./nodl/): Metapackage that pulls in the other packages as dependencies. Acts as an easy default for those who don't want a-la-carte.
   - [doc/](./nodl/doc/): Documentation source for the ReadTheDocs page
 - [nodl_schema/](./nodl_schema/): Package providing the NoDL schema, plus a Python package with validation tools and typed data model to work with it.
-    [nodl.schema.yaml](./nodl_schema/nodl_schema/schemas/nodl.schema.yaml): The NoDL schema, key to this whole thing!
+    [interface.schema.yaml](./nodl_schema/nodl_schema/schemas/interface.schema.yaml) and [node.schema.yaml](./nodl_schema/nodl_schema/schemas/node.schema.yaml): The NoDL schemas, key to this whole thing!
 - [ros2nodl/](./ros2nodl/): `ros2cli` extension providing `ros2 nodl ...` commands
 - [tools/](./tools/): Scripts supporting development and build workflows
 
