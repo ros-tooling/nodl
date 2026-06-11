@@ -1,0 +1,14 @@
+type: 'rosdoc2 config'
+version: 1
+
+---
+settings:
+    # Document the Python API and generate the per-package index for docs.ros.org.
+    always_run_sphinx_apidoc: true
+    generate_package_index: true
+
+builders:
+    - sphinx: {
+        name: 'nodl_schema',
+        output_dir: ''
+    }

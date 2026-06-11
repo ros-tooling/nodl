@@ -9,6 +9,7 @@ from pathlib import Path
 # Make this directory importable so the local schema_reference helper resolves.
 # (sys.path entries must be str, not Path, or the import machinery ignores them.)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import package_docs
 import schema_reference
 
 project = 'NoDL'
@@ -21,7 +22,18 @@ extensions = [
     'sphinx_immaterial',
     'sphinx_immaterial.apidoc.json.domain',
     'sphinx.ext.extlinks',
+    'sphinx.ext.intersphinx',
 ]
+
+# -- Cross-references between packages and the top-level site ----------------
+# Per-package docs reference top-level concepts through the 'nodl' inventory, e.g. {external+nodl:doc}`/concepts`.
+# Standalone rosdoc2 builds resolve the same role against this published inventory (see each package's doc/conf.py).
+# In this combined build the 'nodl' inventory is this very site, so those links point at the published top-level pages
+# rather than the in-build copies. That keeps one link style working in both build contexts; the only cost is that a
+# package page in a PR preview links "up" to the published concepts, which are stable.
+intersphinx_mapping = {
+    'nodl': ('https://nodl.readthedocs.io/en/latest/', None),
+}
 
 # -- Schema reference rendering ----------------------------------------------
 # schema.md documents the canonical nodl_schema schemas via the sphinx-immaterial JSON domain
@@ -102,6 +114,7 @@ exclude_patterns = ['_build', '.venv', 'Thumbs.db', '.DS_Store']
 
 
 def setup(app):
-    """Prepare the schema reference before the JSON domain reads the schemas."""
+    """Prepare the schema reference before the JSON domain reads the schemas, and stage per-package docs."""
     schema_reference.mirror_schemas_for_docs()
     schema_reference.patch_object_value_type()
+    package_docs.mirror_package_docs()
