@@ -1,0 +1,67 @@
+---
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+name: rosdoc2
+
+# Validates that each package's standalone rosdoc2 build (the one docs.ros.org will run) succeeds and keeps
+# succeeding. The combined nodl.readthedocs.io site is covered separately by docs.yml; this job exercises the
+# per-package doc/ + rosdoc2.yaml sources in isolation, the way the ROS buildfarm builds them.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rosdoc2:
+    name: rosdoc2 build (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # One job per documented package. The nodl metapackage is covered by the top-level site; test_ament_nodl
+        # is a test fixture. A ROS-distro axis could be added here later to mirror the per-distro buildfarm.
+        package: [nodl_schema, ros2nodl, ament_nodl]
+    container:
+      # A ROS base image gives us ros2cli (ros2nodl imports it) and the ament build tooling already installed.
+      image: ros:jazzy-ros-base
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src/nodl
+
+      - name: Install build tooling, dependencies, and rosdoc2
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y python3-pip python3-colcon-common-extensions
+          rosdep update
+          rosdep install --from-paths src --ignore-src -y
+          # rosdoc2 imports each package to autodoc it, so it must share the workspace Python.
+          pip install --break-system-packages rosdoc2
+
+      - name: Build the workspace
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build
+
+      - name: Build ${{ matrix.package }} docs with rosdoc2
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          # rosdoc2 exits non-zero on a real failure; benign Sphinx warnings (for example rosdoc2's own
+          # duplicate user-doc copy) do not fail the build, which is what we want as the gate.
+          rosdoc2 build \
+            --package-path "src/nodl/${{ matrix.package }}" \
+            --output-directory "rosdoc2_output/${{ matrix.package }}" \
+            --cross-reference-directory rosdoc2_cross
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rosdoc2-${{ matrix.package }}
+          path: rosdoc2_output/${{ matrix.package }}
+          retention-days: 14

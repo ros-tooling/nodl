@@ -9,6 +9,5 @@ settings:
 builders:
     - sphinx: {
         name: 'ros2nodl',
-        sphinx_sourcedir: 'doc',
         output_dir: ''
     }
