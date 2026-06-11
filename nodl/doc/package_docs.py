@@ -21,8 +21,10 @@ PACKAGES_DST = _HERE / '_generated' / 'packages'
 # The ``nodl`` metapackage is documented by this top-level site itself; ``test_ament_nodl`` is a test fixture.
 PACKAGES = ['nodl_schema', 'ros2nodl', 'ament_nodl']
 
-# Toctree entries, relative to the Sphinx source dir (== _HERE), that index.md feeds to its "Packages" toctree.
-PACKAGE_TOCTREE_ENTRIES = [f'_generated/packages/{pkg}/index' for pkg in PACKAGES]
+# Toctree entries, relative to the Sphinx source dir (== _HERE), mirrored by the "Packages" toctree in index.md.
+# Each package's landing page is overview.md, not index.md: rosdoc2 reserves index for its own generated wrapper,
+# and a user index.md there would shadow it and orphan the auto-generated API (see design/package_docs_proposal.md).
+PACKAGE_TOCTREE_ENTRIES = [f'_generated/packages/{pkg}/overview' for pkg in PACKAGES]
 
 # Files in a package's doc/ that are for the standalone rosdoc2 build only, not the combined Sphinx source.
 _EXCLUDE = shutil.ignore_patterns('conf.py', '__pycache__', '_build')

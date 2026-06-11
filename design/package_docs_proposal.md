@@ -162,12 +162,33 @@ Links must resolve both in the combined build and in standalone rosdoc2 builds. 
 
 The combined build is green under warnings-as-errors (`poe build`), and all pre-commit hooks pass.
 
+## Standalone rosdoc2 builds (added)
+
+A `rosdoc2` CI job (`.github/workflows/rosdoc2.yml`) now builds each package's `doc/` + `rosdoc2.yaml` in isolation,
+the way docs.ros.org will, so the standalone path is verified and stays working. It runs one matrix job per package in
+a `ros:jazzy-ros-base` container (which supplies `ros2cli` for `ros2nodl`), builds the workspace so packages are
+importable for autodoc, runs `rosdoc2 build`, and uploads the HTML as an artifact for download-and-view previews. The
+gate is `rosdoc2`'s exit code; benign Sphinx warnings do not fail it. A ROS-distro matrix axis can be added later.
+
+Findings from validating the standalone build, and the resulting design choices:
+
+- **Per-package landing pages are `overview.md`, not `index.md`.** rosdoc2 writes its own `index.rst` wrapper (which
+  links the auto-generated API, standard docs, and user docs) and then copies the package's `doc/` over it, intending
+  a user `index.rst` to take control. A user `index.md` instead *coexists* with the wrapper, wins the `index` docname,
+  and orphans the auto-generated API. Naming the page `overview.md` keeps rosdoc2's wrapper as the root and the API
+  reachable. The combined site's toctree and `package_docs.py` reference `overview` accordingly.
+- **Each package `conf.py` defines the `repo` extlink and the `nodl` intersphinx mapping**, so `{repo}` source links
+  and `{external+nodl:doc}` references resolve in standalone builds, not just the combined one.
+- **Cross-package links were dropped in favor of code-span mentions.** A `{doc}` link from `ros2nodl` to `nodl_schema`
+  resolves in the combined one-site build but is a broken internal ref in a standalone build (and would not resolve on
+  the buildfarm either, since `{doc}` is internal). Rather than couple to intersphinx docnames that differ between the
+  two layouts, cross-package references are now plain `` `nodl_schema` ``-style mentions; the combined site's nav lists
+  every package for discovery. Links *up* to the top-level concepts still use the `nodl` intersphinx inventory.
+- Each standalone build emits one benign warning: rosdoc2's duplicate copy of `overview.md` at the wrapper root is not
+  in any toctree. It does not affect the rendered site and does not fail the job.
+
 ## Remaining (deferred) work
 
-- Step 5 from the plan: validate a standalone `rosdoc2` build of each package locally / on the buildfarm. The combined
-  build is the only path exercised so far. Notably, cross-*package* links (for example `ros2nodl` to `nodl_schema`) use
-  internal relative `{doc}` refs that resolve in the combined site but will need intersphinx wiring (from `package.xml`
-  dependencies) to resolve in standalone builds.
-- Deep autodoc of the Python API in the combined site is intentionally not done: the docs venv does not install the
-  packages, so API pages are curated prose with `{repo}` source links. The standalone rosdoc2 build is where
-  `sphinx-apidoc` runs.
+- Deep autodoc of the Python API in the *combined* site is intentionally not done: the docs venv does not install the
+  packages, so API pages there are curated prose with `{repo}` source links. The standalone rosdoc2 build is where
+  `sphinx-apidoc` runs and renders the live API.

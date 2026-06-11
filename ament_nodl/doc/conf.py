@@ -9,9 +9,16 @@ project (see nodl/doc/package_docs.py). This config only takes effect when rosdo
 extensions = [
     'myst_parser',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.extlinks',
 ]
 
 # Resolve {external+nodl:...} references against the published top-level site.
 intersphinx_mapping = {
     'nodl': ('https://nodl.readthedocs.io/en/latest/', None),
+}
+
+# {repo}`path` links to a file in the GitHub repo, matching the top-level site's role (see nodl/doc/conf.py).
+# Standalone builds have no RTD ref to pin, so they point at main.
+extlinks = {
+    'repo': ('https://github.com/ros-tooling/nodl/blob/main/%s', '%s'),
 }

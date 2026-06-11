@@ -10,6 +10,5 @@ settings:
 builders:
     - sphinx: {
         name: 'nodl_schema',
-        sphinx_sourcedir: 'doc',
         output_dir: ''
     }

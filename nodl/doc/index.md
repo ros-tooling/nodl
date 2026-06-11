@@ -32,9 +32,9 @@ Each package's own documentation is staged into this site from its `doc/` tree a
 :maxdepth: 1
 :caption: Packages
 
-nodl_schema <_generated/packages/nodl_schema/index>
-ros2nodl <_generated/packages/ros2nodl/index>
-ament_nodl <_generated/packages/ament_nodl/index>
+nodl_schema <_generated/packages/nodl_schema/overview>
+ros2nodl <_generated/packages/ros2nodl/overview>
+ament_nodl <_generated/packages/ament_nodl/overview>
 ```
 
 ## Source

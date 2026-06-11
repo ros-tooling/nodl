@@ -4,7 +4,7 @@
 command line.
 
 For what a NoDL document declares, see {external+nodl:doc}`concepts`.
-For the Python API that backs this command, see the {doc}`nodl_schema <../nodl_schema/index>` package.
+For the Python API that backs this command, see the `nodl_schema` package.
 
 ## Commands
 
@@ -30,5 +30,4 @@ so it composes cleanly into shell pipelines and CI checks.
 
 `ros2 nodl validate` is a thin CLI wrapper over `nodl_schema`'s validator.
 For programmatic validation or for building tools on top of the typed data model, depend on `nodl_schema` directly.
-For registering a node's NoDL document with the ament index from a CMake package, see
-{doc}`ament_nodl <../ament_nodl/index>`.
+For registering a node's NoDL document with the ament index from a CMake package, see the `ament_nodl` package.
