@@ -1,0 +1,56 @@
+---
+$schema: http://json-schema.org/draft-07/schema#
+$id: node.schema.yaml
+title: NoDL Node Definition
+description: |
+  A NoDL node definition composes a *whole* ROS 2 node interface from layers:
+
+  - ``base`` -- an optional built-in ROS 2 node type whose interface is inherited.
+  - ``main`` -- the interface this node's implementation owns (an interface definition).
+  - ``mixins`` -- zero or more additional interface definitions merged in by
+    reference or in place.
+
+  Code generation works *forward* from ``base`` + ``main`` and ignores
+  ``mixins``. Documentation and conformance testing use the fully merged
+  interface (base, then mixins in order, then main; later layers win).
+
+  When working *backward* from an observed node, ``base`` can be deduced and
+  the full non-base interface placed in ``main``; ``mixins`` cannot be deduced
+  and are simply absent.
+type: object
+additionalProperties: false
+required:
+  - nodl_version
+  - main
+properties:
+  nodl_version:
+    description: NoDL schema major version this document targets.
+    const: 2
+
+  base:
+    type: string
+    enum: [node, lifecycle_node]
+    description: |
+      Built-in ROS 2 base node type whose interface this node inherits.
+      Resolves to a built-in interface definition shipped with ``nodl_schema``.
+
+  main:
+    description: |
+      The interface this node's implementation owns, as an in-place interface
+      definition. Code generation implements exactly this layer.
+    $ref: interface.schema.yaml
+
+  mixins:
+    type: array
+    description: |
+      Additional interface definitions merged into this node's interface for
+      documentation and conformance, but ignored by code generation.
+      Each entry is either a reference -- an ament-index locator
+      ``nodl://<package>/<name>`` or a path relative to this file -- or an
+      in-place interface definition (an escape hatch when no registered
+      interface definition exists).
+    items:
+      oneOf:
+        - type: string
+          description: Reference to an interface definition -- ``nodl://<package>/<name>`` or a relative path.
+        - $ref: interface.schema.yaml

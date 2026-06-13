@@ -6,7 +6,7 @@ from ros2cli.command import CommandExtension, add_subparsers_on_demand
 
 
 class NodlCommand(CommandExtension):
-    """Inspect and validate NoDL documents."""
+    """Inspect and validate NoDL interface definitions."""
 
     def add_arguments(self, parser, cli_name):
         self._subparser = parser

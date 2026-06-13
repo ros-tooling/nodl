@@ -17,9 +17,19 @@ ament_nodl_register_node(custom_exe
 # Non-yaml frontend. Make sure the macro is extension-agnostic.
 ament_nodl_register_node(json_node FILE test/fixtures/json_node.nodl.json)
 
+# Default PACKAGE for the interface register macro. basic_node mixes this in by
+# nodl://test_ament_nodl/tf_listener.
+ament_nodl_register_interface(tf_listener FILE test/fixtures/tf_listener.nodl.yaml)
+
+# Explicit PACKAGE override for interface definitions.
+ament_nodl_register_interface(extra_telemetry
+  FILE test/fixtures/extra_telemetry.nodl.yaml
+  PACKAGE custom_pkg)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(register_node_tests test/test_register_node.py)
+  ament_add_pytest_test(register_interface_tests test/test_register_interface.py)
   ament_add_pytest_test(macro_rejection_tests test/test_macro_rejection.py)
 endif()
 

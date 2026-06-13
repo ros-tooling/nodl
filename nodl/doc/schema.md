@@ -1,6 +1,12 @@
 # NoDL Schema reference
 
-The following reference is generated from {repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`, which is the canonical source.
+NoDL is a family of schemas, all generated below from their canonical sources:
+
+- a **node definition** ({repo}`nodl_schema/nodl_schema/schemas/node.schema.yaml`) -- a whole-node composition of `base` + `mixins` + `main`.
+- an **interface definition** ({repo}`nodl_schema/nodl_schema/schemas/interface.schema.yaml`) -- a (possibly partial) node interface, used for each composition layer.
+- a **parameter definition** ({repo}`nodl_schema/nodl_schema/schemas/parameter.schema.yaml`) -- a single ROS 2 parameter (the `generate_parameter_library` shape), reused wherever parameters appear.
+
+See [Concepts](concepts.md#composition) for how they relate.
 
 ## Schema Version
 
@@ -8,18 +14,27 @@ The NoDL schema is [JSON Schema Draft 7](https://json-schema.org/draft-07).
 This was chosen chosen to trivially support all live ROS 2 distributions - the key limitation being the system packages available on Ubuntu 22.04 Jammy with ROS 2 Humble.
 After Humble EOL in May 2027, we will consider updating to a newer JSON Schema draft version.
 
-## Node document
+## Node composition
+
+A node definition composes a whole interface from a built-in `base`, the node's own `main` interface, and zero or more `mixins`. `main` is an [interface definition](#interface-definition); each mixin is a reference (`nodl://<package>/<name>` or a relative path) or an in-place interface definition.
 
 ```{eval-rst}
-.. json:schema:: Nodl
-   :title: NoDL document
+.. json:schema:: Node
+   :title: NoDL node definition
 ```
 
-A node document references these shared types (generated from the schema's
+## Interface definition
+
+```{eval-rst}
+.. json:schema:: Interface
+   :title: NoDL interface definition
+```
+
+An interface definition references these shared types (generated from the schema's
 `definitions`, see {repo}`nodl/doc/conf.py`):
 
 ```{eval-rst}
-.. include:: _generated/schemas/nodl_definitions.txt
+.. include:: _generated/schemas/interface_definitions.txt
 ```
 
 ## Parameter schema

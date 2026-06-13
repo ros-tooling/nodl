@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Regenerate nodl_schema/nodl_schema/models.py from the JSON schema.
 
-Run after editing nodl_schema/nodl_schema/schemas/nodl.schema.yaml or
-parameter.schema.yaml. The pre-commit hook and CI both invoke this script.
+Run after editing any schema under nodl_schema/nodl_schema/schemas/ (node,
+interface, or parameter). The pre-commit hook and CI both invoke this script.
 
 Requires (pinned to match polymath_code_standard so the generated file is a
 fixed point for the polymath-python pre-commit hook):
@@ -15,13 +15,17 @@ fixed point for the polymath-python pre-commit hook):
 from __future__ import annotations
 
 import datetime
+import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCHEMA = REPO_ROOT / 'nodl_schema' / 'nodl_schema' / 'schemas' / 'nodl.schema.yaml'
+SCHEMA_DIR = REPO_ROOT / 'nodl_schema' / 'nodl_schema' / 'schemas'
 OUTPUT = REPO_ROOT / 'nodl_schema' / 'nodl_schema' / 'models.py'
 
 # Mirrors polymath_code_standard/config/ruff.toml so the generated file passes
@@ -111,11 +115,70 @@ def _strip_orphan_root_classes(source: str) -> str:
             return source
 
 
+def _rewrite_cross_file_refs(node) -> None:
+    """Rewrite cross-file $refs to local ``#/definitions/...``, in place.
+
+    The node schema's ``main``/``mixins`` reference whole interface files and the
+    interface schema references parameter definitions; both become local once the
+    referenced schemas are folded into one ``definitions`` block (see _bundle_schema).
+    """
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == '$ref' and isinstance(value, str):
+                if value in ('interface.schema.yaml', 'interface.schema.yaml#'):
+                    node[key] = '#/definitions/interface'
+                elif '#/definitions/' in value and (
+                    value.startswith('interface.schema.yaml') or value.startswith('parameter.schema.yaml')
+                ):
+                    node[key] = '#/definitions/' + value.split('#/definitions/', 1)[1]
+            else:
+                _rewrite_cross_file_refs(value)
+    elif isinstance(node, list):
+        for item in node:
+            _rewrite_cross_file_refs(item)
+
+
+def _bundle_schema() -> dict:
+    """Fold node + interface + parameter schemas into one self-contained schema.
+
+    datamodel-codegen emits a multi-module package for cross-file $refs, but a
+    single ``models.py`` is what nodl_schema imports. So we root at the node
+    schema and inline the interface (as a ``#/definitions/interface``) and all
+    referenced definitions, then rewrite every cross-file ref to a local one.
+    The result generates Node + Interface + every subtype into one file.
+    """
+
+    def load(name: str) -> dict:
+        return yaml.safe_load((SCHEMA_DIR / name).read_text(encoding='utf-8'))
+
+    node = load('node.schema.yaml')
+    interface = load('interface.schema.yaml')
+    parameter = load('parameter.schema.yaml')
+
+    definitions: dict = {}
+    # The interface's top-level object becomes the `interface` definition. Drop its
+    # title so the generated class is named `Interface` (the key), not the title.
+    definitions['interface'] = {
+        k: v for k, v in interface.items() if k not in ('$schema', '$id', 'definitions', 'title')
+    }
+    definitions.update(interface.get('definitions', {}))
+    definitions.update(parameter.get('definitions', {}))
+
+    combined = {k: v for k, v in node.items() if k != '$id'}
+    combined['definitions'] = definitions
+    _rewrite_cross_file_refs(combined)
+    return combined
+
+
 def main() -> int:
+    combined = _bundle_schema()
+    with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as tmp:
+        json.dump(combined, tmp)
+        bundle_path = tmp.name
     cmd = [
         'datamodel-codegen',
         '--input',
-        str(SCHEMA),
+        bundle_path,
         '--input-file-type',
         'jsonschema',
         '--output',
@@ -128,15 +191,20 @@ def main() -> int:
         '--use-standard-collections',
         '--collapse-root-models',
         '--class-name',
-        'NodlDocument',
+        'Node',
         '--disable-timestamp',
     ]
-    result = subprocess.run(cmd)
+    try:
+        result = subprocess.run(cmd)
+    finally:
+        Path(bundle_path).unlink(missing_ok=True)
     if result.returncode != 0:
         return result.returncode
     text = OUTPUT.read_text(encoding='utf-8')
     text = _strip_orphan_root_classes(text)
     text = _rewrite_pydantic_import(text)
+    # The input was a temp bundle; point the provenance comment at the real root.
+    text = re.sub(r'^#   filename:\s+.*$', '#   filename:  node.schema.yaml', text, count=1, flags=re.MULTILINE)
     OUTPUT.write_text(_copyright_header() + text)
     subprocess.run(['ruff', 'format', *_RUFF_CONFIG_ARGS, str(OUTPUT)], check=True)
     # ruff check may have residual lint findings that aren't auto-fixable; we

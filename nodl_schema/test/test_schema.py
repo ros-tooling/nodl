@@ -8,26 +8,34 @@ import json
 import pytest
 from jsonschema import ValidationError
 
-from nodl_schema import dump_nodl, load_nodl, load_schema, validate
-from nodl_schema.models import NodlDocument
+from nodl_schema import (
+    dump_nodl,
+    load_interface,
+    load_interface_schema,
+    load_nodl,
+    validate_interface,
+    validate_node,
+    validate_parameter,
+)
+from nodl_schema.models import Interface
 
 _MIN_QOS = {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}
 _KEEP_LAST_QOS = {'history': 'KEEP_LAST', 'depth': 10, 'reliability': 'RELIABLE'}
 
 
 # ---------------------------------------------------------------------------
-# load_schema
+# load_interface_schema
 # ---------------------------------------------------------------------------
 
 
-def test_load_schema_returns_dict():
-    schema = load_schema()
+def test_load_interface_schema_returns_dict():
+    schema = load_interface_schema()
     assert isinstance(schema, dict)
     assert '$schema' in schema
 
 
-def test_load_schema_cached():
-    assert load_schema() is load_schema()
+def test_load_interface_schema_cached():
+    assert load_interface_schema() is load_interface_schema()
 
 
 # ---------------------------------------------------------------------------
@@ -36,16 +44,16 @@ def test_load_schema_cached():
 
 
 def test_minimal_valid_document():
-    validate({'nodl_version': 2})
+    validate_interface({'nodl_version': 2})
 
 
 def test_nodl_version_required():
     with pytest.raises(ValidationError):
-        validate({})
+        validate_interface({})
 
 
 def test_description_field():
-    validate({'nodl_version': 2, 'description': 'A simple node'})
+    validate_interface({'nodl_version': 2, 'description': 'A simple node'})
 
 
 @pytest.mark.parametrize(
@@ -62,15 +70,15 @@ def test_description_field():
     ],
 )
 def test_parameter_types(ptype, default):
-    validate({'nodl_version': 2, 'parameters': {'p': {'type': ptype, 'default_value': default}}})
+    validate_interface({'nodl_version': 2, 'parameters': {'p': {'type': ptype, 'default_value': default}}})
 
 
 def test_parameter_without_default():
-    validate({'nodl_version': 2, 'parameters': {'p': {'type': 'string'}}})
+    validate_interface({'nodl_version': 2, 'parameters': {'p': {'type': 'string'}}})
 
 
 def test_parameter_with_all_fields():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'parameters': {
             'speed': {
@@ -85,14 +93,14 @@ def test_parameter_with_all_fields():
 
 
 def test_publisher_minimal():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'publishers': [{'name': '/chatter', 'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}],
     })
 
 
 def test_publisher_with_keep_last_qos():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'publishers': [
             {
@@ -106,14 +114,14 @@ def test_publisher_with_keep_last_qos():
 
 
 def test_publisher_type_without_middle_namespace():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'publishers': [{'name': '/t', 'type': 'std_msgs/String', 'qos': _MIN_QOS}],
     })
 
 
 def test_qos_keep_all():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'publishers': [
             {
@@ -126,7 +134,7 @@ def test_qos_keep_all():
 
 
 def test_qos_full():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'publishers': [
             {
@@ -148,7 +156,7 @@ def test_qos_full():
 
 
 def test_qos_best_available():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'publishers': [
             {
@@ -161,14 +169,14 @@ def test_qos_best_available():
 
 
 def test_subscriptions():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'subscriptions': [{'name': '/input', 'type': 'sensor_msgs/msg/Image', 'qos': _MIN_QOS}],
     })
 
 
 def test_service_servers_and_clients():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'service_servers': [{'name': '/set_bool', 'type': 'std_srvs/srv/SetBool'}],
         'service_clients': [{'name': '/remote', 'type': 'std_srvs/srv/Trigger'}],
@@ -176,14 +184,14 @@ def test_service_servers_and_clients():
 
 
 def test_service_with_qos():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'service_servers': [{'name': '/set_bool', 'type': 'std_srvs/srv/SetBool', 'qos': _MIN_QOS}],
     })
 
 
 def test_action_servers_and_clients():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'action_servers': [{'name': '/navigate', 'type': 'nav2_msgs/action/NavigateToPose'}],
         'action_clients': [{'name': '/spin', 'type': 'nav2_msgs/action/Spin'}],
@@ -191,7 +199,7 @@ def test_action_servers_and_clients():
 
 
 def test_complete_document():
-    validate({
+    validate_interface({
         'nodl_version': 2,
         'description': 'A mobile base controller node',
         'parameters': {
@@ -222,47 +230,142 @@ def test_complete_document():
 
 def test_unknown_top_level_key_rejected():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'unknown_key': 'value'})
+        validate_interface({'nodl_version': 2, 'unknown_key': 'value'})
 
 
 def test_wrong_nodl_version_rejected():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 1})
+        validate_interface({'nodl_version': 1})
 
 
 def test_string_nodl_version_rejected():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': '2'})
+        validate_interface({'nodl_version': '2'})
 
 
-def test_fragments_no_longer_allowed():
+def test_interface_rejects_composition_keys():
+    # Composition lives on the node schema; interface definitions must not carry base/main/mixins.
+    for key, value in (('base', 'node'), ('main', {'nodl_version': 2}), ('mixins', ['nodl://pkg/x'])):
+        with pytest.raises(ValidationError):
+            validate_interface({'nodl_version': 2, key: value})
+
+
+# ---------------------------------------------------------------------------
+# validate_node -- the Node composition schema
+# ---------------------------------------------------------------------------
+
+
+def test_node_minimal_accepted():
+    validate_node({'nodl_version': 2, 'main': {'nodl_version': 2}})
+
+
+def test_node_with_base_and_mixins_accepted():
+    validate_node({
+        'nodl_version': 2,
+        'base': 'lifecycle_node',
+        'main': {
+            'nodl_version': 2,
+            'publishers': [{'name': '~/s', 'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}],
+        },
+        'mixins': ['nodl://pkg/telemetry', {'nodl_version': 2}],
+    })
+
+
+def test_node_missing_main_rejected():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'fragments': [{'ref': 'nodl://pkg/x'}]})
+        validate_node({'nodl_version': 2, 'base': 'node'})
 
 
-def test_base_no_longer_allowed():
+def test_node_unknown_base_rejected():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'base': 'lifecycle_node'})
+        validate_node({'nodl_version': 2, 'main': {'nodl_version': 2}, 'base': 'nope'})
+
+
+def test_node_main_must_be_valid_document():
+    # main is validated against the document schema; an unknown key fails.
+    with pytest.raises(ValidationError):
+        validate_node({'nodl_version': 2, 'main': {'nodl_version': 2, 'bogus': 1}})
+
+
+def test_node_mixin_scalar_rejected():
+    # A mixin entry must be a ref string or an in-place document, not a bare scalar.
+    with pytest.raises(ValidationError):
+        validate_node({'nodl_version': 2, 'main': {'nodl_version': 2}, 'mixins': [5]})
+
+
+# ---------------------------------------------------------------------------
+# load_nodl -- auto-detect node vs interface definition
+# ---------------------------------------------------------------------------
+
+
+def test_load_nodl_detects_interface():
+    from nodl_schema import Interface
+
+    doc = load_nodl('nodl_version: 2\nparameters:\n  p: {type: int}\n')
+    assert isinstance(doc, Interface)
+
+
+def test_load_nodl_detects_node():
+    from nodl_schema import Node
+
+    doc = load_nodl('nodl_version: 2\nbase: node\nmain:\n  nodl_version: 2\n')
+    assert isinstance(doc, Node)
+
+
+def test_load_nodl_node_validated_as_node():
+    # A node missing its required `main` is rejected as a node, not misread as an interface.
+    with pytest.raises(ValidationError):
+        load_nodl('nodl_version: 2\nbase: node\n')
+
+
+def test_load_nodl_detects_parameter():
+    from nodl_schema import ParameterDefinition
+
+    # No nodl_version -> a bare parameter definition (the genparamlib shape).
+    doc = load_nodl('type: double\ndefault_value: 1.0\nvalidation:\n  bounds<>: [0.0, 10.0]\n')
+    assert isinstance(doc, ParameterDefinition)
+
+
+# ---------------------------------------------------------------------------
+# validate_parameter -- the genparamlib parameter schema
+# ---------------------------------------------------------------------------
+
+
+def test_validate_parameter_accepts_single_param():
+    validate_parameter({'type': 'double', 'default_value': 1.0, 'description': 'speed'})
+
+
+def test_validate_parameter_rejects_bad_type():
+    with pytest.raises(ValidationError):
+        validate_parameter({'type': 'not_a_real_type'})
+
+
+def test_validate_parameter_requires_type():
+    with pytest.raises(ValidationError):
+        validate_parameter({'default_value': 1.0})
 
 
 def test_invalid_parameter_type():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'parameters': {'p': {'type': 'float'}}})
+        validate_interface({'nodl_version': 2, 'parameters': {'p': {'type': 'float'}}})
 
 
 def test_parameter_missing_type():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'parameters': {'p': {'description': 'no type field'}}})
+        validate_interface({'nodl_version': 2, 'parameters': {'p': {'description': 'no type field'}}})
 
 
 def test_invalid_type_format_double_slash():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'publishers': [{'name': '/t', 'type': 'std_msgs//String', 'qos': _MIN_QOS}]})
+        validate_interface({
+            'nodl_version': 2,
+            'publishers': [{'name': '/t', 'type': 'std_msgs//String', 'qos': _MIN_QOS}],
+        })
 
 
 def test_qos_missing_reliability():
     with pytest.raises(ValidationError):
-        validate({
+        validate_interface({
             'nodl_version': 2,
             'publishers': [
                 {
@@ -276,7 +379,7 @@ def test_qos_missing_reliability():
 
 def test_qos_missing_history():
     with pytest.raises(ValidationError):
-        validate({
+        validate_interface({
             'nodl_version': 2,
             'publishers': [
                 {
@@ -290,7 +393,7 @@ def test_qos_missing_history():
 
 def test_qos_invalid_reliability_value():
     with pytest.raises(ValidationError):
-        validate({
+        validate_interface({
             'nodl_version': 2,
             'publishers': [
                 {
@@ -304,7 +407,7 @@ def test_qos_invalid_reliability_value():
 
 def test_keep_last_without_depth_rejected():
     with pytest.raises(ValidationError):
-        validate({
+        validate_interface({
             'nodl_version': 2,
             'publishers': [
                 {
@@ -318,30 +421,30 @@ def test_keep_last_without_depth_rejected():
 
 def test_publisher_missing_name():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'publishers': [{'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}]})
+        validate_interface({'nodl_version': 2, 'publishers': [{'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}]})
 
 
 def test_publisher_missing_qos():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'publishers': [{'name': '/t', 'type': 'std_msgs/msg/String'}]})
+        validate_interface({'nodl_version': 2, 'publishers': [{'name': '/t', 'type': 'std_msgs/msg/String'}]})
 
 
 def test_service_missing_type():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'service_servers': [{'name': '/s'}]})
+        validate_interface({'nodl_version': 2, 'service_servers': [{'name': '/s'}]})
 
 
 def test_action_missing_name():
     with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'action_servers': [{'type': 'nav2_msgs/action/NavigateToPose'}]})
+        validate_interface({'nodl_version': 2, 'action_servers': [{'type': 'nav2_msgs/action/NavigateToPose'}]})
 
 
 # ---------------------------------------------------------------------------
-# load_nodl
+# load_interface
 # ---------------------------------------------------------------------------
 
 
-def test_load_nodl_from_yaml_string():
+def test_load_interface_from_yaml_string():
     yaml_text = (
         'nodl_version: 2\n'
         'publishers:\n'
@@ -351,29 +454,29 @@ def test_load_nodl_from_yaml_string():
         '      history: SYSTEM_DEFAULT\n'
         '      reliability: SYSTEM_DEFAULT\n'
     )
-    doc = load_nodl(yaml_text)
-    assert isinstance(doc, NodlDocument)
+    doc = load_interface(yaml_text)
+    assert isinstance(doc, Interface)
     assert doc.publishers[0].name == '/t'
 
 
-def test_load_nodl_from_json_string():
+def test_load_interface_from_json_string():
     data = {
         'nodl_version': 2,
         'publishers': [{'name': '/t', 'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}],
     }
-    doc = load_nodl(json.dumps(data))
+    doc = load_interface(json.dumps(data))
     assert doc.publishers[0].name == '/t'
 
 
-def test_load_nodl_from_file_like():
+def test_load_interface_from_file_like():
     f = io.StringIO('nodl_version: 2\nparameters:\n  p:\n    type: string\n')
-    doc = load_nodl(f)
+    doc = load_interface(f)
     assert 'p' in doc.parameters
 
 
-def test_load_nodl_invalid_raises():
+def test_load_interface_invalid_raises():
     with pytest.raises(ValidationError):
-        load_nodl('nodl_version: 2\nparameters:\n  p:\n    type: bad_type\n')
+        load_interface('nodl_version: 2\nparameters:\n  p:\n    type: bad_type\n')
 
 
 # ---------------------------------------------------------------------------
@@ -387,7 +490,7 @@ def test_dump_nodl_yaml_from_dict():
 
 
 def test_dump_nodl_yaml_from_document():
-    doc = NodlDocument(nodl_version=2)
+    doc = Interface(nodl_version=2)
     result = dump_nodl(doc)
     assert 'nodl_version' in result and '2' in result
 
@@ -398,6 +501,6 @@ def test_dump_nodl_json():
 
 
 def test_dump_nodl_json_from_document():
-    doc = NodlDocument(nodl_version=2)
+    doc = Interface(nodl_version=2)
     parsed = json.loads(dump_nodl(doc, format='json'))
     assert parsed['nodl_version'] == 2

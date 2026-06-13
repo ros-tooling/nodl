@@ -1,6 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""``ros2 nodl validate [files...]`` -- validate NoDL documents against the schema."""
+"""``ros2 nodl validate [files...]`` -- validate NoDL files against the schema.
+
+Accepts any NoDL file and validates it against the matching schema, auto-detecting
+whether it is a node definition or an interface definition.
+"""
 
 import sys
 
@@ -11,7 +15,7 @@ from ros2nodl.verb import VerbExtension
 
 
 class ValidateVerb(VerbExtension):
-    """Validate NoDL document(s) against the NoDL schema."""
+    """Validate NoDL file(s) -- node or interface definitions -- against the NoDL schema."""
 
     def add_arguments(self, parser, cli_name):
         parser.add_argument(

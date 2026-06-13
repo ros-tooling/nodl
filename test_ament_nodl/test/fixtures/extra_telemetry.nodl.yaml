@@ -1,0 +1,10 @@
+---
+nodl_version: 2
+description: Test mixin interface definition registered under an explicit PACKAGE override.
+publishers:
+  - name: ~/diagnostics
+    type: diagnostic_msgs/msg/DiagnosticArray
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE

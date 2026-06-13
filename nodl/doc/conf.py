@@ -48,6 +48,10 @@ myst_enable_extensions = [
     'tasklist',
 ]
 
+# Generate slug anchors for headings (h1-h3) so `[...](#slug)` and
+# `[...](other.md#slug)` cross-references resolve.
+myst_heading_anchors = 3
+
 source_suffix = {
     '.md': 'markdown',
     '.rst': 'restructuredtext',
