@@ -45,7 +45,7 @@ def test_explicit_package_override():
 def test_resource_content_matches_source():
     # The registered resource should be byte-identical to the source file.
     content, _ = get_resource('nodl_interfaces', 'test_ament_nodl__tf_listener')
-    on_disk = (_share() / 'nodl' / 'documents' / 'tf_listener.nodl.yaml').read_text()
+    on_disk = (_share() / 'nodl' / 'interfaces' / 'tf_listener.nodl.yaml').read_text()
     assert content == on_disk
 
 
@@ -56,9 +56,9 @@ def test_resource_content_matches_source():
 
 def test_source_file_installed_under_registering_package():
     # Default PACKAGE installs the source under share/test_ament_nodl/nodl/interfaces/.
-    assert (_share() / 'nodl' / 'documents' / 'tf_listener.nodl.yaml').is_file()
+    assert (_share() / 'nodl' / 'interfaces' / 'tf_listener.nodl.yaml').is_file()
 
 
 def test_source_file_installed_under_override_package():
     # PACKAGE override redirects the source-file install to share/<override>/nodl/interfaces/.
-    assert (_share('custom_pkg') / 'nodl' / 'documents' / 'extra_telemetry.nodl.yaml').is_file()
+    assert (_share('custom_pkg') / 'nodl' / 'interfaces' / 'extra_telemetry.nodl.yaml').is_file()
