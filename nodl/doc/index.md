@@ -14,6 +14,7 @@ NoDL (Node Definition Language) is a schema and toolkit to describe a ROS 2 node
 Home <self>
 concepts
 schema
+describe
 roadmap
 ```
 
