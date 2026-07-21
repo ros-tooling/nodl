@@ -1,0 +1,19 @@
+nodl_version: 2
+publishers:
+- name: /s1/chatter
+  qos:
+    depth: 10
+    durability: VOLATILE
+    history: KEEP_LAST
+    liveliness: AUTOMATIC
+    reliability: RELIABLE
+  type: std_msgs/msg/String
+subscriptions:
+- name: /s1/commands
+  qos:
+    depth: 10
+    durability: VOLATILE
+    history: KEEP_LAST
+    liveliness: AUTOMATIC
+    reliability: RELIABLE
+  type: std_msgs/msg/String
