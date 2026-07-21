@@ -1,0 +1,16 @@
+action_servers:
+- name: /s3/b_fib
+  type: example_interfaces/action/Fibonacci
+nodl_version: 2
+service_servers:
+- name: /s3/b_add
+  type: example_interfaces/srv/AddTwoInts
+subscriptions:
+- name: /s3/shared
+  qos:
+    depth: 1
+    durability: VOLATILE
+    history: KEEP_LAST
+    liveliness: AUTOMATIC
+    reliability: BEST_EFFORT
+  type: std_msgs/msg/String
