@@ -10,7 +10,6 @@ set(_nodl_generator_py_templates_dir
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 find_package(ament_cmake_python REQUIRED)
-find_package(generate_parameter_library REQUIRED)
 ament_get_python_install_dir(_nodl_python_install_dir)
 string(CONCAT _nodl_generator_py_module
   "${_nodl_generator_py_install_dir}/${_nodl_python_install_dir}"

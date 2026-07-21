@@ -11,7 +11,7 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <depend>nodl_schema</depend>
-  <depend>generate_parameter_library</depend>
+  <depend>generate_parameter_library_py</depend>
   <exec_depend>ament_index_python</exec_depend>
   <depend>python3-jinja2</depend>
   <depend>python3-yaml</depend>
