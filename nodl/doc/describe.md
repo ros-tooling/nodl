@@ -101,10 +101,8 @@ same name but a different type remains. Use `--keep-hidden` to disable filtering
 
 When required data cannot be recovered, the command reports the affected field
 on stderr. It emits the draft by default; `--strict` makes any such gap fatal.
-
-Runtime observation cannot supply service QoS, descriptive prose, type hashes,
-parameter `dynamic_typing`, or byte-array parameter values in the current NoDL
-schema. Those values are omitted rather than guessed.
+Information absent from runtime observation, such as descriptive prose, is
+omitted rather than guessed.
 
 See [Concepts](concepts.md) for the backward workflow and [Schema](schema.md) for
 the document format.
