@@ -19,7 +19,7 @@ def _qos():
 
 
 def _node():
-    return stub_msgs.node(
+    return stub_msgs.node_msg(
         name='/robot/controller',
         publishers=[
             stub_msgs.topic('/state', 'std_msgs/msg/String', _qos()),
@@ -50,7 +50,7 @@ def _data(result):
 
 
 def test_minimal_node_only_has_schema_version():
-    assert _data(node_to_nodl(stub_msgs.node())) == {'nodl_version': 2}
+    assert _data(node_to_nodl(stub_msgs.node_msg())) == {'nodl_version': 2}
 
 
 def test_complete_node_maps_filters_and_validates():
@@ -79,5 +79,5 @@ def test_options_control_parameters_and_filtering():
 
 def test_identical_endpoints_are_deduplicated():
     topic = stub_msgs.topic('/state', 'std_msgs/msg/String', _qos())
-    data = _data(node_to_nodl(stub_msgs.node(publishers=[topic, topic])))
+    data = _data(node_to_nodl(stub_msgs.node_msg(publishers=[topic, topic])))
     assert len(data['publishers']) == 1

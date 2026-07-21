@@ -153,7 +153,7 @@ def value(type, **fields):
     return NS(type=type, **(defaults | fields))
 
 
-def node(name='/n', **arrays):
+def node_msg(name='/n', **arrays):
     fields = {
         key: list(arrays.get(key, ()))
         for key in (
