@@ -1,0 +1,15 @@
+nodl_version: 2
+publishers:
+  - name: /lc_echo_out
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+subscriptions:
+  - name: /lc_echo_in
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
