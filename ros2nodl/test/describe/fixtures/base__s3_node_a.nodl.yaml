@@ -1,19 +1,20 @@
+---
 nodl_version: 2
 publishers:
-- name: /s3/shared
-  qos:
-    depth: 10
-    durability: VOLATILE
-    history: KEEP_LAST
-    liveliness: AUTOMATIC
-    reliability: RELIABLE
-  type: std_msgs/msg/String
+  - name: /s3/shared
+    qos:
+      depth: 10
+      durability: VOLATILE
+      history: KEEP_LAST
+      liveliness: AUTOMATIC
+      reliability: RELIABLE
+    type: std_msgs/msg/String
 subscriptions:
-- name: /s3/a_only
-  qos:
-    depth: 10
-    durability: VOLATILE
-    history: KEEP_LAST
-    liveliness: AUTOMATIC
-    reliability: RELIABLE
-  type: std_msgs/msg/String
+  - name: /s3/a_only
+    qos:
+      depth: 10
+      durability: VOLATILE
+      history: KEEP_LAST
+      liveliness: AUTOMATIC
+      reliability: RELIABLE
+    type: std_msgs/msg/String
