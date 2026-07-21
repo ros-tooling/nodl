@@ -1,17 +1,18 @@
+---
 nodl_version: 2
 publishers:
-- name: /s1/chatter
-  qos:
-    durability: VOLATILE
-    history: SYSTEM_DEFAULT
-    liveliness: AUTOMATIC
-    reliability: RELIABLE
-  type: std_msgs/msg/String
+  - name: /s1/chatter
+    qos:
+      durability: VOLATILE
+      history: SYSTEM_DEFAULT
+      liveliness: AUTOMATIC
+      reliability: RELIABLE
+    type: std_msgs/msg/String
 subscriptions:
-- name: /s1/commands
-  qos:
-    durability: VOLATILE
-    history: SYSTEM_DEFAULT
-    liveliness: AUTOMATIC
-    reliability: RELIABLE
-  type: std_msgs/msg/String
+  - name: /s1/commands
+    qos:
+      durability: VOLATILE
+      history: SYSTEM_DEFAULT
+      liveliness: AUTOMATIC
+      reliability: RELIABLE
+    type: std_msgs/msg/String

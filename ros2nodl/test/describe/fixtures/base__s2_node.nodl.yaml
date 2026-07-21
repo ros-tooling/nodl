@@ -1,9 +1,10 @@
+---
 action_clients:
-- name: /s2/compute
-  type: example_interfaces/action/Fibonacci
+  - name: /s2/compute
+    type: example_interfaces/action/Fibonacci
 action_servers:
-- name: /s2/fib
-  type: example_interfaces/action/Fibonacci
+  - name: /s2/fib
+    type: example_interfaces/action/Fibonacci
 nodl_version: 2
 parameters:
   max_count:
@@ -25,34 +26,34 @@ parameters:
     read_only: false
     type: double
 publishers:
-- name: /s2/be_pub
-  qos:
-    depth: 10
-    durability: VOLATILE
-    history: KEEP_LAST
-    liveliness: AUTOMATIC
-    reliability: BEST_EFFORT
-  type: std_msgs/msg/String
-- name: /s2/tl_pub
-  qos:
-    durability: TRANSIENT_LOCAL
-    history: KEEP_ALL
-    liveliness: AUTOMATIC
-    reliability: RELIABLE
-  type: std_msgs/msg/String
+  - name: /s2/be_pub
+    qos:
+      depth: 10
+      durability: VOLATILE
+      history: KEEP_LAST
+      liveliness: AUTOMATIC
+      reliability: BEST_EFFORT
+    type: std_msgs/msg/String
+  - name: /s2/tl_pub
+    qos:
+      durability: TRANSIENT_LOCAL
+      history: KEEP_ALL
+      liveliness: AUTOMATIC
+      reliability: RELIABLE
+    type: std_msgs/msg/String
 service_clients:
-- name: /s2/multiply
-  type: example_interfaces/srv/AddTwoInts
+  - name: /s2/multiply
+    type: example_interfaces/srv/AddTwoInts
 service_servers:
-- name: /s2/add
-  type: example_interfaces/srv/AddTwoInts
+  - name: /s2/add
+    type: example_interfaces/srv/AddTwoInts
 subscriptions:
-- name: /s2/dl_sub
-  qos:
-    deadline_ns: 2000000000
-    depth: 5
-    durability: VOLATILE
-    history: KEEP_LAST
-    liveliness: AUTOMATIC
-    reliability: RELIABLE
-  type: std_msgs/msg/String
+  - name: /s2/dl_sub
+    qos:
+      deadline_ns: 2000000000
+      depth: 5
+      durability: VOLATILE
+      history: KEEP_LAST
+      liveliness: AUTOMATIC
+      reliability: RELIABLE
+    type: std_msgs/msg/String
