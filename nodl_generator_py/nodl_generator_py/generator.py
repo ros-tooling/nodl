@@ -15,10 +15,10 @@ import yaml
 
 from nodl_schema import load_nodl
 
-
 # ---------------------------------------------------------------------------
 # Name utilities (identical to nodl_generator_cpp -- language-agnostic)
 # ---------------------------------------------------------------------------
+
 
 def _snake_to_pascal(name: str) -> str:
     return ''.join(part.capitalize() for part in name.split('_') if part)
@@ -32,6 +32,7 @@ def _topic_to_identifier(topic: str) -> str:
 # ROS type utilities (Python flavour of cpp's _ros_type_to_cpp/_include)
 # ---------------------------------------------------------------------------
 
+
 def _split_ros_type(ros_type: str, default_kind: str) -> tuple[str, str, str]:
     """Split ``package[/kind]/TypeName`` -> (package, kind, TypeName).
 
@@ -41,9 +42,7 @@ def _split_ros_type(ros_type: str, default_kind: str) -> tuple[str, str, str]:
     parts = ros_type.split('/')
     if len(parts) == 3:
         if parts[1] != default_kind:
-            raise ValueError(
-                f'{ros_type!r} is a {parts[1]} type, expected {default_kind}'
-            )
+            raise ValueError(f'{ros_type!r} is a {parts[1]} type, expected {default_kind}')
         return parts[0], parts[1], parts[2]
     if len(parts) == 2:
         return parts[0], default_kind, parts[1]
@@ -118,6 +117,7 @@ def _qos_to_py(qos) -> str:
 # generate_parameter_library integration
 # ---------------------------------------------------------------------------
 
+
 def _write_params_yaml(yaml_path: Path, namespace: str, parameters: dict) -> None:
     """Write a generate_parameter_library-compatible YAML file.
 
@@ -125,10 +125,7 @@ def _write_params_yaml(yaml_path: Path, namespace: str, parameters: dict) -> Non
     schema; the typed ParameterDefinition models are dumped back to plain dicts
     (by_alias so ``bounds<>`` etc. round-trip) and nested under the namespace.
     """
-    plain = {
-        name: json.loads(pdef.json(by_alias=True, exclude_none=True))
-        for name, pdef in parameters.items()
-    }
+    plain = {name: json.loads(pdef.json(by_alias=True, exclude_none=True)) for name, pdef in parameters.items()}
     yaml_path.write_text(
         yaml.safe_dump({namespace: plain}, default_flow_style=False),
         encoding='utf-8',
@@ -145,6 +142,7 @@ def _generate_params_module(params_py: Path, params_yaml: Path) -> None:
 # ---------------------------------------------------------------------------
 # Template rendering context (over a typed nodl_schema.NodlDocument)
 # ---------------------------------------------------------------------------
+
 
 def _build_context(doc, target_name: str, lifecycle: bool) -> dict:
     class_name = _snake_to_pascal(target_name) + 'Base'
@@ -193,9 +191,7 @@ def _build_context(doc, target_name: str, lifecycle: bool) -> dict:
     if qos_profiles:
         imports.add('import rclpy.qos')
     if any(
-        qos.deadline_ns is not None
-        or qos.lifespan_ns is not None
-        or qos.liveliness_lease_duration_ns is not None
+        qos.deadline_ns is not None or qos.lifespan_ns is not None or qos.liveliness_lease_duration_ns is not None
         for qos in qos_profiles
     ):
         imports.add('from rclpy.duration import Duration')

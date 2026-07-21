@@ -7,6 +7,5 @@ from std_msgs.msg import String
 
 
 class PubsubNode(PubsubNodeBase):
-
     def on_echo_in(self, msg):
         self.pub_echo_out.publish(String(data=f'echo: {msg.data}'))

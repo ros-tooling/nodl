@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
 # nodl_generate_py(target nodl_file [LIFECYCLE])
 #
 # Generates an rclpy (or rclpy.lifecycle) base-node class from a NoDL file and

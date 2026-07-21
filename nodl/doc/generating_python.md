@@ -1,0 +1,84 @@
+# Generate an `rclpy` node
+
+`nodl_generator_py` turns a NoDL document into an `rclpy` base class. The
+generated class owns the ROS interfaces; application code subclasses it and
+implements only the callbacks that contain node behaviour.
+
+## Describe the interface
+
+For example, `config/echo_node.nodl.yaml` can describe an echo node:
+
+```yaml
+---
+nodl_version: 2
+publishers:
+  - name: /echo_out
+    type: std_msgs/msg/String
+subscriptions:
+  - name: /echo_in
+    type: std_msgs/msg/String
+```
+
+## Generate the base class
+
+An `ament_cmake` package can generate and install the Python module at build
+time:
+
+```cmake
+find_package(nodl_generator_py REQUIRED)
+
+nodl_generate_py(echo_node config/echo_node.nodl.yaml)
+```
+
+The target name must be a valid Python identifier. Here the generated module
+is `echo_node.py` and its base class is `EchoNodeBase`.
+
+Pass `LIFECYCLE` to generate an `rclpy.lifecycle.LifecycleNode` base and use
+lifecycle publishers:
+
+```cmake
+nodl_generate_py(echo_node config/echo_node.nodl.yaml LIFECYCLE)
+```
+
+For an `ament_python` build, the equivalent helper is available as a normal
+Python function:
+
+```python
+from nodl_generator_py.setup_helper import nodl_generate_py_module
+
+nodl_generate_py_module(
+    'config/echo_node.nodl.yaml',
+    'echo_node',
+    'generated',
+)
+```
+
+It returns the path to the generated module so the build can include that file
+in the package.
+
+## Implement the node
+
+Keep application logic in a handwritten subclass:
+
+```python
+from echo_node import EchoNodeBase
+from std_msgs.msg import String
+
+
+class EchoNode(EchoNodeBase):
+    def on_echo_in(self, msg):
+        self.pub_echo_out.publish(String(data=f'echo: {msg.data}'))
+```
+
+The generator creates publishers and clients as attributes. Subscriptions,
+service servers, and action servers produce abstract callback methods that the
+subclass must implement. The generated file starts with a warning not to edit
+it; regenerate it from the NoDL source instead.
+
+When the document declares parameters, the build also generates a typed
+`<target>_params.py` module through `generate_parameter_library_py`. The base
+class exposes its listener as `param_listener_` and the initial values as
+`params_`.
+
+QoS settings from the NoDL document are applied to generated publishers,
+subscriptions, and services.

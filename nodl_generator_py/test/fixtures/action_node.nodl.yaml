@@ -1,3 +1,4 @@
+---
 nodl_version: 2
 action_servers:
   - name: /fibonacci

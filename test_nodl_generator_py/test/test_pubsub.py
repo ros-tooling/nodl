@@ -6,11 +6,10 @@ import time
 
 import pytest
 import rclpy
+from pubsub_node_impl import PubsubNode
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import String
-
-from pubsub_node_impl import PubsubNode
 
 
 @pytest.fixture
