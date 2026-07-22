@@ -25,10 +25,6 @@ def _args(**overrides):
         'from_file': None,
         'timeout': 5.0,
         'no_params': False,
-        'keep_hidden': False,
-        'strict': False,
-        'raw': False,
-        'topic': '/nodl/observed_node_test',
         'output': None,
     }
     values.update(overrides)
@@ -80,13 +76,6 @@ def test_from_yaml_emits_valid_nodl(captured_node, capsys):
     assert data['nodl_version'] == 2
     assert data['publishers'][0]['name'] == '/chatter'
     assert 'name' not in data
-
-
-def test_from_yaml_can_emit_raw_message(captured_node, capsys):
-    assert DescribeVerb().main(args=_args(from_file=str(captured_node), raw=True)) == 0
-    data = yaml.safe_load(capsys.readouterr().out)
-    assert data['name'] == _TARGET_NODE
-    assert 'nodl_version' not in data
 
 
 def test_from_yaml_writes_json(captured_node, tmp_path):

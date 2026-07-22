@@ -9,7 +9,6 @@ import sys
 
 from ros2nodl.verb import VerbExtension
 
-_DEFAULT_TOPIC = '/nodl/observed_node'
 _DEFAULT_TIMEOUT = 5.0
 
 
@@ -47,19 +46,6 @@ class DescribeVerb(VerbExtension):
             help='Omit parameters and skip live parameter service calls.',
         )
         parser.add_argument(
-            '--keep-hidden',
-            action='store_true',
-            help='Keep framework-created endpoints and parameters.',
-        )
-        parser.add_argument('--strict', action='store_true', help='Fail when any field cannot be recovered.')
-        parser.add_argument('--raw', action='store_true', help='Emit the captured Node instead of NoDL.')
-        parser.add_argument(
-            '--topic',
-            metavar='NAME',
-            default=_DEFAULT_TOPIC,
-            help='Live observation topic (default: %(default)s).',
-        )
-        parser.add_argument(
             '-o',
             '--output',
             metavar='FILE',
@@ -77,16 +63,12 @@ class DescribeVerb(VerbExtension):
             from_file=args.from_file,
             timeout_sec=args.timeout,
             include_parameters=not args.no_params,
-            keep_hidden=args.keep_hidden,
-            strict=args.strict,
-            raw=args.raw,
-            topic=args.topic,
             output_path=args.output,
             output_format=output_format,
         )
 
 
-def _acquire_node(*, node_name, from_file, timeout_sec, include_parameters, topic):
+def _acquire_node(*, node_name, from_file, timeout_sec, include_parameters):
     from ros2nodl.describe import _source
 
     if from_file:
@@ -95,18 +77,7 @@ def _acquire_node(*, node_name, from_file, timeout_sec, include_parameters, topi
         node_name,
         timeout_sec=timeout_sec,
         include_parameters=include_parameters,
-        topic=topic,
     )
-
-
-def _render_raw(message, output_format: str) -> str:
-    if output_format == 'json':
-        from rosidl_runtime_py.convert import message_to_ordereddict
-
-        return json.dumps(message_to_ordereddict(message), indent=2)
-    from rosidl_runtime_py import message_to_yaml
-
-    return message_to_yaml(message)
 
 
 def _write(text: str, output_path) -> int:
@@ -129,10 +100,6 @@ def _run(
     from_file,
     timeout_sec,
     include_parameters,
-    keep_hidden,
-    strict,
-    raw,
-    topic,
     output_path,
     output_format,
 ) -> int:
@@ -144,14 +111,10 @@ def _run(
             from_file=from_file,
             timeout_sec=timeout_sec,
             include_parameters=include_parameters,
-            topic=topic,
         )
     except SourceError as exc:
         print(f'ros2 nodl describe: {exc}', file=sys.stderr)
         return 1
-
-    if raw:
-        return _write(_render_raw(message, output_format), output_path)
 
     from nodl_schema import validator
     from ros2nodl.describe import DescribeOptions, node_to_nodl
@@ -159,10 +122,7 @@ def _run(
     try:
         result = node_to_nodl(
             message,
-            DescribeOptions(
-                include_parameters=include_parameters,
-                keep_hidden=keep_hidden,
-            ),
+            DescribeOptions(include_parameters=include_parameters),
         )
     except Exception as exc:
         print(f'ros2 nodl describe: failed to interpret node: {exc}', file=sys.stderr)
@@ -170,16 +130,10 @@ def _run(
 
     try:
         validator.validate(json.loads(result.doc.json(exclude_none=True)))
-        invalid_reason = None
     except Exception as exc:
-        invalid_reason = str(exc)
+        print(f'ros2 nodl describe: document failed validation: {exc}', file=sys.stderr)
+        return 1
 
     for gap in result.gaps:
         print(f'ros2 nodl describe: {gap.path}: {gap.reason}', file=sys.stderr)
-    if invalid_reason:
-        print(f'ros2 nodl describe: document failed validation: {invalid_reason}', file=sys.stderr)
-
-    write_result = _write(validator.dump_nodl(result.doc, format=output_format), output_path)
-    if write_result:
-        return write_result
-    return int(bool(strict and (result.gaps or invalid_reason)))
+    return _write(validator.dump_nodl(result.doc, format=output_format), output_path)

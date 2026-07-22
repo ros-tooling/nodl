@@ -14,20 +14,15 @@ message.
 ## Usage
 
 ```console
-ros2 nodl describe NODE_NAME [--from FILE] [--no-params] [--keep-hidden]
-                             [--strict] [--raw] [--timeout SEC]
-                             [--topic NAME] [-o OUT.{yaml,json}]
+ros2 nodl describe NODE_NAME [--from FILE] [--no-params] [--timeout SEC]
+                             [-o OUT.{yaml,json}]
 ```
 
 | Option | Effect |
 |---|---|
 | `--from FILE` | Read a captured `Node` from YAML or MCAP instead of observing live. |
 | `--no-params` | Omit parameters and skip live parameter service calls. |
-| `--keep-hidden` | Keep framework-created endpoints and parameters. |
-| `--strict` | Return nonzero if a field cannot be recovered or validation fails. |
-| `--raw` | Emit the captured `Node` rather than the NoDL document. |
 | `--timeout SEC` | Set the live discovery timeout. |
-| `--topic NAME` | Override the live observation topic. |
 | `-o FILE` | Write YAML or JSON based on the filename extension. |
 
 ```console
@@ -38,23 +33,38 @@ ros2 nodl describe /ns/talker --from talker.mcap -o talker.json
 ## Mapping
 
 The transform maps fields from `rosgraph_msgs/Node` into a NoDL document as
-follows. Empty interface collections are omitted from the output.
+follows. Every output has `nodl_version: 2`; empty interface collections are
+omitted.
 
-### Field mapping
+### Topics
 
 | `rosgraph_msgs/Node` input | NoDL YAML output | Rule |
 |---|---|---|
-| *(generated)* | `nodl_version` | Always `2`. |
 | `publishers[].name` | `publishers[].name` | Copied. |
 | `publishers[].type.name` | `publishers[].type` | Copied without the type hash. |
 | `publishers[].qos.*` | `publishers[].qos.*` | Policies become NoDL enum names; finite durations become nanoseconds. |
 | `subscriptions[]` | `subscriptions[]` | Uses the same topic mapping as publishers. |
+
+### Services
+
+| `rosgraph_msgs/Node` input | NoDL YAML output | Rule |
+|---|---|---|
 | `service_servers[].name` | `service_servers[].name` | Copied. |
 | `service_servers[].request_type.name` | `service_servers[].type` | Used as the complete service type. |
 | `service_clients[]` | `service_clients[]` | Uses the same service mapping as servers. |
+
+### Actions
+
+| `rosgraph_msgs/Node` input | NoDL YAML output | Rule |
+|---|---|---|
 | `action_servers[].name` | `action_servers[].name` | Copied. |
 | `action_servers[].send_goal.request_type.name` | `action_servers[].type` | Removes the generated `_SendGoal` suffix; `_GetResult` is the fallback. |
 | `action_clients[]` | `action_clients[]` | Uses the same action mapping as servers. |
+
+### Parameters
+
+| `rosgraph_msgs/Node` input | NoDL YAML output | Rule |
+|---|---|---|
 | `parameters[i].name` | `parameters.<name>` | Becomes the key in the parameter mapping. |
 | `parameters[i].type` | `parameters.<name>.type` | Converted to the corresponding NoDL parameter type. |
 | `parameter_values[i]` | `parameters.<name>.default_value` | Included when its type agrees with the descriptor. |
@@ -95,14 +105,7 @@ By default, `describe` removes framework-created interfaces:
 - `use_sim_time`, `start_type_description_service`, and `qos_overrides.*`
 
 Endpoint filtering matches both name tail and type, so a user endpoint with the
-same name but a different type remains. Use `--keep-hidden` to disable filtering.
-
-## Drafts and limitations
-
-When required data cannot be recovered, the command reports the affected field
-on stderr. It emits the draft by default; `--strict` makes any such gap fatal.
-Information absent from runtime observation, such as descriptive prose, is
-omitted rather than guessed.
+same name but a different type remains.
 
 See [Concepts](concepts.md) for the backward workflow and [Schema](schema.md) for
 the document format.
