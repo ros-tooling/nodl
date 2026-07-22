@@ -14,14 +14,17 @@ message.
 ## Usage
 
 ```console
-ros2 nodl describe NODE_NAME [--from FILE] [--no-params] [--timeout SEC]
-                             [-o OUT.{yaml,json}]
+ros2 nodl describe NODE_NAME [--from FILE] [--no-params]
+                             [--include-ros-infra] [--fail-on-warnings]
+                             [--timeout SEC] [-o OUT.{yaml,json}]
 ```
 
 | Option | Effect |
 |---|---|
 | `--from FILE` | Read a captured `Node` from YAML or MCAP instead of observing live. |
 | `--no-params` | Omit parameters and skip live parameter service calls. |
+| `--include-ros-infra` | Include ROS-created endpoints and parameters. |
+| `--fail-on-warnings` | Return nonzero if any field cannot be recovered. |
 | `--timeout SEC` | Set the live discovery timeout. |
 | `-o FILE` | Write YAML or JSON based on the filename extension. |
 
@@ -105,7 +108,8 @@ By default, `describe` removes framework-created interfaces:
 - `use_sim_time`, `start_type_description_service`, and `qos_overrides.*`
 
 Endpoint filtering matches both name tail and type, so a user endpoint with the
-same name but a different type remains.
+same name but a different type remains. Use `--include-ros-infra` to disable
+filtering.
 
 See [Concepts](concepts.md) for the backward workflow and [Schema](schema.md) for
 the document format.

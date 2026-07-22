@@ -25,6 +25,8 @@ def _args(**overrides):
         'from_file': None,
         'timeout': 5.0,
         'no_params': False,
+        'include_ros_infra': False,
+        'fail_on_warnings': False,
         'output': None,
     }
     values.update(overrides)

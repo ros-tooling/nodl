@@ -46,6 +46,16 @@ class DescribeVerb(VerbExtension):
             help='Omit parameters and skip live parameter service calls.',
         )
         parser.add_argument(
+            '--include-ros-infra',
+            action='store_true',
+            help='Include framework-created endpoints and parameters.',
+        )
+        parser.add_argument(
+            '--fail-on-warnings',
+            action='store_true',
+            help='Fail when any field cannot be recovered.',
+        )
+        parser.add_argument(
             '-o',
             '--output',
             metavar='FILE',
@@ -63,6 +73,8 @@ class DescribeVerb(VerbExtension):
             from_file=args.from_file,
             timeout_sec=args.timeout,
             include_parameters=not args.no_params,
+            keep_hidden=args.include_ros_infra,
+            fail_on_warnings=args.fail_on_warnings,
             output_path=args.output,
             output_format=output_format,
         )
@@ -100,6 +112,8 @@ def _run(
     from_file,
     timeout_sec,
     include_parameters,
+    keep_hidden,
+    fail_on_warnings,
     output_path,
     output_format,
 ) -> int:
@@ -122,7 +136,10 @@ def _run(
     try:
         result = node_to_nodl(
             message,
-            DescribeOptions(include_parameters=include_parameters),
+            DescribeOptions(
+                include_parameters=include_parameters,
+                keep_hidden=keep_hidden,
+            ),
         )
     except Exception as exc:
         print(f'ros2 nodl describe: failed to interpret node: {exc}', file=sys.stderr)
@@ -136,4 +153,8 @@ def _run(
 
     for gap in result.gaps:
         print(f'ros2 nodl describe: {gap.path}: {gap.reason}', file=sys.stderr)
-    return _write(validator.dump_nodl(result.doc, format=output_format), output_path)
+
+    write_result = _write(validator.dump_nodl(result.doc, format=output_format), output_path)
+    if write_result:
+        return write_result
+    return int(bool(fail_on_warnings and result.gaps))
