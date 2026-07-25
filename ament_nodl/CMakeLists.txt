@@ -6,7 +6,9 @@ project(ament_nodl)
 find_package(ament_cmake REQUIRED)
 
 install(FILES
-  cmake/ament_nodl_register_node.cmake
+  cmake/ament_nodl_install.cmake
+  cmake/ament_nodl_register_executable.cmake
+  cmake/ament_nodl_register_component.cmake
   DESTINATION share/${PROJECT_NAME}/cmake)
 
 install(FILES package.xml
