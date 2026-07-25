@@ -71,8 +71,15 @@ function(ament_nodl_install)
       FILES "${_abs_file}"
       DESTINATION "share/${PROJECT_NAME}/nodl")
 
-    # Register in the nodl_interfaces ament index resource.
-    ament_index_register_resource(nodl_interfaces
-      CONTENT "${_filename}\n")
+    # Accumulate filenames for bulk registration after the loop.
+    list(APPEND _nodl_filenames "${_filename}")
   endforeach()
+
+  # Register all filenames in a single ament index resource entry.
+  if(_nodl_filenames)
+    list(JOIN _nodl_filenames "\n" _content)
+    string(APPEND _content "\n")
+    ament_index_register_resource(nodl_interfaces
+      CONTENT "${_content}")
+  endif()
 endfunction()
