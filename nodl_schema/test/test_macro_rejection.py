@@ -23,7 +23,7 @@ _INNER_CMAKELISTS = textwrap.dedent("""
     cmake_minimum_required(VERSION 3.22)
     project(rejection_fixture)
     find_package(ament_cmake REQUIRED)
-    find_package(ament_nodl REQUIRED)
+    find_package(nodl_schema REQUIRED)
     ament_nodl_install(FILES bad.nodl.yaml)
     ament_package()
 """)
@@ -37,7 +37,7 @@ _INNER_PACKAGE_XML = textwrap.dedent("""\
       <maintainer email="test@example.com">test</maintainer>
       <license>Apache-2.0</license>
       <buildtool_depend>ament_cmake</buildtool_depend>
-      <buildtool_depend>ament_nodl</buildtool_depend>
+      <buildtool_depend>nodl_schema</buildtool_depend>
       <export>
         <build_type>ament_cmake</build_type>
       </export>

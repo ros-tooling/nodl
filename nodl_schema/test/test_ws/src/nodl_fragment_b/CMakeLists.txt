@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.22)
 project(nodl_fragment_b)
 
 find_package(ament_cmake REQUIRED)
-find_package(ament_nodl REQUIRED)
+find_package(nodl_schema REQUIRED)
 
 ament_nodl_install(
   FILES

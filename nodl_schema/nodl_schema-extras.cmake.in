@@ -11,5 +11,5 @@ include("${CMAKE_CURRENT_LIST_DIR}/ament_nodl_register_component.cmake")
 # project's directory scope (via find_package), so the macro-based
 # ament_register_extension correctly appends to the project-scoped
 # AMENT_EXTENSIONS_ament_package variable.
-ament_register_extension("ament_package" "ament_nodl"
+ament_register_extension("ament_package" "nodl_schema"
   "ament_nodl_package_hook.cmake")

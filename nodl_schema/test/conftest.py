@@ -15,24 +15,24 @@ def _find_underlay_setup() -> Path:
 
     When running under ``colcon test`` or from a sourced workspace the
     ``AMENT_PREFIX_PATH`` environment variable contains the install
-    prefixes that provide ``ament_nodl`` and its dependencies.  We walk
-    up from the first prefix that contains ``ament_nodl`` to find the
+    prefixes that provide ``nodl_schema`` and its dependencies.  We walk
+    up from the first prefix that contains ``nodl_schema`` to find the
     workspace-level ``setup.bash``.
     """
     ament_prefix_path = os.environ.get('AMENT_PREFIX_PATH', '')
     for prefix in ament_prefix_path.split(':'):
         if not prefix:
             continue
-        marker = Path(prefix) / 'share' / 'ament_index' / 'resource_index' / 'packages' / 'ament_nodl'
+        marker = Path(prefix) / 'share' / 'ament_index' / 'resource_index' / 'packages' / 'nodl_schema'
         if marker.is_file():
-            # prefix is e.g. <ws>/install/ament_nodl  →  <ws>/install/setup.bash
+            # prefix is e.g. <ws>/install/nodl_schema  →  <ws>/install/setup.bash
             setup = Path(prefix).parent / 'setup.bash'
             if setup.is_file():
                 return setup
     pytest.fail(
-        'Could not locate the outer workspace install containing ament_nodl. '
+        'Could not locate the outer workspace install containing nodl_schema. '
         'Make sure the workspace is sourced (AMENT_PREFIX_PATH must include '
-        'a prefix with ament_nodl installed).'
+        'a prefix with nodl_schema installed).'
     )
 
 
@@ -44,5 +44,5 @@ def test_ws_path() -> Path:
 
 @pytest.fixture(scope='session')
 def test_ws_underlays() -> list[Path]:
-    """Source the outer workspace so ament_nodl is available at build time."""
+    """Source the outer workspace so nodl_schema (and its cmake macros) are available at build time."""
     return [_find_underlay_setup()]

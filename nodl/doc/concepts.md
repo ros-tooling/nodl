@@ -33,7 +33,7 @@ Tools should not assume any particular extension (such as `.nodl.yaml`) or a sin
 
 ## Validation
 
-NoDL files are validated both at build time (by the `ament_nodl` CMake macros, before install) and at runtime (by `nodl_schema.load_nodl`).
+NoDL files are validated both at build time (by the `ament_nodl_*()` CMake macros provided by `nodl_schema`, before install) and at runtime (by `nodl_schema.load_nodl`).
 Authoring errors surface during the build of the package that owns the file, not at runtime, so a misconfigured node never ships.
 
 ## Usage Models

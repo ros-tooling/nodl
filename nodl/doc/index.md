@@ -20,11 +20,9 @@ roadmap
 ## Packages
 
 - **`nodl`** - the entrypoint metapackage containing core documentation and dependency on subpackages.
-  It is documented by this top-level site and has no separate page.
-- **`nodl_schema`** — the NoDL Schema. Provides a Python-based document validator and typed object data model for working with schema objects.
+- **`nodl_schema`** — the NoDL Schema. Provides a Python-based document validator, typed object data model, and CMake macros (`ament_nodl_*()`) for registering NoDL documents with the ament index.
 - **`nodl_observe`** — observe a running node and produce its runtime description as a `rosgraph_msgs/Node` message; the library behind `ros2 nodl describe`.
 - **`ros2nodl`** — `ros2 nodl <verb>` ros2cli extension providing NoDL operations.
-- **`ament_nodl`** — CMake macros for registering NoDL documents with the ament index.
 
 Each package's own documentation is staged into this site from its `doc/` tree at build time
 (see {repo}`nodl/doc/package_docs.py`); the same sources build standalone under `rosdoc2` for docs.ros.org.
