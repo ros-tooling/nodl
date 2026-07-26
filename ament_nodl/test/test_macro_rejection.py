@@ -1,16 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""End-to-end test that the ament_nodl_register_node macro propagates validator failures as build failures.
+"""Test that the ament_nodl macros propagate validator failures as build failures.
 
-Writes a tiny inner ament_cmake project that registers an intentionally-invalid NoDL file via the macro,
-then spawns cmake to configure and build it; the build is expected to fail with the validator error.
-This catches regressions in the macro wiring itself, separate from the CLI tests in nodl_schema that
-already cover the validator's behavior in isolation.
+Writes a tiny inner ament_cmake project that registers an intentionally-invalid
+NoDL file via the macro, then spawns cmake to configure and build it; the build
+is expected to fail with the validator error.
+
+This catches regressions in the macro wiring itself, separate from the CLI tests
+in nodl_schema that already cover the validator's behavior in isolation.
 """
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import textwrap
@@ -23,15 +24,16 @@ _INNER_CMAKELISTS = textwrap.dedent("""
     project(rejection_fixture)
     find_package(ament_cmake REQUIRED)
     find_package(ament_nodl REQUIRED)
-    ament_nodl_register_node(bad_exe FILE bad.nodl.yaml)
+    ament_nodl_install(FILES bad.nodl.yaml)
     ament_package()
 """)
 
-_INNER_PACKAGE_XML = textwrap.dedent("""<?xml version="1.0"?>
+_INNER_PACKAGE_XML = textwrap.dedent("""\
+    <?xml version="1.0"?>
     <package format="3">
       <name>rejection_fixture</name>
       <version>0.0.0</version>
-      <description>Inner project used by test_ament_nodl to verify the macro rejects invalid files.</description>
+      <description>Inner project used to verify the macro rejects invalid files.</description>
       <maintainer email="test@example.com">test</maintainer>
       <license>Apache-2.0</license>
       <buildtool_depend>ament_cmake</buildtool_depend>
@@ -40,17 +42,17 @@ _INNER_PACKAGE_XML = textwrap.dedent("""<?xml version="1.0"?>
         <build_type>ament_cmake</build_type>
       </export>
     </package>
-""").lstrip()
+""")
 
-_INVALID_NODL = textwrap.dedent("""
+_INVALID_NODL = textwrap.dedent("""\
     nodl_version: 2
     parameters:
       bad:
         type: not_a_real_type
-""").lstrip()
+""")
 
 
-@pytest.fixture
+@pytest.fixture()
 def inner_pkg(tmp_path: Path) -> Path:
     pkg = tmp_path / 'rejection_fixture'
     pkg.mkdir()
@@ -61,15 +63,14 @@ def inner_pkg(tmp_path: Path) -> Path:
 
 
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
-def test_macro_rejects_invalid_node(inner_pkg: Path):
-    # Inherit AMENT_PREFIX_PATH from the colcon-test env so the inner build
-    # can resolve find_package(ament_nodl) and find python with nodl_schema.
+def test_macro_rejects_invalid_nodl_file(inner_pkg: Path, test_ws_env):
+    """An invalid NoDL file causes a build failure with the validator error."""
     build = inner_pkg / 'build'
     configure = subprocess.run(
         ['cmake', '-S', str(inner_pkg), '-B', str(build)],
         capture_output=True,
         text=True,
-        env=os.environ,
+        env=test_ws_env,
     )
     assert configure.returncode == 0, f'Configure failed:\n{configure.stderr}'
 
@@ -77,7 +78,7 @@ def test_macro_rejects_invalid_node(inner_pkg: Path):
         ['cmake', '--build', str(build)],
         capture_output=True,
         text=True,
-        env=os.environ,
+        env=test_ws_env,
     )
     assert result.returncode != 0, 'Expected the inner build to fail on the invalid NoDL file'
     combined = result.stdout + result.stderr

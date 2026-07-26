@@ -1,0 +1,10 @@
+---
+nodl_version: 2
+description: Sensor driver executable NoDL for testing ament_nodl_register_executable.
+publishers:
+  - name: /sensor_data
+    type: sensor_msgs/msg/Imu
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: BEST_EFFORT

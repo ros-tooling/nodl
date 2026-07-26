@@ -1,0 +1,10 @@
+---
+nodl_version: 2
+description: Motor controller component NoDL for testing ament_nodl_register_component.
+subscriptions:
+  - name: /cmd_vel
+    type: geometry_msgs/msg/Twist
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE

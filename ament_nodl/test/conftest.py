@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Session-scoped fixtures for nodl_schema integration tests."""
+"""Session-scoped fixtures for ament_nodl integration tests."""
 
 from __future__ import annotations
 

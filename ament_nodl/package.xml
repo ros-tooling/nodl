@@ -12,6 +12,12 @@
 
   <exec_depend>nodl_schema</exec_depend>
 
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <!-- pytest-colcon-ws: no rosdep key yet; pip install from
+       https://github.com/alistair-english/pytest-colcon-ws -->
+  <test_depend>pytest-colcon-ws</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
