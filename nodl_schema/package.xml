@@ -13,6 +13,7 @@
   <depend>python3-pydantic</depend>
   <depend>python3-yaml</depend>
 
+  <test_depend>ament_nodl</test_depend>
   <test_depend>python3-pytest</test_depend>
   <!-- pytest-colcon-ws: no rosdep key yet; pip install from
        https://github.com/alistair-english/pytest-colcon-ws -->

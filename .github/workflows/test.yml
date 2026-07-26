@@ -37,7 +37,16 @@ jobs:
     steps:
       - name: Install pytest-colcon-ws
         # No rosdep key exists yet; install from source before the build.
-        run: pip install git+https://github.com/alistair-english/pytest-colcon-ws.git
+        # 1) --ignore-installed pluggy: the noble (jazzy/kilted) containers
+        #    ship pluggy 1.4 as a Debian package with no RECORD file, so
+        #    pip cannot upgrade it in-place.  Installing a fresh copy to
+        #    /usr/local side-steps the Debian-managed version.
+        # 2) pytest>=8,<9: launch_testing on Humble, Jazzy, and Kilted uses
+        #    the deprecated 'path' arg in its pytest_pycollect_makemodule
+        #    hook, which was removed in pytest 9.
+        run: |
+          pip install --ignore-installed pluggy
+          pip install 'pytest>=8,<9' git+https://github.com/alistair-english/pytest-colcon-ws.git
       - name: Build and run all tests
         # One pass covers every RMW (call_for_each_rmw_implementation registers a
         # ctest per RMW; the integration test self-starts rmw_zenohd for zenoh).
