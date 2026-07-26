@@ -11,6 +11,11 @@
 # higher-level macro such as ``ament_nodl_register_executable`` also calls it
 # internally).  Duplicate registrations for the same absolute path are skipped.
 #
+# The actual ``ament_index_register_resource`` call is deferred to
+# ``ament_package()`` time via an extension hook, so multiple calls to this
+# function accumulate filenames into a single resource entry rather than
+# conflicting.
+#
 # Example::
 #
 #   ament_nodl_install(
@@ -71,15 +76,7 @@ function(ament_nodl_install)
       FILES "${_abs_file}"
       DESTINATION "share/${PROJECT_NAME}/nodl")
 
-    # Accumulate filenames for bulk registration after the loop.
-    list(APPEND _nodl_filenames "${_filename}")
+    # Accumulate filenames for bulk registration at ament_package() time.
+    set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_INTERFACE_FILENAMES "${_filename}")
   endforeach()
-
-  # Register all filenames in a single ament index resource entry.
-  if(_nodl_filenames)
-    list(JOIN _nodl_filenames "\n" _content)
-    string(APPEND _content "\n")
-    ament_index_register_resource(nodl_interfaces
-      CONTENT "${_content}")
-  endif()
 endfunction()

@@ -4,3 +4,12 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 include("${CMAKE_CURRENT_LIST_DIR}/ament_nodl_install.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ament_nodl_register_executable.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ament_nodl_register_component.cmake")
+
+# Register an ament_package() hook that performs a single bulk
+# ament_index_register_resource(nodl_interfaces ...) for all files
+# accumulated by ament_nodl_install() calls.  This runs in the
+# project's directory scope (via find_package), so the macro-based
+# ament_register_extension correctly appends to the project-scoped
+# AMENT_EXTENSIONS_ament_package variable.
+ament_register_extension("ament_package" "ament_nodl"
+  "ament_nodl_package_hook.cmake")
