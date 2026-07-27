@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit tests for NoDL schema loading and validation."""
 
-import io
 import json
 
 import pytest
@@ -414,8 +413,9 @@ def test_includes_ref_invalid_formats(ref):
 # ---------------------------------------------------------------------------
 
 
-def test_load_nodl_from_yaml_string():
-    yaml_text = (
+def test_load_nodl_from_yaml_file(tmp_path):
+    f = tmp_path / 'doc.nodl.yaml'
+    f.write_text(
         'nodl_version: 2\n'
         'publishers:\n'
         '  - name: /t\n'
@@ -424,29 +424,34 @@ def test_load_nodl_from_yaml_string():
         '      history: SYSTEM_DEFAULT\n'
         '      reliability: SYSTEM_DEFAULT\n'
     )
-    doc = load_nodl(yaml_text)
+    doc = load_nodl(f)
     assert isinstance(doc, NodlDocument)
     assert doc.publishers[0].name == '/t'
 
 
-def test_load_nodl_from_json_string():
+def test_load_nodl_from_json_file(tmp_path):
     data = {
         'nodl_version': 2,
         'publishers': [{'name': '/t', 'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}],
     }
-    doc = load_nodl(json.dumps(data))
+    f = tmp_path / 'doc.nodl.yaml'
+    f.write_text(json.dumps(data))
+    doc = load_nodl(f)
     assert doc.publishers[0].name == '/t'
 
 
-def test_load_nodl_from_file_like():
-    f = io.StringIO('nodl_version: 2\nparameters:\n  p:\n    type: string\n')
+def test_load_nodl_with_parameters(tmp_path):
+    f = tmp_path / 'doc.nodl.yaml'
+    f.write_text('nodl_version: 2\nparameters:\n  p:\n    type: string\n')
     doc = load_nodl(f)
     assert 'p' in doc.parameters
 
 
-def test_load_nodl_invalid_raises():
+def test_load_nodl_invalid_raises(tmp_path):
+    f = tmp_path / 'doc.nodl.yaml'
+    f.write_text('nodl_version: 2\nparameters:\n  p:\n    type: bad_type\n')
     with pytest.raises(ValidationError):
-        load_nodl('nodl_version: 2\nparameters:\n  p:\n    type: bad_type\n')
+        load_nodl(f)
 
 
 # ---------------------------------------------------------------------------
@@ -474,3 +479,318 @@ def test_dump_nodl_json_from_document():
     doc = NodlDocument(nodl_version=2)
     parsed = json.loads(dump_nodl(doc, format='json'))
     assert parsed['nodl_version'] == 2
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: load_nodl() resolves relative includes
+# ---------------------------------------------------------------------------
+
+_PUB_A = {
+    'name': '/topic_a',
+    'type': 'std_msgs/msg/String',
+    'qos': _MIN_QOS,
+}
+_PUB_B = {
+    'name': '/topic_b',
+    'type': 'geometry_msgs/msg/Twist',
+    'qos': _MIN_QOS,
+}
+_SUB_A = {
+    'name': '/sub_a',
+    'type': 'sensor_msgs/msg/Image',
+    'qos': _MIN_QOS,
+}
+_SRV_SERVER = {'name': '/set_bool', 'type': 'std_srvs/srv/SetBool'}
+_SRV_CLIENT = {'name': '/trigger', 'type': 'std_srvs/srv/Trigger'}
+_ACT_SERVER = {'name': '/navigate', 'type': 'nav2_msgs/action/NavigateToPose'}
+_ACT_CLIENT = {'name': '/spin', 'type': 'nav2_msgs/action/Spin'}
+_PARAM_SPEED = {'type': 'double', 'default_value': 1.0}
+
+
+def _write_yaml(path, data):
+    """Write a dict as YAML to *path*, creating parent dirs."""
+    import yaml as _yaml
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_yaml.dump(data, default_flow_style=False), encoding='utf-8')
+
+
+def test_load_nodl_resolves_relative_include(tmp_path):
+    """A file including ./fragment.nodl.yaml merges the fragment's publishers."""
+    _write_yaml(
+        tmp_path / 'fragment.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [_PUB_A],
+        },
+    )
+    main_file = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main_file,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './fragment.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main_file)
+    assert any(p.name == '/topic_a' for p in doc.publishers)
+
+
+def test_load_nodl_relative_include_merges_all_sections(tmp_path):
+    """Parameters, publishers, subscriptions, service and action endpoints all merge."""
+    _write_yaml(
+        tmp_path / 'fragment.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'parameters': {'speed': _PARAM_SPEED},
+            'publishers': [_PUB_A],
+            'subscriptions': [_SUB_A],
+            'service_servers': [_SRV_SERVER],
+            'service_clients': [_SRV_CLIENT],
+            'action_servers': [_ACT_SERVER],
+            'action_clients': [_ACT_CLIENT],
+        },
+    )
+    main_file = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main_file,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './fragment.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main_file)
+    assert 'speed' in doc.parameters
+    assert any(p.name == '/topic_a' for p in doc.publishers)
+    assert any(s.name == '/sub_a' for s in doc.subscriptions)
+    assert any(s.name == '/set_bool' for s in doc.service_servers)
+    assert any(s.name == '/trigger' for s in doc.service_clients)
+    assert any(a.name == '/navigate' for a in doc.action_servers)
+    assert any(a.name == '/spin' for a in doc.action_clients)
+
+
+def test_load_nodl_local_declaration_wins_over_include(tmp_path):
+    """Same-name topic declared locally and in include → local declaration wins."""
+    _write_yaml(
+        tmp_path / 'fragment.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [
+                {
+                    'name': '/topic_a',
+                    'type': 'geometry_msgs/msg/Twist',
+                    'qos': _MIN_QOS,
+                }
+            ],
+        },
+    )
+    main_file = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main_file,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './fragment.nodl.yaml'}],
+            'publishers': [
+                {
+                    'name': '/topic_a',
+                    'type': 'std_msgs/msg/String',
+                    'qos': _MIN_QOS,
+                }
+            ],
+        },
+    )
+    doc = load_nodl(main_file)
+    pubs = [p for p in doc.publishers if p.name == '/topic_a']
+    assert len(pubs) == 1
+    assert pubs[0].type == 'std_msgs/msg/String'
+
+
+def test_load_nodl_diamond_deduplication(tmp_path):
+    """A→B, A→C, B→D, C→D: D's interface appears exactly once."""
+    _write_yaml(
+        tmp_path / 'd.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [_PUB_A],
+        },
+    )
+    _write_yaml(
+        tmp_path / 'b.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './d.nodl.yaml'}],
+        },
+    )
+    _write_yaml(
+        tmp_path / 'c.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './d.nodl.yaml'}],
+        },
+    )
+    main_file = tmp_path / 'a.nodl.yaml'
+    _write_yaml(
+        main_file,
+        {
+            'nodl_version': 2,
+            'includes': [
+                {'ref': './b.nodl.yaml'},
+                {'ref': './c.nodl.yaml'},
+            ],
+        },
+    )
+    doc = load_nodl(main_file)
+    pubs = [p for p in doc.publishers if p.name == '/topic_a']
+    assert len(pubs) == 1
+
+
+def test_load_nodl_merge_identical_ok(tmp_path):
+    """Two includes declare same topic identically → deduplicated silently."""
+    _write_yaml(
+        tmp_path / 'frag1.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [_PUB_A],
+        },
+    )
+    _write_yaml(
+        tmp_path / 'frag2.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [_PUB_A],
+        },
+    )
+    main_file = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main_file,
+        {
+            'nodl_version': 2,
+            'includes': [
+                {'ref': './frag1.nodl.yaml'},
+                {'ref': './frag2.nodl.yaml'},
+            ],
+        },
+    )
+    doc = load_nodl(main_file)
+    pubs = [p for p in doc.publishers if p.name == '/topic_a']
+    assert len(pubs) == 1
+
+
+def test_load_nodl_merge_conflict_error(tmp_path):
+    """Two includes declare same topic with different type → error."""
+    _write_yaml(
+        tmp_path / 'frag1.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [
+                {
+                    'name': '/topic_a',
+                    'type': 'std_msgs/msg/String',
+                    'qos': _MIN_QOS,
+                }
+            ],
+        },
+    )
+    _write_yaml(
+        tmp_path / 'frag2.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [
+                {
+                    'name': '/topic_a',
+                    'type': 'geometry_msgs/msg/Twist',
+                    'qos': _MIN_QOS,
+                }
+            ],
+        },
+    )
+    main_file = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main_file,
+        {
+            'nodl_version': 2,
+            'includes': [
+                {'ref': './frag1.nodl.yaml'},
+                {'ref': './frag2.nodl.yaml'},
+            ],
+        },
+    )
+    with pytest.raises(Exception, match='topic_a'):
+        load_nodl(main_file)
+
+
+def test_load_nodl_includes_stripped_from_result(tmp_path):
+    """Merged NodlDocument has no includes field."""
+    _write_yaml(
+        tmp_path / 'fragment.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [_PUB_A],
+        },
+    )
+    main_file = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main_file,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './fragment.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main_file)
+    assert doc.includes is None or doc.includes == []
+
+
+def test_load_nodl_nested_relative_includes(tmp_path):
+    """A includes B, B includes C → C's interface appears in A."""
+    sub = tmp_path / 'sub'
+    sub.mkdir()
+    _write_yaml(
+        sub / 'c.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'publishers': [_PUB_A],
+        },
+    )
+    _write_yaml(
+        tmp_path / 'b.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './sub/c.nodl.yaml'}],
+        },
+    )
+    main_file = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main_file,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './b.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main_file)
+    assert any(p.name == '/topic_a' for p in doc.publishers)
+
+
+def test_load_nodl_circular_include_handled(tmp_path):
+    """A includes B, B includes A → terminates gracefully."""
+    _write_yaml(
+        tmp_path / 'a.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './b.nodl.yaml'}],
+            'publishers': [_PUB_A],
+        },
+    )
+    _write_yaml(
+        tmp_path / 'b.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './a.nodl.yaml'}],
+            'publishers': [_PUB_B],
+        },
+    )
+    main_file = tmp_path / 'a.nodl.yaml'
+    doc = load_nodl(main_file)
+    # Should have both publishers and not loop forever
+    names = {p.name for p in doc.publishers}
+    assert '/topic_a' in names
+    assert '/topic_b' in names

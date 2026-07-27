@@ -4,9 +4,10 @@
 
 import sys
 
+import yaml
 from jsonschema import ValidationError
 
-from nodl_schema import load_nodl
+from nodl_schema import validate
 from ros2nodl.verb import VerbExtension
 
 
@@ -41,11 +42,14 @@ class ValidateVerb(VerbExtension):
 
 def _validate_source(source, label) -> int:
     try:
-        load_nodl(source)
+        data = yaml.safe_load(source)
+        if not isinstance(data, dict):
+            raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
+        validate(data)
     except ValidationError as e:
-        path = ' -> '.join(str(p) for p in e.absolute_path) or '<root>'
+        loc = ' -> '.join(str(p) for p in e.absolute_path) or '<root>'
         print(f'{label}: INVALID', file=sys.stderr)
-        print(f'  {path}: {e.message}', file=sys.stderr)
+        print(f'  {loc}: {e.message}', file=sys.stderr)
         return 1
     except Exception as e:
         print(f'{label}: {e}', file=sys.stderr)
