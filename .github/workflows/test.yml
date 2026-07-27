@@ -37,16 +37,22 @@ jobs:
     steps:
       - name: Install pytest-colcon-ws
         # No rosdep key exists yet; install from source before the build.
-        # 1) --ignore-installed pluggy: the noble (jazzy/kilted) containers
-        #    ship pluggy 1.4 as a Debian package with no RECORD file, so
-        #    pip cannot upgrade it in-place.  Installing a fresh copy to
-        #    /usr/local side-steps the Debian-managed version.
-        # 2) pytest>=8,<9: launch_testing on Humble, Jazzy, and Kilted uses
+        # 1) pip install --upgrade pip: the Jammy container ships pip 22
+        #    which has a build-isolation bug that causes pyproject.toml
+        #    [project] metadata to be ignored, producing an empty
+        #    "UNKNOWN-0.0.0" wheel.  Upgrading pip first avoids this.
+        #    The upgrade is allowed to fail (|| true) because the Noble
+        #    containers install pip via Debian without a RECORD file.
+        # 2) --ignore-installed: the Noble (jazzy/kilted) containers ship
+        #    pluggy 1.4 and pytest 7.4 as Debian packages with no RECORD
+        #    files, so pip cannot upgrade them in-place.
+        #    --ignore-installed forces fresh copies to /usr/local.
+        # 3) pytest>=8,<9: launch_testing on Humble, Jazzy, and Kilted uses
         #    the deprecated 'path' arg in its pytest_pycollect_makemodule
         #    hook, which was removed in pytest 9.
         run: |
-          pip install --ignore-installed pluggy
-          pip install 'pytest>=8,<9' git+https://github.com/alistair-english/pytest-colcon-ws.git
+          pip install --upgrade pip || true
+          pip install --ignore-installed pluggy 'pytest>=8,<9' git+https://github.com/alistair-english/pytest-colcon-ws.git
       - name: Build and run all tests
         # One pass covers every RMW (call_for_each_rmw_implementation registers a
         # ctest per RMW; the integration test self-starts rmw_zenohd for zenoh).
