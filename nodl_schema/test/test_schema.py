@@ -337,6 +337,79 @@ def test_action_missing_name():
 
 
 # ---------------------------------------------------------------------------
+# includes — Phase 1: structural validation
+# ---------------------------------------------------------------------------
+
+
+def test_includes_valid_package_uri():
+    validate({'nodl_version': 2, 'includes': [{'ref': 'nodl://pkg/name'}]})
+
+
+def test_includes_valid_relative_path():
+    validate({'nodl_version': 2, 'includes': [{'ref': './fragments/foo.nodl.yaml'}]})
+
+
+def test_includes_with_other_fields():
+    validate({
+        'nodl_version': 2,
+        'includes': [{'ref': 'nodl://pkg/name'}],
+        'publishers': [{'name': '/t', 'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}],
+        'parameters': {'p': {'type': 'string'}},
+    })
+
+
+def test_includes_empty_list():
+    validate({'nodl_version': 2, 'includes': []})
+
+
+def test_includes_bare_string_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'includes': ['nodl://pkg/x']})
+
+
+def test_includes_missing_ref_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'includes': [{}]})
+
+
+def test_includes_extra_key_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'includes': [{'ref': 'nodl://pkg/x', 'bad': True}]})
+
+
+@pytest.mark.parametrize(
+    'ref',
+    [
+        'nodl://my_pkg/fragment_name',
+        'nodl://my_pkg/some_long_name_123',
+        './fragment.nodl.yaml',
+        './fragments/foo.nodl.yaml',
+        '../shared/base.nodl.yaml',
+        '../base.nodl.yaml',
+    ],
+)
+def test_includes_ref_valid_formats(ref):
+    validate({'nodl_version': 2, 'includes': [{'ref': ref}]})
+
+
+@pytest.mark.parametrize(
+    'ref',
+    [
+        'potato',
+        'http://example.com/foo.yaml',
+        '/absolute/path.nodl.yaml',
+        'nodl:/missing_slash/x',
+        'nodl://pkg',
+        'nodl://pkg/',
+        '',
+    ],
+)
+def test_includes_ref_invalid_formats(ref):
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'includes': [{'ref': ref}]})
+
+
+# ---------------------------------------------------------------------------
 # load_nodl
 # ---------------------------------------------------------------------------
 

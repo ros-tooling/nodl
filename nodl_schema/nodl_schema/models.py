@@ -48,6 +48,21 @@ class ArrayType(Enum):
     string_array = 'string_array'
 
 
+class IncludeRef(BaseModel):
+    """
+    A reference to another NoDL fragment to include.
+
+    """
+
+    class Config:
+        extra = Extra.forbid
+
+    ref: constr(regex=r'^(nodl://[a-zA-Z][a-zA-Z0-9_]*/[a-zA-Z][a-zA-Z0-9_]*|\.\.?/.+\.nodl\.yaml)$') = Field(
+        ...,
+        description='Package URI (``nodl://package/name``) or relative file path\n(``./`` or ``../``) to the NoDL fragment to include.\n',
+    )
+
+
 class History(Enum):
     """
     History policy.
@@ -444,3 +459,7 @@ class NodlDocument(BaseModel):
     service_clients: Optional[list[ServiceEndpoint]] = Field(None, description='Service clients used by this node.')
     action_servers: Optional[list[ActionEndpoint]] = Field(None, description='Action servers exposed by this node.')
     action_clients: Optional[list[ActionEndpoint]] = Field(None, description='Action clients used by this node.')
+    includes: Optional[list[IncludeRef]] = Field(
+        None,
+        description='List of NoDL fragments to include and merge into this document.\nEach entry is an object with a required ``ref`` string that is\neither a package URI (``nodl://package/name``) or a relative\nfile path (``./fragments/foo.nodl.yaml``).\n',
+    )
