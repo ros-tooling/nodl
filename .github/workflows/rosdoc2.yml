@@ -17,6 +17,11 @@ jobs:
   rosdoc2:
     name: rosdoc2 build (${{ matrix.package }})
     runs-on: ubuntu-latest
+    # The jazzy image ships Python >= 3.11, so PEP 668 marks the system environment as externally managed.
+    # rosdep installs pip dependencies globally as root, which pip then refuses; this opts those installs in.
+    # Set at the job level so both `rosdep install` and the explicit `pip install` below inherit it.
+    env:
+      PIP_BREAK_SYSTEM_PACKAGES: '1'
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +44,8 @@ jobs:
           rosdep update
           rosdep install --from-paths src --ignore-src -y
           # rosdoc2 imports each package to autodoc it, so it must share the workspace Python.
-          pip install --break-system-packages rosdoc2
+          # PEP 668 override comes from PIP_BREAK_SYSTEM_PACKAGES in the job env.
+          pip install rosdoc2
 
       - name: Build the workspace
         shell: bash
