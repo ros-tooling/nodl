@@ -12,6 +12,8 @@
   <depend>python3-jsonschema</depend>
   <depend>python3-pydantic</depend>
   <depend>python3-yaml</depend>
+  <!-- Resolving nodl:// includes looks documents up in the ament index. -->
+  <exec_depend>ament_index_python</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
 

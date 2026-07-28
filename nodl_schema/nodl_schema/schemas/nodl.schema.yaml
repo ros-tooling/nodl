@@ -28,6 +28,18 @@ properties:
     type: string
     description: Human-readable description of what this node does.
 
+  include:
+    type: array
+    description: |
+      Other NoDL documents whose interface entities are merged into this
+      one when the document is loaded. Each reference is resolved and its
+      parameters, publishers, subscriptions, services, and actions are added
+      to this document. A name collision within any single category (for
+      example two publishers named ``/status``) across this document and its
+      includes is an error.
+    items:
+      $ref: '#/definitions/reference'
+
   parameters:
     type: object
     description: |
@@ -74,6 +86,26 @@ properties:
       $ref: '#/definitions/action_endpoint'
 
 definitions:
+  reference:
+    type: object
+    description: |
+      A reference to another NoDL document to include.
+    additionalProperties: false
+    required:
+      - ref
+    properties:
+      ref:
+        type: string
+        description: |
+          Location of the NoDL document to include. Either a
+          ``nodl://<package>/<name>`` URI resolved through the ament index
+          (the document registered by ``ament_nodl_register_node`` as the
+          resource ``<package>__<name>``), or an ``http://`` / ``https://`` URL.
+        pattern: ^(nodl://[^/]+/.+|https?://.+)$
+        examples:
+          - nodl://sensor_common/imu_driver
+          - https://example.com/shared/telemetry.nodl.yaml
+
   rosName:
     type: string
     description: |

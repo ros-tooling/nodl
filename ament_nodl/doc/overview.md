@@ -10,7 +10,10 @@ For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 Register a NoDL document for an executable. This does three things:
 
 1. Validates the file at build time (via `python -m nodl_schema`), so authoring errors surface when registering
-   rather than downstream when a consumer reads the spec.
+   rather than downstream when a consumer reads the spec. If the document uses `include`, this step also checks that
+   every reference resolves, so a broken `nodl://` or `http(s)://` reference fails the build. Because validation runs
+   before install, an included `nodl://<package>/<name>` must belong to a package that is already built and a
+   dependency of this one; a document cannot resolve an include pointing back into its own not-yet-installed package.
 2. Installs the file into the ament index under the `nodl_nodes` resource type, keyed `<package>__<executable>`.
 3. Installs the file under `share/<package>/nodl/` for direct filesystem access.
 

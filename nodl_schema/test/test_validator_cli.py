@@ -28,10 +28,17 @@ parameters:
 
 _INVALID_NOT_A_MAPPING = '- just a list\n'
 
+# A schema-valid document whose include cannot be resolved (no such package in the ament index).
+_UNRESOLVABLE_INCLUDE = """\
+nodl_version: 2
+include:
+  - ref: nodl://no_such_package/no_such_node
+"""
 
-def _run(file: Path) -> subprocess.CompletedProcess:
+
+def _run(file: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, '-m', 'nodl_schema', str(file)],
+        [sys.executable, '-m', 'nodl_schema', *args, str(file)],
         capture_output=True,
         text=True,
     )
@@ -71,4 +78,21 @@ def test_json_frontend_supported(tmp_path: Path):
     f = tmp_path / 'ok.nodl.json'
     f.write_text('{"nodl_version": 2}\n')
     result = _run(f)
+    assert result.returncode == 0, result.stderr
+
+
+def test_unresolvable_include_exits_one_by_default(tmp_path: Path):
+    # The default (resolving) path is what the CMake macro runs, so an unresolvable include must fail.
+    f = tmp_path / 'inc.nodl.yaml'
+    f.write_text(_UNRESOLVABLE_INCLUDE)
+    result = _run(f)
+    assert result.returncode == 1
+    assert str(f) in result.stderr
+
+
+def test_no_resolve_skips_reference_resolution(tmp_path: Path):
+    # --no-resolve checks the schema only, so an unresolvable include is fine.
+    f = tmp_path / 'inc.nodl.yaml'
+    f.write_text(_UNRESOLVABLE_INCLUDE)
+    result = _run(f, '--no-resolve')
     assert result.returncode == 0, result.stderr

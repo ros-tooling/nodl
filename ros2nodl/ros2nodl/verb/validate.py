@@ -19,10 +19,17 @@ class ValidateVerb(VerbExtension):
             nargs='*',
             help='NoDL files to validate. Reads from stdin if none are given.',
         )
+        parser.add_argument(
+            '--no-resolve',
+            dest='resolve',
+            action='store_false',
+            help='Validate the schema only; do not resolve include references.',
+        )
 
     def main(self, *, args):
+        resolve = getattr(args, 'resolve', True)
         if not args.files:
-            return _validate_source(sys.stdin, '<stdin>')
+            return _validate_source(sys.stdin, '<stdin>', resolve=resolve)
 
         rc = 0
         for path in args.files:
@@ -33,15 +40,15 @@ class ValidateVerb(VerbExtension):
                 rc = 1
                 continue
             try:
-                rc |= _validate_source(source, path)
+                rc |= _validate_source(source, path, resolve=resolve)
             finally:
                 source.close()
         return rc
 
 
-def _validate_source(source, label) -> int:
+def _validate_source(source, label, *, resolve: bool = True) -> int:
     try:
-        load_nodl(source)
+        load_nodl(source, resolve=resolve)
     except ValidationError as e:
         path = ' -> '.join(str(p) for p in e.absolute_path) or '<root>'
         print(f'{label}: INVALID', file=sys.stderr)

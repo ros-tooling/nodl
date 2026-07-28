@@ -252,6 +252,44 @@ def test_base_no_longer_allowed():
         validate({'nodl_version': 2, 'base': 'lifecycle_node'})
 
 
+# ---------------------------------------------------------------------------
+# include (composition references) -- schema shape only; resolution is in
+# test_composition.py
+# ---------------------------------------------------------------------------
+
+
+def test_include_nodl_uri_accepted():
+    validate({'nodl_version': 2, 'include': [{'ref': 'nodl://sensor_common/imu_driver'}]})
+
+
+def test_include_http_url_accepted():
+    validate({'nodl_version': 2, 'include': [{'ref': 'https://example.com/shared/telemetry.nodl.yaml'}]})
+
+
+def test_include_empty_list_accepted():
+    validate({'nodl_version': 2, 'include': []})
+
+
+def test_include_missing_ref_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': [{}]})
+
+
+def test_include_extra_key_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': [{'ref': 'nodl://pkg/x', 'when': 'always'}]})
+
+
+def test_include_unsupported_scheme_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': [{'ref': 'ftp://example.com/x.nodl.yaml'}]})
+
+
+def test_include_bare_string_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': ['nodl://pkg/x']})
+
+
 def test_invalid_parameter_type():
     with pytest.raises(ValidationError):
         validate({'nodl_version': 2, 'parameters': {'p': {'type': 'float'}}})

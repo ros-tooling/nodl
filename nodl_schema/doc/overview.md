@@ -22,10 +22,14 @@ The public API is re-exported from the package root:
 from nodl_schema import load_nodl, dump_nodl, load_schema, validate
 ```
 
-### `load_nodl(source) -> NodlDocument`
+### `load_nodl(source, *, resolve=True, resolver=None) -> NodlDocument`
 
 Load and validate a NoDL document from a string, bytes, or file-like object, returning a typed `NodlDocument`.
 Raises a validation error if the document does not conform to the schema.
+
+If the document has an `include` list, each reference is resolved and merged in (see the Composition section below);
+the returned document carries the combined interface and no `include`. Pass `resolve=False` to parse the document
+exactly as authored, following nothing.
 
 ```python
 from nodl_schema import load_nodl
@@ -33,8 +37,8 @@ from nodl_schema import load_nodl
 with open('my_node.nodl.yaml') as f:
     doc = load_nodl(f)
 
-for parameter in doc.parameters:
-    print(parameter.name, parameter.type)
+for name, parameter in (doc.parameters or {}).items():
+    print(name, parameter.type)
 ```
 
 ### `validate(data) -> None`
@@ -50,6 +54,41 @@ Serialize a `NodlDocument` (or a plain `dict`) back to a YAML or JSON string.
 ### `load_schema() -> dict`
 
 Load and cache the raw NoDL JSON schema as a `dict`, for tools that want to inspect the schema directly.
+
+## Composition: the `include` key
+
+A document can pull in the interface of other NoDL documents through a top-level `include` list.
+Each entry is a reference that is resolved, validated, and merged into the including document when it is loaded:
+
+```yaml
+nodl_version: 2
+include:
+  - ref: nodl://sensor_common/imu_driver          # resolved through the ament index
+  - ref: https://example.com/shared/telemetry.nodl.yaml  # fetched over the network
+publishers:
+  - name: /status
+    type: std_msgs/msg/String
+    qos: {history: SYSTEM_DEFAULT, reliability: SYSTEM_DEFAULT}
+```
+
+Two reference forms are accepted:
+
+- `nodl://<package>/<name>` resolves through the ament index to the document registered by
+  `ament_nodl_register_node` as the resource `nodl_nodes/<package>__<name>`.
+- `http://` / `https://` fetches the document over the network.
+
+Includes are followed recursively. The merge is strict: a name collision within any single category (two publishers
+named `/status`, two parameters named `gain`, and so on) across the document and its includes is an error. A publisher
+and a subscription may share a name, since they are different categories. Include cycles are detected and rejected.
+
+Resolution is pluggable. `load_nodl(..., resolver=...)` accepts anything satisfying the `Resolver` protocol
+(`fetch(ref) -> str`); the default `DefaultResolver` handles `nodl://` and `http(s)://`. `resolve_document(data,
+resolver)` exposes the merge directly for callers working with plain dicts. Resolution failures and collisions raise
+`CompositionError`.
+
+```python
+from nodl_schema import load_nodl, resolve_document, DefaultResolver, CompositionError
+```
 
 ## Data model
 

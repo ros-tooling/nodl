@@ -50,6 +50,25 @@ class ArrayType(Enum):
     string_array = 'string_array'
 
 
+class Reference(BaseModel):
+    """
+    A reference to another NoDL document to include.
+
+    """
+
+    class Config:
+        extra = Extra.forbid
+
+    ref: constr(regex=r'^(nodl://[^/]+/.+|https?://.+)$') = Field(
+        ...,
+        description='Location of the NoDL document to include. Either a\n``nodl://<package>/<name>`` URI resolved through the ament index\n(the document registered by ``ament_nodl_register_node`` as the\nresource ``<package>__<name>``), or an ``http://`` / ``https://`` URL.\n',
+        examples=[
+            'nodl://sensor_common/imu_driver',
+            'https://example.com/shared/telemetry.nodl.yaml',
+        ],
+    )
+
+
 class History(Enum):
     """
     History policy.
@@ -436,6 +455,10 @@ class NodlDocument(BaseModel):
 
     nodl_version: int = Field(2, const=True, description='NoDL schema major version this document targets.')
     description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
+    include: Optional[list[Reference]] = Field(
+        None,
+        description='Other NoDL documents whose interface entities are merged into this\none when the document is loaded. Each reference is resolved and its\nparameters, publishers, subscriptions, services, and actions are added\nto this document. A name collision within any single category (for\nexample two publishers named ``/status``) across this document and its\nincludes is an error.\n',
+    )
     parameters: Optional[dict[str, ParameterDefinition]] = Field(
         None,
         description='ROS parameters declared by this node, keyed by parameter name.\nParameter shape is borrowed from ``generate_parameter_library``\n(see ``parameter.schema.yaml``).\n',

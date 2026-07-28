@@ -13,6 +13,7 @@
 
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_index_python</test_depend>
+  <test_depend>nodl_schema</test_depend>
   <test_depend>python3-pytest</test_depend>
 
   <export>
