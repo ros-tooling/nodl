@@ -336,7 +336,7 @@ def test_action_missing_name():
 
 
 # ---------------------------------------------------------------------------
-# includes — Phase 1: structural validation
+# includes — structural validation
 # ---------------------------------------------------------------------------
 
 
@@ -482,7 +482,7 @@ def test_dump_nodl_json_from_document():
 
 
 # ---------------------------------------------------------------------------
-# Phase 2: load_nodl() resolves relative includes
+# load_nodl() resolves relative includes
 # ---------------------------------------------------------------------------
 
 _PUB_A = {

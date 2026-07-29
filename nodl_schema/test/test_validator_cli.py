@@ -74,7 +74,9 @@ def test_json_frontend_supported(tmp_path: Path):
     assert result.returncode == 0, result.stderr
 
 
-# --- Phase 4: CLI validates includes structurally ---
+# ---------------------------------------------------------------------------
+# CLI validates includes structurally
+# ---------------------------------------------------------------------------
 
 _VALID_WITH_INCLUDES = """\
 nodl_version: 2

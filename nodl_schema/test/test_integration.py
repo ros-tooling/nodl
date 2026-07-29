@@ -89,7 +89,7 @@ def test_nodl_files_installed(test_ws_env):
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: load_nodl() resolves package URIs via the ament index
+# load_nodl() resolves package URIs via the ament index
 # ---------------------------------------------------------------------------
 
 
