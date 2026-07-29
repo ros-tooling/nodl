@@ -72,3 +72,45 @@ def test_json_frontend_supported(tmp_path: Path):
     f.write_text('{"nodl_version": 2}\n')
     result = _run(f)
     assert result.returncode == 0, result.stderr
+
+
+# --- Phase 4: CLI validates includes structurally ---
+
+_VALID_WITH_INCLUDES = """\
+nodl_version: 2
+publishers:
+  - name: /chatter
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+includes:
+  - ref: "./fragments/base.nodl.yaml"
+  - ref: "nodl://some_pkg/extras"
+"""
+
+_INVALID_INCLUDES_BARE_STRINGS = """\
+nodl_version: 2
+includes:
+  - "nodl://pkg/x"
+  - "./relative.nodl.yaml"
+"""
+
+
+def test_valid_file_with_includes_exits_zero(tmp_path: Path):
+    """A file with well-formed ``includes`` passes CLI validation (exit 0)."""
+    f = tmp_path / 'with_includes.nodl.yaml'
+    f.write_text(_VALID_WITH_INCLUDES)
+    result = _run(f)
+    assert result.returncode == 0, result.stderr
+    assert str(f) in result.stdout
+
+
+def test_invalid_includes_exits_one(tmp_path: Path):
+    """A file with malformed ``includes`` (bare strings) fails CLI validation (exit 1)."""
+    f = tmp_path / 'bad_includes.nodl.yaml'
+    f.write_text(_INVALID_INCLUDES_BARE_STRINGS)
+    result = _run(f)
+    assert result.returncode == 1
+    assert str(f) in result.stderr
