@@ -1,3 +1,10 @@
 ---
 nodl_version: 2
 description: Diagnostics fragment for testing.
+publishers:
+  - name: /diagnostics
+    type: diagnostic_msgs/msg/DiagnosticArray
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE

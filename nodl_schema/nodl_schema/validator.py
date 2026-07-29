@@ -69,18 +69,44 @@ _LIST_SECTIONS = (
 )
 
 
+def _resolve_package_uri(ref: str) -> Path:
+    """Resolve a ``nodl://package/name`` URI to an absolute file path.
+
+    Uses ``ament_index_python.get_package_prefix()`` to locate the
+    package install prefix, then returns
+    ``<prefix>/share/<package>/nodl/<name>.nodl.yaml``.
+
+    Raises ``ament_index_python.PackageNotFoundError`` if the package
+    is not installed, or ``FileNotFoundError`` if the resolved file
+    does not exist.
+    """
+    from ament_index_python import get_package_prefix  # noqa: PLC0415
+
+    # ref is "nodl://package/name" — strip the scheme.
+    stripped = ref[len('nodl://') :]
+    package, name = stripped.split('/', 1)
+
+    prefix = get_package_prefix(package)
+    resolved = Path(prefix) / 'share' / package / 'nodl' / f'{name}.nodl.yaml'
+    if not resolved.is_file():
+        raise FileNotFoundError(f'Include ref {ref!r} resolved to {resolved} which does not exist')
+    return resolved.resolve()
+
+
 def _resolve_ref(ref: str, base_dir: Path) -> Path:
     """Resolve a single include *ref* to an absolute file path.
 
-    Currently handles relative paths (``./…`` / ``../…``).  Package URIs
-    (``nodl://…``) are handled in Phase 3.
+    Handles relative paths (``./…`` / ``../…``) and package URIs
+    (``nodl://package/name``).
     """
+    if ref.startswith('nodl://'):
+        return _resolve_package_uri(ref)
     if ref.startswith('./') or ref.startswith('../'):
         resolved = (base_dir / ref).resolve()
         if not resolved.is_file():
             raise FileNotFoundError(f'Include ref {ref!r} resolved to {resolved} which does not exist')
         return resolved
-    raise ValueError(f'Unsupported include ref {ref!r} — package URIs (nodl://…) are not yet implemented')
+    raise ValueError(f'Unsupported include ref format: {ref!r}')
 
 
 def _endpoints_equal(a: dict, b: dict) -> bool:

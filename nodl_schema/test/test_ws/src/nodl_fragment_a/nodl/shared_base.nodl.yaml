@@ -1,3 +1,8 @@
 ---
 nodl_version: 2
 description: Shared base fragment for testing.
+parameters:
+  use_sim_time:
+    type: bool
+    default_value: false
+    description: Use simulation time

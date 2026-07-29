@@ -1,3 +1,10 @@
 ---
 nodl_version: 2
 description: Sensors fragment for testing.
+publishers:
+  - name: /sensor_data
+    type: sensor_msgs/msg/Imu
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: BEST_EFFORT
