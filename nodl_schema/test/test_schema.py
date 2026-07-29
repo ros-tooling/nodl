@@ -719,6 +719,322 @@ def test_load_nodl_merge_conflict_error(tmp_path):
         load_nodl(main_file)
 
 
+# ---------------------------------------------------------------------------
+# Merge-if-identical across all section types
+# ---------------------------------------------------------------------------
+
+
+def test_merge_identical_subscriptions_ok(tmp_path):
+    """Two includes declare same subscription identically → deduplicated."""
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'subscriptions': [_SUB_A]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'subscriptions': [_SUB_A]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main)
+    assert len([s for s in doc.subscriptions if s.name == '/sub_a']) == 1
+
+
+def test_merge_identical_service_servers_ok(tmp_path):
+    """Two includes declare same service server identically → deduplicated."""
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'service_servers': [_SRV_SERVER]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'service_servers': [_SRV_SERVER]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main)
+    assert len([s for s in doc.service_servers if s.name == '/set_bool']) == 1
+
+
+def test_merge_identical_service_clients_ok(tmp_path):
+    """Two includes declare same service client identically → deduplicated."""
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'service_clients': [_SRV_CLIENT]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'service_clients': [_SRV_CLIENT]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main)
+    assert len([s for s in doc.service_clients if s.name == '/trigger']) == 1
+
+
+def test_merge_identical_action_servers_ok(tmp_path):
+    """Two includes declare same action server identically → deduplicated."""
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'action_servers': [_ACT_SERVER]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'action_servers': [_ACT_SERVER]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main)
+    assert len([a for a in doc.action_servers if a.name == '/navigate']) == 1
+
+
+def test_merge_identical_action_clients_ok(tmp_path):
+    """Two includes declare same action client identically → deduplicated."""
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'action_clients': [_ACT_CLIENT]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'action_clients': [_ACT_CLIENT]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main)
+    assert len([a for a in doc.action_clients if a.name == '/spin']) == 1
+
+
+def test_merge_identical_parameters_ok(tmp_path):
+    """Two includes declare same parameter identically → deduplicated."""
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'parameters': {'speed': _PARAM_SPEED}})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'parameters': {'speed': _PARAM_SPEED}})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    doc = load_nodl(main)
+    assert 'speed' in doc.parameters
+
+
+# ---------------------------------------------------------------------------
+# Merge-conflict across all section types
+# ---------------------------------------------------------------------------
+
+
+def test_merge_conflict_subscriptions(tmp_path):
+    """Two includes declare same subscription with different type → error."""
+    sub_v1 = {'name': '/sub_a', 'type': 'sensor_msgs/msg/Image', 'qos': _MIN_QOS}
+    sub_v2 = {'name': '/sub_a', 'type': 'sensor_msgs/msg/Imu', 'qos': _MIN_QOS}
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'subscriptions': [sub_v1]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'subscriptions': [sub_v2]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='sub_a'):
+        load_nodl(main)
+
+
+def test_merge_conflict_service_servers(tmp_path):
+    """Two includes declare same service server with different type → error."""
+    srv_v1 = {'name': '/set_bool', 'type': 'std_srvs/srv/SetBool'}
+    srv_v2 = {'name': '/set_bool', 'type': 'std_srvs/srv/Trigger'}
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'service_servers': [srv_v1]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'service_servers': [srv_v2]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='set_bool'):
+        load_nodl(main)
+
+
+def test_merge_conflict_service_clients(tmp_path):
+    """Two includes declare same service client with different type → error."""
+    cli_v1 = {'name': '/trigger', 'type': 'std_srvs/srv/Trigger'}
+    cli_v2 = {'name': '/trigger', 'type': 'std_srvs/srv/SetBool'}
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'service_clients': [cli_v1]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'service_clients': [cli_v2]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='trigger'):
+        load_nodl(main)
+
+
+def test_merge_conflict_action_servers(tmp_path):
+    """Two includes declare same action server with different type → error."""
+    act_v1 = {'name': '/navigate', 'type': 'nav2_msgs/action/NavigateToPose'}
+    act_v2 = {'name': '/navigate', 'type': 'nav2_msgs/action/Spin'}
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'action_servers': [act_v1]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'action_servers': [act_v2]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='navigate'):
+        load_nodl(main)
+
+
+def test_merge_conflict_action_clients(tmp_path):
+    """Two includes declare same action client with different type → error."""
+    act_v1 = {'name': '/spin', 'type': 'nav2_msgs/action/Spin'}
+    act_v2 = {'name': '/spin', 'type': 'nav2_msgs/action/NavigateToPose'}
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'action_clients': [act_v1]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'action_clients': [act_v2]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='spin'):
+        load_nodl(main)
+
+
+def test_merge_conflict_parameters(tmp_path):
+    """Two includes declare same parameter with different definition → error."""
+    param_v1 = {'type': 'double', 'default_value': 1.0}
+    param_v2 = {'type': 'double', 'default_value': 99.0}
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'parameters': {'speed': param_v1}})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'parameters': {'speed': param_v2}})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='speed'):
+        load_nodl(main)
+
+
+def test_merge_conflict_parameters_different_type(tmp_path):
+    """Two includes declare same parameter with different type → error."""
+    param_v1 = {'type': 'double', 'default_value': 1.0}
+    param_v2 = {'type': 'int', 'default_value': 1}
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'parameters': {'speed': param_v1}})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'parameters': {'speed': param_v2}})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='speed'):
+        load_nodl(main)
+
+
+# ---------------------------------------------------------------------------
+# Conflict on QoS difference (same name, same type, different QoS)
+# ---------------------------------------------------------------------------
+
+
+def test_merge_conflict_publisher_qos_difference(tmp_path):
+    """Same-name, same-type publisher with different QoS → error."""
+    pub_reliable = {
+        'name': '/topic_a',
+        'type': 'std_msgs/msg/String',
+        'qos': {'history': 'KEEP_LAST', 'depth': 1, 'reliability': 'RELIABLE'},
+    }
+    pub_best_effort = {
+        'name': '/topic_a',
+        'type': 'std_msgs/msg/String',
+        'qos': {'history': 'KEEP_LAST', 'depth': 1, 'reliability': 'BEST_EFFORT'},
+    }
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'publishers': [pub_reliable]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'publishers': [pub_best_effort]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='topic_a'):
+        load_nodl(main)
+
+
+def test_merge_conflict_publisher_depth_difference(tmp_path):
+    """Same-name, same-type publisher with different queue depth → error."""
+    pub_d1 = {
+        'name': '/topic_a',
+        'type': 'std_msgs/msg/String',
+        'qos': {'history': 'KEEP_LAST', 'depth': 1, 'reliability': 'RELIABLE'},
+    }
+    pub_d10 = {
+        'name': '/topic_a',
+        'type': 'std_msgs/msg/String',
+        'qos': {'history': 'KEEP_LAST', 'depth': 10, 'reliability': 'RELIABLE'},
+    }
+    _write_yaml(tmp_path / 'f1.nodl.yaml', {'nodl_version': 2, 'publishers': [pub_d1]})
+    _write_yaml(tmp_path / 'f2.nodl.yaml', {'nodl_version': 2, 'publishers': [pub_d10]})
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './f1.nodl.yaml'}, {'ref': './f2.nodl.yaml'}],
+        },
+    )
+    with pytest.raises(Exception, match='topic_a'):
+        load_nodl(main)
+
+
+# ---------------------------------------------------------------------------
+# Local-wins for parameters
+# ---------------------------------------------------------------------------
+
+
+def test_local_parameter_wins_over_include(tmp_path):
+    """Same-name parameter declared locally and in include → local wins."""
+    _write_yaml(
+        tmp_path / 'fragment.nodl.yaml',
+        {
+            'nodl_version': 2,
+            'parameters': {'speed': {'type': 'double', 'default_value': 99.0}},
+        },
+    )
+    main = tmp_path / 'main.nodl.yaml'
+    _write_yaml(
+        main,
+        {
+            'nodl_version': 2,
+            'includes': [{'ref': './fragment.nodl.yaml'}],
+            'parameters': {'speed': {'type': 'double', 'default_value': 1.0}},
+        },
+    )
+    doc = load_nodl(main)
+    assert doc.parameters['speed'].default_value == 1.0
+
+
 def test_load_nodl_includes_stripped_from_result(tmp_path):
     """Merged NodlDocument has no includes field."""
     _write_yaml(

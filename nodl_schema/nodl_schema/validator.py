@@ -178,6 +178,27 @@ def _merge_parameters(
     return merged if merged else None
 
 
+def _accumulate_parameters(
+    accumulated: dict[str, dict],
+    incoming: dict[str, dict],
+    source_label: str,
+) -> dict[str, dict]:
+    """Strict merge for the include-accumulation step (no local-wins).
+
+    Identical duplicates are silently deduplicated; differing definitions
+    for the same parameter name raise ``ValueError``.
+    """
+    for name, defn in incoming.items():
+        if name in accumulated:
+            if accumulated[name] == defn:
+                continue
+            raise ValueError(
+                f"Merge conflict in parameters: '{name}' is defined differently in multiple includes ({source_label})"
+            )
+        accumulated[name] = defn
+    return accumulated
+
+
 def _load_and_resolve(
     data: dict,
     base_dir: Path,
@@ -220,7 +241,7 @@ def _load_and_resolve(
         # Collect child interfaces into the accumulated pools.
         child_params = child_merged.get('parameters')
         if child_params:
-            all_included_params = _merge_parameters(all_included_params, child_params, source_label=str(resolved)) or {}
+            _accumulate_parameters(all_included_params, child_params, source_label=str(resolved))
 
         for section in _LIST_SECTIONS:
             child_list = child_merged.get(section)
