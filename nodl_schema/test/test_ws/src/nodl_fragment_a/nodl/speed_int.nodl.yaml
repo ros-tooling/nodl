@@ -1,0 +1,6 @@
+---
+nodl_version: 2
+parameters:
+  speed:
+    type: int
+    default_value: 1

@@ -1,0 +1,5 @@
+---
+nodl_version: 2
+service_servers:
+  - name: /set_bool
+    type: std_srvs/srv/Trigger

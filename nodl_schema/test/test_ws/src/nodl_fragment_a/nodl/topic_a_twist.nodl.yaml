@@ -1,0 +1,8 @@
+---
+nodl_version: 2
+publishers:
+  - name: /topic_a
+    type: geometry_msgs/msg/Twist
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: SYSTEM_DEFAULT

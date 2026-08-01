@@ -1,0 +1,5 @@
+---
+nodl_version: 2
+action_clients:
+  - name: /spin
+    type: nav2_msgs/action/NavigateToPose

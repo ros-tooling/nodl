@@ -57,9 +57,9 @@ class IncludeRef(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    ref: constr(regex=r'^(nodl://[a-zA-Z][a-zA-Z0-9_]*/[a-zA-Z][a-zA-Z0-9_]*|\.\.?/.+\.nodl\.yaml)$') = Field(
+    ref: constr(regex=r'^nodl://[a-zA-Z][a-zA-Z0-9_]*/[a-zA-Z][a-zA-Z0-9_]*$') = Field(
         ...,
-        description='Package URI (``nodl://package/name``) or relative file path\n(``./`` or ``../``) to the NoDL fragment to include.\n',
+        description='Package URI (``nodl://package/name``) to the NoDL fragment\nto include. Packages can self-reference their own installed\nschemas.\n',
     )
 
 
@@ -461,5 +461,5 @@ class NodlDocument(BaseModel):
     action_clients: Optional[list[ActionEndpoint]] = Field(None, description='Action clients used by this node.')
     includes: Optional[list[IncludeRef]] = Field(
         None,
-        description='List of NoDL fragments to include and merge into this document.\nEach entry is an object with a required ``ref`` string that is\neither a package URI (``nodl://package/name``) or a relative\nfile path (``./fragments/foo.nodl.yaml``).\n',
+        description='List of NoDL fragments to include and merge into this document.\nEach entry is an object with a required ``ref`` string that is\na package URI (``nodl://package/name``). Packages can\nself-reference their own installed schemas.\n',
     )

@@ -35,7 +35,7 @@ nodl_version: 2
 includes:
   - ref: nodl://rclcpp_lifecycle/lifecycle_node
   - ref: nodl://tf2_ros/tf_listener
-  - ref: ./fragments/common_diagnostics.nodl.yaml
+  - ref: nodl://my_package/common_diagnostics
 
 publishers:
   - name: /cmd_vel
@@ -43,12 +43,14 @@ publishers:
     qos: {history: KEEP_LAST, depth: 1, reliability: RELIABLE}
 ```
 
-`includes` is a list of objects, each with a `ref` key. Two forms:
+`includes` is a list of objects, each with a `ref` key:
 
 | Form | Example | Resolution |
 |---|---|---|
 | Package URI | `nodl://tf2_ros/tf_listener` | `<prefix>/share/tf2_ros/nodl/tf_listener.nodl.yaml` |
-| Relative path | `./fragments/common.nodl.yaml` | Relative to the including file |
+
+Packages can self-reference their own installed schemas
+(e.g. `nodl://my_package/common_diagnostics`).
 
 ## Include Resolution
 

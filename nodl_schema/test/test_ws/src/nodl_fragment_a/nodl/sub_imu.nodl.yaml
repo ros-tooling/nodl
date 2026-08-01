@@ -1,0 +1,8 @@
+---
+nodl_version: 2
+subscriptions:
+  - name: /sub_a
+    type: sensor_msgs/msg/Imu
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: SYSTEM_DEFAULT

@@ -1,0 +1,10 @@
+---
+nodl_version: 2
+includes:
+  - ref: nodl://nodl_fragment_b/circular_b
+publishers:
+  - name: /from_circular_a
+    type: std_msgs/msg/String
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: SYSTEM_DEFAULT

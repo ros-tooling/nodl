@@ -69,7 +69,7 @@ _LIST_SECTIONS = (
 )
 
 
-def _resolve_package_uri(ref: str) -> Path:
+def _resolve_ref(ref: str) -> Path:
     """Resolve a ``nodl://package/name`` URI to an absolute file path.
 
     Uses ``ament_index_python.get_package_prefix()`` to locate the
@@ -80,6 +80,8 @@ def _resolve_package_uri(ref: str) -> Path:
     is not installed, or ``FileNotFoundError`` if the resolved file
     does not exist.
     """
+    if not ref.startswith('nodl://'):
+        raise ValueError(f'Unsupported include ref format: {ref!r}. Only nodl:// package URIs are supported.')
     from ament_index_python import get_package_prefix  # noqa: PLC0415
 
     # ref is "nodl://package/name" — strip the scheme.
@@ -91,22 +93,6 @@ def _resolve_package_uri(ref: str) -> Path:
     if not resolved.is_file():
         raise FileNotFoundError(f'Include ref {ref!r} resolved to {resolved} which does not exist')
     return resolved.resolve()
-
-
-def _resolve_ref(ref: str, base_dir: Path) -> Path:
-    """Resolve a single include *ref* to an absolute file path.
-
-    Handles relative paths (``./…`` / ``../…``) and package URIs
-    (``nodl://package/name``).
-    """
-    if ref.startswith('nodl://'):
-        return _resolve_package_uri(ref)
-    if ref.startswith('./') or ref.startswith('../'):
-        resolved = (base_dir / ref).resolve()
-        if not resolved.is_file():
-            raise FileNotFoundError(f'Include ref {ref!r} resolved to {resolved} which does not exist')
-        return resolved
-    raise ValueError(f'Unsupported include ref format: {ref!r}')
 
 
 def _endpoints_equal(a: dict, b: dict) -> bool:
@@ -201,12 +187,10 @@ def _accumulate_parameters(
 
 def _load_and_resolve(
     data: dict,
-    base_dir: Path,
     seen: set[Path],
 ) -> dict:
     """Recursively resolve includes in *data* and return a merged plain dict.
 
-    *base_dir* is the directory containing the file that produced *data*.
     *seen* tracks canonical paths already visited (diamond / cycle guard).
     """
     includes = data.get('includes')
@@ -221,7 +205,7 @@ def _load_and_resolve(
 
     for inc in includes:
         ref = inc['ref']
-        resolved = _resolve_ref(ref, base_dir)
+        resolved = _resolve_ref(ref)
         canonical = resolved.resolve()
         if canonical in seen:
             continue  # already processed (diamond / cycle)
@@ -234,7 +218,6 @@ def _load_and_resolve(
         # Recurse into the child.
         child_merged = _load_and_resolve(
             child_data,
-            base_dir=resolved.parent,
             seen=seen,
         )
 
@@ -266,18 +249,22 @@ def _load_and_resolve(
     return result
 
 
-def load_nodl(source: Path) -> NodlDocument:
-    """Load, validate, and resolve includes in a NoDL file.
+def load_nodl(source: Path | dict) -> NodlDocument:
+    """Load, validate, and resolve includes in a NoDL document.
 
-    Reads the file at *source*, validates it against the NoDL schema,
-    recursively resolves any ``includes`` (relative paths resolved
-    against the file's parent directory), and returns a merged
-    ``NodlDocument`` with the ``includes`` field stripped.
+    *source* may be a ``Path`` to a NoDL file or a pre-parsed ``dict``.
+    Validates against the NoDL schema, recursively resolves any
+    ``includes`` (only ``nodl://`` package URIs are supported), and
+    returns a merged ``NodlDocument`` with the ``includes`` field
+    stripped.
 
     Raises ``jsonschema.ValidationError`` on schema error or
     ``pydantic.ValidationError`` on type error.
     """
-    data = yaml.safe_load(source.read_text(encoding='utf-8'))
+    if isinstance(source, dict):
+        data = source
+    else:
+        data = yaml.safe_load(source.read_text(encoding='utf-8'))
 
     if not isinstance(data, dict):
         raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
@@ -286,8 +273,7 @@ def load_nodl(source: Path) -> NodlDocument:
 
     # Resolve includes if present.
     if data.get('includes'):
-        seen: set[Path] = {source.resolve()}
-        data = _load_and_resolve(data, base_dir=source.parent, seen=seen)
+        data = _load_and_resolve(data, seen=set())
 
     # Strip includes from the final data before model construction.
     data.pop('includes', None)

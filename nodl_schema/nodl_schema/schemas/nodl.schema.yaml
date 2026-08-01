@@ -78,8 +78,8 @@ properties:
     description: |
       List of NoDL fragments to include and merge into this document.
       Each entry is an object with a required ``ref`` string that is
-      either a package URI (``nodl://package/name``) or a relative
-      file path (``./fragments/foo.nodl.yaml``).
+      a package URI (``nodl://package/name``). Packages can
+      self-reference their own installed schemas.
     items:
       $ref: '#/definitions/include_ref'
 
@@ -94,10 +94,11 @@ definitions:
     properties:
       ref:
         type: string
-        pattern: ^(nodl://[a-zA-Z][a-zA-Z0-9_]*/[a-zA-Z][a-zA-Z0-9_]*|\.\.?/.+\.nodl\.yaml)$
+        pattern: ^nodl://[a-zA-Z][a-zA-Z0-9_]*/[a-zA-Z][a-zA-Z0-9_]*$
         description: |
-          Package URI (``nodl://package/name``) or relative file path
-          (``./`` or ``../``) to the NoDL fragment to include.
+          Package URI (``nodl://package/name``) to the NoDL fragment
+          to include. Packages can self-reference their own installed
+          schemas.
 
   rosName:
     type: string

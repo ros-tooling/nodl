@@ -9,6 +9,10 @@ find_package(nodl_schema REQUIRED)
 ament_nodl_install(
   FILES
     nodl/sensors.nodl.yaml
+    nodl/topic_a.nodl.yaml
+    nodl/all_endpoints.nodl.yaml
+    nodl/wraps_topic_a.nodl.yaml
+    nodl/circular_b.nodl.yaml
 )
 
 ament_package()

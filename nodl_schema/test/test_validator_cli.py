@@ -88,7 +88,7 @@ publishers:
       depth: 10
       reliability: RELIABLE
 includes:
-  - ref: "./fragments/base.nodl.yaml"
+  - ref: "nodl://some_pkg/base"
   - ref: "nodl://some_pkg/extras"
 """
 

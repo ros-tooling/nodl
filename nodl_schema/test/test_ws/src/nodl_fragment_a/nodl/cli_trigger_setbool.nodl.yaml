@@ -1,0 +1,5 @@
+---
+nodl_version: 2
+service_clients:
+  - name: /trigger
+    type: std_srvs/srv/SetBool

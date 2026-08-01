@@ -1,0 +1,4 @@
+---
+nodl_version: 2
+includes:
+  - ref: nodl://nodl_fragment_a/diagnostics
