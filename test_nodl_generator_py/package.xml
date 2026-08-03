@@ -6,6 +6,7 @@
   <description>End-to-end tests for the nodl_generator_py macro and generated rclpy nodes.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
+  <author>Luke Sy</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>nodl_generator_py</buildtool_depend>
