@@ -6,7 +6,7 @@ project(nodl_generator_py)
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 
-# Importable helper for ament_python users.
+# Importable generator core used by the CLI and tests.
 ament_python_install_package(${PROJECT_NAME})
 
 # Generator CLI used by the CMake function.

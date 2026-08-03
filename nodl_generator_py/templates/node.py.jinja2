@@ -3,7 +3,7 @@
 {{ imp }}
 {% endfor %}
 {% if has_params %}
-import {{ params_module }}
+from . import {{ params_module }}
 {% endif %}
 
 

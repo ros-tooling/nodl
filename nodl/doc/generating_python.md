@@ -46,8 +46,11 @@ find_package(nodl_generator_py REQUIRED)
 nodl_generate_py(echo_node config/echo_node.nodl.yaml)
 ```
 
-The target name must be a valid Python identifier. Here the generated module
-is `echo_node.py` and its base class is `EchoNodeBase`.
+The initial integration supports `ament_cmake` and `ament_cmake_python`
+packages. It does not generate files into source trees from `setup.py`.
+
+The target name must be a valid Python identifier. For a project named
+`my_robot`, this generates `my_robot._generated.echo_node.EchoNodeBase`.
 
 Pass `LIFECYCLE` to generate an `rclpy.lifecycle.LifecycleNode` base and use
 lifecycle publishers:
@@ -56,28 +59,12 @@ lifecycle publishers:
 nodl_generate_py(echo_node config/echo_node.nodl.yaml LIFECYCLE)
 ```
 
-For an `ament_python` build, the equivalent helper is available as a normal
-Python function:
-
-```python
-from nodl_generator_py.setup_helper import nodl_generate_py_module
-
-nodl_generate_py_module(
-    'config/echo_node.nodl.yaml',
-    'echo_node',
-    'generated',
-)
-```
-
-It returns the path to the generated module so the build can include that file
-in the package.
-
 ## Implement the node
 
 Keep application logic in a handwritten subclass:
 
 ```python
-from echo_node import EchoNodeBase
+from my_robot._generated.echo_node import EchoNodeBase
 from std_msgs.msg import String
 
 

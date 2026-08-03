@@ -121,7 +121,7 @@ def test_qos_to_py():
             'params_node',
             False,
             [
-                'import params_node_params',
+                'from . import params_node_params',
                 'self.param_listener_ = params_node_params.ParamListener(self)',
             ],
         ),

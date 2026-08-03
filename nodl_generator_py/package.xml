@@ -3,7 +3,7 @@
 <package format="3">
   <name>nodl_generator_py</name>
   <version>0.1.0</version>
-  <description>CMake macro and setup.py helper to generate an rclpy base-node class from a NoDL file.</description>
+  <description>CMake macro to generate an rclpy base-node class from a NoDL file.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
 
@@ -12,7 +12,6 @@
 
   <depend>nodl_schema</depend>
   <depend>generate_parameter_library_py</depend>
-  <exec_depend>ament_index_python</exec_depend>
   <depend>python3-jinja2</depend>
   <depend>python3-yaml</depend>
   <exec_depend>rclpy</exec_depend>

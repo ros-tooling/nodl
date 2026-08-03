@@ -3,7 +3,7 @@
 # nodl_generate_py(target nodl_file [LIFECYCLE])
 #
 # Generates an rclpy (or rclpy.lifecycle) base-node class from a NoDL file and
-# installs it as an importable Python module.  Unlike the C++ generator there is
+# installs it under <project>._generated. Unlike the C++ generator there is
 # nothing to compile, so this creates a build-time custom target rather than a
 # library.
 #
@@ -24,7 +24,8 @@ function(nodl_generate_py target nodl_file)
   get_filename_component(nodl_file_abs "${nodl_file}" ABSOLUTE
     BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
-  set(gen_dir "${CMAKE_CURRENT_BINARY_DIR}/nodl_generated/${target}")
+  set(gen_root "${CMAKE_CURRENT_BINARY_DIR}/nodl_generated/${target}")
+  set(gen_dir "${gen_root}/${PROJECT_NAME}/_generated")
 
   set(lifecycle_arg "")
   if(ARG_LIFECYCLE)
@@ -32,6 +33,7 @@ function(nodl_generate_py target nodl_file)
   endif()
 
   set(py_out "${gen_dir}/${target}.py")
+  set(package_init "${gen_dir}/__init__.py")
 
   # Make build-time Python dependencies importable by the generator.
   if(DEFINED ENV{PYTHONPATH})
@@ -42,7 +44,7 @@ function(nodl_generate_py target nodl_file)
   endif()
 
   add_custom_command(
-    OUTPUT "${py_out}"
+    OUTPUT "${py_out}" "${package_init}"
     COMMAND ${CMAKE_COMMAND} -E env
       "PYTHONPATH=${full_pythonpath}"
       "${Python3_EXECUTABLE}"
@@ -52,6 +54,7 @@ function(nodl_generate_py target nodl_file)
       --target-name "${target}"
       --templates-dir "${_nodl_generator_py_templates_dir}"
       ${lifecycle_arg}
+    COMMAND ${CMAKE_COMMAND} -E touch "${package_init}"
     DEPENDS
       "${nodl_file_abs}"
       "${_nodl_generator_py_module}"
@@ -61,15 +64,14 @@ function(nodl_generate_py target nodl_file)
     VERBATIM
   )
 
-  add_custom_target(${target} ALL DEPENDS "${py_out}"
+  add_custom_target(${target} ALL DEPENDS "${py_out}" "${package_init}"
     COMMENT "Generate ${target} from ${nodl_file}")
 
-  # Install whatever .py the generator emitted (the node module, plus
-  # <target>_params.py when the NoDL document declares parameters) as top-level
-  # importable modules.
+  # Install the generated package, including <target>_params.py when the NoDL
+  # document declares parameters.
   install(
-    DIRECTORY "${gen_dir}/"
-    DESTINATION "${PYTHON_INSTALL_DIR}"
+    DIRECTORY "${gen_root}/${PROJECT_NAME}/"
+    DESTINATION "${PYTHON_INSTALL_DIR}/${PROJECT_NAME}"
     FILES_MATCHING PATTERN "*.py"
   )
 endfunction()
