@@ -1,6 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Generate an rclpy base-node module from a NoDL document."""
+"""Generate standalone rclpy base modules from NoDL at build time.
+
+Generated modules must not depend on NoDL at runtime. Applications extend
+them through handwritten subclasses.
+"""
 
 from __future__ import annotations
 

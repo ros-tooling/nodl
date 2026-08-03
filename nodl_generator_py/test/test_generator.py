@@ -149,7 +149,14 @@ def test_generate(name, lifecycle, snippets, monkeypatch, tmp_path):
         lifecycle=lifecycle,
     )
     rendered = output.read_text(encoding='utf-8')
-    ast.parse(rendered)
+    tree = ast.parse(rendered)
+    imports = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name.split('.')[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module.split('.')[0])
+    assert imports.isdisjoint({'nodl', 'nodl_schema', 'nodl_generator_py'})
     for snippet in snippets:
         assert snippet in rendered
     if name == 'params_node':
