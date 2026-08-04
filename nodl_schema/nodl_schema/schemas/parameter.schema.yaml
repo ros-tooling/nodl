@@ -39,6 +39,21 @@ definitions:
         default: ''
       validation:
         $ref: '#/definitions/validation'
+    allOf:
+      - if:
+          properties:
+            type:
+              const: byte_array
+          required:
+            - type
+        then:
+          properties:
+            default_value:
+              type: array
+              items:
+                type: integer
+                minimum: 0
+                maximum: 255
 
   # Supported parameter types
   parameter_type:
@@ -68,12 +83,14 @@ definitions:
     type: string
     enum:
       - bool_array
+      - byte_array
       - int_array
       - double_array
       - string_array
     description: |
       Array types:
       - ``bool_array``: C++ ``std::vector<bool>``, Python ``[bool]``
+      - ``byte_array``: Sequence of byte integers (``0`` through ``255``)
       - ``int_array``: C++ ``std::vector<int64_t>``, Python ``[int]``
       - ``double_array``: C++ ``std::vector<double>``, Python ``[float]``
       - ``string_array``: C++ ``std::vector<std::string>``, Python ``[str]``
@@ -104,7 +121,8 @@ definitions:
       Initial value for the parameter. Type must match the declared parameter type.
       If omitted, the parameter becomes required at initialization.
       Supports: ``bool``, ``int``, ``double`` (including ``NaN``, ``Inf``, scientific notation), ``string``,
-      and arrays of these types.
+      and arrays of these types. A ``byte_array`` default is a sequence of
+      integer byte values from ``0`` through ``255``.
 
   # Validation rules
   validation:

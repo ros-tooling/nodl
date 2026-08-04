@@ -36,6 +36,7 @@ class ArrayType(Enum):
     """
     Array types:
     - ``bool_array``: C++ ``std::vector<bool>``, Python ``[bool]``
+    - ``byte_array``: Sequence of byte integers (``0`` through ``255``)
     - ``int_array``: C++ ``std::vector<int64_t>``, Python ``[int]``
     - ``double_array``: C++ ``std::vector<double>``, Python ``[float]``
     - ``string_array``: C++ ``std::vector<std::string>``, Python ``[str]``
@@ -43,6 +44,7 @@ class ArrayType(Enum):
     """
 
     bool_array = 'bool_array'
+    byte_array = 'byte_array'
     int_array = 'int_array'
     double_array = 'double_array'
     string_array = 'string_array'
@@ -396,7 +398,7 @@ class ParameterDefinition(BaseModel):
     ] = Field(..., description='The parameter data type')
     default_value: Optional[Any] = Field(
         None,
-        description='Initial value for the parameter. Type must match the declared parameter type.\nIf omitted, the parameter becomes required at initialization.\nSupports: ``bool``, ``int``, ``double`` (including ``NaN``, ``Inf``, scientific notation), ``string``,\nand arrays of these types.\n',
+        description='Initial value for the parameter. Type must match the declared parameter type.\nIf omitted, the parameter becomes required at initialization.\nSupports: ``bool``, ``int``, ``double`` (including ``NaN``, ``Inf``, scientific notation), ``string``,\nand arrays of these types. A ``byte_array`` default is a sequence of\ninteger byte values from ``0`` through ``255``.\n',
     )
     description: Optional[str] = Field(
         '',

@@ -26,6 +26,7 @@ A node document references these shared types (generated from the schema's
 
 Parameters reference the subschema {repo}`nodl_schema/nodl_schema/schemas/parameter.schema.yaml`.
 This is a formalization of the implicit schema defined by [`generate_parameter_library`](https://github.com/pickNikRobotics/generate_parameter_library) - NoDL builds on that work rather than reinventing the wheel.
+The ``byte_array`` parameter type represents a sequence of byte integers from ``0`` through ``255``.
 
 ```{eval-rst}
 .. include:: _generated/schemas/parameter_definitions.txt

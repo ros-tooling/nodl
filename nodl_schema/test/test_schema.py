@@ -56,6 +56,7 @@ def test_description_field():
         ('double', 3.14),
         ('string', 'hello'),
         ('bool_array', [True, False]),
+        ('byte_array', [0, 1, 127, 255]),
         ('int_array', [1, 2, 3]),
         ('double_array', [1.0, 2.0]),
         ('string_array', ['a', 'b']),
@@ -67,6 +68,12 @@ def test_parameter_types(ptype, default):
 
 def test_parameter_without_default():
     validate({'nodl_version': 2, 'parameters': {'p': {'type': 'string'}}})
+
+
+@pytest.mark.parametrize('default', [[-1], [256], [1.5], ['1']])
+def test_byte_array_rejects_non_byte_values(default):
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'parameters': {'p': {'type': 'byte_array', 'default_value': default}}})
 
 
 def test_parameter_with_all_fields():
