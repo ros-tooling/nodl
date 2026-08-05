@@ -70,7 +70,7 @@ omitted.
 |---|---|---|
 | `parameters[i].name` | `parameters.<name>` | Becomes the key in the parameter mapping. |
 | `parameters[i].type` | `parameters.<name>.type` | Converted to the corresponding NoDL parameter type. |
-| `parameter_values[i]` | `parameters.<name>.default_value` | Included when its type agrees with the descriptor. |
+| `parameter_values[i]` | `parameters.<name>.default_value` | Included when its type agrees with the descriptor, including `byte_array_value` for byte-array parameters. |
 | `parameters[i].description` | `parameters.<name>.description` | Copied. |
 | `parameters[i].additional_constraints` | `parameters.<name>.additional_constraints` | Copied. |
 | `parameters[i].read_only` | `parameters.<name>.read_only` | Copied. |
@@ -97,7 +97,6 @@ zero and the observation backend's infinite sentinel are omitted.
 | Service response type and QoS | A NoDL service endpoint stores the service type, not its generated request/response details. |
 | Action constituent services and topics | They are collapsed into one NoDL action endpoint. |
 | Parameter `dynamic_typing` | It is not represented by the current NoDL parameter model. |
-| Byte-array parameter values | The current NoDL schema has no byte-array parameter type. |
 
 ## Infrastructure filtering
 
@@ -111,5 +110,5 @@ Endpoint filtering matches both name tail and type, so a user endpoint with the
 same name but a different type remains. Use `--include-ros-infra` to disable
 filtering.
 
-See [Concepts](concepts.md) for the backward workflow and [Schema](schema.md) for
-the document format.
+See {external+nodl:doc}`concepts` for the backward workflow and
+{external+nodl:doc}`schema` for the document format.

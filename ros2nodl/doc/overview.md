@@ -26,8 +26,19 @@ cat my_node.nodl.yaml | ros2 nodl validate
 The command exits non-zero and prints the validation error if a document does not conform to the schema,
 so it composes cleanly into shell pipelines and CI checks.
 
+### `ros2 nodl describe`
+
+Create a NoDL draft from a running or captured ROS 2 node. See the
+[Describe guide](describe.md) for usage, options, and the ROS-to-NoDL mapping.
+
 ## Relationship to other packages
 
 `ros2 nodl validate` is a thin CLI wrapper over `nodl_schema`'s validator.
 For programmatic validation or for building tools on top of the typed data model, depend on `nodl_schema` directly.
 For registering a node's NoDL document with the ament index from a CMake package, see the `ament_nodl` package.
+
+```{toctree}
+:hidden:
+
+describe
+```

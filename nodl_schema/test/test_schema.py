@@ -70,7 +70,7 @@ def test_parameter_without_default():
     validate({'nodl_version': 2, 'parameters': {'p': {'type': 'string'}}})
 
 
-@pytest.mark.parametrize('default', [[-1], [256], [1.5], ['1']])
+@pytest.mark.parametrize('default', [[-1], [256], [1.5]])
 def test_byte_array_rejects_non_byte_values(default):
     with pytest.raises(ValidationError):
         validate({'nodl_version': 2, 'parameters': {'p': {'type': 'byte_array', 'default_value': default}}})

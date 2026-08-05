@@ -248,7 +248,7 @@ _TYPE_MAP: dict[int, Any] = {
     PARAMETER_INTEGER: ScalarType.int,
     PARAMETER_DOUBLE: ScalarType.double,
     PARAMETER_STRING: ScalarType.string,
-    PARAMETER_BYTE_ARRAY: ScalarType.none,
+    PARAMETER_BYTE_ARRAY: ArrayType.byte_array,
     PARAMETER_BOOL_ARRAY: ArrayType.bool_array,
     PARAMETER_INTEGER_ARRAY: ArrayType.int_array,
     PARAMETER_DOUBLE_ARRAY: ArrayType.double_array,
@@ -259,6 +259,7 @@ _VALUE_FIELDS = {
     PARAMETER_INTEGER: 'integer_value',
     PARAMETER_DOUBLE: 'double_value',
     PARAMETER_STRING: 'string_value',
+    PARAMETER_BYTE_ARRAY: 'byte_array_value',
     PARAMETER_BOOL_ARRAY: 'bool_array_value',
     PARAMETER_INTEGER_ARRAY: 'integer_array_value',
     PARAMETER_DOUBLE_ARRAY: 'double_array_value',
@@ -266,6 +267,7 @@ _VALUE_FIELDS = {
 }
 _ARRAY_TYPES = {
     PARAMETER_BOOL_ARRAY,
+    PARAMETER_BYTE_ARRAY,
     PARAMETER_INTEGER_ARRAY,
     PARAMETER_DOUBLE_ARRAY,
     PARAMETER_STRING_ARRAY,
