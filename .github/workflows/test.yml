@@ -5,7 +5,15 @@ on:
   push:
     branches: [main]
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - '**/doc/**'
   workflow_dispatch:
+
+# Supersede obsolete runs for the same PR; never cancel a push to main.
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build_and_test:
