@@ -8,6 +8,12 @@ For the Python API that backs this command, see the `nodl_schema` package.
 
 ## Commands
 
+```{toctree}
+:hidden:
+
+describe
+```
+
 Running `ros2 nodl` with no verb prints help. The available verbs:
 
 ### `ros2 nodl validate [files...]`
@@ -36,9 +42,3 @@ Create a NoDL draft from a running or captured ROS 2 node. See the
 `ros2 nodl validate` is a thin CLI wrapper over `nodl_schema`'s validator.
 For programmatic validation or for building tools on top of the typed data model, depend on `nodl_schema` directly.
 For registering a node's NoDL document with the ament index from a CMake package, see the `ament_nodl` package.
-
-```{toctree}
-:hidden:
-
-describe
-```
