@@ -34,8 +34,20 @@ so it composes cleanly into shell pipelines and CI checks.
 
 ### `ros2 nodl describe`
 
-Create a NoDL draft from a running or captured ROS 2 node. See the
-[Describe guide](describe.md) for usage, options, and the ROS-to-NoDL mapping.
+Create a NoDL draft from a running or captured ROS 2 node.
+
+```console
+ros2 nodl describe NODE_NAME [--from FILE] [--no-params]
+                         [--include-ros-infra] [--fail-on-warnings]
+                         [--timeout SEC] [-o OUT.{yaml,json}]
+```
+
+```console
+ros2 nodl describe /ns/talker
+ros2 nodl describe /ns/talker --from talker.mcap -o talker.json
+```
+
+See the [Describe guide](describe.md) for each option and the ROS-to-NoDL mapping.
 
 ## Relationship to other packages
 
