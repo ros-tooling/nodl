@@ -31,12 +31,10 @@ properties:
   include:
     type: array
     description: |
-      Other NoDL documents whose interface entities are merged into this
-      one when the document is loaded. Each reference is resolved and its
-      parameters, publishers, subscriptions, services, and actions are added
-      to this document. A name collision within any single category (for
-      example two publishers named ``/status``) across this document and its
-      includes is an error.
+      Other NoDL documents whose interface entities are merged into this one.
+      Each reference is resolved - recursively, following all references until done.
+      Circular inclusion is an error.
+      An entity-name collision (for example two publishers named ``/status``) is an error.
     items:
       $ref: '#/definitions/reference'
 
@@ -97,14 +95,20 @@ definitions:
       ref:
         type: string
         description: |
-          Location of the NoDL document to include. Either a
-          ``nodl://<package>/<name>`` URI resolved through the ament index
-          (the document registered by ``ament_nodl_register_node`` as the
-          resource ``<package>__<name>``), or an ``http://`` / ``https://`` URL.
-        pattern: ^(nodl://[^/]+/.+|https?://.+)$
+          Location of the NoDL document to include.
+          Types of includes are:
+          1. A ``nodl://<package>/<name>`` URI naming a registered document in an
+             already-installed package, resolved through the ament index. ``<name>``
+             is a registered name and contains no path separators.
+          2. A relative path, resolved against the directory of the document that
+             contains the reference. It names a document in the same package, and is
+             the only form able to reference a document in the package being built.
+          An absolute path is not accepted, since it cannot mean the same thing on
+          two machines.
+        pattern: ^(?:nodl://[^/]+/[^/]+|(?!/)(?!.*://).+)$
         examples:
           - nodl://sensor_common/imu_driver
-          - https://example.com/shared/telemetry.nodl.yaml
+          - common/telemetry.nodl.yaml
 
   rosName:
     type: string

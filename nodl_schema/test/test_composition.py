@@ -7,10 +7,19 @@ neither an ament index nor network access. The default resolver's nodl:// URI
 parsing is tested separately with a stubbed ament lookup.
 """
 
+from pathlib import Path
+
 import pytest
 
 from nodl_schema import load_nodl
-from nodl_schema.composition import CompositionError, DefaultResolver, resolve_document
+from nodl_schema.composition import (
+    CompositionError,
+    DefaultResolver,
+    local_references,
+    path_to_ref,
+    resolve_document,
+    rewrite_references,
+)
 
 _MIN_QOS = {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}
 
@@ -228,3 +237,189 @@ def test_default_resolver_nodl_uri_uses_ament_resource(monkeypatch):
 def test_default_resolver_rejects_unknown_scheme():
     with pytest.raises(CompositionError, match='scheme'):
         DefaultResolver().fetch('ftp://example.com/x.yaml')
+
+
+def test_default_resolver_reads_file_ref(tmp_path: Path):
+    doc = tmp_path / 'x.nodl.yaml'
+    doc.write_text('nodl_version: 2\n')
+    assert 'nodl_version' in DefaultResolver().fetch(path_to_ref(doc))
+
+
+def test_default_resolver_missing_file_raises():
+    with pytest.raises(CompositionError):
+        DefaultResolver().fetch(path_to_ref('/nonexistent/nowhere.nodl.yaml'))
+
+
+# ---------------------------------------------------------------------------
+# Relative references: resolved against the origin of the containing document
+# ---------------------------------------------------------------------------
+
+
+def _write(path: Path, text: str) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return path
+
+
+def test_relative_ref_resolves_against_document_directory(tmp_path: Path):
+    _write(tmp_path / 'common' / 'telemetry.nodl.yaml', f'nodl_version: 2\npublishers:\n  - {_pub("/telem")}\n')
+    main = _write(
+        tmp_path / 'my_node.nodl.yaml',
+        'nodl_version: 2\ninclude:\n  - ref: common/telemetry.nodl.yaml\n',
+    )
+    doc = load_nodl(main.read_text(), base=main)
+    assert [p.name for p in doc.publishers] == ['/telem']
+
+
+def test_relative_ref_resolves_from_open_file_without_explicit_base(tmp_path: Path):
+    # An open file knows its own path, so the CLI does not have to pass it twice.
+    _write(tmp_path / 'shared.nodl.yaml', f'nodl_version: 2\npublishers:\n  - {_pub("/shared")}\n')
+    main = _write(tmp_path / 'main.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: shared.nodl.yaml\n')
+    with main.open() as f:
+        doc = load_nodl(f)
+    assert [p.name for p in doc.publishers] == ['/shared']
+
+
+def test_relative_ref_is_relative_to_the_including_document_not_the_root(tmp_path: Path):
+    # b/ leaf.nodl.yaml is named relative to b/mid.nodl.yaml, not to the top-level document.
+    _write(tmp_path / 'b' / 'leaf.nodl.yaml', f'nodl_version: 2\npublishers:\n  - {_pub("/leaf")}\n')
+    _write(tmp_path / 'b' / 'mid.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: leaf.nodl.yaml\n')
+    main = _write(tmp_path / 'top.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: b/mid.nodl.yaml\n')
+    doc = load_nodl(main.read_text(), base=main)
+    assert [p.name for p in doc.publishers] == ['/leaf']
+
+
+def test_relative_ref_may_walk_upward(tmp_path: Path):
+    _write(tmp_path / 'shared' / 'base.nodl.yaml', f'nodl_version: 2\npublishers:\n  - {_pub("/base")}\n')
+    main = _write(
+        tmp_path / 'nodl' / 'node.nodl.yaml',
+        'nodl_version: 2\ninclude:\n  - ref: ../shared/base.nodl.yaml\n',
+    )
+    doc = load_nodl(main.read_text(), base=main)
+    assert [p.name for p in doc.publishers] == ['/base']
+
+
+def test_relative_ref_without_base_raises(tmp_path: Path):
+    with pytest.raises(CompositionError, match='nothing to resolve against'):
+        load_nodl('nodl_version: 2\ninclude:\n  - ref: common/telemetry.nodl.yaml\n')
+
+
+def test_relative_ref_inside_ament_document_raises():
+    # A document fetched from the index is text with no location, so nothing in it can be relative.
+    resolver = FakeResolver({
+        'nodl://pkg/a': 'nodl_version: 2\ninclude:\n  - ref: sibling.nodl.yaml\n',
+    })
+    base = {'nodl_version': 2, 'include': [{'ref': 'nodl://pkg/a'}]}
+    with pytest.raises(CompositionError, match='no location to be relative to'):
+        resolve_document(base, resolver)
+
+
+def test_relative_cycle_is_detected_across_spellings(tmp_path: Path):
+    # a -> b -> ./a, two spellings of the same file. Normalizing before the cycle check is what
+    # makes this terminate rather than recursing.
+    _write(tmp_path / 'a.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: b.nodl.yaml\n')
+    _write(tmp_path / 'b.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: ./a.nodl.yaml\n')
+    main = tmp_path / 'a.nodl.yaml'
+    with pytest.raises(CompositionError, match='cycle'):
+        load_nodl(main.read_text(), base=main)
+
+
+def test_missing_relative_ref_raises(tmp_path: Path):
+    main = _write(tmp_path / 'main.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: nope.nodl.yaml\n')
+    with pytest.raises(CompositionError, match='nope.nodl.yaml'):
+        load_nodl(main.read_text(), base=main)
+
+
+# ---------------------------------------------------------------------------
+# local_references: what registration needs to know about
+# ---------------------------------------------------------------------------
+
+
+def test_local_references_is_transitive(tmp_path: Path):
+    leaf = _write(tmp_path / 'leaf.nodl.yaml', 'nodl_version: 2\n')
+    mid = _write(tmp_path / 'mid.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: leaf.nodl.yaml\n')
+    main = _write(tmp_path / 'main.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: mid.nodl.yaml\n')
+    found = local_references({'include': [{'ref': 'mid.nodl.yaml'}]}, path_to_ref(main))
+    assert found == [mid, leaf]
+
+
+def test_local_references_ignores_nodl_uris(tmp_path: Path):
+    main = _write(tmp_path / 'main.nodl.yaml', 'nodl_version: 2\n')
+    data = {'include': [{'ref': 'nodl://other_pkg/thing'}]}
+    assert local_references(data, path_to_ref(main)) == []
+
+
+def test_local_references_survives_a_cycle(tmp_path: Path):
+    a = _write(tmp_path / 'a.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: b.nodl.yaml\n')
+    b = _write(tmp_path / 'b.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: a.nodl.yaml\n')
+    found = local_references({'include': [{'ref': 'b.nodl.yaml'}]}, path_to_ref(a))
+    assert found == [b, a]
+
+
+def test_local_references_deduplicates(tmp_path: Path):
+    shared = _write(tmp_path / 'shared.nodl.yaml', 'nodl_version: 2\n')
+    main = _write(tmp_path / 'main.nodl.yaml', 'nodl_version: 2\n')
+    data = {'include': [{'ref': 'shared.nodl.yaml'}, {'ref': './shared.nodl.yaml'}]}
+    assert local_references(data, path_to_ref(main)) == [shared]
+
+
+# ---------------------------------------------------------------------------
+# rewrite_references: what registration installs
+# ---------------------------------------------------------------------------
+
+
+def test_rewrite_replaces_relative_ref_with_registered_name(tmp_path: Path):
+    shared = _write(tmp_path / 'common' / 'telemetry.nodl.yaml', 'nodl_version: 2\n')
+    main = tmp_path / 'my_node.nodl.yaml'
+    data = {'nodl_version': 2, 'include': [{'ref': 'common/telemetry.nodl.yaml'}]}
+    out = rewrite_references(data, {shared: 'my_pkg/telemetry'}, path_to_ref(main))
+    assert out['include'] == [{'ref': 'nodl://my_pkg/telemetry'}]
+
+
+def test_rewrite_leaves_nodl_uris_alone(tmp_path: Path):
+    main = tmp_path / 'my_node.nodl.yaml'
+    data = {'nodl_version': 2, 'include': [{'ref': 'nodl://other_pkg/thing'}]}
+    out = rewrite_references(data, {}, path_to_ref(main))
+    assert out['include'] == [{'ref': 'nodl://other_pkg/thing'}]
+
+
+def test_rewrite_changes_nothing_else(tmp_path: Path):
+    shared = _write(tmp_path / 'shared.nodl.yaml', 'nodl_version: 2\n')
+    main = tmp_path / 'my_node.nodl.yaml'
+    data = {
+        'nodl_version': 2,
+        'description': 'a node',
+        'include': [{'ref': 'shared.nodl.yaml'}],
+        'publishers': [_pub('/status')],
+    }
+    out = rewrite_references(data, {shared: 'my_pkg/shared'}, path_to_ref(main))
+    assert out['description'] == 'a node'
+    assert out['publishers'] == [_pub('/status')]
+    # Entities are not merged in; only the reference changed.
+    assert 'subscriptions' not in out
+
+
+def test_rewrite_does_not_mutate_input(tmp_path: Path):
+    shared = _write(tmp_path / 'shared.nodl.yaml', 'nodl_version: 2\n')
+    main = tmp_path / 'my_node.nodl.yaml'
+    data = {'nodl_version': 2, 'include': [{'ref': 'shared.nodl.yaml'}]}
+    rewrite_references(data, {shared: 'my_pkg/shared'}, path_to_ref(main))
+    assert data['include'] == [{'ref': 'shared.nodl.yaml'}]
+
+
+def test_rewrite_of_unregistered_reference_raises(tmp_path: Path):
+    main = tmp_path / 'my_node.nodl.yaml'
+    data = {'nodl_version': 2, 'include': [{'ref': 'shared.nodl.yaml'}]}
+    with pytest.raises(CompositionError, match='not registered'):
+        rewrite_references(data, {}, path_to_ref(main))
+
+
+def test_rewrite_is_not_recursive(tmp_path: Path):
+    # mid's own reference is left alone; mid is rewritten by its own registration.
+    mid = _write(tmp_path / 'mid.nodl.yaml', 'nodl_version: 2\ninclude:\n  - ref: leaf.nodl.yaml\n')
+    _write(tmp_path / 'leaf.nodl.yaml', 'nodl_version: 2\n')
+    main = tmp_path / 'main.nodl.yaml'
+    data = {'nodl_version': 2, 'include': [{'ref': 'mid.nodl.yaml'}]}
+    out = rewrite_references(data, {mid: 'my_pkg/mid'}, path_to_ref(main))
+    assert out['include'] == [{'ref': 'nodl://my_pkg/mid'}]
+    assert 'leaf.nodl.yaml' in mid.read_text()

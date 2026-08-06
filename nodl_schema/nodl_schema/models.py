@@ -59,13 +59,10 @@ class Reference(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    ref: constr(regex=r'^(nodl://[^/]+/.+|https?://.+)$') = Field(
+    ref: constr(regex=r'^(?:nodl://[^/]+/[^/]+|(?!/)(?!.*://).+)$') = Field(
         ...,
-        description='Location of the NoDL document to include. Either a\n``nodl://<package>/<name>`` URI resolved through the ament index\n(the document registered by ``ament_nodl_register_node`` as the\nresource ``<package>__<name>``), or an ``http://`` / ``https://`` URL.\n',
-        examples=[
-            'nodl://sensor_common/imu_driver',
-            'https://example.com/shared/telemetry.nodl.yaml',
-        ],
+        description='Location of the NoDL document to include.\nTypes of includes are:\n1. A ``nodl://<package>/<name>`` URI naming a registered document in an\n   already-installed package, resolved through the ament index. ``<name>``\n   is a registered name and contains no path separators.\n2. A relative path, resolved against the directory of the document that\n   contains the reference. It names a document in the same package, and is\n   the only form able to reference a document in the package being built.\nAn absolute path is not accepted, since it cannot mean the same thing on\ntwo machines.\n',
+        examples=['nodl://sensor_common/imu_driver', 'common/telemetry.nodl.yaml'],
     )
 
 
@@ -457,7 +454,7 @@ class NodlDocument(BaseModel):
     description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
     include: Optional[list[Reference]] = Field(
         None,
-        description='Other NoDL documents whose interface entities are merged into this\none when the document is loaded. Each reference is resolved and its\nparameters, publishers, subscriptions, services, and actions are added\nto this document. A name collision within any single category (for\nexample two publishers named ``/status``) across this document and its\nincludes is an error.\n',
+        description='Other NoDL documents whose interface entities are merged into this one.\nEach reference is resolved - recursively, following all references until done.\nCircular inclusion is an error.\nAn entity-name collision (for example two publishers named ``/status``) is an error.\n',
     )
     parameters: Optional[dict[str, ParameterDefinition]] = Field(
         None,

@@ -8,25 +8,35 @@ subscriptions, service/action servers and clients) are merged into the
 including document. Includes are followed recursively, and a name collision
 within any single category is an error.
 
-Resolution is pluggable through the ``Resolver`` protocol so callers (and tests)
-can supply their own lookup. ``DefaultResolver`` handles the two reference forms
-the schema accepts:
+Two reference forms are accepted:
 
-* ``nodl://<package>/<name>`` -- looked up in the ament index as the resource
+* ``nodl://<package>/<name>`` -- a registered document in an already-installed
+  package, looked up in the ament index as the resource
   ``nodl_nodes/<package>__<name>`` that ``ament_nodl_register_node`` installs.
-* ``http://`` / ``https://`` -- fetched over the network.
+* a relative path -- a document in the same package, resolved against the
+  directory of the document holding the reference. This is the only form that
+  can reach a document in the package currently being built, since it reads the
+  source tree rather than an installed workspace.
+
+A reference is normalized against its document's *origin* before it is fetched,
+so a relative path becomes an absolute ``file://`` reference and the ``Resolver``
+protocol stays a plain ``ref -> text`` function. Adding a reference form later is
+therefore a matter of teaching a resolver a new scheme: nothing downstream of the
+fetch inspects the reference that produced the text.
+
+Relative references are an intra-package authoring convenience and do not survive
+installation. ``ament_nodl_register_node`` rewrites them to their ``nodl://``
+equivalents before installing, using :func:`local_references` to find them and
+:func:`rewrite_references` to replace them.
 """
 
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import yaml
-
-# Timeout, in seconds, for fetching an http(s) reference. Kept finite so a build-time
-# resolvability check cannot hang the build indefinitely on an unreachable host.
-_HTTP_TIMEOUT = 30
 
 # Entity categories merged as name-keyed lists. Parameters are handled separately (a dict).
 _ENTITY_LIST_KEYS = (
@@ -39,6 +49,7 @@ _ENTITY_LIST_KEYS = (
 )
 
 _NODL_SCHEME = 'nodl://'
+_FILE_SCHEME = 'file://'
 # Resource type under which ament_nodl_register_node publishes a document; the key is <package>__<name>.
 _AMENT_RESOURCE_TYPE = 'nodl_nodes'
 
@@ -55,14 +66,17 @@ class Resolver(Protocol):
 
 
 class DefaultResolver:
-    """Resolves ``nodl://`` references through the ament index and ``http(s)://`` over the network."""
+    """Resolves ``nodl://`` references through the ament index and ``file://`` references from disk."""
 
     def fetch(self, ref: str) -> str:
         if ref.startswith(_NODL_SCHEME):
             return self._fetch_ament(ref)
-        if ref.startswith('http://') or ref.startswith('https://'):
-            return self._fetch_http(ref)
-        raise CompositionError(f'unsupported reference scheme: {ref!r} (expected nodl://, http://, or https://)')
+        if ref.startswith(_FILE_SCHEME):
+            return self._fetch_file(ref)
+        raise CompositionError(
+            f'unsupported reference scheme: {ref!r} '
+            f'(expected {_NODL_SCHEME}, or a relative path resolved to {_FILE_SCHEME})'
+        )
 
     def _fetch_ament(self, ref: str) -> str:
         package, _, name = ref[len(_NODL_SCHEME) :].partition('/')
@@ -85,22 +99,64 @@ class DefaultResolver:
             ) from exc
         return content
 
-    def _fetch_http(self, ref: str) -> str:
-        from urllib.request import urlopen
-
+    def _fetch_file(self, ref: str) -> str:
+        path = ref_to_path(ref)
         try:
-            with urlopen(ref, timeout=_HTTP_TIMEOUT) as response:  # noqa: S310 - scheme is checked above
-                return response.read().decode('utf-8')
-        except Exception as exc:
-            raise CompositionError(f'could not fetch {ref!r}: {exc}') from exc
+            return path.read_text(encoding='utf-8')
+        except OSError as exc:
+            raise CompositionError(f'could not read {str(path)!r}: {exc}') from exc
 
 
-def resolve_document(data: dict, resolver: Resolver | None = None, *, _stack: list[str] | None = None) -> dict:
+def is_relative_ref(ref: str) -> bool:
+    """True when ``ref`` is a relative path rather than an absolute, scheme-qualified reference."""
+    return not ref.startswith(_NODL_SCHEME) and not ref.startswith(_FILE_SCHEME)
+
+
+def path_to_ref(path: Path | str) -> str:
+    """Turn a filesystem path into an absolute ``file://`` reference."""
+    return _FILE_SCHEME + str(Path(path).resolve())
+
+
+def ref_to_path(ref: str) -> Path:
+    """Turn a ``file://`` reference back into a filesystem path."""
+    return Path(ref[len(_FILE_SCHEME) :])
+
+
+def _normalize(ref: str, origin: str | None) -> str:
+    """Resolve ``ref`` against ``origin`` so it is absolute and scheme-qualified.
+
+    ``nodl://`` references pass through. A relative path is resolved against the directory of
+    ``origin``, which must itself be a ``file://`` reference: a document fetched from the ament
+    index is text with no location, so nothing inside it can be relative to anything.
+    """
+    if not is_relative_ref(ref):
+        return ref
+    if origin is None:
+        raise CompositionError(
+            f'relative reference {ref!r} has nothing to resolve against; '
+            f'load the document from a file, or pass base= to load_nodl'
+        )
+    if not origin.startswith(_FILE_SCHEME):
+        raise CompositionError(
+            f'relative reference {ref!r} appears in {origin!r}, which was not loaded from a file; '
+            f'a document resolved through the ament index has no location to be relative to'
+        )
+    return path_to_ref(ref_to_path(origin).parent / ref)
+
+
+def resolve_document(
+    data: dict,
+    resolver: Resolver | None = None,
+    *,
+    origin: str | None = None,
+    _stack: list[str] | None = None,
+) -> dict:
     """Return a copy of ``data`` with its ``include`` list resolved and merged in.
 
-    Each referenced document is fetched via ``resolver`` (``DefaultResolver`` if none is
-    given), schema-validated, recursively resolved, and merged. The returned dict has no
-    ``include`` key. The input ``data`` is not mutated.
+    Each reference is normalized against ``origin`` (the reference the document itself was
+    fetched from, if any), fetched via ``resolver`` (``DefaultResolver`` if none is given),
+    schema-validated, recursively resolved, and merged. The returned dict has no ``include``
+    key. The input ``data`` is not mutated.
 
     Raises ``CompositionError`` on an unresolvable reference, an include cycle, or a name
     collision within a category; raises ``jsonschema.ValidationError`` if an included
@@ -114,7 +170,10 @@ def resolve_document(data: dict, resolver: Resolver | None = None, *, _stack: li
     includes = result.pop('include', None) or []
 
     for entry in includes:
-        ref = entry['ref']
+        authored = entry['ref']
+        # Normalizing before the cycle check means two spellings of the same file are recognized
+        # as one document rather than recursing until something else gives way.
+        ref = _normalize(authored, origin)
         if ref in stack:
             chain = ' -> '.join([*stack, ref])
             raise CompositionError(f'include cycle detected: {chain}')
@@ -125,8 +184,70 @@ def resolve_document(data: dict, resolver: Resolver | None = None, *, _stack: li
             raise CompositionError(f'included document {ref!r} is not a YAML/JSON mapping')
 
         _validate(child, ref)
-        resolved_child = resolve_document(child, resolver, _stack=[*stack, ref])
+        resolved_child = resolve_document(child, resolver, origin=ref, _stack=[*stack, ref])
         _merge_into(result, resolved_child, ref)
+
+    return result
+
+
+def local_references(data: dict, origin: str, *, _seen: list[Path] | None = None) -> list[Path]:
+    """Return every document reachable from ``data`` through relative references, transitively.
+
+    ``origin`` is the ``file://`` reference ``data`` was read from. The result is a list of
+    absolute paths in discovery order, deduplicated, and safe against reference cycles.
+
+    ``ament_nodl_register_node`` uses this at configure time for two things: to check that each
+    referenced document has already been registered, and to feed CMake the dependency list so
+    editing a document two levels down still reruns validation.
+    """
+    seen = [] if _seen is None else _seen
+
+    for entry in data.get('include') or []:
+        ref = entry.get('ref')
+        if not ref or not is_relative_ref(ref):
+            continue
+        child_ref = _normalize(ref, origin)
+        path = ref_to_path(child_ref)
+        if path in seen:
+            continue
+        seen.append(path)
+
+        try:
+            child = yaml.safe_load(path.read_text(encoding='utf-8'))
+        except OSError as exc:
+            raise CompositionError(f'could not read {ref!r} from {str(path)!r}: {exc}') from exc
+        if isinstance(child, dict):
+            local_references(child, child_ref, _seen=seen)
+
+    return seen
+
+
+def rewrite_references(data: dict, mapping: dict[Path, str], origin: str) -> dict:
+    """Return a copy of ``data`` with each relative reference replaced by its ``nodl://`` form.
+
+    ``mapping`` maps an absolute path to the ``<package>/<name>`` it was registered as.
+    ``nodl://`` references are left alone, and nothing is merged: this rewrites the reference
+    and changes nothing else, so the result differs from the authored document only in the
+    spelling of its references.
+
+    Rewriting is not recursive. Every registered document is rewritten by its own registration,
+    so a document that includes a document that includes a third one needs no special handling
+    here.
+    """
+    result = copy.deepcopy(data)
+
+    for entry in result.get('include') or []:
+        ref = entry.get('ref')
+        if not ref or not is_relative_ref(ref):
+            continue
+        path = ref_to_path(_normalize(ref, origin))
+        target = mapping.get(path)
+        if target is None:
+            raise CompositionError(
+                f'{ref!r} resolves to {str(path)!r}, which is not registered; '
+                f'register it with ament_nodl_register_node before the document that includes it'
+            )
+        entry['ref'] = _NODL_SCHEME + target
 
     return result
 

@@ -55,7 +55,13 @@ def validate(data: dict) -> None:
     _make_validator().validate(data)
 
 
-def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True, resolver=None) -> NodlDocument:
+def load_nodl(
+    source: Union[str, bytes, IO],
+    *,
+    resolve: bool = True,
+    resolver=None,
+    base: Union[str, Path, None] = None,
+) -> NodlDocument:
     """Load and validate a NoDL document from a string, bytes, or file-like object.
 
     JSON is a subset of YAML, so both are accepted through yaml.safe_load.
@@ -64,13 +70,25 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True, resolver=N
     list, each reference is resolved and its entities are merged in (see
     nodl_schema.composition); the returned document carries the merged
     interface and no ``include`` key. ``resolver`` overrides the default
-    ament/http resolver, mainly for tests. Pass ``resolve=False`` to parse the
-    document as authored, leaving ``include`` intact and following nothing.
+    resolver, mainly for tests. Pass ``resolve=False`` to parse the document as
+    authored, leaving ``include`` intact and following nothing.
+
+    ``base`` is the filesystem path this document was read from. Relative
+    references resolve against its directory, so it is required for a document
+    that uses them and ignored for one that does not. When ``source`` is an open
+    file the path is taken from it automatically.
 
     Raises jsonschema.ValidationError on schema error, pydantic.ValidationError
     on type error, or composition.CompositionError on an unresolvable or
     conflicting include.
     """
+    if base is None:
+        # An open file knows where it came from; use it so callers reading a path
+        # do not have to pass the same path twice.
+        name = getattr(source, 'name', None)
+        if isinstance(name, (str, Path)):
+            base = name
+
     data = yaml.safe_load(source)
     if not isinstance(data, dict):
         raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
@@ -79,9 +97,10 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True, resolver=N
 
     if resolve and data.get('include'):
         # Imported lazily to avoid a circular import (composition validates included docs via this module).
-        from nodl_schema.composition import resolve_document
+        from nodl_schema.composition import path_to_ref, resolve_document
 
-        data = resolve_document(data, resolver)
+        origin = path_to_ref(base) if base is not None else None
+        data = resolve_document(data, resolver, origin=origin)
         validate(data)
 
     # parse_obj is pydantic v1 API, retained as a deprecated alias in v2.
@@ -107,12 +126,70 @@ def dump_nodl(doc: Union[NodlDocument, dict], *, format: str = 'yaml') -> str:
     return yaml.dump(data, default_flow_style=False, allow_unicode=True)
 
 
+def _list_references(file: Path) -> int:
+    """Print every document reachable from ``file`` through relative references, one path per line.
+
+    ``ament_nodl_register_node`` reads this at configure time to check that each referenced
+    document is registered and to feed CMake its dependency list.
+    """
+    from nodl_schema.composition import local_references, path_to_ref
+
+    data = yaml.safe_load(file.read_text(encoding='utf-8'))
+    if not isinstance(data, dict):
+        raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
+    for path in local_references(data, path_to_ref(file)):
+        print(path)
+    return 0
+
+
+def _rewrite(file: Path, output: Path, mappings: list[str]) -> int:
+    """Write ``file`` to ``output`` with each relative reference rewritten to its ``nodl://`` form.
+
+    Each ``mappings`` entry is ``<absolute path>=<package>/<name>``, naming what a referenced
+    document was registered as.
+
+    A document with no relative references is copied through unchanged, byte for byte. Only a
+    document that actually has something to rewrite is re-serialized, and then in the format its
+    extension implies, so a ``.nodl.json`` file stays JSON.
+    """
+    import shutil
+
+    from nodl_schema.composition import is_relative_ref, path_to_ref, ref_to_path, rewrite_references
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    data = yaml.safe_load(file.read_text(encoding='utf-8'))
+    if not isinstance(data, dict):
+        raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
+
+    if not any(is_relative_ref(entry.get('ref', '')) for entry in data.get('include') or []):
+        shutil.copyfile(file, output)
+        return 0
+
+    mapping = {}
+    for item in mappings:
+        path_text, sep, target = item.partition('=')
+        if not sep or not path_text or not target:
+            raise ValueError(f'malformed --map {item!r}: expected <path>=<package>/<name>')
+        mapping[ref_to_path(path_to_ref(path_text))] = target
+
+    rewritten = rewrite_references(data, mapping, path_to_ref(file))
+    fmt = 'json' if file.suffix == '.json' else 'yaml'
+    output.write_text(dump_nodl(rewritten, format=fmt), encoding='utf-8')
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """``python -m nodl_schema <file>`` -- validate a NoDL file.
 
     Exits 0 on success, 1 on validation failure or I/O error.
     Designed for invocation from CMake macros (ament_nodl_register_node and
     siblings) so files are checked at build time, not at runtime.
+
+    Two additional modes serve registration rather than authors:
+    ``--list-references`` reports the documents reachable through relative
+    references, and ``--rewrite-to`` emits a copy with those references rewritten
+    into the ``nodl://`` form that survives installation.
     """
     import argparse
     import sys
@@ -129,9 +206,34 @@ def main(argv: list[str] | None = None) -> int:
         help='Validate the schema only; do not resolve include references. '
         'By default includes are resolved so the file is checked for resolvability too.',
     )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        '--list-references',
+        action='store_true',
+        help='Print the documents reachable from this one through relative references, '
+        'transitively, one absolute path per line, instead of validating.',
+    )
+    mode.add_argument(
+        '--rewrite-to',
+        type=Path,
+        metavar='PATH',
+        help='Write a copy of the file to PATH with each relative reference rewritten to '
+        'nodl://<package>/<name>, instead of validating.',
+    )
+    parser.add_argument(
+        '--map',
+        action='append',
+        default=[],
+        metavar='PATH=PACKAGE/NAME',
+        help='What a referenced document was registered as. Repeatable. Used with --rewrite-to.',
+    )
     args = parser.parse_args(argv)
 
     try:
+        if args.list_references:
+            return _list_references(args.file)
+        if args.rewrite_to is not None:
+            return _rewrite(args.file, args.rewrite_to, args.map)
         with args.file.open('r') as f:
             load_nodl(f, resolve=args.resolve)
     except Exception as exc:

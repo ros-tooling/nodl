@@ -262,8 +262,33 @@ def test_include_nodl_uri_accepted():
     validate({'nodl_version': 2, 'include': [{'ref': 'nodl://sensor_common/imu_driver'}]})
 
 
-def test_include_http_url_accepted():
-    validate({'nodl_version': 2, 'include': [{'ref': 'https://example.com/shared/telemetry.nodl.yaml'}]})
+@pytest.mark.parametrize(
+    'ref',
+    [
+        'telemetry.nodl.yaml',
+        'common/telemetry.nodl.yaml',
+        './telemetry.nodl.yaml',
+        '../shared/telemetry.nodl.yaml',
+    ],
+)
+def test_include_relative_path_accepted(ref):
+    validate({'nodl_version': 2, 'include': [{'ref': ref}]})
+
+
+@pytest.mark.parametrize(
+    'ref',
+    [
+        '/absolute/telemetry.nodl.yaml',  # cannot mean the same thing on two machines
+        'https://example.com/shared/telemetry.nodl.yaml',  # no network form
+        'ftp://example.com/telemetry.nodl.yaml',
+        'nodl://pkg',  # missing name
+        'nodl://pkg/nested/name',  # a registered name has no path separators
+        '',
+    ],
+)
+def test_include_bad_ref_rejected(ref):
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': [{'ref': ref}]})
 
 
 def test_include_empty_list_accepted():

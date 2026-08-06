@@ -50,6 +50,32 @@ _INVALID_NODL = textwrap.dedent("""
 """).lstrip()
 
 
+_VALID_NODL = 'nodl_version: 2\n'
+
+# composed.nodl.yaml references shared.nodl.yaml, but nothing registers shared.nodl.yaml.
+# There is no name to rewrite the reference to, so this must fail at configure time.
+_UNREGISTERED_REF_CMAKELISTS = textwrap.dedent("""
+    cmake_minimum_required(VERSION 3.22)
+    project(rejection_fixture)
+    find_package(ament_cmake REQUIRED)
+    find_package(ament_nodl REQUIRED)
+    ament_nodl_register_node(composed FILE composed.nodl.yaml)
+    ament_package()
+""")
+
+# Two different files both claiming the name 'thing'. The second registration would take over a
+# name that an already-rewritten reference could point at, so it must fail at configure time.
+_DUPLICATE_NAME_CMAKELISTS = textwrap.dedent("""
+    cmake_minimum_required(VERSION 3.22)
+    project(rejection_fixture)
+    find_package(ament_cmake REQUIRED)
+    find_package(ament_nodl REQUIRED)
+    ament_nodl_register_node(thing FILE one.nodl.yaml)
+    ament_nodl_register_node(thing FILE two.nodl.yaml)
+    ament_package()
+""")
+
+
 @pytest.fixture
 def inner_pkg(tmp_path: Path) -> Path:
     pkg = tmp_path / 'rejection_fixture'
@@ -58,6 +84,15 @@ def inner_pkg(tmp_path: Path) -> Path:
     (pkg / 'package.xml').write_text(_INNER_PACKAGE_XML)
     (pkg / 'bad.nodl.yaml').write_text(_INVALID_NODL)
     return pkg
+
+
+def _configure(pkg: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ['cmake', '-S', str(pkg), '-B', str(pkg / 'build')],
+        capture_output=True,
+        text=True,
+        env=os.environ,
+    )
 
 
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
@@ -84,3 +119,50 @@ def test_macro_rejects_invalid_node(inner_pkg: Path):
     assert 'not_a_real_type' in combined, (
         f'Expected the validator error to appear in the build output, got:\n{combined}'
     )
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_reference_to_unregistered_document(tmp_path: Path):
+    # The error belongs at configure time, because the fix is the ordering of calls in CMakeLists.
+    pkg = tmp_path / 'rejection_fixture'
+    pkg.mkdir()
+    (pkg / 'CMakeLists.txt').write_text(_UNREGISTERED_REF_CMAKELISTS)
+    (pkg / 'package.xml').write_text(_INNER_PACKAGE_XML)
+    (pkg / 'shared.nodl.yaml').write_text(_VALID_NODL)
+    (pkg / 'composed.nodl.yaml').write_text('nodl_version: 2\ninclude:\n  - ref: shared.nodl.yaml\n')
+
+    result = _configure(pkg)
+    assert result.returncode != 0, 'Expected configure to fail on the unregistered reference'
+    combined = result.stdout + result.stderr
+    assert 'not registered' in combined, f'Expected an unregistered-reference error, got:\n{combined}'
+    assert 'shared.nodl.yaml' in combined
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_one_name_registered_from_two_files(tmp_path: Path):
+    pkg = tmp_path / 'rejection_fixture'
+    pkg.mkdir()
+    (pkg / 'CMakeLists.txt').write_text(_DUPLICATE_NAME_CMAKELISTS)
+    (pkg / 'package.xml').write_text(_INNER_PACKAGE_XML)
+    (pkg / 'one.nodl.yaml').write_text(_VALID_NODL)
+    (pkg / 'two.nodl.yaml').write_text(_VALID_NODL)
+
+    result = _configure(pkg)
+    assert result.returncode != 0, 'Expected configure to fail on the duplicate name'
+    combined = result.stdout + result.stderr
+    assert 'already registered' in combined, f'Expected a duplicate-name error, got:\n{combined}'
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_the_same_name_registered_twice_from_one_file(tmp_path: Path):
+    # A repeated call is rejected too, for a plainer reason: each registration creates its own
+    # custom target, so the second one has nowhere to go.
+    pkg = tmp_path / 'rejection_fixture'
+    pkg.mkdir()
+    (pkg / 'CMakeLists.txt').write_text(_DUPLICATE_NAME_CMAKELISTS.replace('FILE two.nodl.yaml', 'FILE one.nodl.yaml'))
+    (pkg / 'package.xml').write_text(_INNER_PACKAGE_XML)
+    (pkg / 'one.nodl.yaml').write_text(_VALID_NODL)
+
+    result = _configure(pkg)
+    assert result.returncode != 0, 'Expected configure to fail on the repeated registration'
+    assert 'already registered' in result.stdout + result.stderr

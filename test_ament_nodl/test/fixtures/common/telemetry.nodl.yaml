@@ -1,0 +1,10 @@
+---
+nodl_version: 2
+description: Shared telemetry surface, included by other documents in this package.
+publishers:
+  - name: /telemetry/heartbeat
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: BEST_EFFORT

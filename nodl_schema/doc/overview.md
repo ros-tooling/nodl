@@ -63,8 +63,8 @@ Each entry is a reference that is resolved, validated, and merged into the inclu
 ```yaml
 nodl_version: 2
 include:
-  - ref: nodl://sensor_common/imu_driver          # resolved through the ament index
-  - ref: https://example.com/shared/telemetry.nodl.yaml  # fetched over the network
+  - ref: nodl://sensor_common/imu_driver   # resolved through the ament index
+  - ref: common/telemetry.nodl.yaml        # a document in this package, relative to this file
 publishers:
   - name: /status
     type: std_msgs/msg/String
@@ -75,16 +75,24 @@ Two reference forms are accepted:
 
 - `nodl://<package>/<name>` resolves through the ament index to the document registered by
   `ament_nodl_register_node` as the resource `nodl_nodes/<package>__<name>`.
-- `http://` / `https://` fetches the document over the network.
+- A relative path resolves against the directory of the document holding the reference. It names a document in the same
+  package, and is the only form that can reach a document in the package currently being built, since it reads the
+  source tree rather than an installed workspace. Pass `load_nodl(..., base=<path the text came from>)` so relative
+  references have something to resolve against; an open file supplies it automatically.
 
 Includes are followed recursively. The merge is strict: a name collision within any single category (two publishers
 named `/status`, two parameters named `gain`, and so on) across the document and its includes is an error. A publisher
 and a subscription may share a name, since they are different categories. Include cycles are detected and rejected.
 
+Relative references do not survive installation: `ament_nodl_register_node` rewrites them to their `nodl://` form, so a
+document read back out of the index never contains one. `local_references` and `rewrite_references` are the two entry
+points it uses, and are exposed for tooling that needs the same information.
+
 Resolution is pluggable. `load_nodl(..., resolver=...)` accepts anything satisfying the `Resolver` protocol
-(`fetch(ref) -> str`); the default `DefaultResolver` handles `nodl://` and `http(s)://`. `resolve_document(data,
-resolver)` exposes the merge directly for callers working with plain dicts. Resolution failures and collisions raise
-`CompositionError`.
+(`fetch(ref) -> str`); the default `DefaultResolver` handles `nodl://` and the `file://` references that relative paths
+normalize to. A reference is normalized against its document's origin before it is fetched, so adding a reference form
+later means teaching a resolver a new scheme and nothing else. `resolve_document(data, resolver)` exposes the merge
+directly for callers working with plain dicts. Resolution failures and collisions raise `CompositionError`.
 
 ```python
 from nodl_schema import load_nodl, resolve_document, DefaultResolver, CompositionError
