@@ -21,6 +21,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(register_node_tests test/test_register_node.py)
   ament_add_pytest_test(macro_rejection_tests test/test_macro_rejection.py)
+  ament_add_pytest_test(composition_tests test/test_composition.py)
 endif()
 
 ament_package()

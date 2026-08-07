@@ -11,6 +11,7 @@ Register a NoDL document for an executable. This does three things:
 
 1. Validates the file at build time (via `python -m nodl_schema`), so authoring errors surface when registering
    rather than downstream when a consumer reads the spec.
+   If the document uses `include`, this step also checks that its references resolve.
 2. Installs the file into the ament index under the `nodl_nodes` resource type, keyed `<package>__<executable>`.
 3. Installs the file under `share/<package>/nodl/` for direct filesystem access.
 
@@ -21,6 +22,17 @@ ament_nodl_register_node(my_node
   FILE nodl/my_node.nodl.yaml
 )
 ```
+
+### Includes and build order
+
+A `nodl://<package>/<name>` reference resolves through the ament index, which holds what is *installed*.
+Validation runs before this package is installed, so a referenced package must already be built and be a dependency of
+this one.
+A document therefore cannot reference another document in its own package at build time, even though the reference
+would resolve at runtime once both are installed.
+Composing a package's own documents needs a reference form that reads the source tree, which does not exist yet.
+
+`python -m nodl_schema <file> --no-resolve` checks the schema without following references, if you need it.
 
 ### Arguments
 
