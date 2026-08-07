@@ -11,6 +11,7 @@ a real index lives in test_ament_nodl.
 
 import pytest
 
+from nodl_schema import load_nodl
 from nodl_schema.composition import AmentIndexResolver, CompositionError, resolve_document
 
 _MIN_QOS = {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}
@@ -219,6 +220,49 @@ def test_included_non_mapping_raises():
     base = {'nodl_version': 2, 'include': [{'ref': 'nodl://pkg/list'}]}
     with pytest.raises(CompositionError, match='mapping'):
         resolve_document(base, resolver)
+
+
+# ---------------------------------------------------------------------------
+# load_nodl integration
+# ---------------------------------------------------------------------------
+
+
+def test_load_nodl_resolves_by_default():
+    resolver = FakeResolver({'nodl://pkg/extra': _sub_doc('/extra')})
+    doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://pkg/extra\n', resolver=resolver)
+    assert doc.subscriptions[0].name == '/extra'
+    # The include key is consumed once resolved.
+    assert doc.include is None
+
+
+def test_load_nodl_no_resolve_keeps_include():
+    resolver = FakeResolver({})
+    doc = load_nodl(
+        'nodl_version: 2\ninclude:\n  - ref: nodl://pkg/extra\n',
+        resolve=False,
+        resolver=resolver,
+    )
+    assert doc.include[0].ref == 'nodl://pkg/extra'
+    assert resolver.calls == []
+
+
+def test_load_nodl_without_include_does_not_touch_resolver():
+    resolver = FakeResolver({})
+    load_nodl('nodl_version: 2\n', resolver=resolver)
+    assert resolver.calls == []
+
+
+def test_load_nodl_revalidates_the_merged_document():
+    # The merge can only produce a valid document from valid parts, but the check is cheap and
+    # keeps a merge bug from reaching a caller as a typed model.
+    resolver = FakeResolver({'nodl://pkg/extra': _sub_doc('/extra')})
+    doc = load_nodl(
+        f'nodl_version: 2\npublishers:\n  - name: /base\n    type: std_msgs/msg/String\n    {_QOS_YAML}\n'
+        'include:\n  - ref: nodl://pkg/extra\n',
+        resolver=resolver,
+    )
+    assert [p.name for p in doc.publishers] == ['/base']
+    assert [s.name for s in doc.subscriptions] == ['/extra']
 
 
 # ---------------------------------------------------------------------------

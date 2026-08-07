@@ -28,10 +28,17 @@ parameters:
 
 _INVALID_NOT_A_MAPPING = '- just a list\n'
 
+# A schema-valid document whose include cannot be resolved (no such package in the ament index).
+_UNRESOLVABLE_INCLUDE = """\
+nodl_version: 2
+include:
+  - ref: nodl://no_such_package/no_such_node
+"""
 
-def _run(file: Path) -> subprocess.CompletedProcess:
+
+def _run(file: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, '-m', 'nodl_schema', str(file)],
+        [sys.executable, '-m', 'nodl_schema', *args, str(file)],
         capture_output=True,
         text=True,
     )
@@ -72,3 +79,28 @@ def test_json_frontend_supported(tmp_path: Path):
     f.write_text('{"nodl_version": 2}\n')
     result = _run(f)
     assert result.returncode == 0, result.stderr
+
+
+def test_unresolvable_include_exits_one_by_default(tmp_path: Path):
+    # The default (resolving) path is what ament_nodl_register_node runs, so a broken reference
+    # has to fail the build next to the schema check.
+    f = tmp_path / 'inc.nodl.yaml'
+    f.write_text(_UNRESOLVABLE_INCLUDE)
+    result = _run(f)
+    assert result.returncode == 1
+    assert str(f) in result.stderr
+
+
+def test_no_resolve_skips_reference_resolution(tmp_path: Path):
+    # --no-resolve checks the schema only, so an unresolvable include is fine.
+    f = tmp_path / 'inc.nodl.yaml'
+    f.write_text(_UNRESOLVABLE_INCLUDE)
+    result = _run(f, '--no-resolve')
+    assert result.returncode == 0, result.stderr
+
+
+def test_malformed_ref_exits_one_even_with_no_resolve(tmp_path: Path):
+    # The reference form is a schema constraint, so it is checked whether or not we resolve.
+    f = tmp_path / 'bad_ref.nodl.yaml'
+    f.write_text('nodl_version: 2\ninclude:\n  - ref: common/telemetry.nodl.yaml\n')
+    assert _run(f, '--no-resolve').returncode == 1
