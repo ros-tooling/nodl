@@ -25,14 +25,24 @@ include:
   - ref: nodl://sensor_common/imu_driver
 ```
 
-`ref` names a registered document in an already-installed package.
-`nodl://<package>/<name>` is resolved through the ament index as the resource `nodl_nodes/<package>__<name>`, which is
-exactly what `ament_nodl_register_node` installs.
+`ref` is a `<scheme>://<body>` URI whose scheme selects a resolver.
+`nodl://<package>/<name>` is the only form this pass ships, resolved through the ament index as the resource
+`nodl_nodes/<package>__<name>`, which is exactly what `ament_nodl_register_node` installs.
 `<name>` is a registered name, so it contains no path separators.
 
-The schema constrains `ref` to that form, so anything else is a schema error before resolution is attempted.
-A filesystem path is not a valid `ref`, absolute or relative: an absolute path cannot mean the same thing on two
-machines, and a relative path is deliberately deferred (see below).
+The schema checks that a `ref` is a URI and stops there.
+It deliberately does **not** constrain the scheme, because resolvers are registered at runtime (see below), so the set
+of working schemes is not knowable when the schema is written.
+A pattern enumerating schemes would be a second registry contradicting the first, and would reject any form a consumer
+registers.
+The body is likewise the resolver's business: `nodl://pkg` with no name is a resolver error, not a schema error, since
+the schema has no way to make that judgement for an arbitrary scheme.
+
+A bare or absolute path is still a schema error, since it names no resolver at all.
+The trade is that an unhandled-but-well-formed reference such as `ftp://x` is caught when resolving rather than when
+validating, so `--no-resolve` no longer catches it.
+That is the price of an open resolver set, and it is worth paying: the alternative caps the feature at the forms we
+happened to think of.
 
 ## Resolvers
 
@@ -48,20 +58,33 @@ class Resolver(Protocol):
 ```
 
 `handles` reports whether this resolver recognizes the reference; `resolve` fetches it.
-Splitting the two is what makes the set of forms open: resolving a reference becomes a matter of asking each registered
-resolver whether it recognizes the form, and using the first that does.
+Splitting the two is what makes the set of forms open, because it lets something else hold several resolvers and pick
+between them.
 
-This pass ships one resolver, `AmentIndexResolver`, which `handles` a reference by looking for the `nodl://` prefix and
-`resolve`s it through the ament index.
-There is no registry yet and nothing to loop over, so the call site is the direct form of what a registry would do:
+That something is `ResolverRegistry`.
+There is one process-wide instance, holding `AmentIndexResolver` by default, and `resolve_document` consults it:
 
 ```python
-if resolver.handles(ref):
-    text = resolver.resolve(ref)
+text = default_registry().resolve(ref)
 ```
 
-Building the registry before there is a second resolver would be inventing a shape with nothing to fit it to.
-The protocol is the part worth committing to now, because it is what a second form has to slot into.
+Registration is the whole interface for adding a form:
+
+```python
+with resolver_registered(MyResolver()):
+    doc = load_nodl(source)
+```
+
+**Neither `load_nodl` nor `resolve_document` takes a resolver.**
+An earlier pass threaded one down through both, and the only caller that ever passed it was the tests, which is the
+signal that it was the wrong seam: a real consumer wanting a new form had to touch every layer in between, while the
+argument bought nothing for anyone else.
+Registering says the same thing once, at the point where it is known, and every load in the process picks it up.
+
+The registry searches **most-recently-registered first**, so a registration shadows one already handling the same
+reference for as long as it stays in place.
+This is what lets a test stand in for the ament index without one being present, and `resolver_registered` scopes it to
+a block, removing the resolver on the way out even if the block raises, so a registration cannot leak between tests.
 
 `resolve` returns document *text* rather than a path.
 An ament index resource is content, not a file the consumer is meant to locate, and a form that fetches from somewhere
@@ -79,7 +102,7 @@ a question about that form alone rather than a question about composition.
 
 Resolution, for each reference:
 
-1. Fetch it through a `Resolver`.
+1. Fetch it through whichever registered `Resolver` handles it.
 2. Validate the fetched document against the schema.
 3. Resolve its own includes recursively.
 4. Merge its entities into the accumulator.
@@ -123,18 +146,21 @@ publishing it through a separate package.
 Closing that gap needs a reference form that reads the source tree, and that form brings its own problems: such a
 reference is meaningless once the document is installed and read back out of the index as text with no location, so
 registration would have to rewrite it into something a consumer can resolve.
-That is a separate change with its own design, and it slots in as another resolver plus a step in the registration
-macro.
-The `Resolver` protocol here is what it will attach to.
+That is a separate change with its own design, and it slots in as another registered resolver plus a step in the
+registration macro.
+The registry here is what it will attach to, and the schema no longer has to be reopened to admit its scheme.
 
 ## Code layout
 
-- `nodl_schema/schemas/nodl.schema.yaml`: the `include` array and the `reference` definition (`ref` pattern).
+- `nodl_schema/schemas/nodl.schema.yaml`: the `include` array and the `reference` definition, whose `ref` pattern
+  checks URI shape only.
   `models.py` is regenerated from it.
-- `nodl_schema/composition.py`: the `Resolver` protocol, `AmentIndexResolver`, and `resolve_document` (recursive fetch,
+- `nodl_schema/composition.py`: the `Resolver` protocol, `AmentIndexResolver`, `ResolverRegistry` with its process-wide
+  instance and the `register_resolver` / `resolver_registered` entry points, and `resolve_document` (recursive fetch,
   validate, cycle detection, strict merge).
   `CompositionError` is the failure type.
-- `nodl_schema/validator.py`: `load_nodl` gains `resolve` and `resolver` keywords, and the CLI gains `--no-resolve`.
+- `nodl_schema/validator.py`: `load_nodl` gains a `resolve` keyword, and the CLI gains `--no-resolve`.
 - `ros2nodl/verb/validate.py`: the same `--no-resolve` flag, so `ros2 nodl validate` matches the module CLI.
-- Resolution is pluggable, so the merge and cycle logic are unit-tested with an in-memory fake resolver, with a separate
-  end-to-end test in `test_ament_nodl` resolving a real `nodl://` reference through the installed ament index.
+- Resolution is pluggable through the registry, so the merge and cycle logic are unit-tested against a fake resolver
+  registered under its own `test://` scheme, needing no ament index. A separate end-to-end test in `test_ament_nodl`
+  resolves a real `nodl://` reference through the installed index.
