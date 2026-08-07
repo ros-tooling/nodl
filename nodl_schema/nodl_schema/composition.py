@@ -8,18 +8,27 @@ subscriptions, service/action servers and clients) are merged into the
 including document. Includes are followed recursively, and a name collision
 within any single category is an error.
 
-One reference form is supported: ``nodl://<package>/<name>`` names a registered
-document in an already-installed package, looked up in the ament index as the
-resource ``nodl_nodes/<package>__<name>`` that ``ament_nodl_register_node``
-installs.
+A reference is a URI whose scheme selects a :class:`Resolver`. A resolver answers
+two questions: whether it recognizes a reference (:meth:`~Resolver.handles`) and
+what document text that reference names (:meth:`~Resolver.resolve`). Splitting
+the two is what lets a :class:`ResolverRegistry` hold several and pick one, so
+adding a reference form means registering a resolver rather than editing
+anything here.
 
-Other forms are meant to be addable without reworking composition, which is what
-the :class:`Resolver` protocol is for. A resolver answers two questions about a
-reference: whether it recognizes the form (:meth:`~Resolver.handles`) and what
-document text it names (:meth:`~Resolver.resolve`). Splitting the two is what
-keeps the set of forms open, since resolving becomes a matter of finding the
-resolver that recognizes a reference. Only :class:`AmentIndexResolver` exists
-today, so there is nothing to search and the call site asks it directly.
+:class:`AmentIndexResolver` is registered by default and handles
+``nodl://<package>/<name>``, looked up in the ament index as the resource
+``nodl_nodes/<package>__<name>`` that ``ament_nodl_register_node`` installs.
+Anything else registers into the same process-wide registry::
+
+    with resolver_registered(MyResolver()):
+        doc = load_nodl(source)
+
+Registration is what makes a form available, rather than a resolver argument
+threaded down through every caller: ``load_nodl`` and ``resolve_document`` take
+no resolver, so a consumer that registers one changes what every load in the
+process can reach. The registry searches most-recently-registered first, so a
+scoped registration shadows a default one for as long as it is in place, which
+is what lets a test stand in for the ament index without one being present.
 
 ``resolve`` deals in document text rather than paths: an ament index resource is
 content, not a file a consumer is meant to locate, and a form fetching from
@@ -31,7 +40,8 @@ reference form is a fetch strategy and nothing more.
 from __future__ import annotations
 
 import copy
-from typing import Protocol, runtime_checkable
+from contextlib import contextmanager
+from typing import Iterator, Protocol, runtime_checkable
 
 import yaml
 
@@ -95,19 +105,115 @@ class AmentIndexResolver:
         return content
 
 
-def resolve_document(data: dict, resolver: Resolver | None = None, *, _stack: list[str] | None = None) -> dict:
+class ResolverRegistry:
+    """The set of reference forms that can currently be resolved.
+
+    Resolvers are searched most-recently-registered first, so registering one shadows any
+    already handling the same reference for as long as it stays registered.
+    """
+
+    def __init__(self, resolvers: tuple[Resolver, ...] = ()):
+        self._resolvers: list[Resolver] = list(resolvers)
+
+    def register(self, resolver: Resolver) -> Resolver:
+        """Add ``resolver``, giving it precedence over those already registered."""
+        if not isinstance(resolver, Resolver):
+            raise TypeError(f'{resolver!r} is not a Resolver: it needs handles() and resolve() methods')
+        self._resolvers.append(resolver)
+        return resolver
+
+    def unregister(self, resolver: Resolver) -> None:
+        """Remove the most recent registration of ``resolver``.
+
+        Removing the most recent one rather than the first keeps nesting well behaved: an
+        inner scope that re-registers something already present undoes only its own addition.
+        """
+        for index in range(len(self._resolvers) - 1, -1, -1):
+            if self._resolvers[index] is resolver:
+                del self._resolvers[index]
+                return
+        raise LookupError(f'{resolver!r} is not registered')
+
+    def resolver_for(self, ref: str) -> Resolver | None:
+        """The registered resolver that handles ``ref``, or None if nothing does."""
+        for resolver in reversed(self._resolvers):
+            if resolver.handles(ref):
+                return resolver
+        return None
+
+    def resolve(self, ref: str) -> str:
+        """Return the text of the document ``ref`` names, via whichever resolver handles it."""
+        resolver = self.resolver_for(ref)
+        if resolver is None:
+            raise CompositionError(
+                f'no registered resolver handles reference {ref!r}; '
+                f'the scheme selects the resolver, and nothing claims this one'
+            )
+        try:
+            return resolver.resolve(ref)
+        except CompositionError:
+            raise
+        except Exception as exc:
+            raise CompositionError(f'could not resolve include {ref!r}: {exc}') from exc
+
+    def __iter__(self) -> Iterator[Resolver]:
+        """Iterate in registration order, oldest first (the reverse of search order)."""
+        return iter(self._resolvers)
+
+    def __len__(self) -> int:
+        return len(self._resolvers)
+
+
+# Process-wide, so registering a form makes it available to every load in the process rather
+# than only to callers that were passed a resolver.
+_REGISTRY = ResolverRegistry((AmentIndexResolver(),))
+
+
+def default_registry() -> ResolverRegistry:
+    """The registry ``resolve_document`` consults."""
+    return _REGISTRY
+
+
+def register_resolver(resolver: Resolver) -> Resolver:
+    """Register ``resolver`` in the default registry for the rest of the process.
+
+    Prefer :func:`resolver_registered` where the registration has a scope; this is for a
+    resolver that belongs to the process, such as one a plugin installs at import time.
+    """
+    return _REGISTRY.register(resolver)
+
+
+def unregister_resolver(resolver: Resolver) -> None:
+    """Remove the most recent registration of ``resolver`` from the default registry."""
+    _REGISTRY.unregister(resolver)
+
+
+@contextmanager
+def resolver_registered(resolver: Resolver) -> Iterator[Resolver]:
+    """Register ``resolver`` for the duration of the block, then remove it.
+
+    Scoping the registration is what keeps a process-wide registry usable from tests: the
+    resolver is in place for anything the block loads, and gone afterwards even if the block
+    raises, so one test cannot leak a resolver into the next.
+    """
+    register_resolver(resolver)
+    try:
+        yield resolver
+    finally:
+        unregister_resolver(resolver)
+
+
+def resolve_document(data: dict, *, _stack: list[str] | None = None) -> dict:
     """Return a copy of ``data`` with its ``include`` list resolved and merged in.
 
-    Each reference is fetched via ``resolver`` (``AmentIndexResolver`` if none is given),
+    Each reference is fetched through whichever registered resolver handles it,
     schema-validated, recursively resolved, and merged. The returned dict has no ``include``
     key. The input ``data`` is not mutated.
 
-    Raises ``CompositionError`` on an unresolvable reference, an include cycle, or a name
-    collision within a category; raises ``jsonschema.ValidationError`` if an included
-    document does not satisfy the schema.
+    Raises ``CompositionError`` on a reference no resolver handles, an unresolvable
+    reference, an include cycle, or a name collision within a category; raises
+    ``jsonschema.ValidationError`` if an included document does not satisfy the schema.
     """
-    if resolver is None:
-        resolver = AmentIndexResolver()
     stack = _stack or []
 
     result = copy.deepcopy(data)
@@ -119,32 +225,16 @@ def resolve_document(data: dict, resolver: Resolver | None = None, *, _stack: li
             chain = ' -> '.join([*stack, ref])
             raise CompositionError(f'include cycle detected: {chain}')
 
-        text = _fetch(resolver, ref)
+        text = _REGISTRY.resolve(ref)
         child = yaml.safe_load(text)
         if not isinstance(child, dict):
             raise CompositionError(f'included document {ref!r} is not a YAML/JSON mapping')
 
         _validate(child)
-        resolved_child = resolve_document(child, resolver, _stack=[*stack, ref])
+        resolved_child = resolve_document(child, _stack=[*stack, ref])
         _merge_into(result, resolved_child, ref)
 
     return result
-
-
-def _fetch(resolver: Resolver, ref: str) -> str:
-    """Resolve one reference, normalizing a resolver's failures to CompositionError.
-
-    This is where a registry of resolvers would go once there is more than one form to
-    choose between: ask each in turn which one ``handles`` the reference.
-    """
-    if not resolver.handles(ref):
-        raise CompositionError(f'unsupported reference {ref!r}: expected nodl://<package>/<name>')
-    try:
-        return resolver.resolve(ref)
-    except CompositionError:
-        raise
-    except Exception as exc:
-        raise CompositionError(f'could not resolve include {ref!r}: {exc}') from exc
 
 
 def _validate(document: dict) -> None:

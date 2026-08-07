@@ -55,7 +55,7 @@ def validate(data: dict) -> None:
     _make_validator().validate(data)
 
 
-def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True, resolver=None) -> NodlDocument:
+def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDocument:
     """Load and validate a NoDL document from a string, bytes, or file-like object.
 
     JSON is a subset of YAML, so both are accepted through yaml.safe_load.
@@ -63,9 +63,13 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True, resolver=N
     When ``resolve`` is true (the default) and the document has an ``include``
     list, each reference is resolved and its entities are merged in (see
     nodl_schema.composition); the returned document carries the merged
-    interface and no ``include`` key. ``resolver`` overrides the default
-    resolver, mainly for tests. Pass ``resolve=False`` to parse the document as
-    authored, leaving ``include`` intact and following nothing.
+    interface and no ``include`` key. Pass ``resolve=False`` to parse the
+    document as authored, leaving ``include`` intact and following nothing.
+
+    Which references can be resolved depends on what is registered with
+    nodl_schema.composition.register_resolver; there is no resolver argument
+    here, so a form is made available by registering it rather than by every
+    caller passing one down.
 
     Raises jsonschema.ValidationError on schema error, pydantic.ValidationError
     on type error, or composition.CompositionError on an unresolvable or
@@ -81,7 +85,7 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True, resolver=N
         # Imported lazily to avoid a circular import (composition validates included docs via this module).
         from nodl_schema.composition import resolve_document
 
-        data = resolve_document(data, resolver)
+        data = resolve_document(data)
         validate(data)
 
     # parse_obj is pydantic v1 API, retained as a deprecated alias in v2.
