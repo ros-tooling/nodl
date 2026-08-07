@@ -252,6 +252,66 @@ def test_base_no_longer_allowed():
         validate({'nodl_version': 2, 'base': 'lifecycle_node'})
 
 
+# ---------------------------------------------------------------------------
+# include (composition references) -- schema shape only; resolution is covered
+# in test_composition.py
+# ---------------------------------------------------------------------------
+
+
+def test_include_nodl_uri_accepted():
+    validate({'nodl_version': 2, 'include': [{'ref': 'nodl://sensor_common/imu_driver'}]})
+
+
+def test_include_empty_list_accepted():
+    validate({'nodl_version': 2, 'include': []})
+
+
+@pytest.mark.parametrize(
+    'ref',
+    [
+        'nodl://pkg',  # missing name
+        'nodl://pkg/',  # empty name
+        'nodl:///name',  # empty package
+        'nodl://pkg/nested/name',  # a registered name has no path separators
+        '',
+    ],
+)
+def test_include_malformed_nodl_uri_rejected(ref):
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': [{'ref': ref}]})
+
+
+@pytest.mark.parametrize(
+    'ref',
+    [
+        '/absolute/telemetry.nodl.yaml',  # cannot mean the same thing on two machines
+        'common/telemetry.nodl.yaml',  # relative paths are not supported yet
+        './telemetry.nodl.yaml',
+        'https://example.com/shared/telemetry.nodl.yaml',  # no network form
+        'ftp://example.com/telemetry.nodl.yaml',
+    ],
+)
+def test_include_non_nodl_ref_rejected(ref):
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': [{'ref': ref}]})
+
+
+def test_include_missing_ref_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': [{}]})
+
+
+def test_include_extra_key_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': [{'ref': 'nodl://pkg/x', 'when': 'always'}]})
+
+
+def test_include_bare_string_rejected():
+    # An entry is an object, so there is somewhere to put a second key later.
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'include': ['nodl://pkg/x']})
+
+
 def test_invalid_parameter_type():
     with pytest.raises(ValidationError):
         validate({'nodl_version': 2, 'parameters': {'p': {'type': 'float'}}})

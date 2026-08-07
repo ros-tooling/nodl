@@ -28,6 +28,16 @@ properties:
     type: string
     description: Human-readable description of what this node does.
 
+  include:
+    type: array
+    description: |
+      Other NoDL documents whose interface entities are merged into this one.
+      Each reference is resolved - recursively, following all references until done.
+      Circular inclusion is an error.
+      An entity-name collision (for example two publishers named ``/status``) is an error.
+    items:
+      $ref: '#/definitions/reference'
+
   parameters:
     type: object
     description: |
@@ -74,6 +84,28 @@ properties:
       $ref: '#/definitions/action_endpoint'
 
 definitions:
+  reference:
+    type: object
+    description: |
+      A reference to another NoDL document to include.
+    additionalProperties: false
+    required:
+      - ref
+    properties:
+      ref:
+        type: string
+        description: |
+          Location of the NoDL document to include, as a ``nodl://<package>/<name>``
+          URI naming a registered document in an already-installed package. It is
+          resolved through the ament index, where ``ament_nodl_register_node``
+          publishes each document. ``<name>`` is a registered name and so contains
+          no path separators.
+          A filesystem path is not accepted. An absolute one cannot mean the same
+          thing on two machines, and a relative one is not yet supported.
+        pattern: ^nodl://[^/]+/[^/]+$
+        examples:
+          - nodl://sensor_common/imu_driver
+
   rosName:
     type: string
     description: |

@@ -50,6 +50,22 @@ class ArrayType(Enum):
     string_array = 'string_array'
 
 
+class Reference(BaseModel):
+    """
+    A reference to another NoDL document to include.
+
+    """
+
+    class Config:
+        extra = Extra.forbid
+
+    ref: constr(regex=r'^nodl://[^/]+/[^/]+$') = Field(
+        ...,
+        description='Location of the NoDL document to include, as a ``nodl://<package>/<name>``\nURI naming a registered document in an already-installed package. It is\nresolved through the ament index, where ``ament_nodl_register_node``\npublishes each document. ``<name>`` is a registered name and so contains\nno path separators.\nA filesystem path is not accepted. An absolute one cannot mean the same\nthing on two machines, and a relative one is not yet supported.\n',
+        examples=['nodl://sensor_common/imu_driver'],
+    )
+
+
 class History(Enum):
     """
     History policy.
@@ -436,6 +452,10 @@ class NodlDocument(BaseModel):
 
     nodl_version: int = Field(2, const=True, description='NoDL schema major version this document targets.')
     description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
+    include: Optional[list[Reference]] = Field(
+        None,
+        description='Other NoDL documents whose interface entities are merged into this one.\nEach reference is resolved - recursively, following all references until done.\nCircular inclusion is an error.\nAn entity-name collision (for example two publishers named ``/status``) is an error.\n',
+    )
     parameters: Optional[dict[str, ParameterDefinition]] = Field(
         None,
         description='ROS parameters declared by this node, keyed by parameter name.\nParameter shape is borrowed from ``generate_parameter_library``\n(see ``parameter.schema.yaml``).\n',
