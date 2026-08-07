@@ -269,29 +269,45 @@ def test_include_empty_list_accepted():
 @pytest.mark.parametrize(
     'ref',
     [
-        'nodl://pkg',  # missing name
-        'nodl://pkg/',  # empty name
-        'nodl:///name',  # empty package
-        'nodl://pkg/nested/name',  # a registered name has no path separators
-        '',
+        'test://in_memory/doc',  # what a test resolver registers
+        'file://shared/telemetry.nodl.yaml',
+        'https://example.com/shared/telemetry.nodl.yaml',
     ],
 )
-def test_include_malformed_nodl_uri_rejected(ref):
-    with pytest.raises(ValidationError):
-        validate({'nodl_version': 2, 'include': [{'ref': ref}]})
+def test_include_other_scheme_accepted(ref):
+    # Resolvers are registered at runtime, so the schema cannot know which schemes work. It
+    # checks the shape; an unhandled scheme is a resolution error (see test_composition.py).
+    validate({'nodl_version': 2, 'include': [{'ref': ref}]})
+
+
+@pytest.mark.parametrize(
+    'ref',
+    [
+        'nodl://pkg',  # missing name
+        'nodl://pkg/nested/name',  # a registered name has no path separators
+    ],
+)
+def test_include_scheme_specific_shape_is_not_the_schemas_business(ref):
+    # Whether a nodl:// body names a real document is AmentIndexResolver's check, not the
+    # schema's, since the schema has no way to make that check for an arbitrary scheme.
+    validate({'nodl_version': 2, 'include': [{'ref': ref}]})
 
 
 @pytest.mark.parametrize(
     'ref',
     [
         '/absolute/telemetry.nodl.yaml',  # cannot mean the same thing on two machines
-        'common/telemetry.nodl.yaml',  # relative paths are not supported yet
+        'common/telemetry.nodl.yaml',  # a bare path names no resolver
         './telemetry.nodl.yaml',
-        'https://example.com/shared/telemetry.nodl.yaml',  # no network form
-        'ftp://example.com/telemetry.nodl.yaml',
+        'nodl:///name',  # empty authority
+        'nodl://',
+        '://pkg/name',  # no scheme
+        'nodl:/pkg/name',  # not a URI
+        'has space://pkg/name',
+        '',
     ],
 )
-def test_include_non_nodl_ref_rejected(ref):
+def test_include_non_uri_ref_rejected(ref):
     with pytest.raises(ValidationError):
         validate({'nodl_version': 2, 'include': [{'ref': ref}]})
 

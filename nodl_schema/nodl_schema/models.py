@@ -59,9 +59,9 @@ class Reference(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    ref: constr(regex=r'^nodl://[^/]+/[^/]+$') = Field(
+    ref: constr(regex=r'^[a-z][a-z0-9+.-]*://[^\s/][^\s]*$') = Field(
         ...,
-        description='Location descriptor of a NoDL document.\nFormat is a ``nodl://<package>/<name>`` URI,\nwhich can resolve any name from ``ament_nodl_register_`` macros in dependency packages.\n',
+        description="Location descriptor of a NoDL document, as a ``<scheme>://<body>`` URI.\nThe scheme selects which resolver fetches the document; the body is that\nresolver's business, so the schema checks only that this is a URI.\nWhich schemes work is a runtime question, since resolvers are registered,\nand an unhandled one is a resolution error rather than a schema error.\n``nodl://<package>/<name>`` is the built-in form, and resolves any name\nfrom ``ament_nodl_register_`` macros in dependency packages.\n",
         examples=['nodl://sensor_common/imu_driver'],
     )
 
