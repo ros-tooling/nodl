@@ -87,7 +87,7 @@ definitions:
   reference:
     type: object
     description: |
-      A reference to another NoDL document to include.
+      A reference to another NoDL document.
     additionalProperties: false
     required:
       - ref
@@ -95,13 +95,9 @@ definitions:
       ref:
         type: string
         description: |
-          Location of the NoDL document to include, as a ``nodl://<package>/<name>``
-          URI naming a registered document in an already-installed package. It is
-          resolved through the ament index, where ``ament_nodl_register_node``
-          publishes each document. ``<name>`` is a registered name and so contains
-          no path separators.
-          A filesystem path is not accepted. An absolute one cannot mean the same
-          thing on two machines, and a relative one is not yet supported.
+          Location descriptor of a NoDL document.
+          Format is a ``nodl://<package>/<name>`` URI,
+          which can resolve any name from ``ament_nodl_register_`` macros in dependency packages.
         pattern: ^nodl://[^/]+/[^/]+$
         examples:
           - nodl://sensor_common/imu_driver

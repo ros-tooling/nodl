@@ -26,11 +26,9 @@ ament_nodl_register_node(my_node
 ### Includes and build order
 
 A `nodl://<package>/<name>` reference resolves through the ament index, which holds what is *installed*.
-Validation runs before this package is installed, so a referenced package must already be built and be a dependency of
-this one.
-A document therefore cannot reference another document in its own package at build time, even though the reference
-would resolve at runtime once both are installed.
-Composing a package's own documents needs a reference form that reads the source tree, which does not exist yet.
+Validation runs before this package is installed, so a referenced package must already be built and be a dependency of this one.
+Note: it is therefore not (yet) possible at build time for a document to reference another document in its own package.
+This feature is upcoming in a followup pass.
 
 `python -m nodl_schema <file> --no-resolve` checks the schema without following references, if you need it.
 

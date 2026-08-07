@@ -52,7 +52,7 @@ class ArrayType(Enum):
 
 class Reference(BaseModel):
     """
-    A reference to another NoDL document to include.
+    A reference to another NoDL document.
 
     """
 
@@ -61,7 +61,7 @@ class Reference(BaseModel):
 
     ref: constr(regex=r'^nodl://[^/]+/[^/]+$') = Field(
         ...,
-        description='Location of the NoDL document to include, as a ``nodl://<package>/<name>``\nURI naming a registered document in an already-installed package. It is\nresolved through the ament index, where ``ament_nodl_register_node``\npublishes each document. ``<name>`` is a registered name and so contains\nno path separators.\nA filesystem path is not accepted. An absolute one cannot mean the same\nthing on two machines, and a relative one is not yet supported.\n',
+        description='Location descriptor of a NoDL document.\nFormat is a ``nodl://<package>/<name>`` URI,\nwhich can resolve any name from ``ament_nodl_register_`` macros in dependency packages.\n',
         examples=['nodl://sensor_common/imu_driver'],
     )
 
