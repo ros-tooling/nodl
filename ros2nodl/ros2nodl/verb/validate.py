@@ -27,7 +27,6 @@ class ValidateVerb(VerbExtension):
         )
 
     def main(self, *, args):
-        # getattr, because a caller building args by hand need not know about the flag.
         resolve = getattr(args, 'resolve', True)
         if not args.files:
             return _validate_source(sys.stdin, '<stdin>', resolve=resolve)
