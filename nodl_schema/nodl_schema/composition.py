@@ -39,21 +39,15 @@ reference form is a fetch strategy and nothing more.
 
 from __future__ import annotations
 
-import copy
 from contextlib import contextmanager
 from typing import Generator, Protocol, runtime_checkable
 
-import yaml
+from nodl_schema.models import NodlDocument, ParameterDefinition
 
-# Entity categories merged as name-keyed lists. Parameters are handled separately (a dict).
-_ENTITY_LIST_KEYS = (
-    'publishers',
-    'subscriptions',
-    'service_servers',
-    'service_clients',
-    'action_servers',
-    'action_clients',
-)
+# --------------------------------
+# Reference resolution
+# --------------------------------
+
 
 class ResolutionError(Exception):
     """Raised when includes cannot be resolved (unresolvable ref, cycle)."""
@@ -73,6 +67,7 @@ class Resolver(Protocol):
 
 
 _RESOLVERS: list[Resolver] = list()
+
 
 def register_resolver(resolver: Resolver) -> Resolver:
     """Register ``resolver`` for the rest of the process.
@@ -95,13 +90,17 @@ def unregister_resolver(resolver: Resolver) -> None:
     raise LookupError(f'{resolver!r} is not registered')
 
 
+def get_resolvers() -> list[Resolver]:
+    return _RESOLVERS
+
+
 @contextmanager
 def resolver_registered(resolver: Resolver) -> Generator[Resolver]:
     """Register ``resolver`` for the context, then remove it.
 
-    Scoping the registration is what keeps a process-wide registry usable from tests: the
-    resolver is in place for anything the block loads, and gone afterwards even if the block
-    raises, so one test cannot leak a resolver into the next.
+    This makes a resolver usable by tests.
+    The resolver is in place for the block and gone afterward even on exception,
+    so one test cannot leak a resolver into the next.
     """
     register_resolver(resolver)
     try:
@@ -126,35 +125,82 @@ def resolve(ref: str) -> str:
     return resolver.resolve(ref)
 
 
-def resolve_document():
+# --------------------------------
+# Document merging
+# --------------------------------
+
+
+class MergeError(Exception):
+    """Raised when documents cannot be merged (a name collision within one category)."""
+
+
+def _collision(category: str, name: str, first: int, second: int) -> str:
+    """Describe a collision by position, which is the only identity a document currently has."""
+    label = category.replace('_', ' ')
+    where = 'the including document' if first == 0 else f'included document {first}'
+    return f'duplicate {label} {name!r}: declared by {where} and by included document {second}'
+
+
+def _merge_parameters(docs: list[NodlDocument]) -> dict[str, ParameterDefinition]:
+    """Merge the parameter maps, erroring on a name declared by more than one document."""
+    merged: dict[str, ParameterDefinition] = {}
+    origin: dict[str, int] = {}
+
+    for index, doc in enumerate(docs):
+        for name, parameter in (doc.parameters or {}).items():
+            if name in merged:
+                raise MergeError(_collision('parameter', name, origin[name], index))
+            merged[name] = parameter
+            origin[name] = index
+
+    return merged
+
+
+def _merge_entities(docs: list[NodlDocument], field: str) -> list:
+    """Concatenate one entity category across documents, erroring on a repeated name."""
+    merged = []
+    origin: dict[str, int] = {}
+
+    for index, doc in enumerate(docs):
+        for entity in getattr(doc, field) or []:
+            if entity.name in origin:
+                raise MergeError(_collision(field[:-1], entity.name, origin[entity.name], index))
+            merged.append(entity)
+            origin[entity.name] = index
+
+    return merged
+
+
+def merge_documents(docs: list[NodlDocument]) -> NodlDocument:
+    """Combine documents into one.
+
+    In the context of resolving includes, docs[0] is the root.
+
+    Merging is strict.
+    Two documents declaring the same name for the same entity type (publisher, parameter, etc) is an error,
+    because the intent can't be determined here.
+
+    ``nodl_version`` and ``description`` are taken from ``docs[0]``.
+    The result has no ``include``, since it is the resolved form of one.
     """
+    # Entity categories that merge as name-keyed lists. Parameters are a dict, and merge separately.
+    _ENTITY_LIST_FIELDS = (
+        'publishers',
+        'subscriptions',
+        'service_servers',
+        'service_clients',
+        'action_servers',
+        'action_clients',
+    )
 
-    Each reference is fetched through whichever registered resolver handles it,
-    schema-validated, recursively resolved, and merged. The returned dict has no ``include``
-    key. The input ``data`` is not mutated.
+    if not docs:
+        raise ValueError('merge_documents needs at least one document')
+    root = docs[0]
 
-    Raises ``CompositionError`` on a reference no resolver handles, an unresolvable
-    reference, an include cycle, or a name collision within a category; raises
-    ``jsonschema.ValidationError`` if an included document does not satisfy the schema.
-    """
-    stack = _stack or []
-
-    result = copy.deepcopy(data)
-    includes = result.pop('include', None) or []
-
-    for entry in includes:
-        ref = entry['ref']
-        if ref in stack:
-            chain = ' -> '.join([*stack, ref])
-            raise CompositionError(f'include cycle detected: {chain}')
-
-        text = _REGISTRY.resolve(ref)
-        child = yaml.safe_load(text)
-        if not isinstance(child, dict):
-            raise CompositionError(f'included document {ref!r} is not a YAML/JSON mapping')
-
-        _validate(child)
-        resolved_child = resolve_document(child, _stack=[*stack, ref])
-        _merge_into(result, resolved_child, ref)
-
-    return result
+    return NodlDocument(
+        nodl_version=root.nodl_version,
+        description=root.description,
+        include=None,
+        parameters=_merge_parameters(docs) or None,
+        **{field: _merge_entities(docs, field) or None for field in _ENTITY_LIST_FIELDS},
+    )

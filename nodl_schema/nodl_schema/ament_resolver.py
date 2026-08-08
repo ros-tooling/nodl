@@ -1,5 +1,9 @@
-from nodl_schema.composition import ResolutionError
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
 from ament_index_python import resources as ament_index
+
+from nodl_schema.composition import ResolutionError
+
 
 class AmentIndexResolver:
     """Resolves ``nodl://<package>/<name>`` through the ament index."""

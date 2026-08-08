@@ -130,7 +130,8 @@ def _run(
         print(f'ros2 nodl describe: {exc}', file=sys.stderr)
         return 1
 
-    from nodl_schema import validator
+    from nodl_schema.loader import dump_nodl
+    from nodl_schema.validation import validate
     from ros2nodl.describe import DescribeOptions, node_to_nodl
 
     try:
@@ -146,7 +147,7 @@ def _run(
         return 1
 
     try:
-        validator.validate(json.loads(result.doc.json(exclude_none=True)))
+        validate(json.loads(result.doc.json(exclude_none=True)))
     except Exception as exc:
         print(f'ros2 nodl describe: document failed validation: {exc}', file=sys.stderr)
         return 1
@@ -154,7 +155,7 @@ def _run(
     for gap in result.gaps:
         print(f'ros2 nodl describe: {gap.path}: {gap.reason}', file=sys.stderr)
 
-    write_result = _write(validator.dump_nodl(result.doc, format=output_format), output_path)
+    write_result = _write(dump_nodl(result.doc, format=output_format), output_path)
     if write_result:
         return write_result
     return int(bool(fail_on_warnings and result.gaps))

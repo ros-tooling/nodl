@@ -30,6 +30,7 @@ properties:
 
   include:
     type: array
+    default: []
     description: |
       Other NoDL documents whose interface entities are merged into this one.
       Each reference is resolved - recursively, following all references until done.

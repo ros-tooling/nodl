@@ -5,7 +5,7 @@ import json
 
 import stub_msgs
 
-from nodl_schema.validator import validate
+from nodl_schema.validation import validate
 from ros2nodl.describe import DescribeOptions, node_to_nodl
 
 

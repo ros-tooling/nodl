@@ -7,7 +7,7 @@ Delegates to nodl_schema.validator.main.
 
 import sys
 
-from nodl_schema.validator import main
+from nodl_schema.cli import main
 
 if __name__ == '__main__':
     sys.exit(main())

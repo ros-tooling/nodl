@@ -1,8 +1,11 @@
-
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
 import argparse
 import sys
 from pathlib import Path
+
 from nodl_schema.loader import load_nodl
+
 
 def main(argv: list[str] | None = None) -> int:
     """``python -m nodl_schema <file>`` -- load and validate a NoDL file.

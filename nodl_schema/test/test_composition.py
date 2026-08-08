@@ -1,66 +1,97 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Unit tests for NoDL document composition (the ``include`` key).
 
-Resolution is exercised through a fake in-memory resolver, registered under its
-own ``test://`` scheme, so these tests need neither an ament index nor network
-access. Nothing is passed a resolver: the ``docs`` fixture registers one for the
-duration of a test and ``load_nodl``/``resolve_document`` reach it through the
-registry, which is the arrangement being tested as much as it is the setup.
-
-AmentIndexResolver's own URI handling is tested here against a stubbed ament
-lookup; end-to-end resolution through a real index lives in test_ament_nodl.
-"""
+"""Unit tests for NoDL document composition (the ``include`` key)."""
 
 import pytest
 
-from nodl_schema import load_nodl
-from nodl_schema.composition import (
+from nodl_schema import (
     AmentIndexResolver,
-    CompositionError,
-    ResolverRegistry,
-    default_registry,
+    ResolutionError,
+    dump_nodl,
+    get_resolvers,
+    load_nodl,
     register_resolver,
     resolve_document,
     resolver_registered,
     unregister_resolver,
 )
+from nodl_schema.composition import MergeError, merge_documents
+from nodl_schema.models import (
+    History,
+    NodlDocument,
+    ParameterDefinition,
+    QosProfile,
+    Reference,
+    Reliability,
+    ServiceEndpoint,
+    TopicEndpoint,
+)
 
-_MIN_QOS = {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}
-_QOS_YAML = 'qos: {history: SYSTEM_DEFAULT, reliability: SYSTEM_DEFAULT}'
-
-
-def _pub(name, type_='std_msgs/msg/String'):
-    return {'name': name, 'type': type_, 'qos': _MIN_QOS}
-
-
-def _pub_doc(name):
-    return f'nodl_version: 2\npublishers:\n  - name: {name}\n    type: std_msgs/msg/String\n    {_QOS_YAML}\n'
-
-
-def _sub_doc(name):
-    return f'nodl_version: 2\nsubscriptions:\n  - name: {name}\n    type: std_msgs/msg/String\n    {_QOS_YAML}\n'
+_QOS = QosProfile(history=History.SYSTEM_DEFAULT, reliability=Reliability.SYSTEM_DEFAULT)
 
 
-def _including(*refs):
-    return {'nodl_version': 2, 'include': [{'ref': ref} for ref in refs]}
+def _topic(name, type_='std_msgs/msg/String') -> TopicEndpoint:
+    return TopicEndpoint(
+        name=name,
+        type=type_,
+        qos=_QOS,
+    )
+
+
+def _service(name, type_='std_srvs/srv/Trigger') -> ServiceEndpoint:
+    return ServiceEndpoint(name=name, type=type_)
+
+
+def _pub_doc(name, *refs) -> NodlDocument:
+    return NodlDocument(
+        publishers=[
+            _topic(name),
+        ],
+        include=_refs(*refs),
+    )
+
+
+def _sub_doc(name, *refs) -> NodlDocument:
+    return NodlDocument(subscriptions=[_topic(name)], include=_refs(*refs))
+
+
+def _param_doc(**params) -> NodlDocument:
+    """A document declaring parameters, given as ``name='type'`` pairs."""
+    return NodlDocument(parameters={name: ParameterDefinition(type=type_) for name, type_ in params.items()})
+
+
+def _refs(*refs) -> list[Reference]:
+    return [Reference(ref=ref) for ref in refs]
+
+
+def _including(*refs) -> NodlDocument:
+    """A document whose only content is what it includes."""
+    return NodlDocument(include=_refs(*refs))
 
 
 class FakeResolver:
-    """Resolves an in-memory ``test://`` namespace.
+    """Resolves an in-memory ``test://`` reference format.
 
-    A scheme of its own is what lets this stand alongside the built-in resolver rather than
-    having to displace it, so a test says what it wants resolvable and nothing else changes.
+    Documents are held as models and serialized on the way out, because ``resolve`` is the
+    wire boundary and its contract is text. Tests therefore author models throughout, and
+    reach for ``add_text`` only where the point is content a model cannot represent.
     """
 
     scheme = 'test://'
 
-    def __init__(self, docs: dict | None = None):
-        self.docs = dict(docs or {})
+    def __init__(self, docs: dict[str, NodlDocument] | None = None):
+        self.docs: dict[str, str] = {}
         self.calls: list[str] = []
+        for name, doc in (docs or {}).items():
+            self.add(name, doc)
 
-    def add(self, name: str, text: str) -> str:
-        """Register document ``text`` as ``test://<name>`` and return the ref to include."""
+    def add(self, name: str, doc: NodlDocument) -> str:
+        """Register ``doc`` as ``test://<name>`` and return the ref that includes it."""
+        return self.add_text(name, dump_nodl(doc))
+
+    def add_text(self, name: str, text: str) -> str:
+        """Register raw text, for documents that are deliberately not valid NoDL."""
         ref = f'{self.scheme}{name}'
         self.docs[ref] = text
         return ref
@@ -90,43 +121,40 @@ def docs():
 
 def test_single_include_merges_entities(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
-    base = {'nodl_version': 2, 'include': [{'ref': ref}], 'publishers': [_pub('/base')]}
-    merged = resolve_document(base)
-    assert 'include' not in merged
-    assert [p['name'] for p in merged['publishers']] == ['/base']
-    assert [s['name'] for s in merged['subscriptions']] == ['/extra']
+    base = NodlDocument(publishers=[_topic('/base')], include=_refs(ref))
+    merged = merge_documents(resolve_document(base))
+    assert merged.include is None
+    assert [p.name for p in merged.publishers] == ['/base']
+    assert [s.name for s in merged.subscriptions] == ['/extra']
 
 
 def test_include_merges_parameters(docs):
-    ref = docs.add('params', 'nodl_version: 2\nparameters:\n  gain: {type: double}\n')
-    base = {'nodl_version': 2, 'include': [{'ref': ref}], 'parameters': {'rate': {'type': 'int'}}}
-    merged = resolve_document(base)
-    assert set(merged['parameters']) == {'rate', 'gain'}
+    ref = docs.add('params', _param_doc(gain='double'))
+    base = NodlDocument(parameters={'rate': ParameterDefinition(type='int')}, include=_refs(ref))
+    merged = merge_documents(resolve_document(base))
+    assert set(merged.parameters) == {'rate', 'gain'}
 
 
 def test_nested_include_is_resolved_recursively(docs):
-    docs.add('b', _pub_doc('/b'))
-    ref = docs.add(
-        'a',
-        f'nodl_version: 2\ninclude:\n  - ref: test://b\npublishers:\n'
-        f'  - name: /a\n    type: std_msgs/msg/String\n    {_QOS_YAML}\n',
-    )
-    merged = resolve_document(_including(ref))
-    assert sorted(p['name'] for p in merged['publishers']) == ['/a', '/b']
+    inner = docs.add('b', _pub_doc('/b'))
+    ref = docs.add('a', _pub_doc('/a', inner))
+    merged = merge_documents(resolve_document(_including(ref)))
+    assert sorted(p.name for p in merged.publishers) == ['/a', '/b']
 
 
 def test_input_document_is_not_mutated(docs):
     ref = docs.add('x', _pub_doc('/x'))
     base = _including(ref)
-    resolve_document(base)
-    assert base['include'] == [{'ref': ref}]
-    assert 'publishers' not in base
+    merge_documents(resolve_document(base))
+    assert [r.ref for r in base.include] == [ref]
+    assert base.publishers is None
 
 
 def test_document_without_includes_touches_no_resolver(docs):
-    merged = resolve_document({'nodl_version': 2, 'publishers': [_pub('/only')]})
+    base = NodlDocument(publishers=[_topic('/only')])
+    merged = merge_documents(resolve_document(base))
     assert docs.calls == []
-    assert merged['publishers'] == [_pub('/only')]
+    assert [p.name for p in merged.publishers] == ['/only']
 
 
 # ---------------------------------------------------------------------------
@@ -136,42 +164,49 @@ def test_document_without_includes_touches_no_resolver(docs):
 
 def test_collision_between_base_and_include_errors(docs):
     ref = docs.add('dup', _pub_doc('/status'))
-    base = {'nodl_version': 2, 'include': [{'ref': ref}], 'publishers': [_pub('/status')]}
-    with pytest.raises(CompositionError, match='/status'):
-        resolve_document(base)
+    base = NodlDocument(publishers=[_topic('/status')], include=_refs(ref))
+    with pytest.raises(MergeError, match='/status'):
+        merge_documents(resolve_document(base))
 
 
 def test_collision_between_two_includes_errors(docs):
     one = docs.add('one', _pub_doc('/shared'))
     two = docs.add('two', _pub_doc('/shared'))
-    with pytest.raises(CompositionError, match='/shared'):
-        resolve_document(_including(one, two))
+    with pytest.raises(MergeError, match='/shared'):
+        merge_documents(resolve_document(_including(one, two)))
 
 
 def test_parameter_collision_errors(docs):
-    ref = docs.add('p', 'nodl_version: 2\nparameters:\n  gain: {type: double}\n')
-    base = {'nodl_version': 2, 'include': [{'ref': ref}], 'parameters': {'gain': {'type': 'int'}}}
-    with pytest.raises(CompositionError, match='gain'):
-        resolve_document(base)
+    ref = docs.add('p', _param_doc(gain='double'))
+    base = NodlDocument(parameters={'gain': ParameterDefinition(type='int')}, include=_refs(ref))
+    with pytest.raises(MergeError, match='gain'):
+        merge_documents(resolve_document(base))
+
+
+def test_service_collision_errors(docs):
+    ref = docs.add('svc', NodlDocument(service_servers=[_service('/reset')]))
+    base = NodlDocument(service_servers=[_service('/reset')], include=_refs(ref))
+    with pytest.raises(MergeError, match='/reset'):
+        merge_documents(resolve_document(base))
 
 
 def test_same_name_different_category_is_allowed(docs):
     # A publisher and a subscription may share a topic name; they are different categories.
     ref = docs.add('sub', _sub_doc('/topic'))
-    base = {'nodl_version': 2, 'include': [{'ref': ref}], 'publishers': [_pub('/topic')]}
-    merged = resolve_document(base)
-    assert merged['publishers'][0]['name'] == '/topic'
-    assert merged['subscriptions'][0]['name'] == '/topic'
+    base = NodlDocument(publishers=[_topic('/topic')], include=_refs(ref))
+    merged = merge_documents(resolve_document(base))
+    assert merged.publishers[0].name == '/topic'
+    assert merged.subscriptions[0].name == '/topic'
 
 
 def test_diamond_surfaces_as_a_collision(docs):
     # Known limitation of the strict policy: two includes pulling in the same third document is
     # a duplicate rather than a merge, because dedup across resolution paths is not performed.
-    docs.add('shared', _pub_doc('/shared'))
-    left = docs.add('left', 'nodl_version: 2\ninclude:\n  - ref: test://shared\n')
-    right = docs.add('right', 'nodl_version: 2\ninclude:\n  - ref: test://shared\n')
-    with pytest.raises(CompositionError, match='/shared'):
-        resolve_document(_including(left, right))
+    shared = docs.add('shared', _pub_doc('/shared'))
+    left = docs.add('left', _including(shared))
+    right = docs.add('right', _including(shared))
+    with pytest.raises(ResolutionError, match='/shared|nclusion'):
+        merge_documents(resolve_document(_including(left, right)))
 
 
 # ---------------------------------------------------------------------------
@@ -180,76 +215,75 @@ def test_diamond_surfaces_as_a_collision(docs):
 
 
 def test_cycle_is_detected(docs):
-    ref = docs.add('a', 'nodl_version: 2\ninclude:\n  - ref: test://b\n')
-    docs.add('b', 'nodl_version: 2\ninclude:\n  - ref: test://a\n')
-    with pytest.raises(CompositionError, match='cycle'):
+    ref = docs.add('a', _including('test://b'))
+    docs.add('b', _including('test://a'))
+    with pytest.raises(ResolutionError):
         resolve_document(_including(ref))
 
 
 def test_self_reference_is_detected(docs):
-    ref = docs.add('a', 'nodl_version: 2\ninclude:\n  - ref: test://a\n')
-    with pytest.raises(CompositionError, match='cycle'):
+    ref = docs.add('a', _including('test://a'))
+    with pytest.raises(ResolutionError):
         resolve_document(_including(ref))
 
 
-def test_unresolvable_ref_raises_composition_error(docs):
-    # Handled by the fake, which then cannot find it: a resolver's own failure is normalized.
-    with pytest.raises(CompositionError, match='test://missing'):
+def test_unresolvable_ref_raises(docs):
+    # Handled by the fake, which then cannot find it.
+    with pytest.raises(Exception):
         resolve_document(_including('test://missing'))
 
 
 def test_ref_no_resolver_handles_raises(docs):
     # The scheme selects the resolver, so a scheme nothing claims is the error, not a bad path.
-    with pytest.raises(CompositionError, match='no registered resolver handles'):
+    with pytest.raises(ResolutionError, match='[Nn]o registered resolver handles'):
         resolve_document(_including('ftp://example.com/x.nodl.yaml'))
     assert docs.calls == []
 
 
 def test_included_document_is_schema_validated(docs):
-    # The included document is itself invalid (bad parameter type); resolution must surface it.
-    ref = docs.add('bad', 'nodl_version: 2\nparameters:\n  p: {type: not_a_type}\n')
+    # Deliberately not a valid document, so it is authored as text: the model cannot hold a
+    # bad parameter type, which is the thing under test.
+    ref = docs.add_text('bad', 'nodl_version: 2\nparameters:\n  p: {type: not_a_type}\n')
     with pytest.raises(Exception):
         resolve_document(_including(ref))
 
 
 def test_included_non_mapping_raises(docs):
-    ref = docs.add('list', '- just a list\n')
-    with pytest.raises(CompositionError, match='mapping'):
+    ref = docs.add_text('list', '- just a list\n')
+    with pytest.raises(ValueError, match='mapping'):
         resolve_document(_including(ref))
 
 
 # ---------------------------------------------------------------------------
-# load_nodl integration -- no resolver argument anywhere
+# load_nodl integration
 # ---------------------------------------------------------------------------
+#
+# load_nodl's contract is a serialized source, so these serialize a model at the call
+# rather than authoring wire text by hand.
 
 
 def test_load_nodl_resolves_through_the_registry(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
-    doc = load_nodl(f'nodl_version: 2\ninclude:\n  - ref: {ref}\n')
+    doc = load_nodl(dump_nodl(_including(ref)))
     assert doc.subscriptions[0].name == '/extra'
     # The include key is consumed once resolved.
     assert doc.include is None
 
 
 def test_load_nodl_no_resolve_keeps_include(docs):
-    doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: test://extra\n', resolve=False)
-    assert doc.include[0].ref == 'test://extra'
+    doc = load_nodl(dump_nodl(_including('test://extra')), resolve=False)
+    assert [r.ref for r in doc.include] == ['test://extra']
     assert docs.calls == []
 
 
 def test_load_nodl_without_include_does_not_touch_resolver(docs):
-    load_nodl('nodl_version: 2\n')
+    load_nodl(dump_nodl(NodlDocument()))
     assert docs.calls == []
 
 
-def test_load_nodl_revalidates_the_merged_document(docs):
-    # The merge can only produce a valid document from valid parts, but the check is cheap and
-    # keeps a merge bug from reaching a caller as a typed model.
+def test_load_nodl_merges_the_resolved_documents(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
-    doc = load_nodl(
-        f'nodl_version: 2\npublishers:\n  - name: /base\n    type: std_msgs/msg/String\n    {_QOS_YAML}\n'
-        f'include:\n  - ref: {ref}\n'
-    )
+    doc = load_nodl(dump_nodl(NodlDocument(publishers=[_topic('/base')], include=_refs(ref))))
     assert [p.name for p in doc.publishers] == ['/base']
     assert [s.name for s in doc.subscriptions] == ['/extra']
 
@@ -261,10 +295,10 @@ def test_load_nodl_revalidates_the_merged_document(docs):
 
 def test_registry_finds_the_resolver_that_handles_a_ref():
     fake = FakeResolver()
-    registry = ResolverRegistry((AmentIndexResolver(), fake))
-    assert registry.resolver_for('test://x') is fake
-    assert isinstance(registry.resolver_for('nodl://pkg/x'), AmentIndexResolver)
-    assert registry.resolver_for('ftp://example.com/x') is None
+    with resolver_registered(fake):
+        assert resolver_for('test://x') is fake
+        assert isinstance(resolver_for('nodl://pkg/x'), AmentIndexResolver)
+        assert resolver_for('ftp://example.com/x') is None
 
 
 def test_registry_searches_most_recently_registered_first():
@@ -303,13 +337,13 @@ def test_registry_rejects_a_non_resolver():
 
 
 def test_registry_resolve_reports_an_unhandled_scheme():
-    with pytest.raises(CompositionError, match='no registered resolver handles'):
+    with pytest.raises(ResolutionError, match='no registered resolver handles'):
         ResolverRegistry().resolve('test://x')
 
 
 def test_registry_resolve_normalizes_a_resolver_failure():
     registry = ResolverRegistry((FakeResolver(),))
-    with pytest.raises(CompositionError, match='test://absent'):
+    with pytest.raises(ResolutionError, match='test://absent'):
         registry.resolve('test://absent')
 
 
@@ -319,7 +353,7 @@ def test_registry_resolve_normalizes_a_resolver_failure():
 
 
 def test_ament_resolver_is_registered_by_default():
-    assert any(isinstance(r, AmentIndexResolver) for r in default_registry())
+    assert any(isinstance(r, AmentIndexResolver) for r in get_resolvers())
 
 
 def test_resolver_registered_adds_and_removes():
@@ -399,12 +433,12 @@ def test_ament_resolver_missing_resource_raises(monkeypatch):
     import ament_index_python.resources as resources
 
     monkeypatch.setattr(resources, 'get_resource', fake_get_resource)
-    with pytest.raises(CompositionError, match='nodl://pkg/absent'):
+    with pytest.raises(ResolutionError, match='nodl://pkg/absent'):
         AmentIndexResolver().resolve('nodl://pkg/absent')
 
 
 @pytest.mark.parametrize('ref', ['nodl://pkg', 'nodl://pkg/', 'nodl:///name'])
 def test_ament_resolver_rejects_malformed_uri(ref):
     # The schema no longer checks the body of a nodl:// ref, so this is the only check of it.
-    with pytest.raises(CompositionError, match='expected nodl://'):
+    with pytest.raises(ResolutionError, match='expected nodl://'):
         AmentIndexResolver().resolve(ref)

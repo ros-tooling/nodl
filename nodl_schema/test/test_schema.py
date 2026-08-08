@@ -8,8 +8,9 @@ import json
 import pytest
 from jsonschema import ValidationError
 
-from nodl_schema import dump_nodl, load_nodl, load_schema, validate
+from nodl_schema import dump_nodl, load_nodl, validate
 from nodl_schema.models import NodlDocument
+from nodl_schema.validation import load_schema
 
 _MIN_QOS = {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}
 _KEEP_LAST_QOS = {'history': 'KEEP_LAST', 'depth': 10, 'reliability': 'RELIABLE'}

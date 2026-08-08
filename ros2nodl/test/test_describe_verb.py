@@ -12,7 +12,7 @@ import yaml
 pytest.importorskip('ros2cli')
 rclpy = pytest.importorskip('rclpy')
 
-from nodl_schema.validator import validate  # noqa: E402
+from nodl_schema.validation import validate  # noqa: E402
 from ros2nodl.describe._source import observe_binary  # noqa: E402
 from ros2nodl.verb.describe import DescribeVerb, _infer_format  # noqa: E402
 
