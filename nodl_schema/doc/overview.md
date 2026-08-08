@@ -27,7 +27,7 @@ from nodl_schema import load_nodl, dump_nodl, load_schema, validate
 Load and validate a NoDL document from a string, bytes, or file-like object, returning a typed `NodlDocument`.
 Raises a validation error if the document does not conform to the schema.
 
-If `resolve=True`, each `include` reference is resolved and merged in (see [Composition](#composition-the-include-key)), returning a document with the full interface and no `include`.
+If `resolve=True`, each `include` reference is resolved and merged in (see [Composition](#composition)), returning a document with the full interface and no `include`.
 
 ```python
 from nodl_schema import load_nodl
@@ -53,6 +53,7 @@ Serialize a `NodlDocument` (or a plain `dict`) back to a YAML or JSON string.
 
 Load and cache the raw NoDL JSON schema as a `dict`, for tools that want to inspect the schema directly.
 
+(composition)=
 ## Composition: the `include` key
 
 A document can pull in the interface of other NoDL documents through a top-level `include` list.
