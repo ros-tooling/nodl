@@ -53,7 +53,6 @@ class ArrayType(Enum):
 class Reference(BaseModel):
     """
     A reference to another NoDL document.
-
     """
 
     class Config:
@@ -61,7 +60,7 @@ class Reference(BaseModel):
 
     ref: constr(regex=r'^[a-z][a-z0-9+.-]*://[^\s/][^\s]*$') = Field(
         ...,
-        description='Location descriptor of a NoDL document, as a ``<scheme>://<body>`` URI.\nThe scheme selects which resolver fetches the document, so only the URI\nshape is checked here; an unrecognized scheme is a resolution error.\n``nodl://<package>/<name>`` is the built-in form,\nwhich can resolve any name from ``ament_nodl_register_`` macros in dependency packages.\n',
+        description='Reference to a NoDL document, as a ``<scheme>://<body>`` URI.\nDynamically egistered resolvers handle these URIs, so the schema does not restrict them.\n``nodl://<package>/<name>`` is the built-in resolver which fetches from the ament index.\n',
         examples=['nodl://sensor_common/imu_driver'],
     )
 
@@ -453,7 +452,7 @@ class NodlDocument(BaseModel):
     nodl_version: int = Field(2, const=True, description='NoDL schema major version this document targets.')
     description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
     include: Optional[list[Reference]] = Field(
-        [],
+        None,
         description='Other NoDL documents whose interface entities are merged into this one.\nEach reference is resolved - recursively, following all references until done.\nCircular inclusion is an error.\nAn entity-name collision (for example two publishers named ``/status``) is an error.\n',
     )
     parameters: Optional[dict[str, ParameterDefinition]] = Field(

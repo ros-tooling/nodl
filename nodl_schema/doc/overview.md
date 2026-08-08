@@ -27,9 +27,7 @@ from nodl_schema import load_nodl, dump_nodl, load_schema, validate
 Load and validate a NoDL document from a string, bytes, or file-like object, returning a typed `NodlDocument`.
 Raises a validation error if the document does not conform to the schema.
 
-If the document has an `include` list, each reference is resolved and merged in (see the Composition section below);
-the returned document carries the combined interface and no `include`.
-Pass `resolve=False` to parse the document exactly as authored, following nothing.
+If `resolve=True`, each `include` reference is resolved and merged in (see [Composition](#composition-the-include-key)), returning a document with the full interface and no `include`.
 
 ```python
 from nodl_schema import load_nodl
@@ -72,44 +70,11 @@ publishers:
 
 `ref` is a URI whose scheme selects the resolver that fetches the document.
 `nodl://<package>/<name>` is the built-in form, resolved through the ament index.
-The schema checks URI shape only, since which schemes work depends on what is registered at runtime,
-so an unhandled scheme is a resolution error rather than a schema error.
 
-Includes are followed recursively, and cycles are rejected.
-The merge is strict: the same name declared twice within one category is an error, not an override.
-Categories are independent, so a publisher and a subscription may share a name.
+Includes are followed recursively.
+Double-inclusions of the same reference (including cycles) are rejected.
+The same entity type with the same name declared twice is an error.
 Resolution failures raise `ResolutionError`, and collisions raise `MergeError`.
-
-### Adding a reference form
-
-A `Resolver` pairs `handles(ref)`, reporting whether it recognizes a reference, with `resolve(ref)`,
-returning that document's text.
-Registering one is all it takes; nothing else needs to know the form exists.
-
-```python
-from nodl_schema import load_nodl, register_resolver, resolver_registered
-
-
-class HttpResolver:
-    def handles(self, ref: str) -> bool:
-        return ref.startswith('https://')
-
-    def resolve(self, ref: str) -> str:
-        return fetch(ref)
-
-
-register_resolver(HttpResolver())  # for the rest of the process
-
-with resolver_registered(HttpResolver()):  # or just for this block
-    doc = load_nodl(source)
-```
-
-The most recently registered resolver that handles a reference wins, so a registration shadows an
-earlier one for the same scheme.
-`resolver_registered` removes it on the way out, including when the block raises.
-
-`resolve_document(doc)` returns a document and everything it includes, and `merge_documents(docs)`
-combines them, for callers that want the two steps separately.
 
 ## Data model
 

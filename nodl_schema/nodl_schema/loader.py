@@ -12,12 +12,14 @@ from nodl_schema.validation import validate
 
 
 def resolve_document(doc: NodlDocument) -> list[NodlDocument]:
-    # Do breadth-first traversal of the includes, detecting cycles
-    # TODO(emerson) how is a Document uniquely keyed such that a cycle could even be detected?
-    #    how can I tell if a reference loops back to this root document?
-    #    or, when there are relative includes, how that is correlated to an outside source referring back to me?
+    # Do breadth-first traversal of the includes, detecting non-tree double-inclusions/cycles
+    # NOTE(emerson) there is not currently a way to detect if a reference loops back to _this_ document,
+    # since we don't have our own ref in this context.
+    # Really, we are depending on the package dependency graph to avoid cycles.
+    # Additionally, if "the same" reference were to be found by different resolvers, that is not caught here,
+    # but by merge collision checking.
     visited: dict[str, list[str]] = {}
-    initial_refs = [(r.ref, []) for r in doc.include]
+    initial_refs = [(r.ref, []) for r in (doc.include or [])]
     ref_queue: deque[tuple[str, list[str]]] = deque(initial_refs)
 
     results = [doc]
@@ -41,18 +43,16 @@ def resolve_document(doc: NodlDocument) -> list[NodlDocument]:
         # Accumulate
         visited[ref] = this_path
         results.append(included_doc)
-        ref_queue.extend(((r.ref, this_path) for r in included_doc.include))
+        ref_queue.extend(((r.ref, this_path) for r in (included_doc.include or [])))
 
     return results
 
 
 def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDocument:
-    """Load and validate a NoDL document from a string, bytes, or file-like object.
+    """Load and validate a NoDL document from a string, bytes, or file-like object containing JSON or YAML text.
 
-    JSON is a subset of YAML, so both are accepted through yaml.safe_load.
-
-    When ``resolve`` is true (the default), each ``include`` reference is resolved and its entities are merged in.
-    The returned document carries no ``include`` key.
+    When ``resolve`` (default True), ``include`` references are resolved and merged into the resulting document,
+    which then has no ``include`` key.
     Pass ``resolve=False`` to parse the document as authored, leaving ``include`` intact.
 
     Raises jsonschema.ValidationError on schema error
@@ -79,15 +79,10 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDoc
 
 
 def dump_nodl(doc: Union[NodlDocument, dict], *, format: str = 'yaml') -> str:
-    """Serialize a NodlDocument (or plain dict) to YAML or JSON string.
-
-    Empty top-level collections are dropped, since an empty one says the same as an absent one.
-    A document therefore does not round-trip verbatim: ``include: []`` in becomes nothing out.
-    Only the top level, because a nested empty list can be meaningful (an array parameter's default).
-    """
+    """Serialize a NodlDocument (or plain dict) to YAML or JSON string."""
     if isinstance(doc, NodlDocument):
         data = json.loads(doc.json(exclude_none=True))
-        data = {key: value for key, value in data.items() if value != [] and value != {}}
+        data = {key: value for key, value in data.items()}
     else:
         data = doc
 
