@@ -2,23 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """End-to-end composition test: resolve a nodl:// include through the real ament index.
 
-The unit tests in nodl_schema drive resolution through a fake resolver, which says nothing about
-whether the reference form actually lines up with what registration installs. Here the macro has
-registered basic_node under nodl_nodes/test_ament_nodl__basic_node (see CMakeLists.txt), and we
-author a document that includes it by URI, so the resolver, the index, and the merge are exercised
-against a real registration.
+These check that the reference form lines up with what registration installs, which a fake
+resolver cannot show. The documents registered here are declared in CMakeLists.txt.
 
-The including document is authored here rather than registered in CMakeLists.txt on purpose. A
-nodl:// reference resolves through the installed workspace, so a document in this package cannot
-reference this package at build time, before it is installed. Composing a package's own documents
-needs a reference form that reads the source tree, which is a separate change.
+Including documents are authored in the tests rather than registered.
+A nodl:// reference reads the installed workspace, so a document cannot reference its own
+package at build time, before that package is installed.
 """
 
 import pytest
 from ament_index_python.resources import get_resource
 
 from nodl_schema import load_nodl
-from nodl_schema.composition import CompositionError
+from nodl_schema.composition import MergeError, ResolutionError
 
 _LOCAL_SUBSCRIPTION = (
     'subscriptions:\n'
@@ -38,7 +34,7 @@ def test_nodl_include_resolves_from_ament_index():
 
 
 def test_included_qos_survives_the_round_trip():
-    # The included document is fetched as text and reparsed, so its details have to come back intact.
+    # The included document is fetched as text and reparsed, so its details must survive.
     doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/basic_node\n')
     qos = doc.publishers[0].qos
     assert qos.depth == 10
@@ -47,18 +43,18 @@ def test_included_qos_survives_the_round_trip():
 
 
 def test_include_follows_the_package_override_in_the_resource_key():
-    # custom_exe is registered with PACKAGE custom_pkg, so the URI has to name custom_pkg. The
-    # fixture declares no entities, so what this asserts is that the lookup found it at all.
+    # custom_exe is registered with PACKAGE custom_pkg, so the URI must name custom_pkg.
+    # It declares no entities, so this asserts only that the lookup found it.
     doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://custom_pkg/custom_exe\n')
     assert doc.include is None
 
-    # The same name under the building package is a different key, and nothing registered it.
-    with pytest.raises(CompositionError):
+    # The same name under this package is a different key, and nothing registered it.
+    with pytest.raises(ResolutionError):
         load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/custom_exe\n')
 
 
 def test_include_resolves_a_json_document():
-    # What the index holds is text, so the frontend the author used does not reach the consumer.
+    # The index holds text, so the frontend the author used does not reach the consumer.
     doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/json_node\n')
     assert doc.include is None
 
@@ -73,12 +69,12 @@ def test_collision_with_an_included_document_raises():
         '    qos: {history: SYSTEM_DEFAULT, reliability: SYSTEM_DEFAULT}\n'
         'include:\n  - ref: nodl://test_ament_nodl/basic_node\n'
     )
-    with pytest.raises(CompositionError, match='/chatter'):
+    with pytest.raises(MergeError, match='/chatter'):
         load_nodl(source)
 
 
 def test_unresolvable_nodl_include_raises():
-    with pytest.raises(CompositionError, match='nodl://test_ament_nodl/no_such_node'):
+    with pytest.raises(ResolutionError, match='nodl://test_ament_nodl/no_such_node'):
         load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/no_such_node\n')
 
 
@@ -91,7 +87,7 @@ def test_no_resolve_leaves_the_include_untouched():
 
 
 def test_registered_document_is_installed_as_authored():
-    # Registration does not rewrite anything, so what a consumer resolves is the authored document.
+    # Registration does not rewrite, so a consumer resolves the document as authored.
     content, _ = get_resource('nodl_nodes', 'test_ament_nodl__basic_node')
     assert 'include' not in content
     assert '/chatter' in content

@@ -79,9 +79,15 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDoc
 
 
 def dump_nodl(doc: Union[NodlDocument, dict], *, format: str = 'yaml') -> str:
-    """Serialize a NodlDocument (or plain dict) to YAML or JSON string."""
+    """Serialize a NodlDocument (or plain dict) to YAML or JSON string.
+
+    Empty top-level collections are dropped, since an empty one says the same as an absent one.
+    A document therefore does not round-trip verbatim: ``include: []`` in becomes nothing out.
+    Only the top level, because a nested empty list can be meaningful (an array parameter's default).
+    """
     if isinstance(doc, NodlDocument):
         data = json.loads(doc.json(exclude_none=True))
+        data = {key: value for key, value in data.items() if value != [] and value != {}}
     else:
         data = doc
 

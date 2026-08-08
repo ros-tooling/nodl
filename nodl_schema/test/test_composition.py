@@ -16,7 +16,7 @@ from nodl_schema import (
     resolver_registered,
     unregister_resolver,
 )
-from nodl_schema.composition import MergeError, merge_documents
+from nodl_schema.composition import MergeError, merge_documents, resolve, resolver_for
 from nodl_schema.models import (
     History,
     NodlDocument,
@@ -73,9 +73,8 @@ def _including(*refs) -> NodlDocument:
 class FakeResolver:
     """Resolves an in-memory ``test://`` reference format.
 
-    Documents are held as models and serialized on the way out, because ``resolve`` is the
-    wire boundary and its contract is text. Tests therefore author models throughout, and
-    reach for ``add_text`` only where the point is content a model cannot represent.
+    Documents go in as models and come out as text, since that is what a resolver returns.
+    Use ``add_text`` for content a model cannot hold, such as a deliberately invalid document.
     """
 
     scheme = 'test://'
@@ -200,8 +199,7 @@ def test_same_name_different_category_is_allowed(docs):
 
 
 def test_diamond_surfaces_as_a_collision(docs):
-    # Known limitation of the strict policy: two includes pulling in the same third document is
-    # a duplicate rather than a merge, because dedup across resolution paths is not performed.
+    # Two includes pulling in the same third document is a duplicate, not a merge.
     shared = docs.add('shared', _pub_doc('/shared'))
     left = docs.add('left', _including(shared))
     right = docs.add('right', _including(shared))
@@ -228,21 +226,20 @@ def test_self_reference_is_detected(docs):
 
 
 def test_unresolvable_ref_raises(docs):
-    # Handled by the fake, which then cannot find it.
+    # The scheme is handled, but the document behind it is not there.
     with pytest.raises(Exception):
         resolve_document(_including('test://missing'))
 
 
 def test_ref_no_resolver_handles_raises(docs):
-    # The scheme selects the resolver, so a scheme nothing claims is the error, not a bad path.
+    # A scheme no resolver claims fails before anything is fetched.
     with pytest.raises(ResolutionError, match='[Nn]o registered resolver handles'):
         resolve_document(_including('ftp://example.com/x.nodl.yaml'))
     assert docs.calls == []
 
 
 def test_included_document_is_schema_validated(docs):
-    # Deliberately not a valid document, so it is authored as text: the model cannot hold a
-    # bad parameter type, which is the thing under test.
+    # Authored as text, because a model cannot hold the bad parameter type under test.
     ref = docs.add_text('bad', 'nodl_version: 2\nparameters:\n  p: {type: not_a_type}\n')
     with pytest.raises(Exception):
         resolve_document(_including(ref))
@@ -258,8 +255,7 @@ def test_included_non_mapping_raises(docs):
 # load_nodl integration
 # ---------------------------------------------------------------------------
 #
-# load_nodl's contract is a serialized source, so these serialize a model at the call
-# rather than authoring wire text by hand.
+# load_nodl takes a serialized source, so these serialize a model at the call site.
 
 
 def test_load_nodl_resolves_through_the_registry(docs):
@@ -289,66 +285,63 @@ def test_load_nodl_merges_the_resolved_documents(docs):
 
 
 # ---------------------------------------------------------------------------
-# ResolverRegistry
+# Resolver registration
 # ---------------------------------------------------------------------------
 
 
-def test_registry_finds_the_resolver_that_handles_a_ref():
-    fake = FakeResolver()
-    with resolver_registered(fake):
-        assert resolver_for('test://x') is fake
-        assert isinstance(resolver_for('nodl://pkg/x'), AmentIndexResolver)
-        assert resolver_for('ftp://example.com/x') is None
+def test_registry_finds_the_resolver_that_handles_a_ref(docs):
+    assert resolver_for('test://x') is docs
+    assert isinstance(resolver_for('nodl://pkg/x'), AmentIndexResolver)
+    assert resolver_for('ftp://example.com/x') is None
 
 
 def test_registry_searches_most_recently_registered_first():
-    # Shadowing is what lets a scoped registration stand in for a form already handled.
+    # A later registration shadows an earlier one handling the same scheme.
     first, second = FakeResolver(), FakeResolver()
-    registry = ResolverRegistry((first,))
-    registry.register(second)
-    assert registry.resolver_for('test://x') is second
+    with resolver_registered(first), resolver_registered(second):
+        assert resolver_for('test://x') is second
 
 
 def test_registry_unregister_restores_the_shadowed_resolver():
     first, second = FakeResolver(), FakeResolver()
-    registry = ResolverRegistry((first,))
-    registry.register(second)
-    registry.unregister(second)
-    assert registry.resolver_for('test://x') is first
+    with resolver_registered(first):
+        with resolver_registered(second):
+            assert resolver_for('test://x') is second
+        assert resolver_for('test://x') is first
 
 
 def test_registry_unregister_removes_only_the_latest_registration():
-    # Nesting: an inner scope that re-registers something already present undoes only its own.
+    # An inner scope re-registering the same resolver undoes only its own registration.
     resolver = FakeResolver()
-    registry = ResolverRegistry((resolver,))
-    registry.register(resolver)
-    registry.unregister(resolver)
-    assert registry.resolver_for('test://x') is resolver
+    with resolver_registered(resolver):
+        with resolver_registered(resolver):
+            pass
+        assert resolver_for('test://x') is resolver
 
 
 def test_registry_unregister_of_an_absent_resolver_raises():
     with pytest.raises(LookupError):
-        ResolverRegistry().unregister(FakeResolver())
+        unregister_resolver(FakeResolver())
 
 
 def test_registry_rejects_a_non_resolver():
     with pytest.raises(TypeError, match='not a Resolver'):
-        ResolverRegistry().register(object())
+        register_resolver(object())
 
 
 def test_registry_resolve_reports_an_unhandled_scheme():
-    with pytest.raises(ResolutionError, match='no registered resolver handles'):
-        ResolverRegistry().resolve('test://x')
+    with pytest.raises(ResolutionError, match='[Nn]o registered resolver handles'):
+        resolve('test://x')
 
 
-def test_registry_resolve_normalizes_a_resolver_failure():
-    registry = ResolverRegistry((FakeResolver(),))
-    with pytest.raises(ResolutionError, match='test://absent'):
-        registry.resolve('test://absent')
+def test_resolver_failure_propagates_unchanged(docs):
+    # resolve() does not wrap what a resolver raises, so failures arrive in the resolver's terms.
+    with pytest.raises(FileNotFoundError, match='test://absent'):
+        resolve('test://absent')
 
 
 # ---------------------------------------------------------------------------
-# The default registry and scoped registration
+# Scoped registration
 # ---------------------------------------------------------------------------
 
 
@@ -358,42 +351,42 @@ def test_ament_resolver_is_registered_by_default():
 
 def test_resolver_registered_adds_and_removes():
     resolver = FakeResolver()
-    assert default_registry().resolver_for('test://x') is None
+    assert resolver_for('test://x') is None
     with resolver_registered(resolver):
-        assert default_registry().resolver_for('test://x') is resolver
-    assert default_registry().resolver_for('test://x') is None
+        assert resolver_for('test://x') is resolver
+    assert resolver_for('test://x') is None
 
 
 def test_resolver_registered_removes_even_when_the_block_raises():
-    # Otherwise one failing test leaks a resolver into every test after it.
+    # Otherwise a failing test leaks its resolver into every test after it.
     resolver = FakeResolver()
     with pytest.raises(ValueError):
         with resolver_registered(resolver):
             raise ValueError('boom')
-    assert default_registry().resolver_for('test://x') is None
+    assert resolver_for('test://x') is None
 
 
 def test_registering_shadows_the_built_in_resolver():
-    # A test can stand in for the ament index without one being present.
+    # Registering over a built-in scheme replaces it for the duration of the block.
     class NodlShadow(FakeResolver):
         scheme = 'nodl://'
 
     shadow = NodlShadow()
-    shadow.add('pkg/thing', _pub_doc('/shadowed'))
+    ref = shadow.add('pkg/thing', _pub_doc('/shadowed'))
     with resolver_registered(shadow):
-        merged = resolve_document(_including('nodl://pkg/thing'))
-    assert [p['name'] for p in merged['publishers']] == ['/shadowed']
-    assert isinstance(default_registry().resolver_for('nodl://pkg/thing'), AmentIndexResolver)
+        merged = merge_documents(resolve_document(_including(ref)))
+    assert [p.name for p in merged.publishers] == ['/shadowed']
+    assert isinstance(resolver_for(ref), AmentIndexResolver)
 
 
 def test_register_resolver_without_a_scope_persists_until_removed():
     resolver = FakeResolver()
     register_resolver(resolver)
     try:
-        assert default_registry().resolver_for('test://x') is resolver
+        assert resolver_for('test://x') is resolver
     finally:
         unregister_resolver(resolver)
-    assert default_registry().resolver_for('test://x') is None
+    assert resolver_for('test://x') is None
 
 
 # ---------------------------------------------------------------------------
@@ -439,6 +432,6 @@ def test_ament_resolver_missing_resource_raises(monkeypatch):
 
 @pytest.mark.parametrize('ref', ['nodl://pkg', 'nodl://pkg/', 'nodl:///name'])
 def test_ament_resolver_rejects_malformed_uri(ref):
-    # The schema no longer checks the body of a nodl:// ref, so this is the only check of it.
+    # The schema checks URI shape only, so the body is checked here.
     with pytest.raises(ResolutionError, match='expected nodl://'):
         AmentIndexResolver().resolve(ref)

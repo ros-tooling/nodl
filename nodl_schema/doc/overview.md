@@ -58,7 +58,7 @@ Load and cache the raw NoDL JSON schema as a `dict`, for tools that want to insp
 ## Composition: the `include` key
 
 A document can pull in the interface of other NoDL documents through a top-level `include` list.
-Each entry is a reference that is resolved, validated, and merged into the including document when it is loaded:
+Each entry is resolved, validated, and merged into the including document when it is loaded:
 
 ```yaml
 nodl_version: 2
@@ -71,28 +71,23 @@ publishers:
 ```
 
 `ref` is a URI whose scheme selects the resolver that fetches the document.
-`nodl://<package>/<name>` is the built-in form; it names a document registered by `ament_nodl_register_node` and
-resolves through the ament index to the resource `nodl_nodes/<package>__<name>`.
-The schema checks that a `ref` is a URI and nothing more, since which schemes work is decided at runtime by what is
-registered, so an unhandled scheme is a resolution error rather than a schema error.
-A bare or absolute filesystem path names no resolver and is rejected by the schema.
+`nodl://<package>/<name>` is the built-in form, resolved through the ament index.
+The schema checks URI shape only, since which schemes work depends on what is registered at runtime,
+so an unhandled scheme is a resolution error rather than a schema error.
 
-Includes are followed recursively.
-The merge is strict: a name collision within any single category (two publishers named `/status`, two parameters named
-`gain`, and so on) across the document and its includes is an error.
-A publisher and a subscription may share a name, since they are different categories.
-Include cycles are detected and rejected.
-Resolution failures and collisions raise `CompositionError`.
+Includes are followed recursively, and cycles are rejected.
+The merge is strict: the same name declared twice within one category is an error, not an override.
+Categories are independent, so a publisher and a subscription may share a name.
+Resolution failures raise `ResolutionError`, and collisions raise `MergeError`.
 
 ### Adding a reference form
 
-A `Resolver` pairs `handles(ref)`, which reports whether it recognizes a reference, with `resolve(ref)`, which returns
-that document's text.
-Registering one is the whole of adding a reference form; neither `load_nodl` nor `resolve_document` takes a resolver,
-so a form becomes available to every load in the process rather than to callers that were handed one.
+A `Resolver` pairs `handles(ref)`, reporting whether it recognizes a reference, with `resolve(ref)`,
+returning that document's text.
+Registering one is all it takes; nothing else needs to know the form exists.
 
 ```python
-from nodl_schema import register_resolver, resolver_registered
+from nodl_schema import load_nodl, register_resolver, resolver_registered
 
 
 class HttpResolver:
@@ -109,17 +104,12 @@ with resolver_registered(HttpResolver()):  # or just for this block
     doc = load_nodl(source)
 ```
 
-The registry searches most-recently-registered first, so a registration shadows one already handling the same
-reference for as long as it stays in place.
+The most recently registered resolver that handles a reference wins, so a registration shadows an
+earlier one for the same scheme.
 `resolver_registered` removes it on the way out, including when the block raises.
-That is how the test suite substitutes an in-memory resolver with no ament index present.
 
-`default_registry()` exposes the registry itself, and `resolve_document(data)` exposes the merge directly for callers
-working with plain dicts.
-
-```python
-from nodl_schema import AmentIndexResolver, CompositionError, ResolverRegistry, default_registry, resolve_document
-```
+`resolve_document(doc)` returns a document and everything it includes, and `merge_documents(docs)`
+combines them, for callers that want the two steps separately.
 
 ## Data model
 

@@ -1,40 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Composition of NoDL documents via the ``include`` key.
+"""Resolution and merging of NoDL documents referenced by the ``include`` key.
 
-A document may list other NoDL documents under ``include``; each reference is
-resolved, validated, and its interface entities (parameters, publishers,
-subscriptions, service/action servers and clients) are merged into the
-including document. Includes are followed recursively, and a name collision
-within any single category is an error.
+A reference is a URI whose scheme selects a resolver.
+Resolvers are registered, so which schemes work is a runtime property rather than a fixed list,
+and the most recently registered resolver that handles a reference is the one used.
 
-A reference is a URI whose scheme selects a :class:`Resolver`. A resolver answers
-two questions: whether it recognizes a reference (:meth:`~Resolver.handles`) and
-what document text that reference names (:meth:`~Resolver.resolve`). Splitting
-the two is what lets a :class:`ResolverRegistry` hold several and pick one, so
-adding a reference form means registering a resolver rather than editing
-anything here.
-
-:class:`AmentIndexResolver` is registered by default and handles
-``nodl://<package>/<name>``, looked up in the ament index as the resource
-``nodl_nodes/<package>__<name>`` that ``ament_nodl_register_node`` installs.
-Anything else registers into the same process-wide registry::
-
-    with resolver_registered(MyResolver()):
-        doc = load_nodl(source)
-
-Registration is what makes a form available, rather than a resolver argument
-threaded down through every caller: ``load_nodl`` and ``resolve_document`` take
-no resolver, so a consumer that registers one changes what every load in the
-process can reach. The registry searches most-recently-registered first, so a
-scoped registration shadows a default one for as long as it is in place, which
-is what lets a test stand in for the ament index without one being present.
-
-``resolve`` deals in document text rather than paths: an ament index resource is
-content, not a file a consumer is meant to locate, and a form fetching from
-somewhere other than a filesystem would have no path to hand back. Nothing
-downstream of the fetch inspects the reference that produced the text, so a
-reference form is a fetch strategy and nothing more.
+A resolver returns document text, not a path, since a reference need not name anything on a filesystem.
 """
 
 from __future__ import annotations
@@ -135,7 +107,7 @@ class MergeError(Exception):
 
 
 def _collision(category: str, name: str, first: int, second: int) -> str:
-    """Describe a collision by position, which is the only identity a document currently has."""
+    """Describe a collision, naming documents by position since that is their only identity here."""
     label = category.replace('_', ' ')
     where = 'the including document' if first == 0 else f'included document {first}'
     return f'duplicate {label} {name!r}: declared by {where} and by included document {second}'

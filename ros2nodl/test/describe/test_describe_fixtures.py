@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from nodl_schema import dump_nodl
 from nodl_schema.validation import validate
 from ros2nodl.describe import node_to_nodl
 
@@ -31,7 +32,7 @@ def test_observe_fixture_converts_to_valid_nodl(fixture):
 
     for channel, node in mcap_fixtures.read_fixture(str(fixture)).items():
         result = node_to_nodl(node)
-        actual = json.loads(result.doc.json(exclude_none=True))
+        actual = json.loads(dump_nodl(result.doc, format='json'))
         profile = 'rmw_fastrtps_cpp' if 'rmw_fastrtps_cpp' in fixture.stem else 'base'
         golden = _GOLDENS / f'{profile}__{channel}.nodl.yaml'
         expected = yaml.safe_load(golden.read_text())

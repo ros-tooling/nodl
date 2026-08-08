@@ -97,12 +97,10 @@ definitions:
         type: string
         description: |
           Location descriptor of a NoDL document, as a ``<scheme>://<body>`` URI.
-          The scheme selects which resolver fetches the document; the body is that
-          resolver's business, so the schema checks only that this is a URI.
-          Which schemes work is a runtime question, since resolvers are registered,
-          and an unhandled one is a resolution error rather than a schema error.
-          ``nodl://<package>/<name>`` is the built-in form, and resolves any name
-          from ``ament_nodl_register_`` macros in dependency packages.
+          The scheme selects which resolver fetches the document, so only the URI
+          shape is checked here; an unrecognized scheme is a resolution error.
+          ``nodl://<package>/<name>`` is the built-in form,
+          which can resolve any name from ``ament_nodl_register_`` macros in dependency packages.
         pattern: ^[a-z][a-z0-9+.-]*://[^\s/][^\s]*$
         examples:
           - nodl://sensor_common/imu_driver

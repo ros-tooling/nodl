@@ -5,6 +5,7 @@ import json
 
 import stub_msgs
 
+from nodl_schema import dump_nodl
 from nodl_schema.validation import validate
 from ros2nodl.describe import DescribeOptions, node_to_nodl
 
@@ -46,7 +47,7 @@ def _node():
 
 
 def _data(result):
-    return json.loads(result.doc.json(exclude_none=True))
+    return json.loads(dump_nodl(result.doc, format='json'))
 
 
 def test_minimal_node_only_has_schema_version():
