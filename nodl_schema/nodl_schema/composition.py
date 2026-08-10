@@ -38,6 +38,24 @@ class Resolver(Protocol):
         ...
 
 
+@runtime_checkable
+class RebasingResolver(Protocol):
+    """A resolver whose references may be written relative to the document holding them.
+
+    Implement this when a reference means something different depending on where it was written.
+    Resolvers whose references are absolute on their own, such as an index lookup, do not need it.
+    """
+
+    def normalize(self, ref: str, origin: str | None) -> str:
+        """Return ``ref`` in absolute form, resolved against ``origin``.
+
+        ``origin`` is the normalized reference of the document holding this one, or None at the root.
+        The result identifies the document no matter which document referred to it, so it is what
+        cycle detection compares.
+        """
+        ...
+
+
 _RESOLVERS: list[Resolver] = list()
 
 
@@ -89,12 +107,32 @@ def resolver_for(ref: str) -> Resolver | None:
     return None
 
 
-def resolve(ref: str) -> str:
-    """Return the text of the document ``ref`` names, if it can be resolved."""
+def _resolver_or_raise(ref: str) -> Resolver:
     resolver = resolver_for(ref)
     if resolver is None:
         raise ResolutionError(f'No registered resolver handles reference {ref!r}.')
-    return resolver.resolve(ref)
+    return resolver
+
+
+def normalize(ref: str, origin: str | None = None) -> str:
+    """Return ``ref`` in absolute form, resolved against the document that holds it.
+
+    ``origin`` is the normalized reference of that document, or None at the root.
+    A resolver that does not implement RebasingResolver has nothing to rebase, so its
+    references pass through unchanged.
+    """
+    resolver = _resolver_or_raise(ref)
+    if isinstance(resolver, RebasingResolver):
+        return resolver.normalize(ref, origin)
+    return ref
+
+
+def resolve(ref: str) -> str:
+    """Return the text of the document ``ref`` names, if it can be resolved.
+
+    ``ref`` should already be normalized; a relative one has no meaning without its origin.
+    """
+    return _resolver_or_raise(ref).resolve(ref)
 
 
 # --------------------------------

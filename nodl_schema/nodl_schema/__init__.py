@@ -4,6 +4,7 @@
 
 from nodl_schema.ament_resolver import AmentIndexResolver
 from nodl_schema.composition import (
+    RebasingResolver,
     ResolutionError,
     Resolver,
     get_resolvers,
@@ -12,12 +13,17 @@ from nodl_schema.composition import (
     unregister_resolver,
 )
 from nodl_schema.loader import dump_nodl, load_nodl, load_nodl_with_doc_tree, resolve_document
+from nodl_schema.local_resolver import LocalResolver
+from nodl_schema.rewrite import local_references, rewrite_file, rewrite_local_references
 from nodl_schema.validation import load_schema, validate
 
 register_resolver(AmentIndexResolver())
+register_resolver(LocalResolver())
 
 __all__ = [
     'AmentIndexResolver',
+    'LocalResolver',
+    'RebasingResolver',
     'ResolutionError',
     'Resolver',
     'dump_nodl',
@@ -25,9 +31,12 @@ __all__ = [
     'load_nodl_with_doc_tree',
     'load_schema',
     'get_resolvers',
+    'local_references',
     'register_resolver',
     'resolve_document',
     'resolver_registered',
+    'rewrite_file',
+    'rewrite_local_references',
     'unregister_resolver',
     'validate',
 ]

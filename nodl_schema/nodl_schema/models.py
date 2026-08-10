@@ -60,7 +60,7 @@ class Reference(BaseModel):
 
     ref: constr(regex=r'^[a-z][a-z0-9+.-]*://[^\s/][^\s]*$') = Field(
         ...,
-        description='Reference to a NoDL document, as a ``<scheme>://<body>`` URI.\nDynamically egistered resolvers handle these URIs, so the schema does not restrict them.\n``nodl://<package>/<name>`` is the built-in resolver which fetches from the ament index.\n',
+        description='Reference to a NoDL document, as a ``<scheme>://<body>`` URI.\nDynamically egistered resolvers handle these URIs, so the schema does not restrict them.\n``nodl://<package>/<name>`` is the built-in resolver which fetches from the ament index.\n``local://<path>`` names a document in the same package, relative to the file holding the\nreference. It reads the source tree, so it is the only form that can reach a document in\nthe package being built, and ``ament_nodl`` rewrites it to a ``nodl://`` reference on install.\n',
         examples=['nodl://sensor_common/imu_driver'],
     )
 
