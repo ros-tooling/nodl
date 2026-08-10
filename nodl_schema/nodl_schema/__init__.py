@@ -12,7 +12,7 @@ from nodl_schema.composition import (
     unregister_resolver,
 )
 from nodl_schema.loader import dump_nodl, load_nodl, resolve_document
-from nodl_schema.validation import validate
+from nodl_schema.validation import load_schema, validate
 
 register_resolver(AmentIndexResolver())
 
@@ -22,6 +22,7 @@ __all__ = [
     'Resolver',
     'dump_nodl',
     'load_nodl',
+    'load_schema',
     'get_resolvers',
     'register_resolver',
     'resolve_document',

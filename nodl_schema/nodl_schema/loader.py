@@ -27,7 +27,6 @@ def resolve_document(doc: NodlDocument) -> list[NodlDocument]:
     while ref_queue:
         ref, path = ref_queue.popleft()
         this_path = path + [ref]
-        print(f'Checking {ref} with path {path}')
 
         # Detect cycle/double-inclusion
         if ref in visited:
@@ -57,7 +56,9 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDoc
 
     Raises jsonschema.ValidationError on schema error
     Raises pydantic.ValidationError on type error
-    Raises composition.ResolutionError on unresolvable includes
+    Raises composition.ResolutionError when no appropriate resolver found for reference
+        Resolvers generally raise ResolutionError on invalid or unfindable references,
+        but their custom exceptions are allowed propagate for unforseen cases, for visibility
     """
     data = yaml.safe_load(source)
     if not isinstance(data, dict):
