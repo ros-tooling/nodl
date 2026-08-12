@@ -157,6 +157,55 @@ def test_document_without_includes_touches_no_resolver(docs):
 
 
 # ---------------------------------------------------------------------------
+# resolve_document tree structure
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_no_includes_returns_empty_tree(docs):
+    base = NodlDocument(publishers=[_topic('/only')])
+    tree = resolve_document(base)
+    assert tree.root_doc is base
+    assert tree.resolved_includes == []
+
+
+def test_resolve_single_include_has_one_child(docs):
+    ref = docs.add('x', _pub_doc('/x'))
+    tree = resolve_document(_including(ref))
+    assert len(tree.resolved_includes) == 1
+    child = tree.resolved_includes[0]
+    assert child.ref == ref
+    assert child.doc.publishers[0].name == '/x'
+    assert child.resolved_includes == []
+
+
+def test_resolve_nested_includes_builds_tree(docs):
+    inner = docs.add('inner', _pub_doc('/inner'))
+    outer = docs.add('outer', _pub_doc('/outer', inner))
+    tree = resolve_document(_including(outer))
+    assert len(tree.resolved_includes) == 1
+    outer_node = tree.resolved_includes[0]
+    assert outer_node.ref == outer
+    assert len(outer_node.resolved_includes) == 1
+    inner_node = outer_node.resolved_includes[0]
+    assert inner_node.ref == inner
+    assert inner_node.resolved_includes == []
+
+
+def test_flatten_nested_tree_contains_all_documents(docs):
+    inner = docs.add('inner', _pub_doc('/inner'))
+    outer = docs.add('outer', _pub_doc('/outer', inner))
+    base = NodlDocument(publishers=[_topic('/root')], include=_refs(outer))
+    flat = resolve_document(base).flatten()
+    names = {d.publishers[0].name for d in flat}
+    assert names == {'/root', '/outer', '/inner'}
+
+
+def test_flatten_no_includes_returns_only_root(docs):
+    base = NodlDocument(publishers=[_topic('/only')])
+    assert resolve_document(base).flatten() == [base]
+
+
+# ---------------------------------------------------------------------------
 # Collisions (error-on-collision policy)
 # ---------------------------------------------------------------------------
 
