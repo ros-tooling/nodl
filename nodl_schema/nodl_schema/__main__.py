@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Entry point for ``python -m nodl_schema``.
 
-Delegates to nodl_schema.validator.main.
+Delegates to nodl_schema.cli.main.
 """
 
 import sys
