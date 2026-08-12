@@ -121,7 +121,7 @@ def docs():
 def test_single_include_merges_entities(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
     base = NodlDocument(publishers=[_topic('/base')], include=_refs(ref))
-    merged = merge_documents(resolve_document(base))
+    merged = merge_documents(resolve_document(base).flatten())
     assert merged.include is None
     assert [p.name for p in merged.publishers] == ['/base']
     assert [s.name for s in merged.subscriptions] == ['/extra']
@@ -130,28 +130,28 @@ def test_single_include_merges_entities(docs):
 def test_include_merges_parameters(docs):
     ref = docs.add('params', _param_doc(gain='double'))
     base = NodlDocument(parameters={'rate': ParameterDefinition(type='int')}, include=_refs(ref))
-    merged = merge_documents(resolve_document(base))
+    merged = merge_documents(resolve_document(base).flatten())
     assert set(merged.parameters) == {'rate', 'gain'}
 
 
 def test_nested_include_is_resolved_recursively(docs):
     inner = docs.add('b', _pub_doc('/b'))
     ref = docs.add('a', _pub_doc('/a', inner))
-    merged = merge_documents(resolve_document(_including(ref)))
+    merged = merge_documents(resolve_document(_including(ref)).flatten())
     assert sorted(p.name for p in merged.publishers) == ['/a', '/b']
 
 
 def test_input_document_is_not_mutated(docs):
     ref = docs.add('x', _pub_doc('/x'))
     base = _including(ref)
-    merge_documents(resolve_document(base))
+    merge_documents(resolve_document(base).flatten())
     assert [r.ref for r in base.include] == [ref]
     assert base.publishers is None
 
 
 def test_document_without_includes_touches_no_resolver(docs):
     base = NodlDocument(publishers=[_topic('/only')])
-    merged = merge_documents(resolve_document(base))
+    merged = merge_documents(resolve_document(base).flatten())
     assert docs.calls == []
     assert [p.name for p in merged.publishers] == ['/only']
 
@@ -165,35 +165,35 @@ def test_collision_between_base_and_include_errors(docs):
     ref = docs.add('dup', _pub_doc('/status'))
     base = NodlDocument(publishers=[_topic('/status')], include=_refs(ref))
     with pytest.raises(MergeError, match='/status'):
-        merge_documents(resolve_document(base))
+        merge_documents(resolve_document(base).flatten())
 
 
 def test_collision_between_two_includes_errors(docs):
     one = docs.add('one', _pub_doc('/shared'))
     two = docs.add('two', _pub_doc('/shared'))
     with pytest.raises(MergeError, match='/shared'):
-        merge_documents(resolve_document(_including(one, two)))
+        merge_documents(resolve_document(_including(one, two)).flatten())
 
 
 def test_parameter_collision_errors(docs):
     ref = docs.add('p', _param_doc(gain='double'))
     base = NodlDocument(parameters={'gain': ParameterDefinition(type='int')}, include=_refs(ref))
     with pytest.raises(MergeError, match='gain'):
-        merge_documents(resolve_document(base))
+        merge_documents(resolve_document(base).flatten())
 
 
 def test_service_collision_errors(docs):
     ref = docs.add('svc', NodlDocument(service_servers=[_service('/reset')]))
     base = NodlDocument(service_servers=[_service('/reset')], include=_refs(ref))
     with pytest.raises(MergeError, match='/reset'):
-        merge_documents(resolve_document(base))
+        merge_documents(resolve_document(base).flatten())
 
 
 def test_same_name_different_category_is_allowed(docs):
     # A publisher and a subscription may share a topic name; they are different categories.
     ref = docs.add('sub', _sub_doc('/topic'))
     base = NodlDocument(publishers=[_topic('/topic')], include=_refs(ref))
-    merged = merge_documents(resolve_document(base))
+    merged = merge_documents(resolve_document(base).flatten())
     assert merged.publishers[0].name == '/topic'
     assert merged.subscriptions[0].name == '/topic'
 
@@ -204,7 +204,7 @@ def test_diamond_surfaces_as_a_collision(docs):
     left = docs.add('left', _including(shared))
     right = docs.add('right', _including(shared))
     with pytest.raises(ResolutionError, match='/shared|nclusion'):
-        merge_documents(resolve_document(_including(left, right)))
+        merge_documents(resolve_document(_including(left, right)).flatten())
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +374,7 @@ def test_registering_shadows_the_built_in_resolver():
     shadow = NodlShadow()
     ref = shadow.add('pkg/thing', _pub_doc('/shadowed'))
     with resolver_registered(shadow):
-        merged = merge_documents(resolve_document(_including(ref)))
+        merged = merge_documents(resolve_document(_including(ref)).flatten())
     assert [p.name for p in merged.publishers] == ['/shadowed']
     assert isinstance(resolver_for(ref), AmentIndexResolver)
 
