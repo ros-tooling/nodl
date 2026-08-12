@@ -77,6 +77,29 @@ Double-inclusions of the same reference (including cycles) are rejected.
 The same entity type with the same name declared twice is an error.
 Resolution failures raise `ResolutionError`, and collisions raise `MergeError`.
 
+## Code generation metadata: the `codegen` key
+
+A document can carry an optional `codegen` field with opaque metadata for code generation tools.
+The field is keyed by target language or tool (e.g. `cpp`, `python`). Each value is an object whose
+contents are tool-defined and the NoDL schema does not constrain them:
+
+```yaml
+nodl_version: 2
+codegen:
+  cpp:
+    role: base_class
+    header: rclcpp/rclcpp.hpp
+    class: rclcpp::Node
+
+publishers:
+  - name: /rosout
+    type: rcl_interfaces/msg/Log
+    qos: {history: KEEP_LAST, depth: 1000, reliability: RELIABLE}
+```
+
+`nodl_schema` validates that `codegen` is an object of objects, but does not inspect the contents.
+Interpretation is left to the consuming code generation tool.
+
 ## Data model
 
 The typed model lives in {repo}`nodl_schema/nodl_schema/models.py`.
