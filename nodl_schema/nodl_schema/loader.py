@@ -70,6 +70,20 @@ def resolve_document(doc: NodlDocument) -> DocumentTree:
     return DocumentTree(root_doc=doc, resolved_includes=root_children)
 
 
+def _load_doc(source: Union[str, bytes, IO]) -> NodlDocument:
+    data = yaml.safe_load(source)
+    if not isinstance(data, dict):
+        raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
+
+    validate(data)
+
+    # parse_obj is pydantic v1 API, retained as a deprecated alias in v2.
+    # Used so this module works against both rosdep-shipped pydantic v1 (humble/jazzy/kilted) and v2 (lyrical+).
+    doc = NodlDocument.parse_obj(data)
+
+    return doc
+
+
 def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDocument:
     """Load and validate a NoDL document from a string, bytes, or file-like object containing JSON or YAML text.
 
@@ -83,23 +97,34 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDoc
         Resolvers generally raise ResolutionError on invalid or unfindable references,
         but their custom exceptions are allowed propagate for unforseen cases, for visibility
     """
-    data = yaml.safe_load(source)
-    if not isinstance(data, dict):
-        raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
-
-    validate(data)
-
-    # parse_obj is pydantic v1 API, retained as a deprecated alias in v2.
-    # Used so this module works against both rosdep-shipped pydantic v1 (humble/jazzy/kilted) and v2 (lyrical+).
-    doc = NodlDocument.parse_obj(data)
 
     if resolve:
-        doc_tree = resolve_document(doc)
-        result_doc = merge_documents(doc_tree.flatten())
+        result_doc, _ = load_nodl_with_doc_tree(source)
     else:
-        result_doc = doc
+        result_doc = _load_doc(source)
 
     return result_doc
+
+
+def load_nodl_with_doc_tree(source: Union[str, bytes, IO]) -> tuple[NodlDocument, DocumentTree]:
+    """Load, validate, resolve includes, and return both the merged document and the inclusion tree.
+
+    Returns a ``(merged_doc, doc_tree)`` tuple where:
+
+    - ``merged_doc`` is the fully resolved document (no ``include`` key), identical to
+      what ``load_nodl(source)`` would return.
+    - ``doc_tree`` is the :class:`DocumentTree` capturing the recursive structure of the document includes.
+
+    Raises jsonschema.ValidationError on schema error
+    Raises pydantic.ValidationError on type error
+    Raises composition.ResolutionError when no appropriate resolver found for reference
+        Resolvers generally raise ResolutionError on invalid or unfindable references,
+        but their custom exceptions are allowed propagate for unforseen cases, for visibility
+    """
+    doc = _load_doc(source)
+    doc_tree = resolve_document(doc)
+    merged_doc = merge_documents(doc_tree.flatten())
+    return merged_doc, doc_tree
 
 
 def dump_nodl(doc: Union[NodlDocument, dict], *, format: str = 'yaml') -> str:
