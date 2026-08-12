@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>nodl_generator_cpp</name>
+  <version>0.0.0</version>
+  <description>Generate an rclcpp base-node class from a NoDL document.</description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
+  <license>Apache-2.0</license>
+  <author email="hello@alistairenglish.com">Alistair English</author>
+
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
