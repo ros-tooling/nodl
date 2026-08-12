@@ -495,5 +495,5 @@ def test_codegen_on_included_document_survives_resolution(docs):
     codegen = {'cpp': {'role': 'base_class', 'header': 'rclcpp/rclcpp.hpp'}}
     ref = docs.add('with_cg', NodlDocument(publishers=[_topic('/t')], codegen=codegen))
     resolved = resolve_document(_including(ref))
-    included = resolved[1]
+    included = resolved.resolved_includes[0].doc
     assert included.codegen == codegen
