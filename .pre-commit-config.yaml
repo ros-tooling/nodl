@@ -30,9 +30,11 @@ repos:
       # Enforce and insert copyright headers in source code for the project's license
       - id: polymath-copyright
         args: [--license, Apache-2.0, --copyright-org, 'Open Source Robotics Foundation, Inc.', --reuse-style]
+        exclude: nodl_generator_cpp/test/golden/
 
       # Implementation languages we use in NoDL packages
       - id: polymath-cpp
+        exclude: nodl_generator_cpp/test/golden/
       - id: polymath-python
       - id: polymath-shell
       - id: polymath-cmake
