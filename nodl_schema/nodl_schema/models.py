@@ -451,6 +451,10 @@ class NodlDocument(BaseModel):
 
     nodl_version: int = Field(2, const=True, description='NoDL schema major version this document targets.')
     description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
+    codegen: Optional[dict[str, dict[str, Any]]] = Field(
+        None,
+        description='Opaque metadata for code generation tools, keyed by target language or tool\n(e.g. ``cpp``, ``python``). Each value is an object whose contents are\ntool-defined. The NoDL schema does not constrain them.\n',
+    )
     include: Optional[list[Reference]] = Field(
         None,
         description='Other NoDL documents whose interface entities are merged into this one.\nEach reference is resolved - recursively, following all references until done.\nCircular inclusion is an error.\nAn entity-name collision (for example two publishers named ``/status``) is an error.\n',

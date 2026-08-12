@@ -28,6 +28,15 @@ properties:
     type: string
     description: Human-readable description of what this node does.
 
+  codegen:
+    type: object
+    description: |
+      Opaque metadata for code generation tools, keyed by target language or tool
+      (e.g. ``cpp``, ``python``). Each value is an object whose contents are
+      tool-defined. The NoDL schema does not constrain them.
+    additionalProperties:
+      type: object
+
   include:
     type: array
     description: |
