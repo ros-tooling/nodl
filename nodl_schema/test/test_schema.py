@@ -49,6 +49,34 @@ def test_description_field():
     validate({'nodl_version': 2, 'description': 'A simple node'})
 
 
+def test_codegen_accepted():
+    validate({'nodl_version': 2, 'codegen': {'cpp': {'role': 'base_class', 'header': 'rclcpp/rclcpp.hpp'}}})
+
+
+def test_codegen_multiple_tool_keys():
+    validate({
+        'nodl_version': 2,
+        'codegen': {
+            'cpp': {'role': 'base_class', 'header': 'rclcpp/rclcpp.hpp'},
+            'python': {'module': 'rclpy.node'},
+        },
+    })
+
+
+def test_codegen_empty_accepted():
+    validate({'nodl_version': 2, 'codegen': {}})
+
+
+def test_codegen_non_object_value_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'codegen': {'cpp': 'a string'}})
+
+
+def test_codegen_non_object_rejected():
+    with pytest.raises(ValidationError):
+        validate({'nodl_version': 2, 'codegen': 'a string'})
+
+
 @pytest.mark.parametrize(
     'ptype,default',
     [

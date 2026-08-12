@@ -484,3 +484,16 @@ def test_ament_resolver_rejects_malformed_uri(ref):
     # The schema checks URI shape only, so the body is checked here.
     with pytest.raises(ResolutionError, match='expected nodl://'):
         AmentIndexResolver().resolve(ref)
+
+
+# ---------------------------------------------------------------------------
+# codegen field
+# ---------------------------------------------------------------------------
+
+
+def test_codegen_on_included_document_survives_resolution(docs):
+    codegen = {'cpp': {'role': 'base_class', 'header': 'rclcpp/rclcpp.hpp'}}
+    ref = docs.add('with_cg', NodlDocument(publishers=[_topic('/t')], codegen=codegen))
+    resolved = resolve_document(_including(ref))
+    included = resolved[1]
+    assert included.codegen == codegen
