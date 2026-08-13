@@ -7,18 +7,22 @@ from pathlib import Path
 
 import pytest
 
-from nodl_schema import resolver_registered
+from nodl_schema import dump_nodl, resolver_registered
+from nodl_schema.models import NodlDocument
 
-GOLDEN_DIR = Path(__file__).parent / 'golden'
-INCLUDES_DIR = GOLDEN_DIR / '_includes'
+INCLUDES_DIR = Path(__file__).parent / '_includes'
 
 
 class FakeResolver:
-    """Resolves ``test://<name>`` references from on-disk nodl files.
+    """
+    Resolves ``test://<name>`` references from in-memory or on-disk nodl files.
 
-    Follows the same pattern as nodl_schema's test_composition.FakeResolver,
-    but loads from the golden/_includes/ directory so the test documents
-    are human-readable files rather than inline strings.
+    Follows the same pattern as nodl_schema's test_composition.FakeResolver.
+    Supports three registration methods:
+
+    - ``add(name, doc)`` — register a :class:`NodlDocument` model (serialised to YAML).
+    - ``add_text(name, text)`` — register raw YAML text (for deliberately malformed documents).
+    - ``add_file(name, path)`` — register the contents of a file on disk.
     """
 
     scheme = 'test://'
@@ -27,11 +31,19 @@ class FakeResolver:
         self.docs: dict[str, str] = {}
         self.calls: list[str] = []
 
+    def add(self, name: str, doc: NodlDocument) -> str:
+        """Register *doc* as ``test://<name>`` and return the ref."""
+        return self.add_text(name, dump_nodl(doc))
+
+    def add_text(self, name: str, text: str) -> str:
+        """Register raw YAML/JSON text as ``test://<name>``."""
+        ref = f'{self.scheme}{name}'
+        self.docs[ref] = text
+        return ref
+
     def add_file(self, name: str, path: Path) -> str:
         """Register the contents of *path* as ``test://<name>``."""
-        ref = f'{self.scheme}{name}'
-        self.docs[ref] = path.read_text()
-        return ref
+        return self.add_text(name, path.read_text())
 
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.scheme)
@@ -46,7 +58,7 @@ class FakeResolver:
 
 @pytest.fixture()
 def fake_resolver():
-    """A FakeResolver pre-loaded with every ``golden/includes/*.nodl.yaml``.
+    """A FakeResolver pre-loaded with every ``_includes/*.nodl.yaml``.
 
     Registered for the duration of one test, then removed.
     """

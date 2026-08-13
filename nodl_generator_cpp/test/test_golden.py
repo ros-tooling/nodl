@@ -9,7 +9,7 @@ Each subdirectory under ``golden/`` (except ``includes/``) is a test case:
 
 Include references use ``test://`` URIs resolved by the shared
 FakeResolver fixture (see conftest.py), which loads every file from
-``golden/includes/`` so that base-class and library nodl files are
+``_includes/`` so that base-class and library nodl files are
 written once and shared across all cases.
 """
 
