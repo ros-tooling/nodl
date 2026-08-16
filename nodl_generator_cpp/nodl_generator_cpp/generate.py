@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import IO, Union
 
+from nodl_generator_cpp.provenance import build_provenance_map
 from nodl_schema.loader import load_nodl_with_doc_tree
 
 
@@ -31,6 +32,7 @@ def generate_cpp(source: Union[str, bytes, IO], target_name: str) -> list[Genera
     to disk by the caller.
     """
     merged_doc, doc_tree = load_nodl_with_doc_tree(source)
+    barriers, provenance_map = build_provenance_map(doc_tree)
 
-    # TODO: provenance walk, template rendering
+    # TODO: validation, template rendering
     return []
