@@ -1,12 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 import re
-from dataclasses import dataclass
 from typing import IO, Union
 
 from nodl_generator_cpp.models import CodegenCpp, Role
-from nodl_generator_cpp.provenance import build_provenance_map
+from nodl_generator_cpp.provenance import EntityKey, build_provenance_map
+from nodl_generator_cpp.template import GeneratedFile, render_templates
 from nodl_schema.loader import load_nodl_with_doc_tree
+from nodl_schema.models import (
+    ActionEndpoint,
+    NodlDocument,
+    ServiceEndpoint,
+    TopicEndpoint,
+)
 
 _IDENTIFIER_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
@@ -19,12 +25,6 @@ class CodegenError(Exception):
     """
 
 
-@dataclass
-class GeneratedFile:
-    filename: str
-    content: str
-
-
 def _validate_target_name(target_name: str) -> None:
     """Validate that *target_name* is a valid C++ identifier.
 
@@ -35,13 +35,13 @@ def _validate_target_name(target_name: str) -> None:
         raise ValueError(f'target_name must be a valid C++ identifier, got {target_name!r}')
 
 
-def _find_base_class_config(barriers: list[CodegenCpp]) -> CodegenCpp:
+def _find_base_class_config(barriers: list[CodegenCpp]) -> tuple[str, str]:
     """Find the single base-class config from the provenance barriers.
 
     Filters *barriers* to those with ``role == BASE_CLASS`` and ensures
     exactly one exists.
 
-    Returns the single :class:`CodegenCpp` base-class descriptor.
+    Returns ``(class, header)`` — the C++ class name and its header.
 
     Raises :class:`CodegenError` if there is no base class or if
     multiple conflicting base classes are found.
@@ -57,7 +57,39 @@ def _find_base_class_config(barriers: list[CodegenCpp]) -> CodegenCpp:
             f'Multiple conflicting base class providers found: {classes}. '
             'A generated node can only inherit from one base class.'
         )
-    return base_classes[0]
+    assert base_classes[0].class_ is not None
+    assert base_classes[0].header is not None
+    return base_classes[0].class_, base_classes[0].header
+
+
+def _filter_entities(
+    merged_doc: NodlDocument,
+    provenance_map: dict[EntityKey, CodegenCpp],
+) -> tuple[
+    list[TopicEndpoint],
+    list[TopicEndpoint],
+    list[ServiceEndpoint],
+    list[ServiceEndpoint],
+    list[ActionEndpoint],
+    list[ActionEndpoint],
+]:
+    """Filter merged-document entities, keeping only those not behind a barrier.
+
+    Returns six lists in field order: publishers, subscriptions,
+    service_servers, service_clients, action_servers, action_clients.
+    """
+
+    def _keep(field: str, items: list | None) -> list:
+        return [e for e in (items or []) if (field, e.name) not in provenance_map]
+
+    return (
+        _keep('publishers', merged_doc.publishers),
+        _keep('subscriptions', merged_doc.subscriptions),
+        _keep('service_servers', merged_doc.service_servers),
+        _keep('service_clients', merged_doc.service_clients),
+        _keep('action_servers', merged_doc.action_servers),
+        _keep('action_clients', merged_doc.action_clients),
+    )
 
 
 def generate_cpp(source: Union[str, bytes, IO], target_name: str) -> list[GeneratedFile]:
@@ -75,9 +107,13 @@ def generate_cpp(source: Union[str, bytes, IO], target_name: str) -> list[Genera
     merged_doc, doc_tree = load_nodl_with_doc_tree(source)
     barriers, provenance_map = build_provenance_map(doc_tree)
 
-    base_class = _find_base_class_config(barriers)
+    base_class, base_header = _find_base_class_config(barriers)
 
-    print(base_class)
+    generated_files = render_templates(
+        target_name,
+        base_class,
+        base_header,
+        *_filter_entities(merged_doc, provenance_map),
+    )
 
-    # TODO: filter merged_doc entities against provenance_map, template rendering
-    return []
+    return generated_files
