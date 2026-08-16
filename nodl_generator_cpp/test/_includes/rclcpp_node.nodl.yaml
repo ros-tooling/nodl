@@ -8,7 +8,7 @@ description: rclcpp::Node base class interface
 
 codegen:
   cpp:
-    role: base_class
+    role: BASE_CLASS
     class: rclcpp::Node
     header: rclcpp/rclcpp.hpp
 
