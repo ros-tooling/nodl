@@ -42,8 +42,8 @@ def _including(*refs) -> NodlDocument:
 
 
 def _base_class_codegen(cls='rclcpp::Node', header='rclcpp/rclcpp.hpp'):
-    """The ``codegen`` dict for a ``base_class`` provider."""
-    return {'cpp': {'role': 'base_class', 'class': cls, 'header': header}}
+    """The ``codegen`` dict for a ``BASE_CLASS`` provider."""
+    return {'cpp': {'role': 'BASE_CLASS', 'class': cls, 'header': header}}
 
 
 def _base_class_doc(cls='rclcpp::Node', header='rclcpp/rclcpp.hpp', *refs):

@@ -9,7 +9,7 @@ description: rclcpp_lifecycle::LifecycleNode interface
 
 codegen:
   cpp:
-    role: base_class
+    role: BASE_CLASS
     class: rclcpp_lifecycle::LifecycleNode
     header: rclcpp_lifecycle/lifecycle_node.hpp
 
