@@ -46,11 +46,11 @@ def _base_class_codegen(cls='rclcpp::Node', header='rclcpp/rclcpp.hpp'):
     return {'cpp': {'role': 'BASE_CLASS', 'class': cls, 'header': header}}
 
 
-def _base_class_doc(cls='rclcpp::Node', header='rclcpp/rclcpp.hpp', *refs):
+def _base_class_doc(cls='rclcpp::Node', header='rclcpp/rclcpp.hpp', *refs, topic='/provided'):
     """A document that declares itself as a ``base_class`` provider."""
     return NodlDocument(
         codegen=_base_class_codegen(cls, header),
-        publishers=[_topic('/provided')],
+        publishers=[_topic(topic)],
         include=_refs(*refs) or None,
     )
 
@@ -64,8 +64,8 @@ _TARGET = 'my_node'
 
 
 def test_two_sibling_base_class_includes(fake_resolver):
-    ref_a = fake_resolver.add('base_a', _base_class_doc('A', 'a.hpp'))
-    ref_b = fake_resolver.add('base_b', _base_class_doc('B', 'b.hpp'))
+    ref_a = fake_resolver.add('base_a', _base_class_doc('A', 'a.hpp', topic='/provided_a'))
+    ref_b = fake_resolver.add('base_b', _base_class_doc('B', 'b.hpp', topic='/provided_b'))
     root = NodlDocument(
         publishers=[_topic('/my_topic')],
         include=_refs(ref_a, ref_b),
@@ -75,8 +75,8 @@ def test_two_sibling_base_class_includes(fake_resolver):
 
 
 def test_two_sibling_base_class_includes_same_class_still_errors(fake_resolver):
-    ref_a = fake_resolver.add('base_a', _base_class_doc('rclcpp::Node', 'rclcpp/rclcpp.hpp'))
-    ref_b = fake_resolver.add('base_b', _base_class_doc('rclcpp::Node', 'rclcpp/rclcpp.hpp'))
+    ref_a = fake_resolver.add('base_a', _base_class_doc('rclcpp::Node', 'rclcpp/rclcpp.hpp', topic='/provided_a'))
+    ref_b = fake_resolver.add('base_b', _base_class_doc('rclcpp::Node', 'rclcpp/rclcpp.hpp', topic='/provided_b'))
     root = NodlDocument(
         publishers=[_topic('/my_topic')],
         include=_refs(ref_a, ref_b),
