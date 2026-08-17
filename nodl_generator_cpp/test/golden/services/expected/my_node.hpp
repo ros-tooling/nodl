@@ -15,6 +15,7 @@ public:
   virtual ~MyNodeBase() = default;
 
 protected:
+
   // --- Service server callbacks ---
   virtual void on_trigger(std_srvs::srv::Trigger::Request::SharedPtr request, std_srvs::srv::Trigger::Response::SharedPtr response) = 0;
 
@@ -22,6 +23,7 @@ protected:
   rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr cli_set_bool_;
 
 private:
+
   // --- Service servers ---
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_trigger_;
 };

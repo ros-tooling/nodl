@@ -15,6 +15,7 @@ public:
   virtual ~MyNodeBase() = default;
 
 protected:
+
   // --- Publishers ---
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_status_;
 
@@ -22,6 +23,7 @@ protected:
   virtual void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr msg) = 0;
 
 private:
+
   // --- Subscriptions ---
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
 };

@@ -4,6 +4,7 @@
 MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 : rclcpp_lifecycle::LifecycleNode("my_node", options)
 {
+
   // Create publishers
   pub_status_ = this->create_publisher<std_msgs::msg::String>("status", rclcpp::QoS(10).reliable());
 

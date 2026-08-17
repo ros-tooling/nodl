@@ -4,6 +4,7 @@
 MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 : rclcpp::Node("my_node", options)
 {
+
   // Create service servers
   srv_trigger_ = this->create_service<std_srvs::srv::Trigger>(
     "trigger",
