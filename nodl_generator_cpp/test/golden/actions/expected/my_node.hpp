@@ -20,6 +20,10 @@ protected:
   // --- Action server callbacks ---
   virtual rclcpp_action::GoalResponse on_fibonacci_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const example_interfaces::action::Fibonacci::Goal> goal) = 0;
   virtual rclcpp_action::CancelResponse on_fibonacci_cancel(std::shared_ptr<rclcpp_action::ServerGoalHandle<example_interfaces::action::Fibonacci>> goal_handle) = 0;
+  /// @brief Called when a goal is accepted.  Do not block in this callback;
+  /// doing so prevents cancel requests from being processed.  Detach a thread
+  /// for long-running work, e.g.:
+  ///   std::thread{[goal_handle]() { /* execute */ }}.detach();
   virtual void on_fibonacci_accepted(std::shared_ptr<rclcpp_action::ServerGoalHandle<example_interfaces::action::Fibonacci>> goal_handle) = 0;
 
   // --- Action clients ---

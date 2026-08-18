@@ -54,6 +54,10 @@ protected:
 {% for action in action_servers %}
   virtual rclcpp_action::GoalResponse {{ action.callback_prefix }}_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const {{ action.cpp_type }}::Goal> goal) = 0;
   virtual rclcpp_action::CancelResponse {{ action.callback_prefix }}_cancel(std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) = 0;
+  /// @brief Called when a goal is accepted.  Do not block in this callback;
+  /// doing so prevents cancel requests from being processed.  Detach a thread
+  /// for long-running work, e.g.:
+  ///   std::thread{[goal_handle]() { /* execute */ }}.detach();
   virtual void {{ action.callback_prefix }}_accepted(std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) = 0;
 {% endfor %}
 {% endif %}
