@@ -1,0 +1,34 @@
+---
+# Tests parameter generation via generate_parameter_library.
+# The generator should produce a genparamlib YAML and wire up
+# ParamListener / Params in the base class.
+
+nodl_version: 2
+
+include:
+  - ref: test://rclcpp_node
+
+parameters:
+  max_speed:
+    type: double
+    default_value: 1.5
+    description: Maximum speed in m/s
+    validation:
+      gt<>: [0.0]
+      lt<>: [10.0]
+  robot_name:
+    type: string
+    default_value: bot
+    description: Name of the robot
+    read_only: true
+  enabled:
+    type: bool
+    default_value: true
+
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE

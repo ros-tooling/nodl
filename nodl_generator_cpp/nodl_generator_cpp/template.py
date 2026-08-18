@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-from dataclasses import dataclass
-
 import jinja2
 
+from nodl_generator_cpp.generated_file import GeneratedFile
 from nodl_generator_cpp.ros_to_cpp import (
     qos_to_cpp,
     ros_type_to_cpp,
@@ -12,15 +11,6 @@ from nodl_generator_cpp.ros_to_cpp import (
     to_member_name,
 )
 from nodl_schema.models import ActionEndpoint, ServiceEndpoint, TopicEndpoint
-
-
-@dataclass
-class GeneratedFile:
-    """A generated file ready to be written to disk."""
-
-    filename: str
-    content: str
-
 
 # ---------------------------------------------------------------------------
 # Jinja2 environment (lazy singleton)
@@ -57,6 +47,7 @@ def _build_template_context(
     service_clients: list[ServiceEndpoint],
     action_servers: list[ActionEndpoint],
     action_clients: list[ActionEndpoint],
+    has_parameters: bool = False,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -139,6 +130,7 @@ def _build_template_context(
             }
             for e in action_clients
         ],
+        'has_parameters': has_parameters,
     }
 
 
@@ -157,6 +149,7 @@ def render_templates(
     service_clients: list[ServiceEndpoint],
     action_servers: list[ActionEndpoint],
     action_clients: list[ActionEndpoint],
+    has_parameters: bool = False,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
@@ -173,6 +166,7 @@ def render_templates(
         service_clients,
         action_servers,
         action_clients,
+        has_parameters,
     )
 
     env = _get_env()
