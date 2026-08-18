@@ -1,0 +1,54 @@
+---
+# NoDL interface description for rclcpp::Node.
+#
+# This file is a stand-in until rclcpp ships its own .nodl.yaml.
+# It is registered in the ament index as nodl://rclcpp/node.
+
+nodl_version: 2
+description: rclcpp::Node base class interface
+
+codegen:
+  cpp:
+    role: BASE_CLASS
+    class: rclcpp::Node
+    header: rclcpp/rclcpp.hpp
+
+parameters:
+  use_sim_time:
+    type: bool
+    default_value: false
+    description: Use simulation time
+
+publishers:
+  - name: /rosout
+    type: rcl_interfaces/msg/Log
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE
+
+  - name: /parameter_events
+    type: rcl_interfaces/msg/ParameterEvent
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE
+
+service_servers:
+  - name: ~/describe_parameters
+    type: rcl_interfaces/srv/DescribeParameters
+
+  - name: ~/get_parameters
+    type: rcl_interfaces/srv/GetParameters
+
+  - name: ~/get_parameter_types
+    type: rcl_interfaces/srv/GetParameterTypes
+
+  - name: ~/list_parameters
+    type: rcl_interfaces/srv/ListParameters
+
+  - name: ~/set_parameters
+    type: rcl_interfaces/srv/SetParameters
+
+  - name: ~/set_parameters_atomically
+    type: rcl_interfaces/srv/SetParametersAtomically
