@@ -8,9 +8,9 @@ my_node:
     additional_constraints: ''
     validation:
       lt<>:
-        - 10.0
+      - 10.0
       gt<>:
-        - 0.0
+      - 0.0
   robot_name:
     type: string
     default_value: bot

@@ -46,4 +46,5 @@ repos:
       - id: polymath-json
       - id: polymath-yaml
         # rosdoc2.yaml uses a mandated two-document layout (header, then `---`, then config) that yamlfix rejects.
-        exclude: (^|/)rosdoc2\.yaml$
+        # Golden YAML files must match PyYAML's exact output; yamlfix would reformat them.
+        exclude: (^|/)rosdoc2\.yaml$|nodl_generator_cpp/test/golden/

@@ -41,6 +41,7 @@ def generate_genparamlib_yaml(
         {target_name: params_dict},
         default_flow_style=False,
         sort_keys=False,
+        explicit_start=True,
     )
     return GeneratedFile(
         filename=f'{target_name}_parameters.yaml',
