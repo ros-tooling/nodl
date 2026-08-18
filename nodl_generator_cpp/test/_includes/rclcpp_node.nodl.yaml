@@ -12,6 +12,12 @@ codegen:
     class: rclcpp::Node
     header: rclcpp/rclcpp.hpp
 
+parameters:
+  use_sim_time:
+    type: bool
+    default_value: false
+    description: Use simulation time
+
 publishers:
   - name: /rosout
     type: rcl_interfaces/msg/Log

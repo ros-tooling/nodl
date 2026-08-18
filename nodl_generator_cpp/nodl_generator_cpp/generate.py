@@ -3,13 +3,16 @@
 import re
 from typing import IO, Union
 
+from nodl_generator_cpp.generated_file import GeneratedFile
 from nodl_generator_cpp.models import CodegenCpp, Role
+from nodl_generator_cpp.params import generate_genparamlib_yaml
 from nodl_generator_cpp.provenance import EntityKey, build_provenance_map
-from nodl_generator_cpp.template import GeneratedFile, render_templates
+from nodl_generator_cpp.template import render_templates
 from nodl_schema.loader import load_nodl_with_doc_tree
 from nodl_schema.models import (
     ActionEndpoint,
     NodlDocument,
+    ParameterDefinition,
     ServiceEndpoint,
     TopicEndpoint,
 )
@@ -92,6 +95,16 @@ def _filter_entities(
     )
 
 
+def _filter_parameters(
+    merged_doc: NodlDocument,
+    provenance_map: dict[EntityKey, CodegenCpp],
+) -> dict[str, ParameterDefinition]:
+    """Filter parameters, keeping only those not behind a barrier."""
+    if not merged_doc.parameters:
+        return {}
+    return {name: param for name, param in merged_doc.parameters.items() if ('parameters', name) not in provenance_map}
+
+
 def generate_cpp(source: Union[str, bytes, IO], target_name: str) -> list[GeneratedFile]:
     """Generate C++ base-node class files from a NoDL document.
 
@@ -109,11 +122,14 @@ def generate_cpp(source: Union[str, bytes, IO], target_name: str) -> list[Genera
 
     base_class, base_header = _find_base_class_config(barriers)
 
-    generated_files = render_templates(
-        target_name,
-        base_class,
-        base_header,
-        *_filter_entities(merged_doc, provenance_map),
-    )
+    entities = _filter_entities(merged_doc, provenance_map)
+    parameters = _filter_parameters(merged_doc, provenance_map)
+
+    has_parameters = len(parameters) > 0
+
+    generated_files = []
+    generated_files += render_templates(target_name, base_class, base_header, *entities, has_parameters)
+    if has_parameters:
+        generated_files += [generate_genparamlib_yaml(target_name, parameters)]
 
     return generated_files

@@ -3,6 +3,8 @@
 
 MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 : rclcpp::Node("my_node", options)
+, param_listener_(this->get_node_parameters_interface(), this->get_logger())
+, params_(param_listener_.get_params())
 {
 
   // Create publishers

@@ -1,0 +1,8 @@
+---
+my_node:
+  max_speed:
+    type: double
+    default_value: 1.0
+    description: Maximum speed
+    read_only: false
+    additional_constraints: ''

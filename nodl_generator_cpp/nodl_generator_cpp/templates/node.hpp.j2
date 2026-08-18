@@ -1,4 +1,4 @@
-{% set has_protected = publishers or subscriptions or service_servers or action_servers or service_clients or action_clients %}
+{% set has_protected = publishers or subscriptions or service_servers or action_servers or service_clients or action_clients or has_parameters %}
 {% set has_private = subscriptions or service_servers or action_servers %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #pragma once
@@ -8,6 +8,9 @@
 {% for header in includes %}
 #include <{{ header }}>
 {% endfor %}
+{% if has_parameters %}
+#include "{{ target_name }}_parameters.hpp"
+{% endif %}
 
 class {{ class_name }} : public {{ base_class }}
 {
@@ -18,6 +21,12 @@ public:
 {% if has_protected %}
 
 protected:
+{% if has_parameters %}
+
+  // --- Parameters ---
+  {{ target_name }}::ParamListener param_listener_;
+  {{ target_name }}::Params params_;
+{% endif %}
 {% if publishers %}
 
   // --- Publishers ---

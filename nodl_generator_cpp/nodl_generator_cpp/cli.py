@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from nodl_generator_cpp.generate import generate_cpp
+from nodl_generator_cpp.params import generate_parameter_header
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -30,6 +31,18 @@ def main(argv: list[str] | None = None) -> int:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for gf in generated_files:
+        out_path = args.output_dir / gf.filename
+        out_path.write_text(gf.content)
+        print(f'wrote {out_path}')
+
+    # generate_parameter_library only exposes a file-based interface
+    # (no in-memory API), so we must write the YAML first then invoke
+    # it on the on-disk file to produce the C++ parameter header.
+    # TODO(alistair): contribute a code-level API to genparamlib,
+    # or fork the implementation into nodl, so we can avoid this.
+    params_yaml = args.output_dir / f'{args.target_name}_parameters.yaml'
+    if params_yaml.exists():
+        gf = generate_parameter_header(params_yaml)
         out_path = args.output_dir / gf.filename
         out_path.write_text(gf.content)
         print(f'wrote {out_path}')

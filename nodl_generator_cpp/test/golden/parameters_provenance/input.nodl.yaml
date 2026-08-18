@@ -1,0 +1,16 @@
+---
+# Tests that parameters behind a barrier are filtered out.
+# use_sim_time is declared in rclcpp_node (behind the base_class barrier)
+# and must NOT appear in the generated genparamlib YAML or templates.
+# Only max_speed should come through.
+
+nodl_version: 2
+
+include:
+  - ref: test://rclcpp_node
+
+parameters:
+  max_speed:
+    type: double
+    default_value: 1.0
+    description: Maximum speed
