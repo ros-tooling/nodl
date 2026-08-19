@@ -9,7 +9,7 @@ class AmentIndexResolver:
     """Resolves ``nodl://<package>/<name>`` through the ament index."""
 
     prefix = 'nodl://'
-    ament_resource_type = 'nodl_nodes'
+    ament_resource_type = 'nodl'
 
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.prefix)

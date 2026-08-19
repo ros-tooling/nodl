@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""End-to-end test that the ament_nodl_register_node macro propagates validator failures as build failures.
+"""End-to-end test that the ament_nodl_register macro propagates validator failures as build failures.
 
 Writes a tiny inner ament_cmake project that registers an intentionally-invalid NoDL file via the macro,
 then spawns cmake to configure and build it; the build is expected to fail with the validator error.
@@ -23,7 +23,7 @@ _INNER_CMAKELISTS = textwrap.dedent("""
     project(rejection_fixture)
     find_package(ament_cmake REQUIRED)
     find_package(ament_nodl REQUIRED)
-    ament_nodl_register_node(bad_exe FILE bad.nodl.yaml)
+    ament_nodl_register(bad_exe FILE bad.nodl.yaml)
     ament_package()
 """)
 

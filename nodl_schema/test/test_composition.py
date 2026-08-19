@@ -464,7 +464,7 @@ def test_ament_resolver_looks_up_the_registered_resource(monkeypatch):
 
     monkeypatch.setattr(resources, 'get_resource', fake_get_resource)
     text = AmentIndexResolver().resolve('nodl://sensor_common/imu_driver')
-    assert captured['args'] == ('nodl_nodes', 'sensor_common__imu_driver')
+    assert captured['args'] == ('nodl', 'sensor_common__imu_driver')
     assert 'nodl_version' in text
 
 

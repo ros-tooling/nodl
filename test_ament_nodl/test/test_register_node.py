@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Integration tests for the ament_nodl_register_node CMake macro.
+"""Integration tests for the ament_nodl_register CMake macro.
 
 The macro is exercised at configure / install time by this package's
 CMakeLists.txt; here we assert on the resulting ament index and install
@@ -30,26 +30,26 @@ def _share(pkg: str = 'test_ament_nodl') -> Path:
 
 def test_default_package_uses_project_name():
     # No PACKAGE arg means the macro defaults to ${PROJECT_NAME}, so the key is test_ament_nodl__basic_node.
-    content, prefix = get_resource('nodl_nodes', 'test_ament_nodl__basic_node')
+    content, prefix = get_resource('nodl', 'test_ament_nodl__basic_node')
     assert prefix
     assert 'Basic test node' in content
 
 
 def test_explicit_package_override():
     # PACKAGE custom_pkg makes the key custom_pkg__custom_exe even though the registering package is test_ament_nodl.
-    content, _ = get_resource('nodl_nodes', 'custom_pkg__custom_exe')
+    content, _ = get_resource('nodl', 'custom_pkg__custom_exe')
     assert 'explicit PACKAGE override' in content
 
 
 def test_extension_agnostic_frontend():
     # The macro reads bytes and writes bytes; a .nodl.json file round-trips just like yaml.
-    content, _ = get_resource('nodl_nodes', 'test_ament_nodl__json_node')
+    content, _ = get_resource('nodl', 'test_ament_nodl__json_node')
     assert '"nodl_version": 2' in content
 
 
 def test_resource_content_matches_source():
     # The registered resource should be byte-identical to the source file.
-    content, _ = get_resource('nodl_nodes', 'test_ament_nodl__basic_node')
+    content, _ = get_resource('nodl', 'test_ament_nodl__basic_node')
     on_disk = (_share() / 'nodl' / 'basic_node.nodl.yaml').read_text()
     assert content == on_disk
 

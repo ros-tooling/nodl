@@ -82,8 +82,7 @@ def test_json_frontend_supported(tmp_path: Path):
 
 
 def test_unresolvable_include_exits_one_by_default(tmp_path: Path):
-    # The default (resolving) path is what ament_nodl_register_node runs, so a broken reference
-    # has to fail the build next to the schema check.
+    # a broken reference has to fail the build next to the schema check
     f = tmp_path / 'inc.nodl.yaml'
     f.write_text(_UNRESOLVABLE_INCLUDE)
     result = _run(f)

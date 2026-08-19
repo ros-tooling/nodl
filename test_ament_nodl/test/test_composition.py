@@ -88,6 +88,6 @@ def test_no_resolve_leaves_the_include_untouched():
 
 def test_registered_document_is_installed_as_authored():
     # Registration does not rewrite, so a consumer resolves the document as authored.
-    content, _ = get_resource('nodl_nodes', 'test_ament_nodl__basic_node')
+    content, _ = get_resource('nodl', 'test_ament_nodl__basic_node')
     assert 'include' not in content
     assert '/chatter' in content
