@@ -109,10 +109,10 @@ class FakeResolver:
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.scheme)
 
-    def resolve(self, ref: str) -> Path:
+    def resolve(self, ref: str, origin: Path) -> Path:
         self.calls.append(ref)
         try:
-            return self.docs[ref]
+            return self.docs[ref], None
         except KeyError:
             raise FileNotFoundError(ref)
 

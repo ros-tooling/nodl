@@ -40,12 +40,12 @@ Ref: TypeAlias = str
 IncludeChain: TypeAlias = list[str]
 
 
-def resolve_document(doc: NodlDocument) -> DocumentTree:
+def resolve_document(doc: NodlDocument, origin: Path) -> DocumentTree:
     # DFS traversal of the includes, detecting non-tree double-inclusions/cycles
 
     visited: dict[Path, IncludeChain] = {}
 
-    def _resolve_ref(ref: Ref, chain: IncludeChain) -> IncludedDocument:
+    def _resolve_ref(ref: Ref, *, chain: IncludeChain, origin: Path) -> IncludedDocument:
         current_chain = chain + [ref]
         resolved_path = resolve(ref)
 
@@ -57,11 +57,11 @@ def resolve_document(doc: NodlDocument) -> DocumentTree:
 
         visited[resolved_path] = current_chain
         doc = load_nodl(resolved_path, resolve=False)
-        children = [_resolve_ref(r.ref, current_chain) for r in (doc.include or [])]
+        children = [_resolve_ref(r.ref, current_chain, origin=resolved_path) for r in (doc.include or [])]
 
         return IncludedDocument(ref=ref, doc=doc, resolved_includes=children)
 
-    root_children = [_resolve_ref(r.ref, chain=[]) for r in (doc.include or [])]
+    root_children = [_resolve_ref(r.ref, chain=[], origin=origin) for r in (doc.include or [])]
 
     return DocumentTree(root_doc=doc, resolved_includes=root_children)
 
@@ -93,7 +93,6 @@ def load_nodl(source: Path, *, resolve: bool = True) -> NodlDocument:
         Resolvers generally raise ResolutionError on invalid or unfindable references,
         but their custom exceptions are allowed propagate for unforseen cases, for visibility
     """
-
     if resolve:
         result_doc, _ = load_nodl_with_doc_tree(source)
     else:
@@ -118,7 +117,7 @@ def load_nodl_with_doc_tree(source: Path) -> tuple[NodlDocument, DocumentTree]:
         but their custom exceptions are allowed propagate for unforseen cases, for visibility
     """
     doc = parse_nodl(source.read_text())
-    doc_tree = resolve_document(doc)
+    doc_tree = resolve_document(doc, source)
     merged_doc = merge_documents(doc_tree.flatten())
     return merged_doc, doc_tree
 

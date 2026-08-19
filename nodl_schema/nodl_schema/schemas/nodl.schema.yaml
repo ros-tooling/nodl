@@ -105,7 +105,9 @@ definitions:
         description: |
           Reference to a NoDL document, as a ``<scheme>://<body>`` URI.
           Dynamically egistered resolvers handle these URIs, so the schema does not restrict them.
-          ``nodl://<package>/<name>`` is the built-in resolver which fetches from the ament index.
+          These resolver schemes are built in:
+          ``nodl://<package>/<name>`` fetches from the ament index.
+          ``local://<relative path to file>`` is another document in the same package, as a relative path.
         pattern: ^[a-z][a-z0-9+.-]*://[^\s/][^\s]*$
         examples:
           - nodl://sensor_common/imu_driver

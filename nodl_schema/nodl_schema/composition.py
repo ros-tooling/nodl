@@ -34,10 +34,12 @@ class Resolver(Protocol):
         """Whether this resolver recognizes ``ref`` as a form it can resolve."""
         ...
 
-    def resolve(self, ref: str) -> Path:
+    def resolve(self, ref: str, origin: Path) -> Path:
         """Return the path to the document ``ref`` names.
         Should only called when ``handles`` is true.
         Raise ResolutionError when ref cannot be resolved.
+        @param ref: Exact text of the URI reference
+        @param origin: Document that is making the reference - necessary to resolve local includes
         """
         ...
 
@@ -93,12 +95,12 @@ def resolver_for(ref: str) -> Resolver | None:
     return None
 
 
-def resolve(ref: str) -> Path:
-    """Return the text of the document ``ref`` names, if it can be resolved."""
+def resolve(ref: str, origin: Path) -> Path:
+    """Return the path to the document ``ref`` names, if it can be resolved."""
     resolver = resolver_for(ref)
     if resolver is None:
         raise ResolutionError(f'No registered resolver handles reference {ref!r}.')
-    return resolver.resolve(ref)
+    return resolver.resolve(ref, origin)
 
 
 # --------------------------------
