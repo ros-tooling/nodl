@@ -14,6 +14,7 @@
   <exec_depend>ament_nodl</exec_depend>
   <exec_depend>nodl_schema</exec_depend>
   <exec_depend>ros2nodl</exec_depend>
+  <exec_depend>nodl_generator_cpp</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
