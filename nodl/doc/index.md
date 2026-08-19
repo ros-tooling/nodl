@@ -38,6 +38,7 @@ nodl_schema <_generated/packages/nodl_schema/overview>
 nodl_observe <_generated/packages/nodl_observe/overview>
 ros2nodl <_generated/packages/ros2nodl/overview>
 ament_nodl <_generated/packages/ament_nodl/overview>
+nodl_generator_cpp <_generated/packages/nodl_generator_cpp/overview>
 ```
 
 ## Source
