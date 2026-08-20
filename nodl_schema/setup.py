@@ -21,5 +21,5 @@ setup(
         ),
     ],
     zip_safe=True,
-    extras_require={'test': ['pytest']},
+    extras_require={'test': ['pytest', 'pyright']},
 )

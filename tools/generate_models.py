@@ -57,6 +57,20 @@ def _copyright_header() -> str:
     )
 
 
+# pyright has no pydantic plugin, so the v1-style output flags three diagnostic
+# categories: constrained-type calls (constr(regex=...)) in annotation position,
+# and the pydantic.v1 import fallback making BaseModel look like a union of two
+# base classes. The file is generated and must stay v1-compatible, so we suppress
+# these rather than hand-editing the output.
+_PYRIGHT_DIRECTIVE = (
+    '# pyright: reportGeneralTypeIssues=false, reportInvalidTypeForm=false, reportCallIssue=false\n'
+    '# This file is generated in pydantic v1 style and must stay v1-compatible (see tools/generate_models.py).\n'
+    '# pyright has no pydantic plugin, so it rejects the v1 constrained-type calls (constr(regex=...)) in\n'
+    '# annotation position and the pydantic.v1 import fallback; those categories are suppressed here.\n'
+    '# Regenerating the file reinserts this directive.\n'
+)
+
+
 _PYDANTIC_IMPORT_LINE = re.compile(r'^from pydantic import (.+)$', re.MULTILINE)
 
 
@@ -137,7 +151,7 @@ def main() -> int:
     text = OUTPUT.read_text(encoding='utf-8')
     text = _strip_orphan_root_classes(text)
     text = _rewrite_pydantic_import(text)
-    OUTPUT.write_text(_copyright_header() + text)
+    OUTPUT.write_text(_copyright_header() + _PYRIGHT_DIRECTIVE + text)
     subprocess.run(['ruff', 'format', *_RUFF_CONFIG_ARGS, str(OUTPUT)], check=True)
     # ruff check may have residual lint findings that aren't auto-fixable; we
     # let it fix what it can and ignore its exit code so this script remains

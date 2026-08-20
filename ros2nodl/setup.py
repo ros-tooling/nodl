@@ -12,7 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    extras_require={'test': ['pytest']},
+    extras_require={'test': ['pytest', 'pyright']},
     zip_safe=True,
     entry_points={
         'ros2cli.command': [

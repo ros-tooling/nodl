@@ -8,9 +8,9 @@ from ros2cli.command import CommandExtension, add_subparsers_on_demand
 class NodlCommand(CommandExtension):
     """Inspect and validate NoDL documents."""
 
-    def add_arguments(self, parser, cli_name):
+    def add_arguments(self, parser, cli_name, *, argv=None):
         self._subparser = parser
-        add_subparsers_on_demand(parser, cli_name, '_verb', 'ros2nodl.verb', required=False)
+        add_subparsers_on_demand(parser, cli_name, '_verb', 'ros2nodl.verb', required=False, argv=argv)
 
     def main(self, *, parser, args):
         if not hasattr(args, '_verb'):
