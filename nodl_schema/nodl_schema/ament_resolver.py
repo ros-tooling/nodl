@@ -1,6 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
+from pathlib import Path
+
 from ament_index_python import resources as ament_index
+from ament_index_python.constants import RESOURCE_INDEX_SUBFOLDER
 
 from nodl_schema.composition import ResolutionError
 
@@ -14,16 +17,17 @@ class AmentIndexResolver:
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.prefix)
 
-    def resolve(self, ref: str) -> str:
+    def resolve(self, ref: str) -> Path:
         package, _, name = ref[len(self.prefix) :].partition('/')
         if not package or not name:
             raise ResolutionError(f'invalid reference {ref!r}: expected nodl://<package>/<name>')
 
         key = f'{package}__{name}'
-        try:
-            content, _ = ament_index.get_resource(self.ament_resource_type, key)
-        except Exception as exc:
+        resource_prefix = ament_index.has_resource(self.ament_resource_type, key)
+        if not resource_prefix:
             raise ResolutionError(
                 f'NoDL document {ref!r} not found in ament index (resource {self.ament_resource_type}/{key})'
-            ) from exc
-        return content
+            )
+
+        resource_path = Path(resource_prefix, RESOURCE_INDEX_SUBFOLDER, self.ament_resource_type, key)
+        return resource_path

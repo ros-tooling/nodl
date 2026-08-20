@@ -3,7 +3,8 @@
 import json
 from collections import deque
 from dataclasses import dataclass
-from typing import IO, TypeAlias, Union
+from pathlib import Path
+from typing import TypeAlias, Union
 
 import yaml
 
@@ -70,8 +71,8 @@ def resolve_document(doc: NodlDocument) -> DocumentTree:
     return DocumentTree(root_doc=doc, resolved_includes=root_children)
 
 
-def _load_doc(source: Union[str, bytes, IO]) -> NodlDocument:
-    data = yaml.safe_load(source)
+def _load_doc(source: Path) -> NodlDocument:
+    data = yaml.safe_load(source.read_text())
     if not isinstance(data, dict):
         raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
 
@@ -84,8 +85,8 @@ def _load_doc(source: Union[str, bytes, IO]) -> NodlDocument:
     return doc
 
 
-def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDocument:
-    """Load and validate a NoDL document from a string, bytes, or file-like object containing JSON or YAML text.
+def load_nodl(source: Path, *, resolve: bool = True) -> NodlDocument:
+    """Load and validate a NoDL document from a path containing JSON or YAML text.
 
     When ``resolve`` (default True), ``include`` references are resolved and merged into the resulting document,
     which then has no ``include`` key.
@@ -106,7 +107,7 @@ def load_nodl(source: Union[str, bytes, IO], *, resolve: bool = True) -> NodlDoc
     return result_doc
 
 
-def load_nodl_with_doc_tree(source: Union[str, bytes, IO]) -> tuple[NodlDocument, DocumentTree]:
+def load_nodl_with_doc_tree(source: Path) -> tuple[NodlDocument, DocumentTree]:
     """Load, validate, resolve includes, and return both the merged document and the inclusion tree.
 
     Returns a ``(merged_doc, doc_tree)`` tuple where:

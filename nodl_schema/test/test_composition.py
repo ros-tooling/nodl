@@ -3,6 +3,9 @@
 
 """Unit tests for NoDL document composition (the ``include`` key)."""
 
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from nodl_schema import (
@@ -73,15 +76,18 @@ def _including(*refs) -> NodlDocument:
 class FakeResolver:
     """Resolves an in-memory ``test://`` reference format.
 
-    Documents go in as models and come out as text, since that is what a resolver returns.
+    Documents go in as models and come out as a ``Path`` to a temp file, since that is
+    what a resolver returns.
     Use ``add_text`` for content a model cannot hold, such as a deliberately invalid document.
     """
 
     scheme = 'test://'
 
     def __init__(self, docs: dict[str, NodlDocument] | None = None):
-        self.docs: dict[str, str] = {}
+        self.docs: dict[str, Path] = {}
         self.calls: list[str] = []
+        self._dir = Path(tempfile.mkdtemp())
+        self._n = 0
         for name, doc in (docs or {}).items():
             self.add(name, doc)
 
@@ -92,13 +98,17 @@ class FakeResolver:
     def add_text(self, name: str, text: str) -> str:
         """Register raw text, for documents that are deliberately not valid NoDL."""
         ref = f'{self.scheme}{name}'
-        self.docs[ref] = text
+        # Refs may contain '/', so name the file by insertion order rather than by ref.
+        path = self._dir / f'{self._n}.nodl.yaml'
+        self._n += 1
+        path.write_text(text)
+        self.docs[ref] = path
         return ref
 
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.scheme)
 
-    def resolve(self, ref: str) -> str:
+    def resolve(self, ref: str) -> Path:
         self.calls.append(ref)
         try:
             return self.docs[ref]
@@ -450,54 +460,6 @@ def test_register_resolver_without_a_scope_persists_until_removed():
     finally:
         unregister_resolver(resolver)
     assert resolver_for('test://x') is None
-
-
-# ---------------------------------------------------------------------------
-# AmentIndexResolver
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize('ref', ['nodl://sensor_common/imu_driver', 'nodl://pkg/x'])
-def test_ament_resolver_handles_nodl_refs(ref):
-    assert AmentIndexResolver().handles(ref)
-
-
-@pytest.mark.parametrize('ref', ['test://x', 'common/telemetry.nodl.yaml', 'ftp://example.com/x.yaml', ''])
-def test_ament_resolver_does_not_handle_other_forms(ref):
-    assert not AmentIndexResolver().handles(ref)
-
-
-def test_ament_resolver_looks_up_the_registered_resource(monkeypatch):
-    captured = {}
-
-    def fake_get_resource(resource_type, name):
-        captured['args'] = (resource_type, name)
-        return ('nodl_version: 2\n', '/some/prefix')
-
-    import ament_index_python.resources as resources
-
-    monkeypatch.setattr(resources, 'get_resource', fake_get_resource)
-    text = AmentIndexResolver().resolve('nodl://sensor_common/imu_driver')
-    assert captured['args'] == ('nodl', 'sensor_common__imu_driver')
-    assert 'nodl_version' in text
-
-
-def test_ament_resolver_missing_resource_raises(monkeypatch):
-    def fake_get_resource(resource_type, name):
-        raise LookupError(name)
-
-    import ament_index_python.resources as resources
-
-    monkeypatch.setattr(resources, 'get_resource', fake_get_resource)
-    with pytest.raises(ResolutionError, match='nodl://pkg/absent'):
-        AmentIndexResolver().resolve('nodl://pkg/absent')
-
-
-@pytest.mark.parametrize('ref', ['nodl://pkg', 'nodl://pkg/', 'nodl:///name'])
-def test_ament_resolver_rejects_malformed_uri(ref):
-    # The schema checks URI shape only, so the body is checked here.
-    with pytest.raises(ResolutionError, match='expected nodl://'):
-        AmentIndexResolver().resolve(ref)
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@ A resolver returns document text, not a path, since a reference need not name an
 from __future__ import annotations
 
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Generator, Protocol, runtime_checkable
 
 from nodl_schema.models import NodlDocument, ParameterDefinition
@@ -33,8 +34,8 @@ class Resolver(Protocol):
         """Whether this resolver recognizes ``ref`` as a form it can resolve."""
         ...
 
-    def resolve(self, ref: str) -> str:
-        """Return the raw text of the document ``ref`` names. Only called when ``handles`` is true."""
+    def resolve(self, ref: str) -> Path | None:
+        """Return the path to the document ``ref`` names. Only called when ``handles`` is true."""
         ...
 
 
@@ -89,7 +90,7 @@ def resolver_for(ref: str) -> Resolver | None:
     return None
 
 
-def resolve(ref: str) -> str:
+def resolve(ref: str) -> Path:
     """Return the text of the document ``ref`` names, if it can be resolved."""
     resolver = resolver_for(ref)
     if resolver is None:
