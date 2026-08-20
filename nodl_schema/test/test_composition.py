@@ -14,6 +14,7 @@ from nodl_schema import (
     dump_nodl,
     get_resolvers,
     load_nodl,
+    parse_nodl,
     register_resolver,
     resolve_document,
     resolver_registered,
@@ -319,15 +320,13 @@ def test_included_non_mapping_raises(docs):
 
 
 # ---------------------------------------------------------------------------
-# load_nodl integration
+# load/parse nodl
 # ---------------------------------------------------------------------------
-#
-# load_nodl takes a serialized source, so these serialize a model at the call site.
 
 
 def test_load_nodl_resolves_through_the_registry(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
-    doc = load_nodl(dump_nodl(_including(ref)))
+    doc = parse_nodl(dump_nodl(_including(ref)))
     assert doc.subscriptions
     assert doc.subscriptions[0].name == '/extra'
     # The include key is consumed once resolved.
@@ -335,20 +334,21 @@ def test_load_nodl_resolves_through_the_registry(docs):
 
 
 def test_load_nodl_no_resolve_keeps_include(docs):
-    doc = load_nodl(dump_nodl(_including('test://extra')), resolve=False)
+    doc = docs.add('whatever', _including('test://extra'))
+    doc = load_nodl(doc, resolve=False)
     assert doc.include
     assert [r.ref for r in doc.include] == ['test://extra']
     assert docs.calls == []
 
 
 def test_load_nodl_without_include_does_not_touch_resolver(docs):
-    load_nodl(dump_nodl(NodlDocument()))
+    parse_nodl(dump_nodl(NodlDocument()))
     assert docs.calls == []
 
 
 def test_load_nodl_merges_the_resolved_documents(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
-    doc = load_nodl(dump_nodl(NodlDocument(publishers=[_topic('/base')], include=_refs(ref))))
+    doc = parse_nodl(dump_nodl(NodlDocument(publishers=[_topic('/base')], include=_refs(ref))))
     assert doc.publishers
     assert [p.name for p in doc.publishers] == ['/base']
     assert doc.subscriptions

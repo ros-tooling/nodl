@@ -118,7 +118,7 @@ def load_nodl_with_doc_tree(source: Path) -> tuple[NodlDocument, DocumentTree]:
         but their custom exceptions are allowed propagate for unforseen cases, for visibility
     """
     doc = parse_nodl(source.read_text())
-    doc_tree = resolve_document(doc, source)
+    doc_tree = resolve_document(doc)
     merged_doc = merge_documents(doc_tree.flatten())
     return merged_doc, doc_tree
 

@@ -8,7 +8,7 @@ import json
 import pytest
 from jsonschema import ValidationError
 
-from nodl_schema import dump_nodl, load_nodl, parse_nodl, validate
+from nodl_schema import dump_nodl, parse_nodl, validate
 from nodl_schema.models import NodlDocument
 from nodl_schema.validation import load_schema
 
@@ -481,7 +481,7 @@ def test_load_nodl_from_json_string():
 
 def test_load_nodl_from_file_like():
     f = io.StringIO('nodl_version: 2\nparameters:\n  p:\n    type: string\n')
-    doc = load_nodl(f)
+    doc = parse_nodl(f)
     assert doc.parameters
     assert 'p' in doc.parameters
 
