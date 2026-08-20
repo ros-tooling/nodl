@@ -27,7 +27,9 @@ _LOCAL_SUBSCRIPTION = (
 def test_nodl_include_resolves_from_ament_index():
     # basic_node contributes a /chatter publisher; the including document adds its own subscription.
     doc = load_nodl(f'nodl_version: 2\n{_LOCAL_SUBSCRIPTION}include:\n  - ref: nodl://test_ament_nodl/basic_node\n')
+    assert doc.publishers
     assert [p.name for p in doc.publishers] == ['/chatter']
+    assert doc.subscriptions
     assert [s.name for s in doc.subscriptions] == ['/local_input']
     # The include key is consumed once resolved.
     assert doc.include is None
@@ -36,6 +38,7 @@ def test_nodl_include_resolves_from_ament_index():
 def test_included_qos_survives_the_round_trip():
     # The included document is fetched as text and reparsed, so its details must survive.
     doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/basic_node\n')
+    assert doc.publishers
     qos = doc.publishers[0].qos
     assert qos.depth == 10
     assert qos.history.value == 'KEEP_LAST'
@@ -83,6 +86,7 @@ def test_no_resolve_leaves_the_include_untouched():
         'nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/no_such_node\n',
         resolve=False,
     )
+    assert doc.include
     assert doc.include[0].ref == 'nodl://test_ament_nodl/no_such_node'
 
 

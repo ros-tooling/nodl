@@ -65,7 +65,8 @@ def captured_node(tmp_path):
     endpoint.qos.reliability = 1
     endpoint.qos.durability = 2
     endpoint.qos.depth = 10
-    message.publishers.append(endpoint)
+    # In Lyrical+ msg arrays are type hinted as list, but older distros incorrectly hint it immutable
+    message.publishers.append(endpoint)  # pyright: ignore[reportAttributeAccessIssue]
     path = tmp_path / 'capture.yaml'
     path.write_text(message_to_yaml(message))
     return path
