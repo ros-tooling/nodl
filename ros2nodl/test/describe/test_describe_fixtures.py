@@ -28,7 +28,8 @@ def test_observe_fixture_converts_to_valid_nodl(fixture):
     pytest.importorskip('mcap')
     pytest.importorskip('rosgraph_msgs')
     sys.path.insert(0, str(_FIXTURES.parent))
-    import mcap_fixtures
+    # Added to sys.path just above, so pyright cannot resolve it statically.
+    import mcap_fixtures  # pyright: ignore[reportMissingImports]
 
     for channel, node in mcap_fixtures.read_fixture(str(fixture)).items():
         result = node_to_nodl(node)

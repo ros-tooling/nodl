@@ -107,6 +107,6 @@ class TestValidateVerb:
         # The verb tolerates a Namespace built without the flag, so callers that predate it work.
         nodl_file = tmp_path / 'inc.yaml'
         nodl_file.write_text(_UNRESOLVABLE_INCLUDE)
-        args = _make_args(files=[str(nodl_file)])
-        del args.resolve
+        args = argparse.Namespace()
+        args.files = [str(nodl_file)]
         assert self.verb.main(args=args) == 1

@@ -82,6 +82,7 @@ def test_range_and_metadata(range_field, range_value):
             **{range_field: range_value},
         )
     )
+    assert definition.validation
     assert definition.validation.bounds == [range_value.from_value, range_value.to_value]
     assert definition.description == 'speed'
     assert definition.additional_constraints == 'positive'
