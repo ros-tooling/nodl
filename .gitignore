@@ -1,4 +1,5 @@
 __pycache__/
+*.egg-info/
 /.ruff.toml
 /.vscode/
 /build/
@@ -6,3 +7,4 @@ __pycache__/
 /log/
 # Local, untracked Python reference of nodl_observe (the committed package is C++).
 /nodl_observe_py/
+/.clang-format

@@ -1,0 +1,16 @@
+---
+# Tests service server and client generation.
+# The generator should scaffold /trigger server (with callback) and /set_bool client.
+
+nodl_version: 2
+
+include:
+  - ref: test://rclcpp_node
+
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger
+
+service_clients:
+  - name: set_bool
+    type: std_srvs/srv/SetBool

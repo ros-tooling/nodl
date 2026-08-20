@@ -1,0 +1,42 @@
+---
+$schema: http://json-schema.org/draft-07/schema#
+$id: codegen_cpp.schema.yaml
+title: NoDL C++ codegen metadata
+description: |
+  Schema for the ``codegen.cpp`` object in NoDL documents.
+  Validated by ``nodl_generator_cpp``, not ``nodl_schema``.
+
+type: object
+additionalProperties: false
+required:
+  - role
+
+properties:
+  role:
+    description: |
+      How this document's implementation participates in the
+      generated class.  Currently only ``BASE_CLASS`` is supported.
+    enum: [BASE_CLASS]
+
+  class:
+    description: |
+      Fully-qualified C++ class name to inherit from
+      (e.g. ``rclcpp::Node``).
+    type: string
+    pattern: ^[A-Za-z_][A-Za-z0-9_:]*$
+
+  header:
+    description: |
+      C++ header to ``#include`` for the base class
+      (e.g. ``rclcpp/rclcpp.hpp``).
+    type: string
+
+allOf:
+  - if:
+      properties:
+        role:
+          const: BASE_CLASS
+    then:
+      required:
+        - class
+        - header

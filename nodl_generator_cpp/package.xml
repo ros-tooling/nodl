@@ -1,20 +1,20 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>nodl</name>
+  <name>nodl_generator_cpp</name>
   <version>0.0.0</version>
-  <description>ROS 2 Node Definition Language (NoDL) metapackage.</description>
+  <description>Generate an rclcpp base-node class from a NoDL document.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="hello@alistairenglish.com">Alistair English</author>
-  <author email="me@emersonknapp.com">Emerson Knapp</author>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
-  <exec_depend>ament_nodl</exec_depend>
   <exec_depend>nodl_schema</exec_depend>
-  <exec_depend>ros2nodl</exec_depend>
-  <exec_depend>nodl_generator_cpp</exec_depend>
+  <exec_depend>generate_parameter_library_py</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>nodl_schema</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

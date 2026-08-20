@@ -1,0 +1,78 @@
+{% set has_entities = publishers or subscriptions or service_servers or service_clients or action_servers or action_clients or has_parameters %}
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#include "{{ target_name }}.hpp"
+
+{{ class_name }}::{{ class_name }}(const rclcpp::NodeOptions & options)
+: {{ base_class }}("{{ target_name }}", options)
+{% if has_parameters %}
+, param_listener_(this->get_node_parameters_interface(), this->get_logger())
+, params_(param_listener_.get_params())
+{% endif %}
+{% if has_entities %}
+{
+{% if publishers %}
+
+  // Create publishers
+{% for pub in publishers %}
+  {{ pub.member }} = this->create_publisher<{{ pub.cpp_type }}>("{{ pub.name }}", {{ pub.qos }});
+{% endfor %}
+{% endif %}
+{% if subscriptions %}
+
+  // Create subscriptions
+{% for sub in subscriptions %}
+  {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
+    "{{ sub.name }}",
+    {{ sub.qos }},
+    [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
+      this->{{ sub.callback }}(msg);
+    });
+{% endfor %}
+{% endif %}
+{% if service_servers %}
+
+  // Create service servers
+{% for srv in service_servers %}
+  {{ srv.member }} = this->create_service<{{ srv.cpp_type }}>(
+    "{{ srv.name }}",
+    [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
+      this->{{ srv.callback }}(req, res);
+    });
+{% endfor %}
+{% endif %}
+{% if service_clients %}
+
+  // Create service clients
+{% for cli in service_clients %}
+  {{ cli.member }} = this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}");
+{% endfor %}
+{% endif %}
+{% if action_servers %}
+
+  // Create action servers
+{% for action in action_servers %}
+  {{ action.member }} = rclcpp_action::create_server<{{ action.cpp_type }}>(
+    this,
+    "{{ action.name }}",
+    [this](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const {{ action.cpp_type }}::Goal> goal) {
+      return this->{{ action.callback_prefix }}_goal(uuid, goal);
+    },
+    [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
+      return this->{{ action.callback_prefix }}_cancel(goal_handle);
+    },
+    [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
+      this->{{ action.callback_prefix }}_accepted(goal_handle);
+    });
+{% endfor %}
+{% endif %}
+{% if action_clients %}
+
+  // Create action clients
+{% for cli in action_clients %}
+  {{ cli.member }} = rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}");
+{% endfor %}
+{% endif %}
+}
+{% else %}
+{}
+{% endif %}

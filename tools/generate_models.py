@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Regenerate nodl_schema/nodl_schema/models.py from the JSON schema.
+"""Regenerate pydantic models from JSON schemas.
 
-Run after editing nodl_schema/nodl_schema/schemas/nodl.schema.yaml or
-parameter.schema.yaml. The pre-commit hook and CI both invoke this script.
+Covers both nodl_schema (nodl.schema.yaml + parameter.schema.yaml) and
+nodl_generator_cpp (codegen_cpp.schema.yaml). The pre-commit hook and CI
+both invoke this script.
 
 Requires (pinned to match polymath_code_standard so the generated file is a
 fixed point for the polymath-python pre-commit hook):
@@ -21,8 +22,14 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCHEMA = REPO_ROOT / 'nodl_schema' / 'nodl_schema' / 'schemas' / 'nodl.schema.yaml'
-OUTPUT = REPO_ROOT / 'nodl_schema' / 'nodl_schema' / 'models.py'
+
+# nodl_schema
+NODL_SCHEMA = REPO_ROOT / 'nodl_schema' / 'nodl_schema' / 'schemas' / 'nodl.schema.yaml'
+NODL_OUTPUT = REPO_ROOT / 'nodl_schema' / 'nodl_schema' / 'models.py'
+
+# nodl_generator_cpp
+CODEGEN_CPP_SCHEMA = REPO_ROOT / 'nodl_generator_cpp' / 'nodl_generator_cpp' / 'schemas' / 'codegen_cpp.schema.yaml'
+CODEGEN_CPP_OUTPUT = REPO_ROOT / 'nodl_generator_cpp' / 'nodl_generator_cpp' / 'models.py'
 
 # Mirrors polymath_code_standard/config/ruff.toml so the generated file passes
 # the polymath-python hook without needing to be excluded. Keep in sync if
@@ -111,15 +118,16 @@ def _strip_orphan_root_classes(source: str) -> str:
             return source
 
 
-def main() -> int:
+def _generate(schema: Path, output: Path, class_name: str) -> int:
+    """Run datamodel-codegen for a single schema → models file."""
     cmd = [
         'datamodel-codegen',
         '--input',
-        str(SCHEMA),
+        str(schema),
         '--input-file-type',
         'jsonschema',
         '--output',
-        str(OUTPUT),
+        str(output),
         '--output-model-type',
         'pydantic.BaseModel',
         '--target-python-version',
@@ -128,22 +136,27 @@ def main() -> int:
         '--use-standard-collections',
         '--collapse-root-models',
         '--class-name',
-        'NodlDocument',
+        class_name,
         '--disable-timestamp',
     ]
     result = subprocess.run(cmd)
     if result.returncode != 0:
         return result.returncode
-    text = OUTPUT.read_text(encoding='utf-8')
+    text = output.read_text(encoding='utf-8')
     text = _strip_orphan_root_classes(text)
     text = _rewrite_pydantic_import(text)
-    OUTPUT.write_text(_copyright_header() + text)
-    subprocess.run(['ruff', 'format', *_RUFF_CONFIG_ARGS, str(OUTPUT)], check=True)
-    # ruff check may have residual lint findings that aren't auto-fixable; we
-    # let it fix what it can and ignore its exit code so this script remains
-    # reproducible. Anything left will surface as a polymath-python failure.
-    subprocess.run(['ruff', 'check', '--fix', *_RUFF_CONFIG_ARGS, str(OUTPUT)], check=False)
+    output.write_text(_copyright_header() + text)
+    subprocess.run(['ruff', 'format', *_RUFF_CONFIG_ARGS, str(output)], check=True)
+    subprocess.run(['ruff', 'check', '--fix', *_RUFF_CONFIG_ARGS, str(output)], check=False)
     return 0
+
+
+def main() -> int:
+    rc = _generate(NODL_SCHEMA, NODL_OUTPUT, 'NodlDocument')
+    if rc != 0:
+        return rc
+    rc = _generate(CODEGEN_CPP_SCHEMA, CODEGEN_CPP_OUTPUT, 'CodegenCpp')
+    return rc
 
 
 if __name__ == '__main__':

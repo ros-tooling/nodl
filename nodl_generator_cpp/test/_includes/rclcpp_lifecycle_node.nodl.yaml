@@ -1,0 +1,41 @@
+---
+# What nodl://rclcpp_lifecycle/lifecycle_node would resolve to.
+# Declares the entities that rclcpp_lifecycle::LifecycleNode creates internally,
+# and codegen metadata telling the generator to use it as the base class.
+# Includes rclcpp_node — tests the inheritance chain / barrier system.
+
+nodl_version: 2
+description: rclcpp_lifecycle::LifecycleNode interface
+
+codegen:
+  cpp:
+    role: BASE_CLASS
+    class: rclcpp_lifecycle::LifecycleNode
+    header: rclcpp_lifecycle/lifecycle_node.hpp
+
+include:
+  - ref: test://rclcpp_node
+
+publishers:
+  - name: transition_event
+    type: lifecycle_msgs/msg/TransitionEvent
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE
+
+service_servers:
+  - name: ~/change_state
+    type: lifecycle_msgs/srv/ChangeState
+
+  - name: ~/get_state
+    type: lifecycle_msgs/srv/GetState
+
+  - name: ~/get_available_states
+    type: lifecycle_msgs/srv/GetAvailableStates
+
+  - name: ~/get_available_transitions
+    type: lifecycle_msgs/srv/GetAvailableTransitions
+
+  - name: ~/get_transition_graph
+    type: lifecycle_msgs/srv/GetAvailableTransitions

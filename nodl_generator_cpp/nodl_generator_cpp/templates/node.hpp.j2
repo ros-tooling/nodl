@@ -1,0 +1,104 @@
+{% set has_protected = publishers or subscriptions or service_servers or action_servers or service_clients or action_clients or has_parameters %}
+{% set has_private = subscriptions or service_servers or action_servers %}
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#pragma once
+
+#include <memory>
+
+{% for header in includes %}
+#include <{{ header }}>
+{% endfor %}
+{% if has_parameters %}
+#include "{{ target_name }}_parameters.hpp"
+{% endif %}
+
+class {{ class_name }} : public {{ base_class }}
+{
+public:
+  explicit {{ class_name }}(const rclcpp::NodeOptions & options = rclcpp::NodeOptions{});
+
+  virtual ~{{ class_name }}() = default;
+{% if has_protected %}
+
+protected:
+{% if has_parameters %}
+
+  // --- Parameters ---
+  {{ target_name }}::ParamListener param_listener_;
+  {{ target_name }}::Params params_;
+{% endif %}
+{% if publishers %}
+
+  // --- Publishers ---
+{% for pub in publishers %}
+  rclcpp::Publisher<{{ pub.cpp_type }}>::SharedPtr {{ pub.member }};
+{% endfor %}
+{% endif %}
+{% if subscriptions %}
+
+  // --- Subscription callbacks ---
+{% for sub in subscriptions %}
+  virtual void {{ sub.callback }}({{ sub.cpp_type }}::ConstSharedPtr msg) = 0;
+{% endfor %}
+{% endif %}
+{% if service_servers %}
+
+  // --- Service server callbacks ---
+{% for srv in service_servers %}
+  virtual void {{ srv.callback }}({{ srv.cpp_type }}::Request::SharedPtr request, {{ srv.cpp_type }}::Response::SharedPtr response) = 0;
+{% endfor %}
+{% endif %}
+{% if action_servers %}
+
+  // --- Action server callbacks ---
+{% for action in action_servers %}
+  virtual rclcpp_action::GoalResponse {{ action.callback_prefix }}_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const {{ action.cpp_type }}::Goal> goal) = 0;
+  virtual rclcpp_action::CancelResponse {{ action.callback_prefix }}_cancel(std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) = 0;
+  /// @brief Called when a goal is accepted.  Do not block in this callback;
+  /// doing so prevents cancel requests from being processed.  Detach a thread
+  /// for long-running work, e.g.:
+  ///   std::thread{[goal_handle]() { /* execute */ }}.detach();
+  virtual void {{ action.callback_prefix }}_accepted(std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) = 0;
+{% endfor %}
+{% endif %}
+{% if service_clients %}
+
+  // --- Service clients ---
+{% for cli in service_clients %}
+  rclcpp::Client<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
+{% endfor %}
+{% endif %}
+{% if action_clients %}
+
+  // --- Action clients ---
+{% for cli in action_clients %}
+  rclcpp_action::Client<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
+{% endfor %}
+{% endif %}
+{% endif %}
+{% if has_private %}
+
+private:
+{% if subscriptions %}
+
+  // --- Subscriptions ---
+{% for sub in subscriptions %}
+  rclcpp::Subscription<{{ sub.cpp_type }}>::SharedPtr {{ sub.member }};
+{% endfor %}
+{% endif %}
+{% if service_servers %}
+
+  // --- Service servers ---
+{% for srv in service_servers %}
+  rclcpp::Service<{{ srv.cpp_type }}>::SharedPtr {{ srv.member }};
+{% endfor %}
+{% endif %}
+{% if action_servers %}
+
+  // --- Action servers ---
+{% for action in action_servers %}
+  rclcpp_action::Server<{{ action.cpp_type }}>::SharedPtr {{ action.member }};
+{% endfor %}
+{% endif %}
+{% endif %}
+};

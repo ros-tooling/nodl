@@ -1,0 +1,9 @@
+---
+# Simplest valid codegen input: the mandatory base class include, no own entities.
+# The generator should produce an empty class inheriting from rclcpp::Node,
+# filtering out all entities from the rclcpp_node include.
+
+nodl_version: 2
+
+include:
+  - ref: test://rclcpp_node

@@ -1,0 +1,16 @@
+---
+# Tests action server and client generation.
+# The generator should scaffold fibonacci server with callbacks and navigate client.
+
+nodl_version: 2
+
+include:
+  - ref: test://rclcpp_node
+
+action_servers:
+  - name: fibonacci
+    type: example_interfaces/action/Fibonacci
+
+action_clients:
+  - name: navigate
+    type: nav2_msgs/action/NavigateToPose

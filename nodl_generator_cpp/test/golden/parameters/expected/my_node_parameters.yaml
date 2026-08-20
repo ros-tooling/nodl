@@ -1,0 +1,25 @@
+---
+my_node:
+  max_speed:
+    type: double
+    default_value: 1.5
+    description: Maximum speed in m/s
+    read_only: false
+    additional_constraints: ''
+    validation:
+      lt<>:
+      - 10.0
+      gt<>:
+      - 0.0
+  robot_name:
+    type: string
+    default_value: bot
+    description: Name of the robot
+    read_only: true
+    additional_constraints: ''
+  enabled:
+    type: bool
+    default_value: true
+    description: ''
+    read_only: false
+    additional_constraints: ''
