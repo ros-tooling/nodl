@@ -465,6 +465,7 @@ def test_load_nodl_from_yaml_string():
     )
     doc = load_nodl(yaml_text)
     assert isinstance(doc, NodlDocument)
+    assert doc.publishers
     assert doc.publishers[0].name == '/t'
 
 
@@ -474,12 +475,14 @@ def test_load_nodl_from_json_string():
         'publishers': [{'name': '/t', 'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}],
     }
     doc = load_nodl(json.dumps(data))
+    assert doc.publishers
     assert doc.publishers[0].name == '/t'
 
 
 def test_load_nodl_from_file_like():
     f = io.StringIO('nodl_version: 2\nparameters:\n  p:\n    type: string\n')
     doc = load_nodl(f)
+    assert doc.parameters
     assert 'p' in doc.parameters
 
 

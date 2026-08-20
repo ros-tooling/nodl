@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 # The importable package source lives one level up from this test directory.
-_SOURCE_DIR = Path(__file__).resolve().parent.parent / 'ros2nodl'
+_SOURCE_DIR = Path(__file__).resolve().parent.parent
 
 
 def test_pyright():

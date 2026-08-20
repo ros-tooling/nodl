@@ -123,6 +123,8 @@ def test_single_include_merges_entities(docs):
     base = NodlDocument(publishers=[_topic('/base')], include=_refs(ref))
     merged = merge_documents(resolve_document(base).flatten())
     assert merged.include is None
+    assert merged.publishers
+    assert merged.subscriptions
     assert [p.name for p in merged.publishers] == ['/base']
     assert [s.name for s in merged.subscriptions] == ['/extra']
 
@@ -131,6 +133,7 @@ def test_include_merges_parameters(docs):
     ref = docs.add('params', _param_doc(gain='double'))
     base = NodlDocument(parameters={'rate': ParameterDefinition(type='int')}, include=_refs(ref))
     merged = merge_documents(resolve_document(base).flatten())
+    assert merged.parameters
     assert set(merged.parameters) == {'rate', 'gain'}
 
 
@@ -138,6 +141,7 @@ def test_nested_include_is_resolved_recursively(docs):
     inner = docs.add('b', _pub_doc('/b'))
     ref = docs.add('a', _pub_doc('/a', inner))
     merged = merge_documents(resolve_document(_including(ref)).flatten())
+    assert merged.publishers
     assert sorted(p.name for p in merged.publishers) == ['/a', '/b']
 
 
@@ -145,6 +149,7 @@ def test_input_document_is_not_mutated(docs):
     ref = docs.add('x', _pub_doc('/x'))
     base = _including(ref)
     merge_documents(resolve_document(base).flatten())
+    assert base.include
     assert [r.ref for r in base.include] == [ref]
     assert base.publishers is None
 
@@ -153,6 +158,7 @@ def test_document_without_includes_touches_no_resolver(docs):
     base = NodlDocument(publishers=[_topic('/only')])
     merged = merge_documents(resolve_document(base).flatten())
     assert docs.calls == []
+    assert merged.publishers
     assert [p.name for p in merged.publishers] == ['/only']
 
 
@@ -196,7 +202,7 @@ def test_flatten_nested_tree_contains_all_documents(docs):
     outer = docs.add('outer', _pub_doc('/outer', inner))
     base = NodlDocument(publishers=[_topic('/root')], include=_refs(outer))
     flat = resolve_document(base).flatten()
-    names = {d.publishers[0].name for d in flat}
+    names = {d.publishers[0].name for d in flat if d.publishers}
     assert names == {'/root', '/outer', '/inner'}
 
 
@@ -243,7 +249,9 @@ def test_same_name_different_category_is_allowed(docs):
     ref = docs.add('sub', _sub_doc('/topic'))
     base = NodlDocument(publishers=[_topic('/topic')], include=_refs(ref))
     merged = merge_documents(resolve_document(base).flatten())
+    assert merged.publishers
     assert merged.publishers[0].name == '/topic'
+    assert merged.subscriptions
     assert merged.subscriptions[0].name == '/topic'
 
 
@@ -310,6 +318,7 @@ def test_included_non_mapping_raises(docs):
 def test_load_nodl_resolves_through_the_registry(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
     doc = load_nodl(dump_nodl(_including(ref)))
+    assert doc.subscriptions
     assert doc.subscriptions[0].name == '/extra'
     # The include key is consumed once resolved.
     assert doc.include is None
@@ -317,6 +326,7 @@ def test_load_nodl_resolves_through_the_registry(docs):
 
 def test_load_nodl_no_resolve_keeps_include(docs):
     doc = load_nodl(dump_nodl(_including('test://extra')), resolve=False)
+    assert doc.include
     assert [r.ref for r in doc.include] == ['test://extra']
     assert docs.calls == []
 
@@ -329,7 +339,9 @@ def test_load_nodl_without_include_does_not_touch_resolver(docs):
 def test_load_nodl_merges_the_resolved_documents(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
     doc = load_nodl(dump_nodl(NodlDocument(publishers=[_topic('/base')], include=_refs(ref))))
+    assert doc.publishers
     assert [p.name for p in doc.publishers] == ['/base']
+    assert doc.subscriptions
     assert [s.name for s in doc.subscriptions] == ['/extra']
 
 
@@ -375,7 +387,7 @@ def test_registry_unregister_of_an_absent_resolver_raises():
 
 def test_registry_rejects_a_non_resolver():
     with pytest.raises(TypeError, match='not a Resolver'):
-        register_resolver(object())
+        register_resolver(object())  # pyright: ignore
 
 
 def test_registry_resolve_reports_an_unhandled_scheme():
@@ -424,6 +436,8 @@ def test_registering_shadows_the_built_in_resolver():
     ref = shadow.add('pkg/thing', _pub_doc('/shadowed'))
     with resolver_registered(shadow):
         merged = merge_documents(resolve_document(_including(ref)).flatten())
+
+    assert merged.publishers
     assert [p.name for p in merged.publishers] == ['/shadowed']
     assert isinstance(resolver_for(ref), AmentIndexResolver)
 

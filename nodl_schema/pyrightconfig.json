@@ -1,0 +1,6 @@
+{
+  "include": ["."],
+  "exclude": [
+    "nodl_schema/models.py"
+  ]
+}
