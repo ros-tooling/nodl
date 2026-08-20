@@ -8,7 +8,7 @@ import json
 import pytest
 from jsonschema import ValidationError
 
-from nodl_schema import dump_nodl, load_nodl, validate
+from nodl_schema import dump_nodl, load_nodl, parse_nodl, validate
 from nodl_schema.models import NodlDocument
 from nodl_schema.validation import load_schema
 
@@ -449,7 +449,7 @@ def test_action_missing_name():
 
 
 # ---------------------------------------------------------------------------
-# load_nodl
+# parse & load
 # ---------------------------------------------------------------------------
 
 
@@ -463,7 +463,7 @@ def test_load_nodl_from_yaml_string():
         '      history: SYSTEM_DEFAULT\n'
         '      reliability: SYSTEM_DEFAULT\n'
     )
-    doc = load_nodl(yaml_text)
+    doc = parse_nodl(yaml_text)
     assert isinstance(doc, NodlDocument)
     assert doc.publishers
     assert doc.publishers[0].name == '/t'
@@ -474,7 +474,7 @@ def test_load_nodl_from_json_string():
         'nodl_version': 2,
         'publishers': [{'name': '/t', 'type': 'std_msgs/msg/String', 'qos': _MIN_QOS}],
     }
-    doc = load_nodl(json.dumps(data))
+    doc = parse_nodl(json.dumps(data))
     assert doc.publishers
     assert doc.publishers[0].name == '/t'
 
@@ -488,7 +488,7 @@ def test_load_nodl_from_file_like():
 
 def test_load_nodl_invalid_raises():
     with pytest.raises(ValidationError):
-        load_nodl('nodl_version: 2\nparameters:\n  p:\n    type: bad_type\n')
+        parse_nodl('nodl_version: 2\nparameters:\n  p:\n    type: bad_type\n')
 
 
 # ---------------------------------------------------------------------------

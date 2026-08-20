@@ -446,7 +446,6 @@ def test_registering_shadows_the_built_in_resolver():
     ref = shadow.add('pkg/thing', _pub_doc('/shadowed'))
     with resolver_registered(shadow):
         merged = merge_documents(resolve_document(_including(ref)).flatten())
-
     assert merged.publishers
     assert [p.name for p in merged.publishers] == ['/shadowed']
     assert isinstance(resolver_for(ref), AmentIndexResolver)

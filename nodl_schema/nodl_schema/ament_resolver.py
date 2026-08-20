@@ -30,4 +30,7 @@ class AmentIndexResolver:
             )
 
         resource_path = Path(resource_prefix, RESOURCE_INDEX_SUBFOLDER, self.ament_resource_type, key)
+        if not resource_path.exists():
+            raise ResolutionError(f'NoDL document {ref} not found at registered path {resource_path}')
+
         return resource_path

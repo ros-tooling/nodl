@@ -4,7 +4,7 @@ import json
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias, Union
+from typing import IO, TypeAlias, Union
 
 import yaml
 
@@ -42,26 +42,21 @@ IncludeChain: TypeAlias = list[str]
 
 def resolve_document(doc: NodlDocument) -> DocumentTree:
     # DFS traversal of the includes, detecting non-tree double-inclusions/cycles
-    # NOTE(emerson) there is not currently a way to detect if a reference loops back to _this_ document,
-    # since we don't have our own ref in this context.
-    # Really, we are depending on the package dependency graph to avoid cycles.
-    # Additionally, if "the same" reference were to be found by different resolvers, that is not caught here,
-    # but by merge collision checking.
 
-    visited: dict[Ref, IncludeChain] = {}
+    visited: dict[Path, IncludeChain] = {}
 
     def _resolve_ref(ref: Ref, chain: IncludeChain) -> IncludedDocument:
         current_chain = chain + [ref]
+        resolved_path = resolve(ref)
 
-        if ref in visited:
-            other_chain = visited[ref]
+        if resolved_path in visited:
+            other_chain = visited[resolved_path]
             chain_a = ' > '.join(current_chain)
             chain_b = ' > '.join(other_chain)
             raise ResolutionError(f'Double-inclusion detected. "{chain_a}" and "{chain_b}"')
 
-        visited[ref] = current_chain
-        content = resolve(ref)
-        doc = load_nodl(content, resolve=False)
+        visited[resolved_path] = current_chain
+        doc = load_nodl(resolved_path, resolve=False)
         children = [_resolve_ref(r.ref, current_chain) for r in (doc.include or [])]
 
         return IncludedDocument(ref=ref, doc=doc, resolved_includes=children)
@@ -71,8 +66,8 @@ def resolve_document(doc: NodlDocument) -> DocumentTree:
     return DocumentTree(root_doc=doc, resolved_includes=root_children)
 
 
-def _load_doc(source: Path) -> NodlDocument:
-    data = yaml.safe_load(source.read_text())
+def parse_nodl(data: Union[str, bytes, IO]) -> NodlDocument:
+    data = yaml.safe_load(data)
     if not isinstance(data, dict):
         raise ValueError('NoDL document must be a YAML/JSON mapping at the top level')
 
@@ -102,7 +97,7 @@ def load_nodl(source: Path, *, resolve: bool = True) -> NodlDocument:
     if resolve:
         result_doc, _ = load_nodl_with_doc_tree(source)
     else:
-        result_doc = _load_doc(source)
+        result_doc = parse_nodl(source.read_text())
 
     return result_doc
 
@@ -122,8 +117,8 @@ def load_nodl_with_doc_tree(source: Path) -> tuple[NodlDocument, DocumentTree]:
         Resolvers generally raise ResolutionError on invalid or unfindable references,
         but their custom exceptions are allowed propagate for unforseen cases, for visibility
     """
-    doc = _load_doc(source)
-    doc_tree = resolve_document(doc)
+    doc = parse_nodl(source.read_text())
+    doc_tree = resolve_document(doc, source)
     merged_doc = merge_documents(doc_tree.flatten())
     return merged_doc, doc_tree
 
