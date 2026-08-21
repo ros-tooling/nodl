@@ -13,6 +13,7 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
   - [doc/](./nodl/doc/): Documentation source for the ReadTheDocs page
 - [nodl_schema/](./nodl_schema/): Package providing the NoDL schema, plus a Python package with validation tools and typed data model to work with it.
     [nodl.schema.yaml](./nodl_schema/nodl_schema/schemas/nodl.schema.yaml): The NoDL schema, key to this whole thing!
+- [nodl_generator_py/](./nodl_generator_py/): Generate an `rclpy` base-node class from a NoDL document at build time.
 - [nodl_observe/](./nodl_observe/): C++ (`ament_cmake`) package that observes a running ROS 2 node and produces its runtime interface as a `rosgraph_msgs/Node` message — a reusable `observe_node(...)` library plus an `observe` executable. Stage one of Observe → Describe.
 - [ros2nodl/](./ros2nodl/): `ros2cli` extension providing `ros2 nodl ...` commands
 - [tools/](./tools/): Scripts supporting development and build workflows

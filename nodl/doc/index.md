@@ -14,6 +14,7 @@ NoDL (Node Definition Language) is a schema and toolkit to describe a ROS 2 node
 Home <self>
 concepts
 schema
+generating_python
 roadmap
 ```
 
@@ -26,6 +27,7 @@ roadmap
 - **`ros2nodl`** — `ros2 nodl <verb>` ros2cli extension providing NoDL operations.
   See the [Describe guide](_generated/packages/ros2nodl/describe.md).
 - **`ament_nodl`** — CMake macros for registering NoDL documents with the ament index.
+- **`nodl_generator_py`** — generate an `rclpy` base class from a NoDL document.
 
 Each package's own documentation is staged into this site from its `doc/` tree at build time
 (see {repo}`nodl/doc/package_docs.py`); the same sources build standalone under `rosdoc2` for docs.ros.org.

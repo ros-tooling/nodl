@@ -1,0 +1,107 @@
+# GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_py.
+{% for imp in imports %}
+{{ imp }}
+{% endfor %}
+{% if has_params %}
+from . import {{ params_module }}
+{% endif %}
+
+
+class {{ class_name }}({{ base_class }}{% if has_abstract %}, metaclass=abc.ABCMeta{% endif %}):
+    """Generated NoDL base node. Subclass and implement the abstract callbacks."""
+
+    def __init__(self, **kwargs):
+        super().__init__('{{ node_name }}', **kwargs)
+    {% if has_params %}
+        # --- Parameters (via generate_parameter_library) ---
+        self.param_listener_ = {{ params_module }}.ParamListener(self)
+        self.params_ = self.param_listener_.get_params()
+    {% endif %}
+    {% if publishers %}
+        # --- Publishers ---
+        {% for pub in publishers %}
+        self.{{ pub.member_name }} = self.{{ publisher_factory }}(
+            {{ pub.py_type }},
+            '{{ pub.name }}',
+            {{ pub.qos_py | indent(12) }},
+        )
+        {% endfor %}
+    {% endif %}
+    {% if subscriptions %}
+        # --- Subscriptions ---
+        {% for sub in subscriptions %}
+        self.{{ sub.member_name }} = self.create_subscription(
+            {{ sub.py_type }},
+            '{{ sub.name }}',
+            self.{{ sub.callback_name }},
+            {{ sub.qos_py | indent(12) }},
+        )
+        {% endfor %}
+    {% endif %}
+    {% if service_servers %}
+        # --- Service servers ---
+        {% for srv in service_servers %}
+        self.{{ srv.member_name }} = self.create_service(
+            {{ srv.py_type }},
+            '{{ srv.name }}',
+            self.{{ srv.callback_name }},
+{% if srv.qos_py is defined %}
+            qos_profile={{ srv.qos_py | indent(12) }},
+{% endif %}
+        )
+        {% endfor %}
+    {% endif %}
+    {% if service_clients %}
+        # --- Service clients ---
+        {% for cli in service_clients %}
+        self.{{ cli.member_name }} = self.create_client(
+            {{ cli.py_type }},
+            '{{ cli.name }}',
+{% if cli.qos_py is defined %}
+            qos_profile={{ cli.qos_py | indent(12) }},
+{% endif %}
+        )
+        {% endfor %}
+    {% endif %}
+    {% if action_servers %}
+        # --- Action servers ---
+        {% for act in action_servers %}
+        self.{{ act.member_name }} = rclpy.action.ActionServer(
+            self,
+            {{ act.py_type }},
+            '{{ act.name }}',
+            self.{{ act.callback_name }},
+        )
+        {% endfor %}
+    {% endif %}
+    {% if action_clients %}
+        # --- Action clients ---
+        {% for act in action_clients %}
+        self.{{ act.member_name }} = rclpy.action.ActionClient(
+            self,
+            {{ act.py_type }},
+            '{{ act.name }}',
+        )
+        {% endfor %}
+    {% endif %}
+    {% for sub in subscriptions %}
+
+    @abc.abstractmethod
+    def {{ sub.callback_name }}(self, msg):
+        """Handle a message received on {{ sub.name }}."""
+        raise NotImplementedError
+    {% endfor %}
+    {% for srv in service_servers %}
+
+    @abc.abstractmethod
+    def {{ srv.callback_name }}(self, request, response):
+        """Serve a call to {{ srv.name }}; populate and return ``response``."""
+        raise NotImplementedError
+    {% endfor %}
+    {% for act in action_servers %}
+
+    @abc.abstractmethod
+    def {{ act.callback_name }}(self, goal_handle):
+        """Execute a goal for action {{ act.name }}."""
+        raise NotImplementedError
+    {% endfor %}
