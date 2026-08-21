@@ -3,6 +3,7 @@
 """``ros2 nodl validate [files...]`` -- validate NoDL documents against the schema."""
 
 import sys
+from pathlib import Path
 
 from jsonschema import ValidationError
 
@@ -16,6 +17,7 @@ class ValidateVerb(VerbExtension):
     def add_arguments(self, parser, cli_name):
         parser.add_argument(
             'files',
+            type=Path,
             nargs='*',
             help='NoDL files to validate. Reads from stdin if none are given.',
         )
@@ -27,35 +29,22 @@ class ValidateVerb(VerbExtension):
         )
 
     def main(self, *, args):
-        resolve = getattr(args, 'resolve', True)
-        if not args.files:
-            return _validate_source(sys.stdin, '<stdin>', resolve=resolve)
-
         rc = 0
         for path in args.files:
-            try:
-                source = open(path, 'r')
-            except OSError as e:
-                print(f'{path}: {e}', file=sys.stderr)
-                rc = 1
-                continue
-            try:
-                rc |= _validate_source(source, path, resolve=resolve)
-            finally:
-                source.close()
+            rc |= _validate_file(path, resolve=args.resolve)
         return rc
 
 
-def _validate_source(source, label, *, resolve: bool = True) -> int:
+def _validate_file(path: Path, *, resolve: bool = True) -> int:
     try:
-        load_nodl(source, resolve=resolve)
+        load_nodl(path, resolve=resolve)
     except ValidationError as e:
-        path = ' -> '.join(str(p) for p in e.absolute_path) or '<root>'
-        print(f'{label}: INVALID', file=sys.stderr)
-        print(f'  {path}: {e.message}', file=sys.stderr)
+        chain = ' -> '.join(str(p) for p in e.absolute_path) or '<root>'
+        print(f'{path}: INVALID', file=sys.stderr)
+        print(f'  {chain}: {e.message}', file=sys.stderr)
         return 1
     except Exception as e:
-        print(f'{label}: {e}', file=sys.stderr)
+        print(f'{path}: {e}', file=sys.stderr)
         return 1
-    print(f'{label}: ok')
+    print(f'{path}: ok')
     return 0

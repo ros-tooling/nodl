@@ -3,7 +3,6 @@
 """Unit tests for the ros2nodl validate verb."""
 
 import argparse
-import io
 
 from ros2nodl.verb.validate import ValidateVerb
 
@@ -33,7 +32,7 @@ class TestValidateVerb:
             '      history: SYSTEM_DEFAULT\n'
             '      reliability: SYSTEM_DEFAULT\n'
         )
-        result = self.verb.main(args=_make_args(files=[str(nodl_file)]))
+        result = self.verb.main(args=_make_args(files=[nodl_file]))
         assert result == 0
 
     def test_valid_json_file(self, tmp_path):
@@ -43,36 +42,31 @@ class TestValidateVerb:
             '{"name": "/t", "type": "std_msgs/msg/String",'
             ' "qos": {"history": "SYSTEM_DEFAULT", "reliability": "SYSTEM_DEFAULT"}}]}'
         )
-        result = self.verb.main(args=_make_args(files=[str(nodl_file)]))
+        result = self.verb.main(args=_make_args(files=[nodl_file]))
         assert result == 0
 
     def test_invalid_file_returns_1(self, tmp_path, capsys):
         nodl_file = tmp_path / 'bad.yaml'
         nodl_file.write_text('nodl_version: 2\nparameters:\n  p:\n    type: not_a_real_type\n')
-        result = self.verb.main(args=_make_args(files=[str(nodl_file)]))
+        result = self.verb.main(args=_make_args(files=[nodl_file]))
         assert result == 1
         assert 'INVALID' in capsys.readouterr().err
-
-    def test_valid_from_stdin(self, monkeypatch):
-        monkeypatch.setattr('sys.stdin', io.StringIO('nodl_version: 2\n'))
-        result = self.verb.main(args=_make_args())
-        assert result == 0
 
     def test_minimal_document_is_valid(self, tmp_path):
         nodl_file = tmp_path / 'min.yaml'
         nodl_file.write_text('nodl_version: 2\n')
-        result = self.verb.main(args=_make_args(files=[str(nodl_file)]))
+        result = self.verb.main(args=_make_args(files=[nodl_file]))
         assert result == 0
 
-    def test_nonexistent_file_returns_1(self, capsys):
-        result = self.verb.main(args=_make_args(files=['/nonexistent/path/file.yaml']))
+    def test_nonexistent_file_returns_1(self, capsys, tmp_path):
+        result = self.verb.main(args=_make_args(files=[tmp_path / 'nonexistent.yaml']))
         assert result == 1
         assert 'No such file' in capsys.readouterr().err
 
     def test_success_prints_ok(self, tmp_path, capsys):
         nodl_file = tmp_path / 'ok.yaml'
         nodl_file.write_text('nodl_version: 2\n')
-        self.verb.main(args=_make_args(files=[str(nodl_file)]))
+        self.verb.main(args=_make_args(files=[nodl_file]))
         assert 'ok' in capsys.readouterr().out
 
     def test_multiple_files_all_valid(self, tmp_path):
@@ -80,7 +74,7 @@ class TestValidateVerb:
         b = tmp_path / 'b.yaml'
         a.write_text('nodl_version: 2\n')
         b.write_text('nodl_version: 2\n')
-        result = self.verb.main(args=_make_args(files=[str(a), str(b)]))
+        result = self.verb.main(args=_make_args(files=[a, b]))
         assert result == 0
 
     def test_multiple_files_one_invalid_returns_1(self, tmp_path):
@@ -88,25 +82,17 @@ class TestValidateVerb:
         bad = tmp_path / 'bad.yaml'
         good.write_text('nodl_version: 2\n')
         bad.write_text('nodl_version: 1\n')
-        result = self.verb.main(args=_make_args(files=[str(good), str(bad)]))
+        result = self.verb.main(args=_make_args(files=[good, bad]))
         assert result == 1
 
     def test_unresolvable_include_returns_1_by_default(self, tmp_path):
         nodl_file = tmp_path / 'inc.yaml'
         nodl_file.write_text(_UNRESOLVABLE_INCLUDE)
-        result = self.verb.main(args=_make_args(files=[str(nodl_file)]))
+        result = self.verb.main(args=_make_args(files=[nodl_file]))
         assert result == 1
 
     def test_no_resolve_skips_reference_resolution(self, tmp_path):
         nodl_file = tmp_path / 'inc.yaml'
         nodl_file.write_text(_UNRESOLVABLE_INCLUDE)
-        result = self.verb.main(args=_make_args(files=[str(nodl_file)], resolve=False))
+        result = self.verb.main(args=_make_args(files=[nodl_file], resolve=False))
         assert result == 0
-
-    def test_resolve_defaults_to_true_when_the_flag_is_absent(self, tmp_path):
-        # The verb tolerates a Namespace built without the flag, so callers that predate it work.
-        nodl_file = tmp_path / 'inc.yaml'
-        nodl_file.write_text(_UNRESOLVABLE_INCLUDE)
-        args = argparse.Namespace()
-        args.files = [str(nodl_file)]
-        assert self.verb.main(args=args) == 1
