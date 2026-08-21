@@ -324,18 +324,21 @@ def test_included_non_mapping_raises(docs):
 # ---------------------------------------------------------------------------
 
 
-def test_load_nodl_resolves_through_the_registry(docs):
+def test_load_nodl_resolves_through_the_registry(docs, tmp_path):
     ref = docs.add('extra', _sub_doc('/extra'))
-    doc = parse_nodl(dump_nodl(_including(ref)))
+    source = tmp_path / 'root.nodl.yaml'
+    source.write_text(dump_nodl(_including(ref)))
+    doc = load_nodl(source)
     assert doc.subscriptions
     assert doc.subscriptions[0].name == '/extra'
     # The include key is consumed once resolved.
     assert doc.include is None
 
 
-def test_load_nodl_no_resolve_keeps_include(docs):
-    doc = docs.add('whatever', _including('test://extra'))
-    doc = load_nodl(doc, resolve=False)
+def test_load_nodl_no_resolve_keeps_include(docs, tmp_path):
+    source = tmp_path / 'root.nodl.yaml'
+    source.write_text(dump_nodl(_including('test://extra')))
+    doc = load_nodl(source, resolve=False)
     assert doc.include
     assert [r.ref for r in doc.include] == ['test://extra']
     assert docs.calls == []
@@ -346,9 +349,11 @@ def test_load_nodl_without_include_does_not_touch_resolver(docs):
     assert docs.calls == []
 
 
-def test_load_nodl_merges_the_resolved_documents(docs):
+def test_load_nodl_merges_the_resolved_documents(docs, tmp_path):
     ref = docs.add('extra', _sub_doc('/extra'))
-    doc = parse_nodl(dump_nodl(NodlDocument(publishers=[_topic('/base')], include=_refs(ref))))
+    source = tmp_path / 'root.nodl.yaml'
+    source.write_text(dump_nodl(NodlDocument(publishers=[_topic('/base')], include=_refs(ref))))
+    doc = load_nodl(source)
     assert doc.publishers
     assert [p.name for p in doc.publishers] == ['/base']
     assert doc.subscriptions

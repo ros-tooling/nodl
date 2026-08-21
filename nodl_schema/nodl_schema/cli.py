@@ -29,8 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        with args.file.open('r') as f:
-            load_nodl(f, resolve=args.resolve)
+        load_nodl(args.file, resolve=args.resolve)
     except Exception as exc:
         print(f'{args.file}: {exc}', file=sys.stderr)
         return 1
