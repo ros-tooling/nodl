@@ -56,7 +56,7 @@ function(ament_nodl_register resource_name)
   add_custom_command(
     OUTPUT "${_stamp}"
     DEPENDS "${_abs_file}"
-    COMMAND "${Python3_EXECUTABLE}" -m nodl_schema "${_abs_file}"
+    COMMAND "${Python3_EXECUTABLE}" -m ros2nodl validate "${_abs_file}"
     COMMAND "${CMAKE_COMMAND}" -E touch "${_stamp}"
     COMMENT "Validating NoDL ${_ARGS_PACKAGE}/${resource_name}"
     VERBATIM

@@ -18,7 +18,6 @@ class ValidateVerb(VerbExtension):
         parser.add_argument(
             'files',
             type=Path,
-            required=True,
             nargs='+',
             help='NoDL files to validate.',
         )
