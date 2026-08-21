@@ -12,7 +12,7 @@ This page documents the package's Python surface and how to use it.
 - The canonical schema files at {repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`, shipped with the package.
 - A validator that checks plain documents against that schema.
 - A typed data model (`pydantic` models) so loaded documents are structured objects, not bare dicts.
-- A `python -m nodl_schema <file>` entry point for quick command-line validation.
+- Include resolution for `nodl://` ament index resources and `local://` relative paths.
 
 ## Python API
 
@@ -106,13 +106,3 @@ The typed model lives in {repo}`nodl_schema/nodl_schema/models.py`.
 `NodlDocument` is the document root; it holds the node's parameters and its topic, service, and action endpoints,
 each as its own model (`ParameterDefinition`, `TopicEndpoint`, `ServiceEndpoint`, `ActionEndpoint`, `QosProfile`).
 The interface concepts these models represent are described in {external+nodl:doc}`concepts`.
-
-## Command line
-
-For one-off validation without writing code:
-
-```bash
-python -m nodl_schema my_node.nodl.yaml
-```
-
-For validation as part of a ROS 2 workflow, prefer the `ros2 nodl validate` command from the `ros2nodl` package.

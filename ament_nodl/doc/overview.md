@@ -9,8 +9,7 @@ For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
 Register a NoDL document with the ament index. This does three things:
 
-1. Validates the file at build time (via `python -m nodl_schema`), so authoring errors surface when registering
-   rather than downstream when a consumer reads the spec.
+1. Validates the file at build time so authoring errors surface when registering rather than downstream when a consumer reads the spec.
    If the document uses `include`, this step also checks that its references resolve.
 2. Installs the file into the ament index under the `nodl` resource type, keyed `<package>__<name>`.
 3. Installs the file under `share/<package>/nodl/` for direct filesystem access.
@@ -27,10 +26,6 @@ ament_nodl_register(my_node
 
 A `nodl://<package>/<name>` reference resolves through the ament index, which holds what is *installed*.
 Validation runs before this package is installed, so a referenced package must already be built and be a dependency of this one.
-Note: it is therefore not (yet) possible at build time for a document to reference another document in its own package.
-This feature is upcoming in a followup pass.
-
-`python -m nodl_schema <file> --no-resolve` checks the schema without following references, if you need it.
 
 ### Arguments
 
@@ -49,5 +44,3 @@ from ament_index_python.packages import get_resource
 
 content, path = get_resource('nodl', 'my_package__my_node')
 ```
-
-The validation step shells out to `nodl_schema`, which is this package's runtime dependency.
