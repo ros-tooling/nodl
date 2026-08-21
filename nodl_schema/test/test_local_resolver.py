@@ -44,7 +44,7 @@ def test_basic_resolve(tmp_path: Path):
     relative_path = Path('relative.yaml')
     dest_path = (tmp_path / relative_path).absolute()
     _write(dest_path, NodlDocument())
-    _, resolved_path = resolver.resolve(f'local://{relative_path.name}', dest_path)
+    resolved_path = resolver.resolve(f'local://{relative_path.name}', dest_path)
 
     assert resolved_path == (tmp_path / relative_path).absolute()
 
@@ -52,17 +52,17 @@ def test_basic_resolve(tmp_path: Path):
 def test_relative_ref_resolves_against_the_document_directory(tmp_path: Path):
     _write(tmp_path / 'common' / 'pub2.nodl.yaml', _pub_doc('/pub2'))
     doc_path = _write(tmp_path / 'pub1.nodl.yaml', _pub_doc('/pub1', 'local://common/pub2.nodl.yaml'))
-    with doc_path.open() as f:
-        doc = load_nodl(f)
+    doc = load_nodl(doc_path)
+    assert doc.publishers
     assert sorted(p.name for p in doc.publishers) == ['/pub1', '/pub2']
 
 
-def test_open_file_supplies_its_own_base(tmp_path: Path):
+def test_load_from_a_path_supplies_its_own_base(tmp_path: Path):
     _write(tmp_path / 'shared.nodl.yaml', _pub_doc('/shared'))
     root = _write(tmp_path / 'main.nodl.yaml', NodlDocument(include=[Reference(ref='local://shared.nodl.yaml')]))
-    with root.open() as f:
-        doc = load_nodl(f)
+    doc = load_nodl(root)
 
+    assert doc.publishers
     assert [p.name for p in doc.publishers] == ['/shared']
 
 
@@ -71,9 +71,9 @@ def test_nested_ref_is_relative_to_its_own_document(tmp_path: Path):
     _write(tmp_path / 'b' / 'leaf.nodl.yaml', _pub_doc('/leaf'))
     _write(tmp_path / 'b' / 'mid.nodl.yaml', NodlDocument(include=[Reference(ref='local://leaf.nodl.yaml')]))
     root = _write(tmp_path / 'top.nodl.yaml', NodlDocument(include=[Reference(ref='local://b/mid.nodl.yaml')]))
-    with root.open() as f:
-        doc = load_nodl(f)
+    doc = load_nodl(root)
 
+    assert doc.publishers
     assert [p.name for p in doc.publishers] == ['/leaf']
 
 
@@ -82,22 +82,22 @@ def test_relative_ref_may_walk_upward(tmp_path: Path):
     root = _write(
         tmp_path / 'nodl' / 'node.nodl.yaml', NodlDocument(include=[Reference(ref='local://../shared/base.nodl.yaml')])
     )
-    with root.open() as f:
-        doc = load_nodl(f)
+    doc = load_nodl(root)
 
+    assert doc.publishers
     assert [p.name for p in doc.publishers] == ['/base']
 
 
-def test_relative_ref_without_a_base_raises(tmp_path: Path):
+def test_relative_ref_without_a_base_raises():
+    # A local ref has no meaning without a document to resolve it against.
     with pytest.raises(AssertionError):
-        load_nodl(dump_nodl(NodlDocument(include=[Reference(ref='local://common/telemetry.nodl.yaml')])))
+        LocalResolver().resolve('local://common/telemetry.nodl.yaml', None)
 
 
 def test_missing_relative_ref_raises(tmp_path: Path):
     root = _write(tmp_path / 'main.nodl.yaml', NodlDocument(include=[Reference(ref='local://absent.nodl.yaml')]))
     with pytest.raises(ResolutionError, match='absent.nodl.yaml'):
-        with root.open() as f:
-            load_nodl(f)
+        load_nodl(root)
 
 
 def test_cycle_is_detected_across_spellings(tmp_path: Path):
@@ -106,8 +106,7 @@ def test_cycle_is_detected_across_spellings(tmp_path: Path):
     _write(tmp_path / 'b.nodl.yaml', NodlDocument(include=[Reference(ref='local://./a.nodl.yaml')]))
     root = tmp_path / 'a.nodl.yaml'
     with pytest.raises(ResolutionError, match='Double-inclusion'):
-        with root.open() as f:
-            load_nodl(f)
+        load_nodl(root)
 
 
 def test_double_inclusion_with_different_relative_paths(tmp_path: Path):
@@ -123,8 +122,7 @@ def test_double_inclusion_with_different_relative_paths(tmp_path: Path):
     _write(tmp_path / 'subdir' / 'c.nodl.yaml', NodlDocument())
 
     with pytest.raises(ResolutionError, match='Double-inclusion'):
-        with root.open() as f:
-            load_nodl(f)
+        load_nodl(root)
 
 
 def test_reference_looping_back_to_the_root_is_detected(tmp_path: Path):
@@ -132,5 +130,4 @@ def test_reference_looping_back_to_the_root_is_detected(tmp_path: Path):
     _write(tmp_path / 'other.nodl.yaml', NodlDocument(include=[Reference(ref='local://root.nodl.yaml')]))
     root = _write(tmp_path / 'root.nodl.yaml', NodlDocument(include=[Reference(ref='local://other.nodl.yaml')]))
     with pytest.raises(ResolutionError, match='Double-inclusion'):
-        with root.open() as f:
-            load_nodl(f)
+        load_nodl(root)

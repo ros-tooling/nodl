@@ -40,14 +40,14 @@ Ref: TypeAlias = str
 IncludeChain: TypeAlias = list[str]
 
 
-def resolve_document(doc: NodlDocument, origin: Path) -> DocumentTree:
+def resolve_document(doc: NodlDocument, origin: Path | None = None) -> DocumentTree:
     # DFS traversal of the includes, detecting non-tree double-inclusions/cycles
 
     visited: dict[Path, IncludeChain] = {}
 
-    def _resolve_ref(ref: Ref, *, chain: IncludeChain, origin: Path) -> IncludedDocument:
+    def _resolve_ref(ref: Ref, *, chain: IncludeChain, origin: Path | None) -> IncludedDocument:
         current_chain = chain + [ref]
-        resolved_path = resolve(ref)
+        resolved_path = resolve(ref, origin)
 
         if resolved_path in visited:
             other_chain = visited[resolved_path]
@@ -57,7 +57,7 @@ def resolve_document(doc: NodlDocument, origin: Path) -> DocumentTree:
 
         visited[resolved_path] = current_chain
         doc = load_nodl(resolved_path, resolve=False)
-        children = [_resolve_ref(r.ref, current_chain, origin=resolved_path) for r in (doc.include or [])]
+        children = [_resolve_ref(r.ref, chain=current_chain, origin=resolved_path) for r in (doc.include or [])]
 
         return IncludedDocument(ref=ref, doc=doc, resolved_includes=children)
 

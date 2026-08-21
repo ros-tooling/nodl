@@ -15,12 +15,11 @@ class LocalResolver(Resolver):
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.prefix)
 
-    def resolve(self, ref: str, origin: Path | None) -> tuple[str, Path | None]:
+    def resolve(self, ref: str, origin: Path | None = None) -> Path:
         assert origin, 'Local resolver requires an originating path'
         assert origin.is_absolute(), 'Originating document path must be absolute'
 
         path = Path(origin.parent, ref[len(self.prefix) :])
-        try:
-            return (path.read_text(encoding='utf-8'), path)
-        except OSError as exc:
-            raise ResolutionError(f'could not read {str(path)!r} for reference {ref!r}: {exc}') from exc
+        if not path.is_file():
+            raise ResolutionError(f'could not read {str(path)!r} for reference {ref!r}')
+        return path

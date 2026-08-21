@@ -34,7 +34,7 @@ class Resolver(Protocol):
         """Whether this resolver recognizes ``ref`` as a form it can resolve."""
         ...
 
-    def resolve(self, ref: str, origin: Path) -> Path:
+    def resolve(self, ref: str, origin: Path | None = None) -> Path:
         """Return the path to the document ``ref`` names.
         Should only called when ``handles`` is true.
         Raise ResolutionError when ref cannot be resolved.
@@ -95,7 +95,7 @@ def resolver_for(ref: str) -> Resolver | None:
     return None
 
 
-def resolve(ref: str, origin: Path) -> Path:
+def resolve(ref: str, origin: Path | None = None) -> Path:
     """Return the path to the document ``ref`` names, if it can be resolved."""
     resolver = resolver_for(ref)
     if resolver is None:
