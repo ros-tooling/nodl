@@ -12,7 +12,7 @@ DOCUMENT = 'talker'
 
 
 def test_registered_document_matches_installed_source():
-    content, prefix = get_resource('nodl_nodes', f'{PACKAGE}__{DOCUMENT}')
+    content, prefix = get_resource('nodl', f'{PACKAGE}__{DOCUMENT}')
 
     assert prefix
     installed = Path(get_package_share_directory(PACKAGE)) / 'nodl' / f'{DOCUMENT}.nodl.yaml'
@@ -20,6 +20,6 @@ def test_registered_document_matches_installed_source():
 
 
 def test_registered_document_is_nodl_v2():
-    content, _ = get_resource('nodl_nodes', f'{PACKAGE}__{DOCUMENT}')
+    content, _ = get_resource('nodl', f'{PACKAGE}__{DOCUMENT}')
 
     assert 'nodl_version: 2' in content
