@@ -53,7 +53,8 @@ The actual current value does not represent the declared default.
 A generic actual parameter type cannot prove a declared fixed-size type. This
 case produces an `unverifiable` difference.
 
-## Runtime integration
+## Runtime and package-test integration
 
 `ros2nodl` loads and composes the expected document, describes a live node, and
-calls this comparator.
+calls this comparator. The small `ament_nodl_conformance` package provides
+optional CMake and launch-test integration for ROS packages.

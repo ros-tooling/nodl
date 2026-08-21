@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+import unittest
+
+from launch import LaunchDescription
+from launch_ros.actions import Node
+from launch_testing.actions import ReadyToTest
+from ros2nodl.conformance import assert_conforms
+
+_PACKAGE = @_package_python@
+_EXECUTABLE = @_executable_python@
+_NODL_FILE = @_nodl_file_python@
+_NODE_NAME = @_node_name_python@
+_NODE_NAMESPACE = @_node_namespace_python@
+_TIMEOUT = @_ARGS_TIMEOUT@
+
+
+def _node_fqn():
+    namespace = '/' + _NODE_NAMESPACE.strip('/') if _NODE_NAMESPACE.strip('/') else ''
+    return f'{namespace}/{_NODE_NAME}'
+
+
+_target = Node(
+    package=_PACKAGE,
+    executable=_EXECUTABLE,
+    name=_NODE_NAME,
+    namespace=_NODE_NAMESPACE,
+    output='screen',
+)
+
+
+def generate_test_description():
+    return LaunchDescription([_target, ReadyToTest()])
+
+
+class TestNodlConformance(unittest.TestCase):
+
+    def test_conformance(self):
+        assert_conforms(
+            nodl_file=_NODL_FILE,
+            node_fqn=_node_fqn(),
+            timeout_sec=_TIMEOUT,
+        )

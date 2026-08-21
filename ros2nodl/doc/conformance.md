@@ -36,4 +36,5 @@ Description gaps become `unverifiable` differences with their original path and
 reason. Semantic differences are aggregated and sorted for stable diagnostics.
 
 This API deliberately does not infer a document from the `nodl_nodes` resource
-index and does not add a `ros2 nodl conform` command.
+index and does not add a `ros2 nodl conform` command. Use
+`ament_nodl_conformance` when a package needs a CMake-registered launch test.

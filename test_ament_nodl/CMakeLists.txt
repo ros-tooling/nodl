@@ -23,6 +23,30 @@ ament_nodl_register(json_node FILE test/fixtures/json_node.nodl.json)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
+  find_package(ament_nodl_conformance REQUIRED)
+  find_package(rcl_interfaces REQUIRED)
+  find_package(rclcpp REQUIRED)
+  find_package(std_msgs REQUIRED)
+  find_package(std_srvs REQUIRED)
+
+  add_executable(conformance_fixture_node src/conformance_fixture_node.cpp)
+  target_link_libraries(
+    conformance_fixture_node
+    PRIVATE
+      rclcpp::rclcpp
+      ${rcl_interfaces_TARGETS}
+      ${std_msgs_TARGETS}
+      ${std_srvs_TARGETS})
+  install(TARGETS conformance_fixture_node DESTINATION lib/${PROJECT_NAME})
+
+  nodl_add_conformance_test(conformance_fixture
+    EXECUTABLE conformance_fixture_node
+    NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
+    NODE_NAME fixture
+    NODE_NAMESPACE /conformance
+    TIMEOUT 15
+  )
+
   ament_add_pytest_test(test_register_node test/test_register_node.py)
   ament_add_pytest_test(test_macro_rejection test/test_macro_rejection.py)
   ament_add_pytest_test(test_composition test/test_composition.py)

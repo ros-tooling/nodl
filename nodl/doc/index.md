@@ -27,7 +27,7 @@ roadmap
   See the [Describe guide](_generated/packages/ros2nodl/describe.md).
 - **`ament_nodl`** — CMake macros for registering NoDL documents with the ament index.
 - **`nodl_conformance`** — semantic comparison of two loaded NoDL documents.
-  `ros2nodl` provides runtime conformance checks for live nodes.
+  `ros2nodl` provides runtime checks, and `ament_nodl_conformance` provides optional CMake test integration.
 
 Each package's own documentation is staged into this site from its `doc/` tree at build time
 (see {repo}`nodl/doc/package_docs.py`); the same sources build standalone under `rosdoc2` for docs.ros.org.
@@ -41,6 +41,12 @@ nodl_observe <_generated/packages/nodl_observe/overview>
 ros2nodl <_generated/packages/ros2nodl/overview>
 ament_nodl <_generated/packages/ament_nodl/overview>
 nodl_conformance <_generated/packages/nodl_conformance/overview>
+```
+
+```{toctree}
+:hidden:
+
+ament_nodl_conformance <_generated/packages/ament_nodl_conformance/overview>
 ```
 
 ## Source
