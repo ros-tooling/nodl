@@ -18,8 +18,9 @@ class ValidateVerb(VerbExtension):
         parser.add_argument(
             'files',
             type=Path,
-            nargs='*',
-            help='NoDL files to validate. Reads from stdin if none are given.',
+            required=True,
+            nargs='+',
+            help='NoDL files to validate.',
         )
         parser.add_argument(
             '--no-resolve',
