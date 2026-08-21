@@ -12,6 +12,7 @@ import yaml
 pytest.importorskip('ros2cli')
 rclpy = pytest.importorskip('rclpy')
 
+import ros2nodl.describe as describe_api  # noqa: E402
 from nodl_schema.validation import validate  # noqa: E402
 from ros2nodl.describe._source import observe_binary  # noqa: E402
 from ros2nodl.verb.describe import DescribeVerb, _infer_format  # noqa: E402
@@ -85,6 +86,25 @@ def test_from_yaml_writes_json(captured_node, tmp_path):
     output = tmp_path / 'description.json'
     assert DescribeVerb().main(args=_args(from_file=str(captured_node), output=str(output))) == 0
     assert json.loads(output.read_text())['nodl_version'] == 2
+
+
+def test_live_describe_uses_describe_node(monkeypatch, capsys):
+    from nodl_schema.models import NodlDocument
+
+    calls = []
+    result = describe_api.DescribeResult(doc=NodlDocument())
+
+    def describe_node(node_name, *, timeout_sec, options):
+        calls.append((node_name, timeout_sec, options))
+        return result
+
+    monkeypatch.setattr(describe_api, 'describe_node', describe_node)
+
+    assert DescribeVerb().main(args=_args(timeout=2.5, no_params=True, include_ros_infra=True)) == 0
+    assert yaml.safe_load(capsys.readouterr().out)['nodl_version'] == 2
+    assert calls[0][0:2] == (_TARGET_NODE, 2.5)
+    assert calls[0][2].include_parameters is False
+    assert calls[0][2].keep_hidden is True
 
 
 @pytest.fixture(scope='module')
