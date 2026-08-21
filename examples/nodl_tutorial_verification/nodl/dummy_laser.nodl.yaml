@@ -1,0 +1,12 @@
+---
+nodl_version: 2
+description: Fake laser publisher from the dummy_robot demo.
+publishers:
+  - name: scan
+    type: sensor_msgs/msg/LaserScan
+    description: Synthetic laser scan used by the RViz robot demo.
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+      durability: VOLATILE
