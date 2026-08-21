@@ -10,7 +10,6 @@ basics
 
 ## Available tutorials
 
-### [ROS 2 basics: one NoDL contract, multiple bindings](basics.md)
-
-Describe an existing talker, specify one contract, then use it to generate either C++ or Python interface bindings.
-The tutorial also shows a deliberate QoS regression and the intended conformance result.
+- [**ROS 2 basics: one NoDL contract, multiple bindings**](basics.md)
+  Describe an existing talker, specify one contract, then use it to generate either C++ or Python interface bindings.
+  The tutorial also shows a deliberate QoS regression and the intended conformance result.
