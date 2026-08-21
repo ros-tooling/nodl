@@ -69,9 +69,8 @@ function(ament_nodl_register resource_name)
     DEPENDS "${_stamp}"
   )
 
-  # Record this document. The rewrite + install is deferred (see _ament_nodl_finalize) so it sees every
-  # sibling registered in this directory, whatever the order. Each entry maps a document's source path to
-  # the package and name it is reachable by, which drives both the rewrite rules and the install.
+  # Record this document, mapping the source path to package+name to drive rewrite and install.
+  # Rewrite and install are deferred so all docs registered in this directory are available at rewrite time.
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PATHS "${_abs_file}")
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PKGS "${_ARGS_PACKAGE}")
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_NAMES "${resource_name}")
@@ -83,8 +82,7 @@ function(ament_nodl_register resource_name)
   endif()
 endfunction()
 
-# Run once at the end of the directory scope, after every ament_nodl_register call in it.
-# Rewrites each registered document's local:// includes to nodl:// references and installs the result.
+# Run once at the end of the directory scope, after all ament_nodl_register calls have been made.
 function(_ament_nodl_finalize)
   set(_NODL_RESOURCE_TYPE "nodl")
   set(_work_dir "${CMAKE_CURRENT_BINARY_DIR}/ament_nodl")
@@ -115,8 +113,8 @@ function(_ament_nodl_finalize)
     # The share copy keeps the source stem but is uniformly YAML (its content is now YAML).
     get_filename_component(_stem "${_abs_file}" NAME_WLE)
 
-    # Rewrite local:// includes to nodl:// refs. Depends on the source and on the directory's
-    # CMakeLists so a change to the registered set retriggers the rewrite even under Make.
+    # Rewrite refs.
+    # Depends on the source and on the directory's CMakeLists so a change to the registered set retriggers the rewrite.
     add_custom_command(
       OUTPUT "${_out}"
       DEPENDS "${_abs_file}" "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt"
