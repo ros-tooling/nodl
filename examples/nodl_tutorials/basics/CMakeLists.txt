@@ -6,7 +6,7 @@ project(nodl_tutorial_basics)
 find_package(ament_cmake REQUIRED)
 find_package(ament_nodl REQUIRED)
 
-ament_nodl_register_node(talker FILE nodl/talker.nodl.yaml)
+ament_nodl_register(talker FILE nodl/talker.nodl.yaml)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
