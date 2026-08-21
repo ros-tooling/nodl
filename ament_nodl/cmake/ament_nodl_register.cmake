@@ -12,12 +12,9 @@
 #
 # The document is also installed as YAML under ``share/<package>/nodl/`` for direct filesystem access.
 #
-# ``local://`` includes are rewritten to ``nodl://<package>/<name>`` references on install, so that
-# a document that referenced a sibling by its source-tree path instead references it by its ament
-# resource key -- the form that resolves once installed. Every ``local://`` target must itself be
-# registered (with ``ament_nodl_register``) in the same package, or the build fails: an unregistered
-# sibling would not be reachable downstream. The rewrite is deferred until all registrations in the
-# directory are known, so registration order does not matter.
+# ``local://`` includes are rewritten to ``nodl://<package>/<name>`` references on install.
+# Every ``local://`` target must itself be registered in the same package, an unregistered sibling would not be reachable downstream.
+# The rewrite is deferred until all registrations in the directory are known, so registration order does not matter.
 #
 # Example::
 #
@@ -73,14 +70,11 @@ function(ament_nodl_register resource_name)
   )
 
   # Record this document. The rewrite + install is deferred (see _ament_nodl_finalize) so it sees every
-  # sibling registered in this directory, whatever the order. The global lists map each document's source
-  # path to the nodl:// reference it should be reachable by; the per-directory lists drive what is installed.
+  # sibling registered in this directory, whatever the order. Each entry maps a document's source path to
+  # the package and name it is reachable by, which drives both the rewrite rules and the install.
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PATHS "${_abs_file}")
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PKGS "${_ARGS_PACKAGE}")
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_NAMES "${resource_name}")
-  set_property(DIRECTORY APPEND PROPERTY _AMENT_NODL_DIR_PATHS "${_abs_file}")
-  set_property(DIRECTORY APPEND PROPERTY _AMENT_NODL_DIR_PKGS "${_ARGS_PACKAGE}")
-  set_property(DIRECTORY APPEND PROPERTY _AMENT_NODL_DIR_NAMES "${resource_name}")
 
   get_property(_scheduled DIRECTORY PROPERTY _AMENT_NODL_FINALIZE_SCHEDULED)
   if(NOT _scheduled)
@@ -111,16 +105,11 @@ function(_ament_nodl_finalize)
     list(APPEND _ref_args -r "local://${_p}:=nodl://${_pkg}/${_nm}")
   endforeach()
 
-  get_property(_dir_paths DIRECTORY PROPERTY _AMENT_NODL_DIR_PATHS)
-  get_property(_dir_pkgs DIRECTORY PROPERTY _AMENT_NODL_DIR_PKGS)
-  get_property(_dir_names DIRECTORY PROPERTY _AMENT_NODL_DIR_NAMES)
-
-  list(LENGTH _dir_paths _dcount)
-  math(EXPR _dlast "${_dcount} - 1")
-  foreach(_i RANGE ${_dlast})
-    list(GET _dir_paths ${_i} _abs_file)
-    list(GET _dir_pkgs ${_i} _pkg)
-    list(GET _dir_names ${_i} _name)
+  # Rewrite and install each registered document.
+  foreach(_i RANGE ${_last})
+    list(GET _map_paths ${_i} _abs_file)
+    list(GET _map_pkgs ${_i} _pkg)
+    list(GET _map_names ${_i} _name)
     set(_key "${_pkg}__${_name}")
     set(_out "${_work_dir}/rewritten/${_key}")
     # The share copy keeps the source stem but is uniformly YAML (its content is now YAML).

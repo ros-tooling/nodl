@@ -151,6 +151,6 @@ def test_macro_rejects_unregistered_local_include(unregistered_include_pkg: Path
     )
     assert result.returncode != 0, 'Expected the build to fail on the unregistered local include'
     combined = result.stdout + result.stderr
-    assert 'unresolved local reference' in combined, (
+    assert 'was not registered to rewrite' in combined, (
         f'Expected the rewrite error to appear in the build output, got:\n{combined}'
     )
