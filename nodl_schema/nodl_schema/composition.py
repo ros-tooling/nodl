@@ -11,9 +11,10 @@ A resolver returns document text, not a path, since a reference need not name an
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Protocol, runtime_checkable
+from typing import Generator
 
 from nodl_schema.models import NodlDocument, ParameterDefinition
 
@@ -26,14 +27,15 @@ class ResolutionError(Exception):
     """Raised when includes cannot be resolved (unresolvable ref, cycle)."""
 
 
-@runtime_checkable
-class Resolver(Protocol):
+class Resolver(ABC):
     """Recognizes a form of NoDL reference and fetches its contents."""
 
+    @abstractmethod
     def handles(self, ref: str) -> bool:
         """Whether this resolver recognizes ``ref`` as a form it can resolve."""
         ...
 
+    @abstractmethod
     def resolve(self, ref: str, origin: Path | None = None) -> Path:
         """Return the path to the document ``ref`` names.
         Should only called when ``handles`` is true.
@@ -42,6 +44,10 @@ class Resolver(Protocol):
         @param origin: Document that is making the reference - necessary to resolve local includes
         """
         ...
+
+    def normalize(self, ref: str, origin: Path | None = None) -> str:
+        """Normalize ref for comparison, such as making a relative path absolute."""
+        return ref
 
 
 _RESOLVERS: list[Resolver] = list()

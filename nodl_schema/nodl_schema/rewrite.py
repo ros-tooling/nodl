@@ -27,38 +27,9 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedBase
 
-from nodl_schema import parse_nodl
-
-_LOCAL_PREFIX = 'local://'
-
-
-class RewriteError(Exception):
-    """Raised when a document's references cannot be rewritten."""
-
-
-def parse_reference_arg(arg: str) -> tuple[str, str]:
-    """Parse a ``FROM:=TO`` rewrite rule into its two references.
-
-    ``:=`` separates the two; neither reference contains it, so the split is unambiguous.
-    """
-    frm, sep, to = arg.partition(':=')
-    if not sep or not frm or not to:
-        raise RewriteError(f'invalid reference rule {arg!r}: expected FROM:=TO')
-    return frm, to
-
-
-def _canonical_ref(ref: str, origin: Path | None) -> str:
-    """Canonicalize ``ref`` for comparison.
-
-    A ``local://`` reference resolves to an absolute path, relative to ``origin``'s directory when the reference itself is relative,
-    so the same target matches however it was written.
-    Any other scheme is returned unchanged.
-    """
-    if not ref.startswith(_LOCAL_PREFIX):
-        return ref
-    rel = ref[len(_LOCAL_PREFIX) :]
-    base = origin.parent if origin is not None else Path.cwd()
-    return _LOCAL_PREFIX + str((base / rel).resolve())
+from nodl_schema.composition import ResolutionError, resolver_for
+from nodl_schema.loader import parse_nodl
+from nodl_schema.local_resolver import LocalResolver
 
 
 def _force_block_style(node) -> None:
@@ -76,6 +47,13 @@ def _force_block_style(node) -> None:
             _force_block_style(value)
 
 
+def _canonicalize(ref: str, origin: Path) -> str:
+    resolver = resolver_for(ref)
+    if not resolver:
+        raise ResolutionError(f'No resolver registered for reference {ref}')
+    return resolver.normalize(ref, origin)
+
+
 def rewrite_references(source: Path, rewrites: dict[str, str]) -> str:
     """Return the text of ``source`` with its ``include`` references rewritten per ``rewrites``.
 
@@ -83,7 +61,7 @@ def rewrite_references(source: Path, rewrites: dict[str, str]) -> str:
     A ``local://`` key is matched by resolved absolute path, so it should be given in absolute form.
 
     Raises the loader's validation errors when ``source`` is not a valid NoDL document.
-    Raises :class:`RewriteError` when any ``local://`` reference remains after rewriting,
+    Raises :class:`ResolutionError` when any ``local://`` reference remains after rewriting,
     since such a reference does not resolve once the document is installed.
     """
     source = source.resolve()
@@ -98,30 +76,24 @@ def rewrite_references(source: Path, rewrites: dict[str, str]) -> str:
     yaml.indent(mapping=2, sequence=4, offset=2)
     data = yaml.load(text)
 
-    # The FROM side is origin-independent (local:// keys are absolute); canonicalize it once.
-    canonical = {_canonical_ref(frm, None): to for frm, to in rewrites.items()}
+    canonical_rewrites = {_canonicalize(frm, source): to for frm, to in rewrites.items()}
 
-    includes = data.get('include') if isinstance(data, dict) else None
-    for entry in includes or []:
-        ref = entry.get('ref') if hasattr(entry, 'get') else None
-        if ref is None:
-            continue
-        replacement = canonical.get(_canonical_ref(ref, source))
-        if replacement is not None:
+    includes = data.get('include', [])
+    for entry in includes:
+        original = entry['ref']
+        ref = _canonicalize(original, source)
+
+        replacement = canonical_rewrites.get(ref)
+        if replacement is None:
+            # NOTE(emerson) this check bakes in a usage understanding that all local references must be rewritten
+            if LocalResolver().handles(ref):
+                raise ResolutionError(f'{source}: local reference {original} was not registered to rewrite')
+        else:
             entry['ref'] = replacement
 
     _force_block_style(data)
     buffer = io.StringIO()
     yaml.dump(data, buffer)
     result = buffer.getvalue()
-
-    # A document must be self-contained once installed: no local:// reference may survive.
-    rewritten = parse_nodl(result)
-    stragglers = [r.ref for r in (rewritten.include or []) if r.ref.startswith(_LOCAL_PREFIX)]
-    if stragglers:
-        raise RewriteError(
-            f'{source}: unresolved local reference(s) after rewrite: {stragglers}; '
-            f'ensure each local:// target is registered'
-        )
 
     return result

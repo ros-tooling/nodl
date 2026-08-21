@@ -5,8 +5,19 @@
 import sys
 from pathlib import Path
 
-from ros2nodl.rewrite import parse_reference_arg, rewrite_references
+from nodl_schema.rewrite import rewrite_references
 from ros2nodl.verb import VerbExtension
+
+
+def parse_reference_arg(arg: str) -> tuple[str, str]:
+    """Parse a ``FROM:=TO`` rewrite rule into its two references.
+
+    ``:=`` separates the two; neither reference contains it, so the split is unambiguous.
+    """
+    frm, sep, to = arg.partition(':=')
+    if not sep or not frm or not to:
+        raise ValueError(f'invalid reference rule {arg!r}: expected FROM:=TO')
+    return frm, to
 
 
 class RewriteVerb(VerbExtension):

@@ -23,3 +23,7 @@ class LocalResolver(Resolver):
         if not path.is_file():
             raise ResolutionError(f'could not read {str(path)!r} for reference {ref!r}')
         return path
+
+    def normalize(self, ref: str, origin: Path | None = None) -> str:
+        path = self.resolve(ref, origin).absolute()
+        return f'{self.prefix}{path}'

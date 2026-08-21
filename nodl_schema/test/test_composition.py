@@ -20,7 +20,7 @@ from nodl_schema import (
     resolver_registered,
     unregister_resolver,
 )
-from nodl_schema.composition import MergeError, merge_documents, resolve, resolver_for
+from nodl_schema.composition import MergeError, Resolver, merge_documents, resolve, resolver_for
 from nodl_schema.models import (
     History,
     NodlDocument,
@@ -74,7 +74,7 @@ def _including(*refs) -> NodlDocument:
     return NodlDocument(include=_refs(*refs))
 
 
-class FakeResolver:
+class FakeResolver(Resolver):
     """Resolves an in-memory ``test://`` reference format.
 
     Documents go in as models and come out as a ``Path`` to a temp file, since that is

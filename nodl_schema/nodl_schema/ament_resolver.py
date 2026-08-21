@@ -5,10 +5,10 @@ from pathlib import Path
 from ament_index_python import resources as ament_index
 from ament_index_python.constants import RESOURCE_INDEX_SUBFOLDER
 
-from nodl_schema.composition import ResolutionError
+from nodl_schema.composition import ResolutionError, Resolver
 
 
-class AmentIndexResolver:
+class AmentIndexResolver(Resolver):
     """Resolves ``nodl://<package>/<name>`` through the ament index."""
 
     prefix = 'nodl://'
