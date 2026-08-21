@@ -24,9 +24,11 @@ _LOCAL_SUBSCRIPTION = (
 )
 
 
-def test_nodl_include_resolves_from_ament_index():
+def test_nodl_include_resolves_from_ament_index(tmp_path):
+    doc_path = tmp_path / 'test.nodl.yaml'
+    doc_path.write_text(f'nodl_version: 2\n{_LOCAL_SUBSCRIPTION}include:\n  - ref: nodl://test_ament_nodl/basic_node\n')
     # basic_node contributes a /chatter publisher; the including document adds its own subscription.
-    doc = load_nodl(f'nodl_version: 2\n{_LOCAL_SUBSCRIPTION}include:\n  - ref: nodl://test_ament_nodl/basic_node\n')
+    doc = load_nodl(doc_path)
     assert doc.publishers
     assert [p.name for p in doc.publishers] == ['/chatter']
     assert doc.subscriptions
@@ -35,9 +37,11 @@ def test_nodl_include_resolves_from_ament_index():
     assert doc.include is None
 
 
-def test_included_qos_survives_the_round_trip():
+def test_included_qos_survives_the_round_trip(tmp_path):
     # The included document is fetched as text and reparsed, so its details must survive.
-    doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/basic_node\n')
+    source = tmp_path / 'test.nodl.yaml'
+    source.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/basic_node\n')
+    doc = load_nodl(source)
     assert doc.publishers
     qos = doc.publishers[0].qos
     assert qos.depth == 10
@@ -45,26 +49,33 @@ def test_included_qos_survives_the_round_trip():
     assert qos.reliability.value == 'RELIABLE'
 
 
-def test_include_follows_the_package_override_in_the_resource_key():
+def test_include_follows_the_package_override_in_the_resource_key(tmp_path):
     # custom_exe is registered with PACKAGE custom_pkg, so the URI must name custom_pkg.
     # It declares no entities, so this asserts only that the lookup found it.
-    doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://custom_pkg/custom_exe\n')
+    source = tmp_path / 'custom_pkg.nodl.yaml'
+    source.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://custom_pkg/custom_exe\n')
+    doc = load_nodl(source)
     assert doc.include is None
 
     # The same name under this package is a different key, and nothing registered it.
+    missing = tmp_path / 'missing.nodl.yaml'
+    missing.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/custom_exe\n')
     with pytest.raises(ResolutionError):
-        load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/custom_exe\n')
+        load_nodl(missing)
 
 
-def test_include_resolves_a_json_document():
+def test_include_resolves_a_json_document(tmp_path):
     # The index holds text, so the frontend the author used does not reach the consumer.
-    doc = load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/json_node\n')
+    source = tmp_path / 'test.nodl.yaml'
+    source.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/json_node\n')
+    doc = load_nodl(source)
     assert doc.include is None
 
 
-def test_collision_with_an_included_document_raises():
+def test_collision_with_an_included_document_raises(tmp_path):
     # basic_node publishes /chatter, so publishing it here too is a duplicate.
-    source = (
+    source = tmp_path / 'test.nodl.yaml'
+    source.write_text(
         'nodl_version: 2\n'
         'publishers:\n'
         '  - name: /chatter\n'
@@ -76,16 +87,17 @@ def test_collision_with_an_included_document_raises():
         load_nodl(source)
 
 
-def test_unresolvable_nodl_include_raises():
+def test_unresolvable_nodl_include_raises(tmp_path):
+    source = tmp_path / 'test.nodl.yaml'
+    source.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/no_such_node\n')
     with pytest.raises(ResolutionError, match='nodl://test_ament_nodl/no_such_node'):
-        load_nodl('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/no_such_node\n')
+        load_nodl(source)
 
 
-def test_no_resolve_leaves_the_include_untouched():
-    doc = load_nodl(
-        'nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/no_such_node\n',
-        resolve=False,
-    )
+def test_no_resolve_leaves_the_include_untouched(tmp_path):
+    source = tmp_path / 'test.nodl.yaml'
+    source.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/no_such_node\n')
+    doc = load_nodl(source, resolve=False)
     assert doc.include
     assert doc.include[0].ref == 'nodl://test_ament_nodl/no_such_node'
 
