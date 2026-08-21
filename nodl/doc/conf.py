@@ -19,6 +19,7 @@ html_title = 'NoDL (v2, in development)'
 
 extensions = [
     'myst_parser',
+    'sphinx_tabs.tabs',
     'sphinx_immaterial',
     'sphinx_immaterial.apidoc.json.domain',
     'sphinx.ext.extlinks',
@@ -69,6 +70,8 @@ source_suffix = {
 
 # -- HTML output (sphinx-immaterial) -----------------------------------------
 html_theme = 'sphinx_immaterial'
+html_static_path = ['_static']
+html_css_files = ['custom.css']
 # Paths are relative to this dir; Sphinx copies them into _static automatically.
 # The logo/favicon are committed assets derived from the full-res nodl_logo.png:
 #   convert nodl_logo.png -resize 200x -strip nodl_logo_small.png

@@ -17,6 +17,7 @@ concepts
 schema
 documenting
 roadmap
+tutorials/index
 ```
 
 ## Packages
