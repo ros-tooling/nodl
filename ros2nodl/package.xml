@@ -11,6 +11,8 @@
 
   <depend>nodl_observe</depend>
   <depend>nodl_schema</depend>
+  <!-- The rewrite verb round-trips documents through ruamel.yaml to preserve comments and formatting. -->
+  <depend>python3-ruamel.yaml</depend>
   <depend>rosgraph_msgs</depend>
   <depend>ros2cli</depend>
   <!-- The describe verb shells out to the nodl_observe `observe` binary and

@@ -13,7 +13,7 @@ package at build time, before that package is installed.
 import pytest
 from ament_index_python.resources import get_resource
 
-from nodl_schema import load_nodl
+from nodl_schema import load_nodl, parse_nodl
 from nodl_schema.composition import MergeError, ResolutionError
 
 _LOCAL_SUBSCRIPTION = (
@@ -102,8 +102,29 @@ def test_no_resolve_leaves_the_include_untouched(tmp_path):
     assert doc.include[0].ref == 'nodl://test_ament_nodl/no_such_node'
 
 
-def test_registered_document_is_installed_as_authored():
-    # Registration does not rewrite, so a consumer resolves the document as authored.
+def test_document_without_local_includes_is_installed_as_authored():
+    # With nothing to rewrite, the installed document matches what was authored.
     content, _ = get_resource('nodl', 'test_ament_nodl__basic_node')
     assert 'include' not in content
     assert '/chatter' in content
+
+
+def test_local_include_is_rewritten_to_nodl_on_install():
+    # composed_node was authored with `local://basic_node.nodl.yaml`; registration rewrites it to the
+    # nodl:// key basic_node was registered under, since local:// would not resolve after install.
+    content, _ = get_resource('nodl', 'test_ament_nodl__composed_node')
+    doc = parse_nodl(content)
+    assert doc.include
+    assert [r.ref for r in doc.include] == ['nodl://test_ament_nodl/basic_node']
+
+
+def test_rewritten_include_resolves_through_the_index(tmp_path):
+    # Resolving the installed composed_node must pull basic_node's /chatter in via the rewritten ref.
+    source = tmp_path / 'consumer.nodl.yaml'
+    source.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/composed_node\n')
+    doc = load_nodl(source)
+    assert doc.publishers
+    assert [p.name for p in doc.publishers] == ['/chatter']
+    assert doc.subscriptions
+    assert [s.name for s in doc.subscriptions] == ['/composed_input']
+    assert doc.include is None

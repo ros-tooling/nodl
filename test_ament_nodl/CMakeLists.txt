@@ -6,6 +6,10 @@ project(test_ament_nodl)
 find_package(ament_cmake REQUIRED)
 find_package(ament_nodl REQUIRED)
 
+# Registered before basic_node on purpose: it references basic_node,
+# and we want to test regritration-order-independent resolution
+ament_nodl_register(composed_node FILE test/fixtures/composed_node.nodl.yaml)
+
 # Default PACKAGE resolves to ${PROJECT_NAME}.
 ament_nodl_register(basic_node FILE test/fixtures/basic_node.nodl.yaml)
 

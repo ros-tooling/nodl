@@ -1,0 +1,11 @@
+---
+nodl_version: 2
+description: Node that pulls in a sibling through a source-tree include, rewritten by registration.
+subscriptions:
+  - name: /composed_input
+    type: std_msgs/msg/String
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: SYSTEM_DEFAULT
+include:
+  - ref: local://basic_node.nodl.yaml

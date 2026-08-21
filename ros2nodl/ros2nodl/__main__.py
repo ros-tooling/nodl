@@ -9,6 +9,7 @@ import argparse
 import sys
 
 from ros2nodl.verb.describe import DescribeVerb
+from ros2nodl.verb.rewrite import RewriteVerb
 from ros2nodl.verb.validate import ValidateVerb
 
 
@@ -17,6 +18,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest='command', required=True)
     verbs = {
         'describe': DescribeVerb,
+        'rewrite': RewriteVerb,
         'validate': ValidateVerb,
     }
     for name, verb_cls in verbs.items():

@@ -41,14 +41,15 @@ def test_explicit_package_override():
     assert 'explicit PACKAGE override' in content
 
 
-def test_extension_agnostic_frontend():
-    # The macro reads bytes and writes bytes; a .nodl.json file round-trips just like yaml.
+def test_json_frontend_is_installed_as_yaml():
+    # A .nodl.json source is accepted, but the installed resource is uniformly YAML.
     content, _ = get_resource('nodl', 'test_ament_nodl__json_node')
-    assert '"nodl_version": 2' in content
+    assert '"nodl_version": 2' not in content
+    assert 'nodl_version: 2' in content
 
 
-def test_resource_content_matches_source():
-    # The registered resource should be byte-identical to the source file.
+def test_index_and_share_copies_match():
+    # The ament index resource and the share/ copy are the same installed (rewritten) document.
     content, _ = get_resource('nodl', 'test_ament_nodl__basic_node')
     on_disk = (_share() / 'nodl' / 'basic_node.nodl.yaml').read_text()
     assert content == on_disk
@@ -64,9 +65,10 @@ def test_source_file_installed_under_registering_package():
     assert (_share() / 'nodl' / 'basic_node.nodl.yaml').is_file()
 
 
-def test_json_source_file_installed():
-    # Original filename and extension are preserved.
-    assert (_share() / 'nodl' / 'json_node.nodl.json').is_file()
+def test_json_source_file_installed_as_yaml():
+    # The source stem is kept, but the installed copy is uniformly YAML.
+    assert (_share() / 'nodl' / 'json_node.nodl.yaml').is_file()
+    assert not (_share() / 'nodl' / 'json_node.nodl.json').is_file()
 
 
 def test_source_file_installed_under_override_package():

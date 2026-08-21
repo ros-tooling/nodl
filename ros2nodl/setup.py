@@ -23,6 +23,7 @@ setup(
         ],
         'ros2nodl.verb': [
             'describe = ros2nodl.verb.describe:DescribeVerb',
+            'rewrite = ros2nodl.verb.rewrite:RewriteVerb',
             'validate = ros2nodl.verb.validate:ValidateVerb',
         ],
     },

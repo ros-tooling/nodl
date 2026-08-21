@@ -49,6 +49,41 @@ _INVALID_NODL = textwrap.dedent("""
         type: not_a_real_type
 """).lstrip()
 
+# A project that registers a document whose local:// include points at an unregistered sibling.
+# The sibling exists on disk (so validation resolves it) but is never registered, so the rewrite
+# has no nodl:// key to substitute and must fail the build.
+_UNREGISTERED_INCLUDE_CMAKELISTS = textwrap.dedent("""
+    cmake_minimum_required(VERSION 3.22)
+    project(unregistered_include_fixture)
+    find_package(ament_cmake REQUIRED)
+    find_package(ament_nodl REQUIRED)
+    ament_nodl_register(root_exe FILE root.nodl.yaml)
+    ament_package()
+""")
+
+_UNREGISTERED_INCLUDE_PACKAGE_XML = textwrap.dedent("""<?xml version="1.0"?>
+    <package format="3">
+      <name>unregistered_include_fixture</name>
+      <version>0.0.0</version>
+      <description>Inner project verifying the macro rejects an unregistered local include target.</description>
+      <maintainer email="test@example.com">test</maintainer>
+      <license>Apache-2.0</license>
+      <buildtool_depend>ament_cmake</buildtool_depend>
+      <buildtool_depend>ament_nodl</buildtool_depend>
+      <export>
+        <build_type>ament_cmake</build_type>
+      </export>
+    </package>
+""").lstrip()
+
+_ROOT_WITH_LOCAL_INCLUDE = textwrap.dedent("""
+    nodl_version: 2
+    include:
+      - ref: local://leaf.nodl.yaml
+""").lstrip()
+
+_LEAF_NODL = 'nodl_version: 2\n'
+
 
 @pytest.fixture
 def inner_pkg(tmp_path: Path) -> Path:
@@ -83,4 +118,39 @@ def test_macro_rejects_invalid_node(inner_pkg: Path):
     combined = result.stdout + result.stderr
     assert 'not_a_real_type' in combined, (
         f'Expected the validator error to appear in the build output, got:\n{combined}'
+    )
+
+
+@pytest.fixture
+def unregistered_include_pkg(tmp_path: Path) -> Path:
+    pkg = tmp_path / 'unregistered_include_fixture'
+    pkg.mkdir()
+    (pkg / 'CMakeLists.txt').write_text(_UNREGISTERED_INCLUDE_CMAKELISTS)
+    (pkg / 'package.xml').write_text(_UNREGISTERED_INCLUDE_PACKAGE_XML)
+    (pkg / 'root.nodl.yaml').write_text(_ROOT_WITH_LOCAL_INCLUDE)
+    (pkg / 'leaf.nodl.yaml').write_text(_LEAF_NODL)
+    return pkg
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_unregistered_local_include(unregistered_include_pkg: Path):
+    build = unregistered_include_pkg / 'build'
+    configure = subprocess.run(
+        ['cmake', '-S', str(unregistered_include_pkg), '-B', str(build)],
+        capture_output=True,
+        text=True,
+        env=os.environ,
+    )
+    assert configure.returncode == 0, f'Configure failed:\n{configure.stderr}'
+
+    result = subprocess.run(
+        ['cmake', '--build', str(build)],
+        capture_output=True,
+        text=True,
+        env=os.environ,
+    )
+    assert result.returncode != 0, 'Expected the build to fail on the unregistered local include'
+    combined = result.stdout + result.stderr
+    assert 'unresolved local reference' in combined, (
+        f'Expected the rewrite error to appear in the build output, got:\n{combined}'
     )

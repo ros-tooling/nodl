@@ -10,7 +10,14 @@
 #
 #   ament_index_python.packages.get_resource('nodl', '<pkg>__<name>')
 #
-# The source file is also installed under ``share/<package>/nodl/`` for direct filesystem access.
+# The document is also installed as YAML under ``share/<package>/nodl/`` for direct filesystem access.
+#
+# ``local://`` includes are rewritten to ``nodl://<package>/<name>`` references on install, so that
+# a document that referenced a sibling by its source-tree path instead references it by its ament
+# resource key -- the form that resolves once installed. Every ``local://`` target must itself be
+# registered (with ``ament_nodl_register``) in the same package, or the build fails: an unregistered
+# sibling would not be reachable downstream. The rewrite is deferred until all registrations in the
+# directory are known, so registration order does not matter.
 #
 # Example::
 #
@@ -65,14 +72,80 @@ function(ament_nodl_register resource_name)
     DEPENDS "${_stamp}"
   )
 
-  # Install to ament index
-  install(
-    FILES "${_abs_file}"
-    DESTINATION "share/ament_index/resource_index/${_NODL_RESOURCE_TYPE}"
-    RENAME "${_ARGS_PACKAGE}__${resource_name}")
+  # Record this document. The rewrite + install is deferred (see _ament_nodl_finalize) so it sees every
+  # sibling registered in this directory, whatever the order. The global lists map each document's source
+  # path to the nodl:// reference it should be reachable by; the per-directory lists drive what is installed.
+  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PATHS "${_abs_file}")
+  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PKGS "${_ARGS_PACKAGE}")
+  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_NAMES "${resource_name}")
+  set_property(DIRECTORY APPEND PROPERTY _AMENT_NODL_DIR_PATHS "${_abs_file}")
+  set_property(DIRECTORY APPEND PROPERTY _AMENT_NODL_DIR_PKGS "${_ARGS_PACKAGE}")
+  set_property(DIRECTORY APPEND PROPERTY _AMENT_NODL_DIR_NAMES "${resource_name}")
 
-  # Install to package's share directory
-  install(
-    FILES "${_abs_file}"
-    DESTINATION "share/${_ARGS_PACKAGE}/nodl")
+  get_property(_scheduled DIRECTORY PROPERTY _AMENT_NODL_FINALIZE_SCHEDULED)
+  if(NOT _scheduled)
+    set_property(DIRECTORY PROPERTY _AMENT_NODL_FINALIZE_SCHEDULED TRUE)
+    cmake_language(DEFER CALL _ament_nodl_finalize)
+  endif()
+endfunction()
+
+# Run once at the end of the directory scope, after every ament_nodl_register call in it.
+# Rewrites each registered document's local:// includes to nodl:// references and installs the result.
+function(_ament_nodl_finalize)
+  set(_NODL_RESOURCE_TYPE "nodl")
+  set(_work_dir "${CMAKE_CURRENT_BINARY_DIR}/ament_nodl")
+
+  get_property(_map_paths GLOBAL PROPERTY _AMENT_NODL_MAP_PATHS)
+  get_property(_map_pkgs GLOBAL PROPERTY _AMENT_NODL_MAP_PKGS)
+  get_property(_map_names GLOBAL PROPERTY _AMENT_NODL_MAP_NAMES)
+
+  # One rewrite rule per registered document: its absolute source path -> its nodl:// reference.
+  # Every document's rewrite is given the full set, since any of them may include any other.
+  set(_ref_args "")
+  list(LENGTH _map_paths _count)
+  math(EXPR _last "${_count} - 1")
+  foreach(_i RANGE ${_last})
+    list(GET _map_paths ${_i} _p)
+    list(GET _map_pkgs ${_i} _pkg)
+    list(GET _map_names ${_i} _nm)
+    list(APPEND _ref_args -r "local://${_p}:=nodl://${_pkg}/${_nm}")
+  endforeach()
+
+  get_property(_dir_paths DIRECTORY PROPERTY _AMENT_NODL_DIR_PATHS)
+  get_property(_dir_pkgs DIRECTORY PROPERTY _AMENT_NODL_DIR_PKGS)
+  get_property(_dir_names DIRECTORY PROPERTY _AMENT_NODL_DIR_NAMES)
+
+  list(LENGTH _dir_paths _dcount)
+  math(EXPR _dlast "${_dcount} - 1")
+  foreach(_i RANGE ${_dlast})
+    list(GET _dir_paths ${_i} _abs_file)
+    list(GET _dir_pkgs ${_i} _pkg)
+    list(GET _dir_names ${_i} _name)
+    set(_key "${_pkg}__${_name}")
+    set(_out "${_work_dir}/rewritten/${_key}")
+    # The share copy keeps the source stem but is uniformly YAML (its content is now YAML).
+    get_filename_component(_stem "${_abs_file}" NAME_WLE)
+
+    # Rewrite local:// includes to nodl:// refs. Depends on the source and on the directory's
+    # CMakeLists so a change to the registered set retriggers the rewrite even under Make.
+    add_custom_command(
+      OUTPUT "${_out}"
+      DEPENDS "${_abs_file}" "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt"
+      COMMAND "${Python3_EXECUTABLE}" -m ros2nodl rewrite ${_ref_args}
+        --output "${_out}" "${_abs_file}"
+      COMMENT "Rewriting NoDL ${_key}"
+      VERBATIM
+    )
+    add_custom_target(_ament_nodl_rewrite_${_key} ALL DEPENDS "${_out}")
+
+    # Install the rewritten (YAML) document to the ament index (keyed) and to the package share dir.
+    install(
+      FILES "${_out}"
+      DESTINATION "share/ament_index/resource_index/${_NODL_RESOURCE_TYPE}"
+      RENAME "${_key}")
+    install(
+      FILES "${_out}"
+      DESTINATION "share/${_pkg}/nodl"
+      RENAME "${_stem}.yaml")
+  endforeach()
 endfunction()
