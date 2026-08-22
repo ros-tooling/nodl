@@ -23,6 +23,9 @@ extensions = [
     'sphinx_immaterial.apidoc.json.domain',
     'sphinx.ext.extlinks',
     'sphinx.ext.intersphinx',
+    # documenting.md renders a checked-in NoDL document with the nodl-node directive, so this site dogfoods the
+    # extension it documents. The environment installs nodl_sphinx and nodl_schema from this repo (see pyproject.toml).
+    'nodl_sphinx',
 ]
 
 # -- Cross-references between packages and the top-level site ----------------

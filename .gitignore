@@ -1,4 +1,6 @@
 __pycache__/
+# setuptools metadata left in a package by the editable installs the doc site makes (see nodl/doc/pyproject.toml).
+*.egg-info/
 /.ruff.toml
 /.vscode/
 /build/

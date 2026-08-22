@@ -20,7 +20,27 @@ docs = [
     # Enables json_schema_validate so a malformed schema fails the build.
     "jsonschema>=4",
     "poethepoet>=0.27",
+    # documenting.md renders a checked-in NoDL document with the nodl-node directive, so this site needs the
+    # extension and the loader it reads documents with. Both come from this repo: uv takes them from the working
+    # tree through [tool.uv.sources] below, and Read the Docs installs the same paths with pip before this project
+    # (see .readthedocs.yaml), which leaves these requirements already satisfied.
+    "nodl-sphinx",
+    "nodl-schema",
+    # Runtime dependencies of nodl_schema. Its setup.py declares none, because a ROS package gets them from
+    # package.xml through rosdep, which this environment does not have.
+    "pydantic>=2",
+    "pyyaml>=6",
+    "ruamel.yaml>=0.17",
+    # nodl_schema resolves nodl:// references through the ament index. ament_index_python has no PyPI release,
+    # so it is taken from its upstream release tag; uv.lock pins the commit.
+    "ament-index-python @ git+https://github.com/ament/ament_index@1.9.0#subdirectory=ament_index_python",
 ]
+
+# The two NoDL packages live in this repo, not on an index, and are installed editable so a doc build renders the
+# working tree rather than a stale copy. This is a uv-only table; pip reads the plain requirements above.
+[tool.uv.sources]
+nodl-sphinx = { path = "../../nodl_sphinx", editable = true }
+nodl-schema = { path = "../../nodl_schema", editable = true }
 
 # This project exists only to pull in the docs dependencies, it ships no importable modules.
 # Disable setuptools' flat-layout discovery, which would otherwise fail on finding multiple top-level modules.

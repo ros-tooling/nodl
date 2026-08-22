@@ -15,6 +15,11 @@ sphinx:
 
 python:
   install:
+    # The site renders a NoDL document with the nodl-node directive, so the extension and the loader it uses have to
+    # be importable. Installed from the working tree ahead of nodl/doc, which requires them by name: pip finds those
+    # requirements already satisfied instead of looking for packages that have no release on any index.
+    - path: nodl_schema
+    - path: nodl_sphinx
     - path: nodl/doc
       extra_requirements:
         - docs

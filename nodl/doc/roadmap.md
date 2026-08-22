@@ -8,5 +8,7 @@ These key features are targeted by the [NoDL v2 project](https://github.com/ros-
 1. "Describe": Observe a running instance of a node, and produce a NoDL document matching it as completely as possible.
 1. "Generate": Taking a NoDL document as input, produce a node with that interface, allowing the author to skip the boilerplate and write only the business logic. Targeting C++ (`rclcpp`), Python (`rclpy`), and a stretch goal for Rust (`rclrs`).
 1. "Document": Produce `rosdoc2`-compatible documentation pages from NoDL documents, to standardize the ROS node interface documentation story, which so far is ad-hoc and often entirely missing.
+   In progress: the `nodl_sphinx` package's `nodl-node` directive renders a document into a package's own Sphinx build.
+   See [Documenting your node's interface](documenting.md).
 1. "Test": Guarantee schema conformance of NoDL-described nodes.
 1. "Analyze": Enable pre-run analysis of NoDL-described ROS applications, checking connectivity and compatibility of communication endpoints without having to start a node process.

@@ -76,6 +76,11 @@ Links have to resolve in both builds, so:
   The combined site's nav lists every package for discovery.
 - **Top-level to package** is a normal internal toctree/`:doc:` link, since the staged trees are part of the same
   project in the combined build.
+- **A page added in the same change cannot be an intersphinx target.**
+  The `nodl` inventory is fetched from the published site, in the combined build too (see the note in `nodl/doc/conf.py`),
+  so `` {external+nodl:doc}`newpage` `` fails until that page is published.
+  Link such a page by plain URL, with a comment recording why, and turn it into `{external+nodl:doc}` in a later change.
+  `nodl_sphinx/doc/overview.md` links the authoring guide this way.
 
 ## Scope notes
 
