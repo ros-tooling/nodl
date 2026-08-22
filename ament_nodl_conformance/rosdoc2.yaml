@@ -1,0 +1,13 @@
+type: 'rosdoc2 config'
+version: 1
+
+---
+settings:
+    never_run_sphinx_apidoc: true
+    generate_package_index: true
+
+builders:
+    - sphinx: {
+        name: 'ament_nodl_conformance',
+        output_dir: ''
+    }

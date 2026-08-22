@@ -48,7 +48,9 @@ jobs:
         # ctest per RMW; the integration test self-starts rmw_zenohd for zenoh).
         uses: ros-tooling/action-ros-ci@v0.4
         with:
-          package-name: ament_nodl nodl nodl_observe nodl_schema ros2nodl test_ament_nodl
+          package-name: >-
+            ament_nodl ament_nodl_conformance nodl nodl_conformance nodl_observe nodl_schema ros2nodl
+            test_ament_nodl
           target-ros2-distro: ${{ matrix.ros }}
       - uses: actions/upload-artifact@v4
         if: always()

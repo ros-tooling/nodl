@@ -80,16 +80,14 @@ class DescribeVerb(VerbExtension):
         )
 
 
-def _acquire_node(*, node_name, from_file, timeout_sec, include_parameters):
-    from ros2nodl.describe import _source
+def _describe_source(*, node_name, from_file, timeout_sec, options):
+    from ros2nodl.describe import describe_node, node_to_nodl
 
     if from_file:
-        return _source.acquire_from_file(from_file)
-    return _source.acquire_live(
-        node_name,
-        timeout_sec=timeout_sec,
-        include_parameters=include_parameters,
-    )
+        from ros2nodl.describe._source import acquire_from_file
+
+        return node_to_nodl(acquire_from_file(from_file), options)
+    return describe_node(node_name, timeout_sec=timeout_sec, options=options)
 
 
 def _write(text: str, output_path) -> int:
@@ -117,34 +115,30 @@ def _run(
     output_path,
     output_format,
 ) -> int:
+    from ros2nodl.describe import DescribeOptions
     from ros2nodl.describe._source import SourceError
 
+    options = DescribeOptions(
+        include_parameters=include_parameters,
+        keep_hidden=keep_hidden,
+    )
+
     try:
-        message = _acquire_node(
+        result = _describe_source(
             node_name=node_name,
             from_file=from_file,
             timeout_sec=timeout_sec,
-            include_parameters=include_parameters,
+            options=options,
         )
     except SourceError as exc:
         print(f'ros2 nodl describe: {exc}', file=sys.stderr)
         return 1
-
-    from nodl_schema.loader import dump_nodl
-    from nodl_schema.validation import validate
-    from ros2nodl.describe import DescribeOptions, node_to_nodl
-
-    try:
-        result = node_to_nodl(
-            message,
-            DescribeOptions(
-                include_parameters=include_parameters,
-                keep_hidden=keep_hidden,
-            ),
-        )
     except Exception as exc:
         print(f'ros2 nodl describe: failed to interpret node: {exc}', file=sys.stderr)
         return 1
+
+    from nodl_schema.loader import dump_nodl
+    from nodl_schema.validation import validate
 
     try:
         validate(json.loads(result.doc.json(exclude_none=True)))

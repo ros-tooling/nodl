@@ -3,7 +3,7 @@
 <package format="3">
   <name>test_ament_nodl</name>
   <version>0.0.0</version>
-  <description>Integration tests for the ament_nodl CMake macros.</description>
+  <description>Downstream integration tests for NoDL ament packages.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="me@emersonknapp.com">Emerson Knapp</author>
@@ -12,10 +12,15 @@
   <buildtool_depend>ament_nodl</buildtool_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_nodl_conformance</test_depend>
   <test_depend>ament_index_python</test_depend>
   <test_depend>nodl_schema</test_depend>
   <test_depend>python3-pytest</test_depend>
   <test_depend>python3-pyright-pip</test_depend>
+  <test_depend>rcl_interfaces</test_depend>
+  <test_depend>rclcpp</test_depend>
+  <test_depend>std_msgs</test_depend>
+  <test_depend>std_srvs</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
