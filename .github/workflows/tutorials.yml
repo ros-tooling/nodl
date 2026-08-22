@@ -1,0 +1,50 @@
+---
+name: Tutorial packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - examples/nodl_tutorials/**
+  pull_request:
+    paths:
+      - examples/nodl_tutorials/**
+
+# Supersede obsolete tutorial-package runs for the same PR; never cancel a push to main.
+concurrency:
+  group: tutorials-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    env:
+      PIP_BREAK_SYSTEM_PACKAGES: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        ros: [humble, jazzy, kilted, lyrical, rolling]
+        include:
+          - ros: humble
+            ubuntu: jammy
+          - ros: jazzy
+            ubuntu: noble
+          - ros: kilted
+            ubuntu: noble
+          - ros: lyrical
+            ubuntu: resolute
+          - ros: rolling
+            ubuntu: resolute
+    container:
+      image: rostooling/setup-ros-docker:ubuntu-${{ matrix.ubuntu }}-latest
+    steps:
+      - name: Build and run tutorial-package tests
+        uses: ros-tooling/action-ros-ci@v0.4
+        with:
+          package-name: ament_nodl nodl nodl_schema nodl_tutorial_basics nodl_tutorial_dummy_robot ros2nodl
+          target-ros2-distro: ${{ matrix.ros }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tutorial-colcon-logs-${{ matrix.ros }}
+          path: ros_ws/log

@@ -1,0 +1,12 @@
+---
+nodl_version: 2
+description: Canonical talker interface shared by the C++ and Python tutorials.
+publishers:
+  - name: chatter
+    type: example_interfaces/msg/String
+    description: Periodic Hello World messages.
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+      durability: VOLATILE

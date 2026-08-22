@@ -8,6 +8,7 @@ on:
     paths-ignore:
       - '**.md'
       - '**/doc/**'
+      - examples/nodl_tutorials/**
   workflow_dispatch:
 
 # Supersede obsolete runs for the same PR; never cancel a push to main.
