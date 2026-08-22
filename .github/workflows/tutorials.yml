@@ -41,7 +41,7 @@ jobs:
       - name: Build and run tutorial-package tests
         uses: ros-tooling/action-ros-ci@v0.4
         with:
-          package-name: ament_nodl nodl nodl_schema nodl_tutorial_basics ros2nodl
+          package-name: ament_nodl nodl nodl_schema nodl_tutorial_basics nodl_tutorial_dummy_robot ros2nodl
           target-ros2-distro: ${{ matrix.ros }}
       - uses: actions/upload-artifact@v4
         if: always()
