@@ -17,7 +17,7 @@ class AmentIndexResolver(Resolver):
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.prefix)
 
-    def resolve(self, ref: str, origin: Path | None = None) -> Path:
+    def resolve(self, ref: str, origin: Path) -> Path:
         package, _, name = ref[len(self.prefix) :].partition('/')
         if not package or not name:
             raise ResolutionError(f'invalid reference {ref!r}: expected nodl://<package>/<name>')

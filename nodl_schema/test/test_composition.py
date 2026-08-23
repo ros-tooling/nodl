@@ -109,7 +109,7 @@ class FakeResolver(Resolver):
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.scheme)
 
-    def resolve(self, ref: str, origin: Path | None = None) -> Path:
+    def resolve(self, ref: str, origin: Path) -> Path:
         self.calls.append(ref)
         try:
             return self.docs[ref]

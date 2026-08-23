@@ -15,15 +15,12 @@ class LocalResolver(Resolver):
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.prefix)
 
-    def resolve(self, ref: str, origin: Path | None = None) -> Path:
-        assert origin, 'Local resolver requires an originating path'
-        assert origin.is_absolute(), 'Originating document path must be absolute'
-
+    def resolve(self, ref: str, origin: Path) -> Path:
         path = Path(origin.parent, ref[len(self.prefix) :])
         if not path.is_file():
             raise ResolutionError(f'could not read {str(path)!r} for reference {ref!r}')
         return path
 
-    def normalize(self, ref: str, origin: Path | None = None) -> str:
+    def normalize(self, ref: str, origin: Path) -> str:
         path = self.resolve(ref, origin).absolute()
         return f'{self.prefix}{path}'

@@ -36,7 +36,7 @@ class Resolver(ABC):
         ...
 
     @abstractmethod
-    def resolve(self, ref: str, origin: Path | None = None) -> Path:
+    def resolve(self, ref: str, origin: Path) -> Path:
         """Return the path to the document ``ref`` names.
         Should only called when ``handles`` is true.
         Raise ResolutionError when ref cannot be resolved.
@@ -45,7 +45,7 @@ class Resolver(ABC):
         """
         ...
 
-    def normalize(self, ref: str, origin: Path | None = None) -> str:
+    def normalize(self, ref: str, origin: Path) -> str:
         """Normalize ref for comparison, such as making a relative path absolute."""
         return ref
 
@@ -101,7 +101,7 @@ def resolver_for(ref: str) -> Resolver | None:
     return None
 
 
-def resolve(ref: str, origin: Path | None = None) -> Path:
+def resolve(ref: str, origin: Path) -> Path:
     """Return the path to the document ``ref`` names, if it can be resolved."""
     resolver = resolver_for(ref)
     if resolver is None:
