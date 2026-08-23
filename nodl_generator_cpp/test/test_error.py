@@ -55,6 +55,13 @@ def _base_class_doc(cls='rclcpp::Node', header='rclcpp/rclcpp.hpp', *refs, topic
     )
 
 
+def _write_nodl(tmp_path, doc, name='root.nodl.yaml'):
+    """Write a NodlDocument to a temp file and return its Path."""
+    path = tmp_path / name
+    path.write_text(dump_nodl(doc))
+    return path
+
+
 _TARGET = 'my_node'
 
 
@@ -63,7 +70,7 @@ _TARGET = 'my_node'
 # ---------------------------------------------------------------------------
 
 
-def test_two_sibling_base_class_includes(fake_resolver):
+def test_two_sibling_base_class_includes(fake_resolver, tmp_path):
     ref_a = fake_resolver.add('base_a', _base_class_doc('A', 'a.hpp', topic='/provided_a'))
     ref_b = fake_resolver.add('base_b', _base_class_doc('B', 'b.hpp', topic='/provided_b'))
     root = NodlDocument(
@@ -71,10 +78,10 @@ def test_two_sibling_base_class_includes(fake_resolver):
         include=_refs(ref_a, ref_b),
     )
     with pytest.raises(CodegenError, match='[Cc]onflict|[Mm]ultiple.*base class'):
-        generate_cpp(dump_nodl(root), _TARGET)
+        generate_cpp(_write_nodl(tmp_path, root), _TARGET)
 
 
-def test_two_sibling_base_class_includes_same_class_still_errors(fake_resolver):
+def test_two_sibling_base_class_includes_same_class_still_errors(fake_resolver, tmp_path):
     ref_a = fake_resolver.add('base_a', _base_class_doc('rclcpp::Node', 'rclcpp/rclcpp.hpp', topic='/provided_a'))
     ref_b = fake_resolver.add('base_b', _base_class_doc('rclcpp::Node', 'rclcpp/rclcpp.hpp', topic='/provided_b'))
     root = NodlDocument(
@@ -82,23 +89,23 @@ def test_two_sibling_base_class_includes_same_class_still_errors(fake_resolver):
         include=_refs(ref_a, ref_b),
     )
     with pytest.raises(CodegenError, match='[Cc]onflict|[Mm]ultiple.*base class'):
-        generate_cpp(dump_nodl(root), _TARGET)
+        generate_cpp(_write_nodl(tmp_path, root), _TARGET)
 
 
-def test_no_base_class_fails(fake_resolver):
+def test_no_base_class_fails(fake_resolver, tmp_path):
     root = NodlDocument(publishers=[_topic('/my_topic')])
     with pytest.raises(CodegenError, match='[Nn]o base class'):
-        generate_cpp(dump_nodl(root), _TARGET)
+        generate_cpp(_write_nodl(tmp_path, root), _TARGET)
 
 
-def test_no_base_class_with_include_fails(fake_resolver):
+def test_no_base_class_with_include_fails(fake_resolver, tmp_path):
     ref = fake_resolver.add('plain', NodlDocument(publishers=[_topic('/extra')]))
     root = NodlDocument(
         publishers=[_topic('/my_topic')],
         include=_refs(ref),
     )
     with pytest.raises(CodegenError, match='[Nn]o base class'):
-        generate_cpp(dump_nodl(root), _TARGET)
+        generate_cpp(_write_nodl(tmp_path, root), _TARGET)
 
 
 # ---------------------------------------------------------------------------
@@ -106,31 +113,31 @@ def test_no_base_class_with_include_fails(fake_resolver):
 # ---------------------------------------------------------------------------
 
 
-def test_empty_target_name(fake_resolver):
+def test_empty_target_name(fake_resolver, tmp_path):
     """generate_cpp rejects an empty target name."""
     root = NodlDocument(
         include=_refs('test://rclcpp_node'),
         publishers=[_topic('/my_topic')],
     )
     with pytest.raises(ValueError, match='target_name'):
-        generate_cpp(dump_nodl(root), '')
+        generate_cpp(_write_nodl(tmp_path, root), '')
 
 
-def test_non_identifier_target_name(fake_resolver):
+def test_non_identifier_target_name(fake_resolver, tmp_path):
     """generate_cpp rejects a non-identifier target name."""
     root = NodlDocument(
         include=_refs('test://rclcpp_node'),
         publishers=[_topic('/my_topic')],
     )
     with pytest.raises(ValueError, match='target_name'):
-        generate_cpp(dump_nodl(root), '123bad')
+        generate_cpp(_write_nodl(tmp_path, root), '123bad')
 
 
-def test_target_name_with_spaces(fake_resolver):
+def test_target_name_with_spaces(fake_resolver, tmp_path):
     """generate_cpp rejects a target name containing spaces."""
     root = NodlDocument(
         include=_refs('test://rclcpp_node'),
         publishers=[_topic('/my_topic')],
     )
     with pytest.raises(ValueError, match='target_name'):
-        generate_cpp(dump_nodl(root), 'has space')
+        generate_cpp(_write_nodl(tmp_path, root), 'has space')

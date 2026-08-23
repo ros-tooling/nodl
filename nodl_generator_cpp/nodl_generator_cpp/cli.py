@@ -23,8 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        with args.nodl_file.open('r') as f:
-            generated_files = generate_cpp(f, args.target_name)
+        generated_files = generate_cpp(args.nodl_file, args.target_name)
     except Exception as exc:
         print(f'{args.nodl_file}: {exc}', file=sys.stderr)
         return 1

@@ -3,21 +3,25 @@
 
 """Shared fixtures for nodl_generator_cpp tests."""
 
+import tempfile
 from pathlib import Path
 
 import pytest
 
 from nodl_schema import dump_nodl, resolver_registered
+from nodl_schema.composition import Resolver
 from nodl_schema.models import NodlDocument
 
 INCLUDES_DIR = Path(__file__).parent / '_includes'
 
 
-class FakeResolver:
-    """
-    Resolves ``test://<name>`` references from in-memory or on-disk nodl files.
+class FakeResolver(Resolver):
+    """Resolves ``test://<name>`` references via temp files on disk.
 
     Follows the same pattern as nodl_schema's test_composition.FakeResolver.
+    Documents are written to a temp directory so that ``resolve()`` can
+    return a ``Path``, as the resolver protocol requires.
+
     Supports three registration methods:
 
     - ``add(name, doc)`` — register a :class:`NodlDocument` model (serialised to YAML).
@@ -28,8 +32,10 @@ class FakeResolver:
     scheme = 'test://'
 
     def __init__(self) -> None:
-        self.docs: dict[str, str] = {}
+        self.docs: dict[str, Path] = {}
         self.calls: list[str] = []
+        self._dir = Path(tempfile.mkdtemp())
+        self._n = 0
 
     def add(self, name: str, doc: NodlDocument) -> str:
         """Register *doc* as ``test://<name>`` and return the ref."""
@@ -38,7 +44,10 @@ class FakeResolver:
     def add_text(self, name: str, text: str) -> str:
         """Register raw YAML/JSON text as ``test://<name>``."""
         ref = f'{self.scheme}{name}'
-        self.docs[ref] = text
+        path = self._dir / f'{self._n}.nodl.yaml'
+        self._n += 1
+        path.write_text(text)
+        self.docs[ref] = path
         return ref
 
     def add_file(self, name: str, path: Path) -> str:
@@ -48,7 +57,7 @@ class FakeResolver:
     def handles(self, ref: str) -> bool:
         return ref.startswith(self.scheme)
 
-    def resolve(self, ref: str) -> str:
+    def resolve(self, ref: str, origin: Path) -> Path:
         self.calls.append(ref)
         try:
             return self.docs[ref]

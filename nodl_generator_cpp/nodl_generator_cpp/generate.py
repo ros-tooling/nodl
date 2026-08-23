@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 import re
-from typing import IO, Union
+from pathlib import Path
 
 from nodl_generator_cpp.generated_file import GeneratedFile
 from nodl_generator_cpp.models import CodegenCpp, Role
@@ -105,12 +105,12 @@ def _filter_parameters(
     return {name: param for name, param in merged_doc.parameters.items() if ('parameters', name) not in provenance_map}
 
 
-def generate_cpp(source: Union[str, bytes, IO], target_name: str) -> list[GeneratedFile]:
+def generate_cpp(source: Path, target_name: str) -> list[GeneratedFile]:
     """Generate C++ base-node class files from a NoDL document.
 
-    Loads and resolves the NoDL document from *source* (string, bytes, or
-    file-like object), walks the include tree for provenance, and renders
-    the C++ header and source files.
+    Loads and resolves the NoDL document at *source* (a filesystem path),
+    walks the include tree for provenance, and renders the C++ header
+    and source files.
 
     Returns a list of :class:`GeneratedFile` objects ready to be written
     to disk by the caller.
