@@ -15,6 +15,7 @@ Home <self>
 concepts
 schema
 roadmap
+tutorials/index
 ```
 
 ## Packages

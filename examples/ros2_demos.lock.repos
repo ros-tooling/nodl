@@ -1,0 +1,5 @@
+repositories:
+  demos:
+    type: git
+    url: https://github.com/ros2/demos.git
+    version: f8d20abaec2be76c7062b2a0242ae6f82e2857b8
