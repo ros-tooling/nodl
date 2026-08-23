@@ -27,7 +27,7 @@ jobs:
       matrix:
         # One job per documented package. The nodl metapackage is covered by the top-level site; test_ament_nodl
         # is a test fixture. A ROS-distro axis could be added here later to mirror the per-distro buildfarm.
-        package: [nodl_schema, nodl_observe, ros2nodl, ament_nodl]
+        package: [nodl_schema, nodl_observe, ros2nodl, ament_nodl, nodl_generator_cpp]
     container:
       # A ROS base image gives us ros2cli (ros2nodl imports it) and the ament build tooling already installed.
       image: ros:jazzy-ros-base
