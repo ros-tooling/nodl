@@ -32,6 +32,7 @@ from nodl_schema.models import (
     TopicEndpoint,
 )
 
+_FAKE_ORIGIN = Path('/fake/origin.nodl.yaml')
 _QOS = QosProfile(history=History.SYSTEM_DEFAULT, reliability=Reliability.SYSTEM_DEFAULT)
 
 
@@ -132,7 +133,7 @@ def docs():
 def test_single_include_merges_entities(docs):
     ref = docs.add('extra', _sub_doc('/extra'))
     base = NodlDocument(publishers=[_topic('/base')], include=_refs(ref))
-    merged = merge_documents(resolve_document(base).flatten())
+    merged = merge_documents(resolve_document(base, _FAKE_ORIGIN).flatten())
     assert merged.include is None
     assert merged.publishers
     assert merged.subscriptions
@@ -143,7 +144,7 @@ def test_single_include_merges_entities(docs):
 def test_include_merges_parameters(docs):
     ref = docs.add('params', _param_doc(gain='double'))
     base = NodlDocument(parameters={'rate': ParameterDefinition(type='int')}, include=_refs(ref))
-    merged = merge_documents(resolve_document(base).flatten())
+    merged = merge_documents(resolve_document(base, _FAKE_ORIGIN).flatten())
     assert merged.parameters
     assert set(merged.parameters) == {'rate', 'gain'}
 
@@ -151,7 +152,7 @@ def test_include_merges_parameters(docs):
 def test_nested_include_is_resolved_recursively(docs):
     inner = docs.add('b', _pub_doc('/b'))
     ref = docs.add('a', _pub_doc('/a', inner))
-    merged = merge_documents(resolve_document(_including(ref)).flatten())
+    merged = merge_documents(resolve_document(_including(ref), _FAKE_ORIGIN).flatten())
     assert merged.publishers
     assert sorted(p.name for p in merged.publishers) == ['/a', '/b']
 
@@ -159,7 +160,7 @@ def test_nested_include_is_resolved_recursively(docs):
 def test_input_document_is_not_mutated(docs):
     ref = docs.add('x', _pub_doc('/x'))
     base = _including(ref)
-    merge_documents(resolve_document(base).flatten())
+    merge_documents(resolve_document(base, _FAKE_ORIGIN).flatten())
     assert base.include
     assert [r.ref for r in base.include] == [ref]
     assert base.publishers is None
@@ -167,7 +168,7 @@ def test_input_document_is_not_mutated(docs):
 
 def test_document_without_includes_touches_no_resolver(docs):
     base = NodlDocument(publishers=[_topic('/only')])
-    merged = merge_documents(resolve_document(base).flatten())
+    merged = merge_documents(resolve_document(base, _FAKE_ORIGIN).flatten())
     assert docs.calls == []
     assert merged.publishers
     assert [p.name for p in merged.publishers] == ['/only']
@@ -180,14 +181,14 @@ def test_document_without_includes_touches_no_resolver(docs):
 
 def test_resolve_no_includes_returns_empty_tree(docs):
     base = NodlDocument(publishers=[_topic('/only')])
-    tree = resolve_document(base)
+    tree = resolve_document(base, _FAKE_ORIGIN)
     assert tree.root_doc is base
     assert tree.resolved_includes == []
 
 
 def test_resolve_single_include_has_one_child(docs):
     ref = docs.add('x', _pub_doc('/x'))
-    tree = resolve_document(_including(ref))
+    tree = resolve_document(_including(ref), _FAKE_ORIGIN)
     assert len(tree.resolved_includes) == 1
     child = tree.resolved_includes[0]
     assert child.ref == ref
@@ -198,7 +199,7 @@ def test_resolve_single_include_has_one_child(docs):
 def test_resolve_nested_includes_builds_tree(docs):
     inner = docs.add('inner', _pub_doc('/inner'))
     outer = docs.add('outer', _pub_doc('/outer', inner))
-    tree = resolve_document(_including(outer))
+    tree = resolve_document(_including(outer), _FAKE_ORIGIN)
     assert len(tree.resolved_includes) == 1
     outer_node = tree.resolved_includes[0]
     assert outer_node.ref == outer
@@ -212,14 +213,14 @@ def test_flatten_nested_tree_contains_all_documents(docs):
     inner = docs.add('inner', _pub_doc('/inner'))
     outer = docs.add('outer', _pub_doc('/outer', inner))
     base = NodlDocument(publishers=[_topic('/root')], include=_refs(outer))
-    flat = resolve_document(base).flatten()
+    flat = resolve_document(base, _FAKE_ORIGIN).flatten()
     names = {d.publishers[0].name for d in flat if d.publishers}
     assert names == {'/root', '/outer', '/inner'}
 
 
 def test_flatten_no_includes_returns_only_root(docs):
     base = NodlDocument(publishers=[_topic('/only')])
-    assert resolve_document(base).flatten() == [base]
+    assert resolve_document(base, _FAKE_ORIGIN).flatten() == [base]
 
 
 # ---------------------------------------------------------------------------
@@ -231,35 +232,35 @@ def test_collision_between_base_and_include_errors(docs):
     ref = docs.add('dup', _pub_doc('/status'))
     base = NodlDocument(publishers=[_topic('/status')], include=_refs(ref))
     with pytest.raises(MergeError, match='/status'):
-        merge_documents(resolve_document(base).flatten())
+        merge_documents(resolve_document(base, _FAKE_ORIGIN).flatten())
 
 
 def test_collision_between_two_includes_errors(docs):
     one = docs.add('one', _pub_doc('/shared'))
     two = docs.add('two', _pub_doc('/shared'))
     with pytest.raises(MergeError, match='/shared'):
-        merge_documents(resolve_document(_including(one, two)).flatten())
+        merge_documents(resolve_document(_including(one, two), _FAKE_ORIGIN).flatten())
 
 
 def test_parameter_collision_errors(docs):
     ref = docs.add('p', _param_doc(gain='double'))
     base = NodlDocument(parameters={'gain': ParameterDefinition(type='int')}, include=_refs(ref))
     with pytest.raises(MergeError, match='gain'):
-        merge_documents(resolve_document(base).flatten())
+        merge_documents(resolve_document(base, _FAKE_ORIGIN).flatten())
 
 
 def test_service_collision_errors(docs):
     ref = docs.add('svc', NodlDocument(service_servers=[_service('/reset')]))
     base = NodlDocument(service_servers=[_service('/reset')], include=_refs(ref))
     with pytest.raises(MergeError, match='/reset'):
-        merge_documents(resolve_document(base).flatten())
+        merge_documents(resolve_document(base, _FAKE_ORIGIN).flatten())
 
 
 def test_same_name_different_category_is_allowed(docs):
     # A publisher and a subscription may share a topic name; they are different categories.
     ref = docs.add('sub', _sub_doc('/topic'))
     base = NodlDocument(publishers=[_topic('/topic')], include=_refs(ref))
-    merged = merge_documents(resolve_document(base).flatten())
+    merged = merge_documents(resolve_document(base, _FAKE_ORIGIN).flatten())
     assert merged.publishers
     assert merged.publishers[0].name == '/topic'
     assert merged.subscriptions
@@ -272,7 +273,7 @@ def test_diamond_surfaces_as_a_collision(docs):
     left = docs.add('left', _including(shared))
     right = docs.add('right', _including(shared))
     with pytest.raises(ResolutionError, match='/shared|nclusion'):
-        merge_documents(resolve_document(_including(left, right)).flatten())
+        merge_documents(resolve_document(_including(left, right), _FAKE_ORIGIN).flatten())
 
 
 # ---------------------------------------------------------------------------
@@ -284,25 +285,25 @@ def test_cycle_is_detected(docs):
     ref = docs.add('a', _including('test://b'))
     docs.add('b', _including('test://a'))
     with pytest.raises(ResolutionError):
-        resolve_document(_including(ref))
+        resolve_document(_including(ref), _FAKE_ORIGIN)
 
 
 def test_self_reference_is_detected(docs):
     ref = docs.add('a', _including('test://a'))
     with pytest.raises(ResolutionError):
-        resolve_document(_including(ref))
+        resolve_document(_including(ref), _FAKE_ORIGIN)
 
 
 def test_unresolvable_ref_raises(docs):
     # The scheme is handled, but the document behind it is not there.
     with pytest.raises(Exception):
-        resolve_document(_including('test://missing'))
+        resolve_document(_including('test://missing'), _FAKE_ORIGIN)
 
 
 def test_ref_no_resolver_handles_raises(docs):
     # A scheme no resolver claims fails before anything is fetched.
     with pytest.raises(ResolutionError, match='[Nn]o registered resolver handles'):
-        resolve_document(_including('ftp://example.com/x.nodl.yaml'))
+        resolve_document(_including('ftp://example.com/x.nodl.yaml'), _FAKE_ORIGIN)
     assert docs.calls == []
 
 
@@ -310,13 +311,13 @@ def test_included_document_is_schema_validated(docs):
     # Authored as text, because a model cannot hold the bad parameter type under test.
     ref = docs.add_text('bad', 'nodl_version: 2\nparameters:\n  p: {type: not_a_type}\n')
     with pytest.raises(Exception):
-        resolve_document(_including(ref))
+        resolve_document(_including(ref), _FAKE_ORIGIN)
 
 
 def test_included_non_mapping_raises(docs):
     ref = docs.add_text('list', '- just a list\n')
     with pytest.raises(ValueError, match='mapping'):
-        resolve_document(_including(ref))
+        resolve_document(_including(ref), _FAKE_ORIGIN)
 
 
 # ---------------------------------------------------------------------------
@@ -407,13 +408,13 @@ def test_registry_rejects_a_non_resolver():
 
 def test_registry_resolve_reports_an_unhandled_scheme():
     with pytest.raises(ResolutionError, match='[Nn]o registered resolver handles'):
-        resolve('test://x')
+        resolve('test://x', _FAKE_ORIGIN)
 
 
 def test_resolver_failure_propagates_unchanged(docs):
     # resolve() does not wrap what a resolver raises, so failures arrive in the resolver's terms.
     with pytest.raises(FileNotFoundError, match='test://absent'):
-        resolve('test://absent')
+        resolve('test://absent', _FAKE_ORIGIN)
 
 
 # ---------------------------------------------------------------------------
@@ -450,7 +451,7 @@ def test_registering_shadows_the_built_in_resolver():
     shadow = NodlShadow()
     ref = shadow.add('pkg/thing', _pub_doc('/shadowed'))
     with resolver_registered(shadow):
-        merged = merge_documents(resolve_document(_including(ref)).flatten())
+        merged = merge_documents(resolve_document(_including(ref), _FAKE_ORIGIN).flatten())
     assert merged.publishers
     assert [p.name for p in merged.publishers] == ['/shadowed']
     assert isinstance(resolver_for(ref), AmentIndexResolver)
@@ -474,6 +475,6 @@ def test_register_resolver_without_a_scope_persists_until_removed():
 def test_codegen_on_included_document_survives_resolution(docs):
     codegen = {'cpp': {'role': 'base_class', 'header': 'rclcpp/rclcpp.hpp'}}
     ref = docs.add('with_cg', NodlDocument(publishers=[_topic('/t')], codegen=codegen))
-    resolved = resolve_document(_including(ref))
+    resolved = resolve_document(_including(ref), _FAKE_ORIGIN)
     included = resolved.resolved_includes[0].doc
     assert included.codegen == codegen

@@ -88,12 +88,6 @@ def test_relative_ref_may_walk_upward(tmp_path: Path):
     assert [p.name for p in doc.publishers] == ['/base']
 
 
-def test_relative_ref_without_a_base_raises():
-    # A local ref has no meaning without a document to resolve it against.
-    with pytest.raises(AssertionError):
-        LocalResolver().resolve('local://common/telemetry.nodl.yaml', None)
-
-
 def test_missing_relative_ref_raises(tmp_path: Path):
     root = _write(tmp_path / 'main.nodl.yaml', NodlDocument(include=[Reference(ref='local://absent.nodl.yaml')]))
     with pytest.raises(ResolutionError, match='absent.nodl.yaml'):

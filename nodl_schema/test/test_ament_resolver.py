@@ -7,6 +7,8 @@ import pytest
 from nodl_schema import AmentIndexResolver, ResolutionError, dump_nodl
 from nodl_schema.models import NodlDocument
 
+_FAKE_ORIGIN = Path('/fake/origin.nodl.yaml')
+
 
 @pytest.mark.parametrize('ref', ['nodl://sensor_common/imu_driver', 'nodl://pkg/x'])
 def test_ament_resolver_handles_nodl_refs(ref):
@@ -37,17 +39,17 @@ def test_ament_resolver_looks_up_the_registered_resource(monkeypatch, tmp_path: 
 
     monkeypatch.setattr(resources, 'has_resource', fake_has_resource)
 
-    path = AmentIndexResolver().resolve('nodl://sensor_common/imu_driver')
+    path = AmentIndexResolver().resolve('nodl://sensor_common/imu_driver', _FAKE_ORIGIN)
     assert path == written_path
 
 
 def test_ament_resolver_missing_resource_raises():
     with pytest.raises(ResolutionError, match='nodl://pkg/absent'):
-        AmentIndexResolver().resolve('nodl://pkg/absent')
+        AmentIndexResolver().resolve('nodl://pkg/absent', _FAKE_ORIGIN)
 
 
 @pytest.mark.parametrize('ref', ['nodl://pkg', 'nodl://pkg/', 'nodl:///name'])
 def test_ament_resolver_rejects_malformed_uri(ref):
     # The schema checks URI shape only, so the body is checked here.
     with pytest.raises(ResolutionError, match='expected nodl://'):
-        AmentIndexResolver().resolve(ref)
+        AmentIndexResolver().resolve(ref, _FAKE_ORIGIN)
