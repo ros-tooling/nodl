@@ -44,7 +44,9 @@ jobs:
           # it is not in the ros-base image. Harmless for the Python/CMake-macro packages, which never invoke it.
           apt-get install -y python3-pip python3-colcon-common-extensions doxygen
           rosdep update
-          rosdep install --from-paths src --ignore-src -y
+          # Skip the debian Sphinx (an exec_depend of nodl_docgen): pip cannot upgrade over it
+          # (no RECORD file), and the pip install below provides a newer Sphinx that satisfies it anyway.
+          rosdep install --from-paths src --ignore-src -y --skip-keys python3-sphinx
           # rosdoc2 imports each package to autodoc it, so it must share the workspace Python.
           # PEP 668 override comes from PIP_BREAK_SYSTEM_PACKAGES in the job env.
           pip install rosdoc2
