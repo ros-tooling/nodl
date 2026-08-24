@@ -15,6 +15,8 @@ sphinx:
 
 python:
   install:
+    - path: nodl_schema
+    - path: nodl_docgen
     - path: nodl/doc
       extra_requirements:
         - docs

@@ -23,6 +23,8 @@ extensions = [
     'sphinx_immaterial.apidoc.json.domain',
     'sphinx.ext.extlinks',
     'sphinx.ext.intersphinx',
+    # Dogfood our own extension by rendering an example NoDL
+    'nodl_docgen',
 ]
 
 # -- Cross-references between packages and the top-level site ----------------

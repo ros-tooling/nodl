@@ -20,7 +20,21 @@ docs = [
     # Enables json_schema_validate so a malformed schema fails the build.
     "jsonschema>=4",
     "poethepoet>=0.27",
+    "nodl-docgen",
+    # Runtime dependencies of nodl_docgen/nodl_schema, which are in package.xml which this can't read.
+    "nodl-schema",
+    "pydantic>=2",
+    "pyyaml>=6",
+    "ruamel.yaml>=0.17",
+    "ament-index-python @ git+https://github.com/ament/ament_index@1.9.0#subdirectory=ament_index_python",
 ]
+
+# The two NoDL packages live in this repo, not on an index.
+# Install editable so a doc build renders the working tree.
+# This is a uv-only table, pip reads the plain requirements above.
+[tool.uv.sources]
+nodl-sphinx = { path = "../../nodl_sphinx", editable = true }
+nodl-schema = { path = "../../nodl_schema", editable = true }
 
 # This project exists only to pull in the docs dependencies, it ships no importable modules.
 # Disable setuptools' flat-layout discovery, which would otherwise fail on finding multiple top-level modules.

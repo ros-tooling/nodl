@@ -1,0 +1,54 @@
+---
+nodl_version: 2
+description: |
+  Watches a battery pack and reports its state of charge.
+
+  Publishes a diagnostic warning while the charge is below a configurable threshold,
+  and offers an action that runs a full calibration cycle.
+
+parameters:
+  publish_rate_hz:
+    type: double
+    default_value: 1.0
+    description: How often the pack state is published.
+    validation:
+      gt: [0.0]
+      lt_eq: [100.0]
+  low_charge_fraction:
+    type: double
+    default_value: 0.2
+    description: Charge fraction below which the monitor warns.
+    validation:
+      bounds: [0.0, 1.0]
+  cell_count:
+    type: int
+    read_only: true
+    description: Number of cells in the pack. Fixed by the hardware, and has no sensible default.
+    validation:
+      one_of: [[4, 6, 8]]
+
+publishers:
+  - name: ~/state
+    type: sensor_msgs/msg/BatteryState
+    qos: {history: KEEP_LAST, depth: 5, reliability: RELIABLE}
+    description: Current pack state, published at the configured rate.
+  - name: /diagnostics
+    type: diagnostic_msgs/msg/DiagnosticArray
+    qos: {history: KEEP_LAST, depth: 1, reliability: BEST_EFFORT}
+    description: A warning entry while the charge is low.
+
+subscriptions:
+  - name: /power/raw_cells
+    type: sensor_msgs/msg/BatteryState
+    qos: {history: KEEP_LAST, depth: 10, reliability: BEST_EFFORT}
+    description: Per-cell readings from the power board driver.
+
+service_servers:
+  - name: ~/reset_fuel_gauge
+    type: std_srvs/srv/Trigger
+    description: Clears the accumulated charge estimate.
+
+action_servers:
+  - name: ~/calibrate
+    type: example_robot_msgs/action/CalibrateBattery
+    description: Runs a full discharge and charge cycle to recalibrate the gauge.

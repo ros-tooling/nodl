@@ -11,6 +11,7 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
 - [ament_nodl/](./ament_nodl/): CMake macros to register NoDL documents with the ament index
 - [nodl/](./nodl/): Metapackage that pulls in the other packages as dependencies. Acts as an easy default for those who don't want a-la-carte.
   - [doc/](./nodl/doc/): Documentation source for the ReadTheDocs page
+- [nodl_docgen](./nodl_docgen/): Sphinx extension rendering a NoDL document into a documentation page at build time.
 - [nodl_schema/](./nodl_schema/): Package providing the NoDL schema, plus a Python package with validation tools and typed data model to work with it.
     [nodl.schema.yaml](./nodl_schema/nodl_schema/schemas/nodl.schema.yaml): The NoDL schema, key to this whole thing!
 - [nodl_observe/](./nodl_observe/): C++ (`ament_cmake`) package that observes a running ROS 2 node and produces its runtime interface as a `rosgraph_msgs/Node` message — a reusable `observe_node(...)` library plus an `observe` executable. Stage one of Observe → Describe.
