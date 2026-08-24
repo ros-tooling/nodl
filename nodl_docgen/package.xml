@@ -1,14 +1,15 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>nodl_sphinx</name>
+  <name>nodl_docgen</name>
   <version>0.0.0</version>
-  <description>Sphinx rendering of ROS 2 Node Definition Language (NoDL) documents.</description>
+  <description>Documentation generation and Sphinx rendering of ROS 2 Node Definition Language (NoDL) documents.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
-  <author email="me@emersonknapp.com">Emerson Knapp</author>
+  <author email="emerson@polymathrobotics.com">Emerson Knapp</author>
 
   <exec_depend>nodl_schema</exec_depend>
+  <exec_depend>python3-jinja2</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
 
   <test_depend>python3-pytest</test_depend>

@@ -28,11 +28,11 @@ so its parameter rendering conventions (constraint sentences for validators) car
 - A NoDL document has no name field; identity lives in the registration key.
   The rendered title must come from the doc author (or a filename fallback).
 
-## Design: `nodl_sphinx` package
+## Design: `nodl_docgen` package
 
 A new ament_python package at the repo root, following the a-la-carte package structure.
 The name `nodl_docs` is taken by the combined doc site's editable install,
-and `nodl_sphinx` follows the ecosystem convention for Sphinx extension packages.
+and `nodl_docgen` follows the ecosystem convention for Sphinx extension packages.
 The `nodl` metapackage adds it as a dependency.
 
 Three layers, with all real logic in the bottom one:
@@ -79,8 +79,8 @@ Registers the directive and declares the extension parallel-read safe.
 
 This is the entire integration surface, and the substance of the how-to guide:
 
-1. `package.xml`: `<doc_depend>nodl_sphinx</doc_depend>`
-2. `doc/conf.py`: add `'nodl_sphinx'` to `extensions`
+1. `package.xml`: `<doc_depend>nodl_docgen</doc_depend>`
+2. `doc/conf.py`: add `'nodl_docgen'` to `extensions`
 3. In a doc page:
 
    ````markdown
@@ -101,7 +101,7 @@ This is the entire integration surface, and the substance of the how-to guide:
 
 - A top-level guide `nodl/doc/documenting.md` ("Documenting your node's interface"):
   the three-step workflow above, dogfooded by rendering a real NoDL fixture live in the combined site so readers see actual output.
-- `nodl_sphinx` package docs per `design/docs.md`:
+- `nodl_docgen` package docs per `design/docs.md`:
   `doc/overview.md` + `doc/conf.py`, `rosdoc2.yaml`, entries in `PACKAGES`/toctree, and the CI matrix.
 - Repo `README.md` structure entry and `roadmap.md` update.
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from setuptools import setup
 
-package_name = 'nodl_sphinx'
+package_name = 'nodl_docgen'
 
 setup(
     name=package_name,

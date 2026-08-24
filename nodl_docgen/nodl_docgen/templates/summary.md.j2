@@ -1,0 +1,77 @@
+# {{ title }}
+
+{{ summary.description }}
+
+## Included References
+
+{% for _inc in sumary.includes %}
+- {{ _inc }}
+{% endfor %}
+
+## Parameters
+
+| Name | Type | Default | Description | Read-only? | Constraints | Additional Constraints |
+| ---- | ---- | ------- | ----------- | ---------- | ----------- | ---------------------- |
+{% for p in summary.parameters %}
+| {{ p.name }} | {{ p.type }} | {{ p.default }} | {{ p.description }} | {{ p.read_only }} | {{ p.constraints }} | {{ p.additional_constraints}} |
+{% endfor %}
+
+## Publishers
+
+Topics that this interface publishes to.
+
+| Name | Type | QoS | Description |
+| ---- | ---- | --- | ----------- |
+{% for endpoint in summary.publishers %}
+| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.qos }} | {{ endpoint.description }} |
+{% endfor %}
+
+## Subscriptions
+
+Topics that this interface subscribes to.
+
+| Name | Type | QoS | Description |
+| ---- | ---- | --- | ----------- |
+{% for endpoint in summary.subscriptions %}
+| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.qos }} | {{ endpoint.description }} |
+{% endfor %}
+
+## Service Servers
+
+Services that this interface provides.
+
+| Name | Type | QoS | Description |
+| ---- | ---- | --- | ----------- |
+{% for endpoint in summary.service_servers %}
+| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.qos }} | {{ endpoint.description }} |
+{% endfor %}
+
+## Service Clients
+
+Services that this interface calls.
+
+| Name | Type | QoS | Description |
+| ---- | ---- | --- | ----------- |
+{% for endpoint in summary.service_clients %}
+| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.qos }} | {{ endpoint.description }} |
+{% endfor %}
+
+## Action Servers
+
+Actions that this interface provides.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+{% for endpoint in summary.action_servers %}
+| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.description }} |
+{% endfor %}
+
+## Action Clients
+
+Actions that this interface calls.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+{% for endpoint in summary.action_clients %}
+| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.description }} |
+{% endfor %}

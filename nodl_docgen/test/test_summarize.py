@@ -10,10 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from nodl_schema import load_nodl_with_doc_tree, parse_nodl
-from nodl_schema.composition import merge_documents
-from nodl_schema.models import Durability, History, Liveliness, QosProfile, Reliability, Validation
-from nodl_sphinx.summarize import (
+from nodl_docgen.summarize import (
     ActionRow,
     EndpointRow,
     NodeSummary,
@@ -25,6 +22,9 @@ from nodl_sphinx.summarize import (
     summarize_document,
     summarize_tree,
 )
+from nodl_schema import load_nodl_with_doc_tree, parse_nodl
+from nodl_schema.composition import merge_documents
+from nodl_schema.models import Durability, History, Liveliness, QosProfile, Reliability, Validation
 
 # --------------------------------
 # QoS summaries

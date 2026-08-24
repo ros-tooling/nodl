@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Static type checking of the nodl_sphinx package with pyright."""
+"""Static type checking with pyright."""
 
 import subprocess
 import sys
