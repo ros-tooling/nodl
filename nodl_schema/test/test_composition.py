@@ -191,6 +191,7 @@ def test_resolve_single_include_has_one_child(docs):
     assert len(tree.resolved_includes) == 1
     child = tree.resolved_includes[0]
     assert child.ref == ref
+    assert child.path == docs.docs[ref]
     assert child.doc.publishers[0].name == '/x'
     assert child.resolved_includes == []
 
@@ -202,9 +203,11 @@ def test_resolve_nested_includes_builds_tree(docs):
     assert len(tree.resolved_includes) == 1
     outer_node = tree.resolved_includes[0]
     assert outer_node.ref == outer
+    assert outer_node.path == docs.docs[outer]
     assert len(outer_node.resolved_includes) == 1
     inner_node = outer_node.resolved_includes[0]
     assert inner_node.ref == inner
+    assert inner_node.path == docs.docs[inner]
     assert inner_node.resolved_includes == []
 
 
@@ -220,6 +223,35 @@ def test_flatten_nested_tree_contains_all_documents(docs):
 def test_flatten_no_includes_returns_only_root(docs):
     base = NodlDocument(publishers=[_topic('/only')])
     assert resolve_document(base).flatten() == [base]
+
+
+# ---------------------------------------------------------------------------
+# included_paths
+# ---------------------------------------------------------------------------
+
+
+def test_all_paths_root_only(docs):
+    tree = resolve_document(NodlDocument())
+    assert tree.included_paths() == []
+
+
+def test_all_paths_with_includes(docs):
+    inner = docs.add('inner', _pub_doc('/inner'))
+    outer = docs.add('outer', _pub_doc('/outer', inner))
+    base = NodlDocument(publishers=[_topic('/root')], include=_refs(outer))
+    tree = resolve_document(base)
+    paths = tree.included_paths()
+    assert docs.docs[outer] in paths
+    assert docs.docs[inner] in paths
+    assert len(paths) == 2
+
+
+def test_all_paths_without_includes(docs):
+    ref = docs.add('x', _pub_doc('/x'))
+    tree = resolve_document(_including(ref))
+    paths = tree.included_paths()
+    assert docs.docs[ref] in paths
+    assert len(paths) == 1
 
 
 # ---------------------------------------------------------------------------

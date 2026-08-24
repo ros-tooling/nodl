@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
+from pathlib import Path
+
 from nodl_generator_cpp.provenance import build_provenance_map
 from nodl_schema.loader import DocumentTree, IncludedDocument
 from nodl_schema.models import (
@@ -33,7 +35,9 @@ def _base_class_codegen(cls='rclcpp::Node', header='rclcpp/rclcpp.hpp'):
 
 
 def _included(ref, doc, children=None):
-    return IncludedDocument(ref=ref, doc=doc, resolved_includes=children or [])
+    # if this becomes a problem, write the doc content to a tempfile and pass the path in
+    path = Path(f'{ref.lstrip("test://")}.yaml')
+    return IncludedDocument(ref=ref, path=path, doc=doc, resolved_includes=children or [])
 
 
 def _tree(root, children=None):

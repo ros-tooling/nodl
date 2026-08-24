@@ -16,13 +16,13 @@ from nodl_schema.validation import validate
 @dataclass
 class IncludedDocument:
     ref: str
+    path: Path
     doc: NodlDocument
     resolved_includes: list['IncludedDocument']
 
 
 @dataclass
 class DocumentTree:
-    # NOTE(alistair) this is a special case of a IncludedDocument because we dont have the root ref
     root_doc: NodlDocument
     resolved_includes: list[IncludedDocument]
 
@@ -34,6 +34,15 @@ class DocumentTree:
             result.append(included_doc.doc)
             queue.extend(included_doc.resolved_includes)
         return result
+
+    def included_paths(self) -> list[Path]:
+        paths: list[Path] = []
+        queue = deque(self.resolved_includes)
+        while queue:
+            inc = queue.popleft()
+            paths.append(inc.path)
+            queue.extend(inc.resolved_includes)
+        return paths
 
 
 Ref: TypeAlias = str
@@ -59,7 +68,7 @@ def resolve_document(doc: NodlDocument, origin: Path | None = None) -> DocumentT
         doc = load_nodl(resolved_path, resolve=False)
         children = [_resolve_ref(r.ref, chain=current_chain, origin=resolved_path) for r in (doc.include or [])]
 
-        return IncludedDocument(ref=ref, doc=doc, resolved_includes=children)
+        return IncludedDocument(ref=ref, path=resolved_path, doc=doc, resolved_includes=children)
 
     root_children = [_resolve_ref(r.ref, chain=[], origin=origin) for r in (doc.include or [])]
 
