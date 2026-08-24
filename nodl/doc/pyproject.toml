@@ -33,7 +33,7 @@ docs = [
 # Install editable so a doc build renders the working tree.
 # This is a uv-only table, pip reads the plain requirements above.
 [tool.uv.sources]
-nodl-sphinx = { path = "../../nodl_sphinx", editable = true }
+nodl-docgen = { path = "../../nodl_docgen", editable = true }
 nodl-schema = { path = "../../nodl_schema", editable = true }
 
 # This project exists only to pull in the docs dependencies, it ships no importable modules.
