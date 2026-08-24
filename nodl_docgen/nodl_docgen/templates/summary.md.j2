@@ -1,77 +1,111 @@
-# {{ title }}
+# {{ title or "NoDL Document" }}
 
-{{ summary.description }}
+{{ summary.description or "_Description not provided._" }}
 
 ## Included References
 
-{% for _inc in sumary.includes %}
+{% if not summary.includes -%}
+None
+{%- else -%}
+{% for _inc in summary.includes %}
 - {{ _inc }}
 {% endfor %}
+{%- endif %}
 
 ## Parameters
 
+{% if not summary.parameters -%}
+None
+{%- else -%}
+Configuration parameters for this interface.
+
 | Name | Type | Default | Description | Read-only? | Constraints | Additional Constraints |
 | ---- | ---- | ------- | ----------- | ---------- | ----------- | ---------------------- |
-{% for p in summary.parameters %}
-| {{ p.name }} | {{ p.type }} | {{ p.default }} | {{ p.description }} | {{ p.read_only }} | {{ p.constraints }} | {{ p.additional_constraints}} |
+{% for p in summary.parameters -%}
+| `{{ p.name }}` | `{{ p.type }}` | `{{ p.default }}` | {{ p.description }} | {{ p.read_only }} | {{ p.constraints }} | {{ p.additional_constraints}} |
 {% endfor %}
+{%- endif %}
 
 ## Publishers
 
+{% if not summary.publishers -%}
+None
+{%- else -%}
 Topics that this interface publishes to.
 
 | Name | Type | QoS | Description |
 | ---- | ---- | --- | ----------- |
-{% for endpoint in summary.publishers %}
-| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.qos }} | {{ endpoint.description }} |
+{% for endpoint in summary.publishers -%}
+| `{{ endpoint.name }}` | `{{ endpoint.type }}` | `{{ endpoint.qos }}` | {{ endpoint.description }} |
 {% endfor %}
+{%- endif %}
 
 ## Subscriptions
 
+{% if not summary.subscriptions -%}
+None
+{%- else -%}
 Topics that this interface subscribes to.
 
 | Name | Type | QoS | Description |
 | ---- | ---- | --- | ----------- |
-{% for endpoint in summary.subscriptions %}
-| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.qos }} | {{ endpoint.description }} |
+{% for endpoint in summary.subscriptions -%}
+| `{{ endpoint.name }}` | `{{ endpoint.type }}` | `{{ endpoint.qos }}` | {{ endpoint.description }} |
 {% endfor %}
+{%- endif %}
 
 ## Service Servers
 
+{% if not summary.service_servers -%}
+None
+{%- else -%}
 Services that this interface provides.
 
 | Name | Type | QoS | Description |
 | ---- | ---- | --- | ----------- |
-{% for endpoint in summary.service_servers %}
-| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.qos }} | {{ endpoint.description }} |
+{% for endpoint in summary.service_servers -%}
+| `{{ endpoint.name }}` | `{{ endpoint.type }}` | `{{ endpoint.qos }}` | {{ endpoint.description }} |
 {% endfor %}
+{%- endif %}
 
 ## Service Clients
 
+{% if not summary.service_clients -%}
+None
+{%- else -%}
 Services that this interface calls.
 
 | Name | Type | QoS | Description |
 | ---- | ---- | --- | ----------- |
-{% for endpoint in summary.service_clients %}
-| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.qos }} | {{ endpoint.description }} |
+{% for endpoint in summary.service_clients -%}
+| `{{ endpoint.name }}` | `{{ endpoint.type }}` | `{{ endpoint.qos }}` | {{ endpoint.description }} |
 {% endfor %}
+{%- endif %}
 
 ## Action Servers
 
+{% if not summary.action_servers -%}
+None
+{%- else -%}
 Actions that this interface provides.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-{% for endpoint in summary.action_servers %}
-| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.description }} |
+{% for endpoint in summary.action_servers -%}
+| `{{ endpoint.name }}` | `{{ endpoint.type }}` | {{ endpoint.description }} |
 {% endfor %}
+{%- endif %}
 
 ## Action Clients
 
+{% if not summary.action_clients -%}
+None
+{%- else -%}
 Actions that this interface calls.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-{% for endpoint in summary.action_clients %}
-| {{ endpoint.name }} | {{ endpoint.type }} | {{ endpoint.description }} |
+{% for endpoint in summary.action_clients -%}
+| `{{ endpoint.name }}` | `{{ endpoint.type }}` | {{ endpoint.description }} |
 {% endfor %}
+{%- endif %}
