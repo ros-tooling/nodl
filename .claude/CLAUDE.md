@@ -26,3 +26,10 @@ Trust `pre-commit` autoformatters to maintain line length, import order, and oth
 
 After prototyping a feature, break it up into independent parts that can be reviewed and merged on their own.
 Aim for small, clear PRs.
+
+# Delivery
+
+Keep changes concise and easy to review.
+Add focused tests for new behavior.
+Add or update documentation and examples for user-facing features.
+Prefer existing project patterns over new abstractions unless hte new abstraction enables a concrete reuse case.
