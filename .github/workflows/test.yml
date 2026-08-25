@@ -22,19 +22,13 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          predicate-quantifier: every
           filters: |
             source:
-              - 'ament_nodl/**'
-              - 'nodl/**'
-              - 'nodl_generator_cpp/**'
-              - 'nodl_observe/**'
-              - 'nodl_schema/**'
-              - 'ros2nodl/**'
-              - 'test_ament_nodl/**'
-              - '.github/actions/**'
-              - '.github/workflows/test.yml'
-              - 'install_rosdeps.sh'
-              - 'package.repo'
+              - '**'
+              - '!**.md'
+              - '!**/doc/**'
+              - '!examples/nodl_tutorials/**'
 
   build_and_test:
     needs: changes
