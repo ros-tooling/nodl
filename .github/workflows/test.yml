@@ -5,9 +5,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - '**/doc/**'
   workflow_dispatch:
 
 # Supersede obsolete runs for the same PR; never cancel a push to main.
@@ -16,7 +13,32 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      source: ${{ steps.filter.outputs.source }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            source:
+              - 'ament_nodl/**'
+              - 'nodl/**'
+              - 'nodl_generator_cpp/**'
+              - 'nodl_observe/**'
+              - 'nodl_schema/**'
+              - 'ros2nodl/**'
+              - 'test_ament_nodl/**'
+              - '.github/actions/**'
+              - '.github/workflows/test.yml'
+              - 'install_rosdeps.sh'
+              - 'package.repo'
+
   build_and_test:
+    needs: changes
+    if: always()
     runs-on: ubuntu-latest
     # mcap-ros2-support is a pip rosdep; PEP 668 (Python >=3.11) needs this.
     env:
@@ -44,6 +66,7 @@ jobs:
       image: rostooling/setup-ros-docker:ubuntu-${{ matrix.ubuntu }}-latest
     steps:
       - name: Build and run all tests
+        if: github.event_name != 'pull_request' || needs.changes.outputs.source == 'true'
         # One pass covers every RMW (call_for_each_rmw_implementation registers a
         # ctest per RMW; the integration test self-starts rmw_zenohd for zenoh).
         uses: ros-tooling/action-ros-ci@v0.4
@@ -51,7 +74,9 @@ jobs:
           package-name: ament_nodl nodl nodl_observe nodl_schema ros2nodl test_ament_nodl nodl_generator_cpp
           target-ros2-distro: ${{ matrix.ros }}
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' || needs.changes.outputs.source == 'true')
         with:
           name: colcon-logs-${{ matrix.ros }}
           path: ros_ws/log
