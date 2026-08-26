@@ -8,8 +8,9 @@ Application behavior remains ordinary ROS code.
 Choose C++ or Python in any language tab. The browser remembers that choice for the other grouped tabs on this page.
 
 :::{note} Capability status
-`describe` and `validate` work on NoDL `main`. Generation and conformance below show the intended workflow; they are
-not implemented on `main` yet.
+`describe`, `validate`, and the underlying C++ generator work on NoDL `main`.
+The unified generation command, Python generation, generated APIs, and conformance flow below show the intended
+product experience and are not implemented on `main` yet.
 :::
 
 ## 1. Describe the existing interface
@@ -67,9 +68,9 @@ application behavior.
 
 ## 3. Generate a binding
 
-:::{warning} Draft workflow — not yet implemented
-The commands and generated APIs in sections 3 through 5 show the intended product experience. They are not available
-on NoDL `main`.
+:::{warning} Draft workflow: not yet implemented
+The unified commands and generated APIs in sections 3 through 5 show the intended product experience.
+The underlying C++ generator exists, but this complete cross-language workflow is not available on NoDL `main`.
 :::
 
 Use the same NoDL file regardless of language.
@@ -107,43 +108,16 @@ Subclass the generated interface and keep the timer and message behavior in norm
 ::::{tabs}
 :::{group-tab} C++
 
-```cpp
-class Talker : public generated::TalkerBase
-{
-public:
-  Talker() : TalkerBase("talker")
-  {
-    timer_ = create_wall_timer(500ms, [this]() {on_timer();});
-  }
-
-private:
-  void on_timer()
-  {
-    example_interfaces::msg::String message;
-    message.data = "Hello World: " + std::to_string(count_++);
-    pub_chatter_->publish(message);
-  }
-
-  size_t count_{0};
-  rclcpp::TimerBase::SharedPtr timer_;
-};
+```{literalinclude} ../../../examples/nodl_tutorials/basics/cpp/talker.cpp
+:language: cpp
 ```
 
 :::
 
 :::{group-tab} Python
 
-```python
-class Talker(TalkerBase):
-    def __init__(self):
-        super().__init__('talker')
-        self.count = 0
-        self.timer = self.create_timer(0.5, self.on_timer)
-
-    def on_timer(self):
-        message = String(data=f'Hello World: {self.count}')
-        self.pub_chatter.publish(message)
-        self.count += 1
+```{literalinclude} ../../../examples/nodl_tutorials/basics/python/talker.py
+:language: python
 ```
 
 :::
@@ -151,9 +125,9 @@ class Talker(TalkerBase):
 
 NoDL does not generate the timer period, counter, message contents, or logging in either language.
 
-## 5. Conform a running implementation
+## 5. Test a running implementation for conformance
 
-:::{warning} Draft command — not yet implemented
+:::{warning} Draft command: not yet implemented
 `ros2 nodl conform` is proposed tutorial UX. NoDL `main` does not provide this command yet.
 :::
 
@@ -183,8 +157,10 @@ ros2 nodl conform /talker \
 :::
 ::::
 
-For an intentional QoS regression, restart the talker with
-`tutorial.publisher_reliability:=best_effort`, leaving the NoDL contract unchanged. Conformance should identify:
+For an intentional QoS regression, first ensure that the generated publisher enables ROS QoS overrides.
+Then restart the talker with the ROS parameter
+`qos_overrides./chatter.publisher.reliability:=best_effort`, leaving the NoDL contract unchanged.
+Conformance should identify:
 
 ```text
 [mismatch] publishers '/chatter'.qos.reliability
@@ -193,3 +169,7 @@ For an intentional QoS regression, restart the talker with
 ```
 
 Restore `RELIABLE` before the next run. Topic-name, durability, history, and depth variants follow the same pattern.
+
+This regression is a target acceptance case, not an executable fixture in this PR.
+Before the command is presented as runnable, CI must start the generated node, verify its observed publisher QoS, and
+assert the expected conformance failure on each supported ROS and RMW combination.

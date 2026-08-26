@@ -32,4 +32,7 @@ Aim for small, clear PRs.
 Keep changes concise and easy to review.
 Add focused tests for new behavior.
 Add or update documentation and examples for user-facing features.
-Prefer existing project patterns over new abstractions unless hte new abstraction enables a concrete reuse case.
+Treat tutorial commands and code as tested product interfaces.
+Back runnable examples and intentional failure cases with executable fixtures.
+Reuse tested source in documentation where practical.
+Prefer existing project patterns over new abstractions unless the new abstraction enables a concrete reuse case.
