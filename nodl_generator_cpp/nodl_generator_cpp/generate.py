@@ -1,8 +1,14 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
+from nodl_generator_cpp.cmake_deps import (
+    format_cmake_deps,
+    generated_filenames,
+    ros_deps,
+)
 from nodl_generator_cpp.generated_file import GeneratedFile
 from nodl_generator_cpp.models import CodegenCpp, Role
 from nodl_generator_cpp.params import generate_genparamlib_yaml
@@ -103,6 +109,47 @@ def _filter_parameters(
     if not merged_doc.parameters:
         return {}
     return {name: param for name, param in merged_doc.parameters.items() if ('parameters', name) not in provenance_map}
+
+
+@dataclass
+class CmakeDepsResult:
+    """Data needed to write a ``<target>_deps.cmake`` file."""
+
+    sources: list[Path]
+    ros_deps: list[str]
+    generated_filenames: list[str]
+
+    def format(self, target: str) -> str:
+        """Render the CMake deps file content."""
+        return format_cmake_deps(target, self.sources, self.ros_deps, self.generated_filenames)
+
+
+def cmake_deps(source: Path, target_name: str) -> CmakeDepsResult:
+    """Compute CMake dependency information from a NoDL document.
+
+    Runs the same load → provenance → filter pipeline as :func:`generate_cpp` but stops before template rendering.
+
+    Returns a :class:`CmakeDepsResult` containing the NoDL source paths, ROS package dependencies,
+    and the list of files the generator will produce.
+    """
+    _validate_target_name(target_name)
+
+    merged_doc, doc_tree = load_nodl_with_doc_tree(source)
+    barriers, provenance_map = build_provenance_map(doc_tree)
+
+    _find_base_class_config(barriers)  # validates single base class
+
+    entities = _filter_entities(merged_doc, provenance_map)
+    parameters = _filter_parameters(merged_doc, provenance_map)
+    has_parameters = len(parameters) > 0
+
+    sources = [source.resolve()] + [p.resolve() for p in doc_tree.included_paths()]
+
+    return CmakeDepsResult(
+        sources=sources,
+        ros_deps=ros_deps(barriers, *entities),
+        generated_filenames=generated_filenames(target_name, has_parameters),
+    )
 
 
 def generate_cpp(source: Path, target_name: str) -> list[GeneratedFile]:
