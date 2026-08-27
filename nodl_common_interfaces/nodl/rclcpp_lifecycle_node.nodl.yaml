@@ -1,0 +1,41 @@
+---
+# NoDL interface description for rclcpp_lifecycle::LifecycleNode.
+#
+# This file is a stand-in until rclcpp_lifecycle ships its own .nodl.yaml.
+# It is registered in the ament index as nodl://rclcpp_lifecycle/lifecycle_node.
+
+nodl_version: 2
+description: rclcpp_lifecycle::LifecycleNode interface
+
+codegen:
+  cpp:
+    role: BASE_CLASS
+    class: rclcpp_lifecycle::LifecycleNode
+    header: rclcpp_lifecycle/lifecycle_node.hpp
+
+include:
+  - ref: local://rclcpp_node.nodl.yaml
+
+publishers:
+  - name: transition_event
+    type: lifecycle_msgs/msg/TransitionEvent
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE
+
+service_servers:
+  - name: ~/change_state
+    type: lifecycle_msgs/srv/ChangeState
+
+  - name: ~/get_state
+    type: lifecycle_msgs/srv/GetState
+
+  - name: ~/get_available_states
+    type: lifecycle_msgs/srv/GetAvailableStates
+
+  - name: ~/get_available_transitions
+    type: lifecycle_msgs/srv/GetAvailableTransitions
+
+  - name: ~/get_transition_graph
+    type: lifecycle_msgs/srv/GetAvailableTransitions

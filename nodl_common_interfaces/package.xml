@@ -1,23 +1,21 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>nodl</name>
+  <name>nodl_common_interfaces</name>
   <version>0.0.0</version>
-  <description>ROS 2 Node Definition Language (NoDL) metapackage.</description>
+  <description>
+    NoDL interface descriptions for standard ROS 2 node base classes (rclcpp::Node, rclcpp_lifecycle::LifecycleNode).
+
+    These descriptions will eventually ship with the upstream packages themselves.
+    Until then, this package registers them in the ament index so that nodl://rclcpp/node and
+    nodl://rclcpp_lifecycle/lifecycle_node resolve correctly.
+  </description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="hello@alistairenglish.com">Alistair English</author>
-  <author email="me@emersonknapp.com">Emerson Knapp</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <exec_depend>ament_nodl</exec_depend>
-  <exec_depend>nodl_generator_cpp</exec_depend>
-  <exec_depend>nodl_schema</exec_depend>
-  <exec_depend>ros2nodl</exec_depend>
-  <exec_depend>nodl_common_interfaces</exec_depend>
-
-  <doc_depend>nodl_docgen</doc_depend>
+  <buildtool_depend>ament_nodl</buildtool_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
