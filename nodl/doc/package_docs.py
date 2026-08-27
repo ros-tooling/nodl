@@ -19,7 +19,15 @@ PACKAGES_DST = _HERE / '_generated' / 'packages'
 
 # Packages that ship per-package docs, in the order they appear in the combined toctree.
 # The ``nodl`` metapackage is documented by this top-level site itself; ``test_ament_nodl`` is a test fixture.
-PACKAGES = ['nodl_schema', 'nodl_observe', 'ros2nodl', 'ament_nodl', 'nodl_generator_cpp', 'nodl_docgen']
+PACKAGES = [
+    'nodl_schema',
+    'nodl_observe',
+    'ros2nodl',
+    'ament_nodl',
+    'nodl_common_interfaces',
+    'nodl_generator_cpp',
+    'nodl_docgen',
+]
 
 # Toctree entries, relative to the Sphinx source dir (== _HERE), mirrored by the "Packages" toctree in index.md.
 # Each package's landing page is overview.md, not index.md: rosdoc2 reserves index for its own generated wrapper,

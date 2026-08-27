@@ -1,0 +1,13 @@
+type: 'rosdoc2 config'
+version: 1
+
+---
+settings:
+    # ament_cmake_python package: no C/C++ API to extract.
+    generate_package_index: true
+
+builders:
+    - sphinx: {
+        name: 'nodl_generator_cpp',
+        output_dir: ''
+    }

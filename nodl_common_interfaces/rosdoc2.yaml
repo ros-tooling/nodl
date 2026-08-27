@@ -1,0 +1,14 @@
+type: 'rosdoc2 config'
+version: 1
+
+---
+settings:
+    # CMake-only package: no Python modules and no C/C++ API to extract, so skip apidoc and doxygen.
+    never_run_sphinx_apidoc: true
+    generate_package_index: true
+
+builders:
+    - sphinx: {
+        name: 'nodl_common_interfaces',
+        output_dir: ''
+    }

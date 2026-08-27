@@ -12,20 +12,69 @@ For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 This package implements the "forward" workflow: a NoDL document is the source of truth that makes a node's interface
 exist.
 
-## Usage
+## CMake integration
 
-```bash
-python -m nodl_generator_cpp \
-  --nodl-file my_node.nodl.yaml \
-  --output-dir generated/ \
-  --target-name my_node
+The `nodl_generate_cpp()` CMake macro is the primary user-facing API.
+Three lines in your `CMakeLists.txt` are the entire integration surface:
+
+```cmake
+find_package(nodl_generator_cpp REQUIRED)
+
+nodl_generate_cpp(my_node_base nodl/my_node.nodl.yaml)
+
+add_executable(my_node src/my_node.cpp)
+target_link_libraries(my_node PRIVATE my_node_base)
 ```
 
-| Flag | Required | Description |
+### What the macro does
+
+`nodl_generate_cpp(TARGET NODL_FILE)` creates a STATIC library target named `TARGET` that you link against.
+It handles everything:
+
+| Step | When | What happens |
 |---|---|---|
-| `--nodl-file` | Yes | Path to the NoDL document. |
-| `--output-dir` | Yes | Directory to write generated files into (created if absent). |
-| `--target-name` | Yes | Used as the node name and the stem of all generated filenames. Must be a valid C++ identifier. |
+| Dependency discovery | Configure time | Runs `--cmake-deps` to determine all NoDL source paths, ROS package dependencies, and the list of files the generator will produce. |
+| `find_package` | Configure time | Automatically calls `find_package` for every ROS dependency (message, service, action, and base-class packages). |
+| File watching | Configure time | Registers every file in the NoDL include tree as a `CMAKE_CONFIGURE_DEPENDS`, so any change to the root or a transitive include triggers a reconfigure. |
+| Code generation | Build time | Runs the full generator via `add_custom_command`, only when an input file has changed. |
+| Library creation | Build time | Compiles the generated `.cpp` into a STATIC library and sets up include directories. |
+| ROS linking | Build time | Links all ROS dependencies via `${pkg}_TARGETS`. |
+| Parameter library | Build time | When the document has parameters, links `generate_parameter_library` and its transitive dependencies (`fmt`, `rsl`, `tcb_span`, etc.). |
+
+### Arguments
+
+| Argument | Description |
+|---|---|
+| `TARGET` | Name of the library target to create. Also used as the C++ class stem (`<TARGET>Base`) and for all generated filenames. |
+| `NODL_FILE` | Path to the `.nodl.yaml` file, relative to `CMAKE_CURRENT_SOURCE_DIR`. |
+
+### Rebuild behavior
+
+Every file in the NoDL include tree — the root document and all transitive includes — is a configure-time dependency.
+A change to any of them triggers a CMake reconfigure, which re-evaluates the dependency information and reruns
+code generation.
+Subsequent builds skip generation entirely until a source file changes.
+
+### Cross-distro compatibility
+
+The macro works across Humble through Lyrical.
+It uses `${pkg}_TARGETS` for linking (available since Foxy) and handles distro-specific target name changes
+for `generate_parameter_library` dependencies (`tl_expected::tl_expected` on Humble/Jazzy vs `tl::expected` on
+Kilted+, `parameter_traits` present on Humble/Jazzy but removed on Kilted+).
+
+## Prerequisites
+
+The generator requires that a nodl document includes exactly one spec with a codegen class type `BASE_CLASS`.
+
+The `nodl_common_interfaces` package provides NoDL descriptions for `rclcpp::Node` and `rclcpp_lifecycle::LifecycleNode`, which are of type `BASE_CLASS`. They are registered as `nodl://rclcpp/node` and `nodl://rclcpp_lifecycle/lifecycle_node`.
+Add it as a dependency:
+
+```xml
+<depend>nodl_common_interfaces</depend>
+```
+
+This is a stopgap: once upstream packages ship their own `.nodl.yaml`, `nodl_common_interfaces` will be deprecated
+and replaced by a direct dependency on the upstream package.
 
 ## Generated files
 
@@ -37,6 +86,9 @@ The generator produces up to four files, depending on the document's contents:
 | `<target>.cpp` | Yes | Constructor implementation — creates all handles. |
 | `<target>_parameters.yaml` | If parameters | `generate_parameter_library` YAML, converted from NoDL parameters. |
 | `<target>_parameters.hpp` | If parameters | `generate_parameter_library` C++ header, generated from the YAML above. |
+
+When using the CMake macro, a `<target>_deps.cmake` file is also written at configure time,
+containing the NoDL source paths, ROS package dependencies, and generated file list.
 
 ## Example
 
@@ -63,6 +115,20 @@ subscriptions:
       history: KEEP_LAST
       depth: 1
       reliability: BEST_EFFORT
+```
+
+And this `CMakeLists.txt`:
+
+```cmake
+find_package(ament_cmake REQUIRED)
+find_package(nodl_generator_cpp REQUIRED)
+
+nodl_generate_cpp(my_node nodl/my_node.nodl.yaml)
+
+add_executable(my_node_exe src/my_node.cpp)
+target_link_libraries(my_node_exe PRIVATE my_node)
+
+ament_package()
 ```
 
 The generator produces this header:
@@ -122,7 +188,26 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 }
 ```
 
-The user subclasses `MyNodeBase` and implements `on_cmd_vel()`.
+The user subclasses `MyNodeBase` and implements `on_cmd_vel()`:
+
+```cpp
+#include "my_node.hpp"
+
+class MyNode : public MyNodeBase
+{
+  void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr msg) override
+  {
+    // Business logic here
+  }
+};
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<MyNode>());
+  rclcpp::shutdown();
+}
+```
 
 ## Generated class layout
 
@@ -155,7 +240,7 @@ A NoDL document can carry a `codegen.cpp` field declaring that it has an existin
 The schema for this field is defined in {repo}`nodl_generator_cpp/nodl_generator_cpp/schemas/codegen_cpp.schema.yaml`
 and validated by `nodl_generator_cpp`, not `nodl_schema`.
 
-For example, `nodl://rclcpp/node` declares itself as a base-class provider:
+For example, `nodl://rclcpp/node` (provided by `nodl_common_interfaces`) declares itself as a base-class provider:
 
 ```yaml
 # nodl://rclcpp/node
@@ -256,10 +341,54 @@ protected:
 Parameters declared by included documents behind a barrier (e.g. `use_sim_time` from `rclcpp::Node`) are filtered
 out and do not appear in the genparamlib YAML or the generated header.
 
+## CLI reference
+
+The CMake macro calls the generator internally, but it can also be used standalone for scripting or debugging.
+
+### Code generation
+
+```bash
+python -m nodl_generator_cpp \
+  --nodl-file my_node.nodl.yaml \
+  --output-dir generated/ \
+  --target-name my_node
+```
+
+| Flag | Required | Description |
+|---|---|---|
+| `--nodl-file` | Yes | Path to the NoDL document. |
+| `--output-dir` | Yes | Directory to write generated files into (created if absent). |
+| `--target-name` | Yes | Used as the node name and the stem of all generated filenames. Must be a valid C++ identifier. |
+
+### Dependency discovery
+
+```bash
+python -m nodl_generator_cpp \
+  --nodl-file my_node.nodl.yaml \
+  --output-dir generated/ \
+  --target-name my_node \
+  --cmake-deps
+```
+
+The `--cmake-deps` flag runs the same load → provenance → filter pipeline as the full generator but stops before
+template rendering.
+It writes a `<target>_deps.cmake` file containing three CMake variables:
+
+| Variable | Contents |
+|---|---|
+| `<target>_NODL_SOURCES` | Absolute paths to the root NoDL file and every transitive include. |
+| `<target>_ROS_DEPS` | Sorted, deduplicated ROS package names needed by the generated code. |
+| `<target>_GENERATED_FILES` | The filenames the full generator will produce. |
+
+This is what the `nodl_generate_cpp()` CMake macro calls at configure time to set up `find_package`, file watching,
+and the `add_custom_command` output list.
+
 ## Relationship to other packages
 
 The NoDL document consumed by this generator is validated by `nodl_schema`.
 Include resolution and the document tree are provided by `nodl_schema`'s loader.
 The `codegen.cpp` sub-object is opaque to `nodl_schema` — its schema and interpretation are owned entirely by this
 package.
+`nodl_common_interfaces` registers the base-class NoDL descriptions (`nodl://rclcpp/node`,
+`nodl://rclcpp_lifecycle/lifecycle_node`) that the generator's include references resolve against.
 For registering a NoDL document with the ament index, see the `ament_nodl` package.

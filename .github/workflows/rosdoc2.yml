@@ -29,6 +29,7 @@ jobs:
         # is a test fixture. A ROS-distro axis could be added here later to mirror the per-distro buildfarm.
         package:
           - ament_nodl
+          - nodl_common_interfaces
           - nodl_docgen
           - nodl_generator_cpp
           - nodl_observe
