@@ -12,6 +12,7 @@
 
   <exec_depend>nodl_schema</exec_depend>
   <exec_depend>generate_parameter_library_py</exec_depend>
+  <exec_depend>generate_parameter_library</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
   <test_depend>nodl_schema</test_depend>
