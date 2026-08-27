@@ -1,0 +1,22 @@
+---
+# Parameters via generate_parameter_library.
+
+nodl_version: 2
+
+include:
+  - ref: nodl://rclcpp/node
+
+parameters:
+  max_speed:
+    type: double
+    default_value: 1.5
+    description: Maximum speed in m/s
+    validation:
+      gt<>: [0.0]
+  robot_name:
+    type: string
+    default_value: bot
+    read_only: true
+  enabled:
+    type: bool
+    default_value: true

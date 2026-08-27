@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>test_nodl_generator_cpp</name>
+  <version>0.0.0</version>
+  <description>
+    Integration tests for nodl_generator_cpp.
+    Exercises the nodl_generate_cpp() CMake macro end-to-end:
+    code generation, compilation, and linking against real ROS headers.
+  </description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
+  <license>Apache-2.0</license>
+  <author email="hello@alistairenglish.com">Alistair English</author>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>nodl_generator_cpp</buildtool_depend>
+
+  <build_depend>nodl_common_interfaces</build_depend>
+
+  <build_depend>example_interfaces</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>lifecycle_msgs</build_depend>
+  <build_depend>rclcpp</build_depend>
+  <build_depend>rclcpp_action</build_depend>
+  <build_depend>rclcpp_lifecycle</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -1,0 +1,23 @@
+---
+# LifecycleNode base class with publishers and subscriptions.
+
+nodl_version: 2
+
+include:
+  - ref: nodl://rclcpp_lifecycle/lifecycle_node
+
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+
+subscriptions:
+  - name: cmd_vel
+    type: geometry_msgs/msg/Twist
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: BEST_EFFORT

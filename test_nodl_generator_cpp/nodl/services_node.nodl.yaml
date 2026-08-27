@@ -1,0 +1,15 @@
+---
+# Service servers and clients.
+
+nodl_version: 2
+
+include:
+  - ref: nodl://rclcpp/node
+
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger
+
+service_clients:
+  - name: set_bool
+    type: std_srvs/srv/SetBool

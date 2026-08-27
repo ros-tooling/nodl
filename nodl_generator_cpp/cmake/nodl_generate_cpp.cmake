@@ -91,23 +91,39 @@ macro(nodl_generate_cpp TARGET NODL_FILE)
     $<BUILD_INTERFACE:${_output_dir}>
   )
 
-  # ── wire up ament ROS dependencies ─────────────────────────────────
-  ament_target_dependencies(${TARGET} PUBLIC ${${TARGET}_ROS_DEPS})
+  # ── wire up ROS dependencies ────────────────────────────────────────
+  # ${pkg_TARGETS} is available since Foxy and works across all
+  # supported distros (Humble → Lyrical), unlike ament_target_dependencies
+  # which was removed in Lyrical.
+  foreach(_dep IN LISTS ${TARGET}_ROS_DEPS)
+    target_link_libraries(${TARGET} PUBLIC ${${_dep}_TARGETS})
+  endforeach()
 
   # ── generate_parameter_library dependencies (when params present) ──
   # The generated parameter header (from generate_parameter_library_py)
-  # includes fmt, rsl, parameter_traits, etc.  Mirror the same link
-  # set that generate_parameter_library's own CMake macro uses.
+  # includes fmt, rsl, etc.  Mirror the same link set that
+  # generate_parameter_library's own CMake macro uses.
+  # Target names changed across distros, so we use if(TARGET) guards.
   list(FIND ${TARGET}_GENERATED_FILES "${TARGET}_parameters.hpp" _has_params_idx)
   if(NOT _has_params_idx EQUAL -1)
     find_package(generate_parameter_library REQUIRED)
-    target_link_libraries(${TARGET} PUBLIC
+    set(_nodl_genparamlib_deps
       fmt::fmt
-      parameter_traits::parameter_traits
+      rclcpp::rclcpp
       rclcpp_lifecycle::rclcpp_lifecycle
       rsl::rsl
       tcb_span::tcb_span
-      tl_expected::tl_expected
     )
+    # tl_expected::tl_expected (Humble/Jazzy) → tl::expected (Kilted+)
+    if(TARGET tl::expected)
+      list(APPEND _nodl_genparamlib_deps tl::expected)
+    elseif(TARGET tl_expected::tl_expected)
+      list(APPEND _nodl_genparamlib_deps tl_expected::tl_expected)
+    endif()
+    # parameter_traits present in Humble/Jazzy, removed in Kilted+
+    if(TARGET parameter_traits::parameter_traits)
+      list(APPEND _nodl_genparamlib_deps parameter_traits::parameter_traits)
+    endif()
+    target_link_libraries(${TARGET} PUBLIC ${_nodl_genparamlib_deps})
   endif()
 endmacro()
