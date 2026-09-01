@@ -1,0 +1,12 @@
+type: 'rosdoc2 config'
+version: 1
+
+---
+settings:
+    generate_package_index: true
+
+builders:
+    - sphinx: {
+        name: 'nodl_generator_py',
+        output_dir: ''
+    }

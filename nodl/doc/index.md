@@ -33,6 +33,7 @@ tutorials/index
 - **`nodl_common_interfaces`** — NoDL descriptions for standard ROS 2 node base classes (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`), registered in the ament index until upstream ships its own.
 - **`nodl_generator_common`** — language-agnostic code-generation core shared by NoDL generators: include-tree provenance, entity filtering, ament dependency emission, and naming utilities.
 - **`nodl_generator_cpp`** — C++ code generation from NoDL documents: generates an abstract base class with all endpoint wiring, delegating parameters to `generate_parameter_library`.
+- **`nodl_generator_py`** — Python code generation from NoDL documents: generates an `rclpy` base class at build time.
 - **`nodl_docgen`** — Tools to generate documentation from NoDL documents.
 
 Each package's own documentation is staged into this site from its `doc/` tree at build time
@@ -49,6 +50,7 @@ ament_nodl <_generated/packages/ament_nodl/overview>
 nodl_common_interfaces <_generated/packages/nodl_common_interfaces/overview>
 nodl_generator_common <_generated/packages/nodl_generator_common/overview>
 nodl_generator_cpp <_generated/packages/nodl_generator_cpp/overview>
+nodl_generator_py <_generated/packages/nodl_generator_py/overview>
 nodl_docgen <_generated/packages/nodl_docgen/overview>
 ```
 

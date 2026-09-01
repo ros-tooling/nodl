@@ -13,6 +13,7 @@
 
   <exec_depend>ament_nodl</exec_depend>
   <exec_depend>nodl_generator_cpp</exec_depend>
+  <exec_depend>nodl_generator_py</exec_depend>
   <exec_depend>nodl_schema</exec_depend>
   <exec_depend>ros2nodl</exec_depend>
   <exec_depend>nodl_common_interfaces</exec_depend>

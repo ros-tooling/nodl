@@ -15,6 +15,7 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
 - [nodl_docgen/](./nodl_docgen/): Sphinx extension rendering a NoDL document into a documentation page at build time.
 - [nodl_generator_common/](./nodl_generator_common/): Language-agnostic code-generation core shared by NoDL generators — include-tree provenance, entity filtering, ament dependency emission, and naming utilities.
 - [nodl_generator_cpp/](./nodl_generator_cpp/): C++ code generator — produces an abstract base class from a NoDL document, with a CMake macro for build integration.
+- [nodl_generator_py/](./nodl_generator_py/): Python code generator — produces an `rclpy` base class from a NoDL document at build time.
 - [nodl_observe/](./nodl_observe/): C++ (`ament_cmake`) package that observes a running ROS 2 node and produces its runtime interface as a `rosgraph_msgs/Node` message — a reusable `observe_node(...)` library plus an `observe` executable. Stage one of Observe → Describe.
 - [nodl_schema/](./nodl_schema/): Package providing the NoDL schema, validation tools, a typed data model, and semantic comparison of loaded documents.
     [nodl.schema.yaml](./nodl_schema/nodl_schema/schemas/nodl.schema.yaml): The NoDL schema, key to this whole thing!

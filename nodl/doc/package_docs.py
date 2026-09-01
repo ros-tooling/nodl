@@ -27,6 +27,7 @@ PACKAGES = [
     'nodl_common_interfaces',
     'nodl_generator_common',
     'nodl_generator_cpp',
+    'nodl_generator_py',
     'nodl_docgen',
 ]
 
