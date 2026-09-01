@@ -2,8 +2,8 @@
 Changelog for package ament_nodl
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.0.0 (2026-09-01)
+------------------
 * feat: ament_nodl_register rewrite local refs to ament index refs (`#111 <https://github.com/ros-tooling/nodl/issues/111>`_)
 * feat: remove nodl_schema CLI entrypoint, always use ros2nodl for CLIs (`#112 <https://github.com/ros-tooling/nodl/issues/112>`_)
 * feat: rename ament_nodl_register_node to ament_nodl_register (`#106 <https://github.com/ros-tooling/nodl/issues/106>`_)

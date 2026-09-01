@@ -2,8 +2,8 @@
 Changelog for package nodl_generator_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.0.0 (2026-09-01)
+------------------
 * update documentation (`#141 <https://github.com/ros-tooling/nodl/issues/141>`_)
 * CMake integration for `nodl_generate_cpp` (`#139 <https://github.com/ros-tooling/nodl/issues/139>`_)
 * Add `--cmake-deps` CLI mode for configure-time dependency extraction (`#138 <https://github.com/ros-tooling/nodl/issues/138>`_)

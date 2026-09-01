@@ -6,7 +6,7 @@ package_name = 'nodl_schema'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='2.0.0',
     packages=[package_name],
     package_data={package_name: ['schemas/*.yaml']},
     data_files=[

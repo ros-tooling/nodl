@@ -2,8 +2,8 @@
 Changelog for package nodl
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.0.0 (2026-09-01)
+------------------
 * Add NoDL conformance comparison and conform verb (`#115 <https://github.com/ros-tooling/nodl/issues/115>`_)
 * Add ROS 2 basics tutorial (`#114 <https://github.com/ros-tooling/nodl/issues/114>`_)
 * update documentation (`#141 <https://github.com/ros-tooling/nodl/issues/141>`_)
