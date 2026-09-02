@@ -6,8 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from nodl_conformance import Difference, diff
-from nodl_schema import load_nodl
+from nodl_schema import Difference, diff, load_nodl
 
 
 def _load_document(nodl_file: str):

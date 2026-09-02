@@ -10,7 +10,6 @@
   <author email="me@emersonknapp.com">Emerson Knapp</author>
 
   <depend>nodl_observe</depend>
-  <depend>nodl_conformance</depend>
   <depend>nodl_schema</depend>
   <depend>rosgraph_msgs</depend>
   <depend>ros2cli</depend>

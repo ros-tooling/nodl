@@ -6,8 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nodl_conformance import Difference
-from nodl_schema import Resolver, dump_nodl, resolver_registered
+from nodl_schema import Difference, Resolver, dump_nodl, resolver_registered
 from nodl_schema.models import (
     History,
     NodlDocument,

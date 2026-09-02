@@ -22,7 +22,7 @@ Each package has its own specific documentation.
    * - Package
      - Description
    * - `nodl_schema <../nodl_schema/>`_
-     - The NoDL schema, in-memory model, and validation.
+     - The NoDL schema, in-memory model, validation, and semantic comparison.
    * - `nodl_observe <../nodl_observe/>`_
      - Observes a running node and reports its runtime interface.
    * - `ros2nodl <../ros2nodl/>`_
@@ -35,9 +35,6 @@ Each package has its own specific documentation.
      - Generates an ``rclcpp`` base-node class from a NoDL document.
    * - `nodl_docgen <../nodl_docgen/>`_
      - Renders NoDL documents into a package's Sphinx documentation.
-   * - `nodl_conformance <../nodl_conformance/>`_
-     - Compares two NoDL documents for semantic conformance.
-
 Source
 ------
 
