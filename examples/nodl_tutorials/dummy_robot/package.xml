@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>nodl_tutorial_dummy_robot</name>
+  <version>0.0.0</version>
+  <description>Validated and registered NoDL documents used by the Dummy robot tutorial.</description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_nodl</buildtool_depend>
+  <buildtool_depend>nodl_generator_cpp</buildtool_depend>
+
+  <build_depend>nodl_common_interfaces</build_depend>
+
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>dummy_map_server</exec_depend>
+  <exec_depend>dummy_robot_bringup</exec_depend>
+  <exec_depend>dummy_sensors</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>nodl_schema</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>rmw_cyclonedds_cpp</test_depend>
+  <test_depend>ros2cli</test_depend>
+  <test_depend>ros2nodl</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

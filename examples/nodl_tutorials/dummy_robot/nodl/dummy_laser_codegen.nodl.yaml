@@ -1,0 +1,6 @@
+---
+nodl_version: 2
+description: Generator composition for the Dummy laser implementation.
+include:
+  - ref: nodl://rclcpp/node
+  - ref: local://dummy_laser.nodl.yaml
