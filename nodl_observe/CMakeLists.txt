@@ -78,12 +78,20 @@ if(BUILD_TESTING)
   # rcl/test/CMakeLists.txt). ctest -> test_observe_integration__<rmw>.
   find_package(ament_cmake_pytest REQUIRED)
   find_package(rmw_implementation_cmake REQUIRED)
+
+  # The integration test needs `mcap-ros2-support` test dependency.
+  set(_observe_integration_skip "")
+  if(NOT "$ENV{ENABLE_PIP_TEST_DEPENDS}" STREQUAL "1")
+    set(_observe_integration_skip "SKIP_TEST")
+  endif()
+
   macro(observe_integration_test_for_rmw)
     ament_add_pytest_test(
       "test_observe_integration${target_suffix}"
       test/test_observe_integration.py
       ENV RMW_IMPLEMENTATION=${rmw_implementation}
       TIMEOUT 180
+      ${_observe_integration_skip}
     )
   endmacro()
 
