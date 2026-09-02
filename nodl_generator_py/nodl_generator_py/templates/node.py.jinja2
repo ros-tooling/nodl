@@ -2,13 +2,20 @@
 {% for imp in imports %}
 {{ imp }}
 {% endfor %}
+{% if params_module %}
+from . import {{ params_module }}
+{% endif %}
 
 
-class {{ class_name }}(Node{% if subscriptions %}, metaclass=abc.ABCMeta{% endif %}):
+class {{ class_name }}(Node{% if subscriptions or service_servers or action_servers %}, metaclass=abc.ABCMeta{% endif %}):
     """Generated NoDL base node."""
 
     def __init__(self, **kwargs):
         super().__init__('{{ node_name }}', **kwargs)
+    {% if params_module %}
+        self.param_listener_ = {{ params_module }}.{{ node_name }}.ParamListener(self)
+        self.params_ = self.param_listener_.get_params()
+    {% endif %}
     {% for pub in publishers %}
         self.{{ pub.member_name }} = self.create_publisher(
             {{ pub.py_type }},
@@ -24,10 +31,58 @@ class {{ class_name }}(Node{% if subscriptions %}, metaclass=abc.ABCMeta{% endif
             {{ sub.qos_py | indent(12) }},
         )
     {% endfor %}
+    {% for service in service_servers %}
+        self.{{ service.member_name }} = self.create_service(
+            {{ service.py_type }},
+            '{{ service.name }}',
+            self.{{ service.callback_name }},
+{% if service.qos_py is defined %}
+            qos_profile={{ service.qos_py | indent(12) }},
+{% endif %}
+        )
+    {% endfor %}
+    {% for client in service_clients %}
+        self.{{ client.member_name }} = self.create_client(
+            {{ client.py_type }},
+            '{{ client.name }}',
+{% if client.qos_py is defined %}
+            qos_profile={{ client.qos_py | indent(12) }},
+{% endif %}
+        )
+    {% endfor %}
+    {% for action in action_servers %}
+        self.{{ action.member_name }} = rclpy.action.ActionServer(
+            self,
+            {{ action.py_type }},
+            '{{ action.name }}',
+            self.{{ action.callback_name }},
+        )
+    {% endfor %}
+    {% for action in action_clients %}
+        self.{{ action.member_name }} = rclpy.action.ActionClient(
+            self,
+            {{ action.py_type }},
+            '{{ action.name }}',
+        )
+    {% endfor %}
     {% for sub in subscriptions %}
 
     @abc.abstractmethod
     def {{ sub.callback_name }}(self, msg):
         """Handle a message received on {{ sub.name }}."""
+        raise NotImplementedError
+    {% endfor %}
+    {% for service in service_servers %}
+
+    @abc.abstractmethod
+    def {{ service.callback_name }}(self, request, response):
+        """Handle a request received on {{ service.name }}."""
+        raise NotImplementedError
+    {% endfor %}
+    {% for action in action_servers %}
+
+    @abc.abstractmethod
+    def {{ action.callback_name }}(self, goal_handle):
+        """Execute a goal received on {{ action.name }}."""
         raise NotImplementedError
     {% endfor %}

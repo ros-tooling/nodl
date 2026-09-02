@@ -7,9 +7,9 @@ NoDL and `nodl_generator_py` are build-time dependencies.
 The generated module imports normal ROS interfaces and `rclpy`, so deployed application code does not require NoDL.
 Regeneration replaces only generated code, never the handwritten subclass.
 
-This initial version supports publishers, subscriptions, and their QoS settings in a flat NoDL document.
+This initial version supports parameters, publishers, subscriptions, services, actions, and their available QoS settings in a flat NoDL document.
 It rejects documents with `include` entries.
-Services, actions, parameters, lifecycle nodes, and composition-aware generation are not yet supported.
+Lifecycle nodes and composition-aware generation are not yet supported.
 
 ## Generate the base class
 
@@ -39,5 +39,6 @@ class EchoNode(EchoNodeBase):
         self.pub_echo_out.publish(String(data=f'echo: {msg.data}'))
 ```
 
-The generated base creates publishers and subscriptions.
-Each subscription produces an abstract callback that the subclass implements.
+The generated base creates publishers, subscriptions, service servers and clients, and action servers and clients.
+Subscriptions, service servers, and action servers produce abstract callbacks that the subclass implements.
+Parameters use `generate_parameter_library_py` and are available through `param_listener_` and `params_`.

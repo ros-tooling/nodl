@@ -24,6 +24,8 @@ function(nodl_generate_py target nodl_file)
 
   set(py_out "${gen_dir}/${target}.py")
   set(package_init "${gen_dir}/__init__.py")
+  set(params_py "${gen_dir}/${target}_params.py")
+  set(params_yaml "${gen_dir}/${target}_params.yaml")
 
   # Make build-time Python dependencies importable by the generator.
   if(DEFINED ENV{PYTHONPATH})
@@ -35,6 +37,7 @@ function(nodl_generate_py target nodl_file)
 
   add_custom_command(
     OUTPUT "${py_out}" "${package_init}"
+    BYPRODUCTS "${params_py}" "${params_yaml}"
     COMMAND ${CMAKE_COMMAND} -E env
       "PYTHONPATH=${full_pythonpath}"
       "${Python3_EXECUTABLE}"

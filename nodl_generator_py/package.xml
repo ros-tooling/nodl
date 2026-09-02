@@ -3,7 +3,7 @@
 <package format="3">
   <name>nodl_generator_py</name>
   <version>0.1.0</version>
-  <description>Generate an rclpy publisher and subscription base class from a NoDL document.</description>
+  <description>Generate an rclpy base class from a NoDL document.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author>Luke Sy</author>
@@ -12,7 +12,9 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <depend>nodl_schema</depend>
+  <depend>generate_parameter_library_py</depend>
   <depend>python3-jinja2</depend>
+  <depend>python3-yaml</depend>
   <exec_depend>rclpy</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
