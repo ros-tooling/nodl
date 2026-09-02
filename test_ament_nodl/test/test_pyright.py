@@ -6,11 +6,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-# The importable package source lives one level up from this test directory.
-_SOURCE_DIR = Path(__file__).resolve().parent.parent
+import pytest
+
+pytest.importorskip('pyright')
 
 
 def test_pyright():
+    # The importable package source lives one level up from this test directory.
+    _SOURCE_DIR = Path(__file__).resolve().parent.parent
     result = subprocess.run(
         ['pyright', str(_SOURCE_DIR)],
         stdout=subprocess.PIPE,

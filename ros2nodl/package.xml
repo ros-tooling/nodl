@@ -23,12 +23,12 @@
   <depend>ament_index_python</depend>
 
   <test_depend>python3-pytest</test_depend>
-  <test_depend>python3-pyright-pip</test_depend>
+  <test_depend condition="$ENABLE_PIP_TEST_DEPENDS == 1">python3-pyright-pip</test_depend>
   <test_depend>std_msgs</test_depend>
   <!-- Describe tests exercise generated messages and observe's MCAP fixtures. -->
   <test_depend>rcl_interfaces</test_depend>
   <test_depend>builtin_interfaces</test_depend>
-  <test_depend>mcap-ros2-support</test_depend>
+  <test_depend condition="$ENABLE_PIP_TEST_DEPENDS == 1">mcap-ros2-support</test_depend>
 
   <export>
     <build_type>ament_python</build_type>

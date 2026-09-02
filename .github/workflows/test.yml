@@ -33,8 +33,10 @@ jobs:
     needs: changes
     if: always()
     runs-on: ubuntu-latest
-    # mcap-ros2-support is a pip rosdep; PEP 668 (Python >=3.11) needs this.
     env:
+      # Enable pip-originated test dependencies to get the full test suite
+      ENABLE_PIP_TEST_DEPENDS: 1
+      # PEP 668 (Python >=3.11) needs this for `pip install` (from `rosdep install`) without a venv
       PIP_BREAK_SYSTEM_PACKAGES: 1
     strategy:
       fail-fast: false

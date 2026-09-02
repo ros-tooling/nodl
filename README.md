@@ -33,3 +33,11 @@ pre-commit install --hook-type prepare-commit-msg
 ```
 
 The `prepare-commit-msg` hook will automatically add the `Signed-off-by` line to your commits. If you prefer to sign off manually, use `git commit -s`.
+
+### Pip dependencies for full test suite
+
+The packages in this repository use a few package only available from `pip` as `test_depend`s.
+
+For the buildfarm environment, these dependencies and tests are disabled, because a package may not be packaged into a `deb`/`rpm` against dependencies from another package manager (`pip`).
+
+To install all dependencies and run the full test suite, export environment variable `ENABLE_PIP_TEST_DEPENDS=1` - which the GitHub Action CI for this repo does.

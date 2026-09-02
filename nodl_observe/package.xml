@@ -33,7 +33,7 @@
   <test_depend>rosidl_runtime_py</test_depend>
   <test_depend>std_msgs</test_depend>
   <test_depend>example_interfaces</test_depend>
-  <test_depend>mcap-ros2-support</test_depend>
+  <test_depend condition="$ENABLE_PIP_TEST_DEPENDS == 1">mcap-ros2-support</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
