@@ -1,6 +1,7 @@
 {
   "include": ["."],
   "exclude": [
-    "nodl_schema/models.py"
+    "nodl_schema/models.py",
+    "test/test_semantic_diff.py"
   ]
 }

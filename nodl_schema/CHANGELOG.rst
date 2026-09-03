@@ -4,6 +4,7 @@ Changelog for package nodl_schema
 
 2.0.0 (2026-09-01)
 ------------------
+* Add NoDL conformance comparison and conform verb (`#115 <https://github.com/ros-tooling/nodl/issues/115>`_)
 * add path to IncludedDocument in DocumentTree for provenance (`#120 <https://github.com/ros-tooling/nodl/issues/120>`_)
 * feat: ament_nodl_register rewrite local refs to ament index refs (`#111 <https://github.com/ros-tooling/nodl/issues/111>`_)
 * feat: remove nodl_schema CLI entrypoint, always use ros2nodl for CLIs (`#112 <https://github.com/ros-tooling/nodl/issues/112>`_)

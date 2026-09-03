@@ -27,7 +27,6 @@ PACKAGES = [
     'nodl_common_interfaces',
     'nodl_generator_cpp',
     'nodl_docgen',
-    'nodl_conformance',
 ]
 
 # Toctree entries, relative to the Sphinx source dir (== _HERE), mirrored by the "Packages" toctree in index.md.

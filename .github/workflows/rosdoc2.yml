@@ -30,7 +30,6 @@ jobs:
         package:
           - ament_nodl
           - nodl_common_interfaces
-          - nodl_conformance
           - nodl_docgen
           - nodl_generator_cpp
           - nodl_observe

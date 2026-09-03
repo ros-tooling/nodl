@@ -4,7 +4,7 @@
 
 import pytest
 
-from nodl_conformance import Difference, diff
+from nodl_schema import Difference, diff
 from nodl_schema.models import (
     ActionEndpoint,
     Durability,

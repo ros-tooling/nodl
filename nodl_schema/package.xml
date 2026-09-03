@@ -3,7 +3,7 @@
 <package format="3">
   <name>nodl_schema</name>
   <version>2.0.0</version>
-  <description>ROS 2 Node Definition Language (NoDL) schema and validation.</description>
+  <description>ROS 2 Node Definition Language (NoDL) schema, validation, and semantic comparison.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="hello@alistairenglish.com">Alistair English</author>

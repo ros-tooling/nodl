@@ -11,6 +11,7 @@ from nodl_schema.composition import (
     resolver_registered,
     unregister_resolver,
 )
+from nodl_schema.conformance import Difference, diff
 from nodl_schema.loader import dump_nodl, load_nodl, load_nodl_with_doc_tree, parse_nodl, resolve_document
 from nodl_schema.local_resolver import LocalResolver
 from nodl_schema.rewrite import rewrite_references
@@ -21,9 +22,11 @@ register_resolver(LocalResolver())
 
 __all__ = [
     'AmentIndexResolver',
+    'Difference',
     'ResolutionError',
     'Resolver',
     'dump_nodl',
+    'diff',
     'load_nodl',
     'load_nodl_with_doc_tree',
     'load_schema',
