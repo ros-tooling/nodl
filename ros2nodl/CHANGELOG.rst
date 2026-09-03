@@ -2,6 +2,11 @@
 Changelog for package ros2nodl
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* build: disable pip-based test dependencies by default for buildfarm, enabled in CI (`#147 <https://github.com/ros-tooling/nodl/issues/147>`_)
+* Contributors: Emerson Knapp
+
 2.0.0 (2026-09-01)
 ------------------
 * Add NoDL conformance comparison and conform verb (`#115 <https://github.com/ros-tooling/nodl/issues/115>`_)

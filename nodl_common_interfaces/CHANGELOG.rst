@@ -2,6 +2,9 @@
 Changelog for package nodl_common_interfaces
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 2.0.0 (2026-09-01)
 ------------------
 * update documentation (`#141 <https://github.com/ros-tooling/nodl/issues/141>`_)

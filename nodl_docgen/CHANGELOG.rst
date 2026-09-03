@@ -2,6 +2,11 @@
 Changelog for package nodl_docgen
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* build: disable pip-based test dependencies by default for buildfarm, enabled in CI (`#147 <https://github.com/ros-tooling/nodl/issues/147>`_)
+* Contributors: Emerson Knapp
+
 2.0.0 (2026-09-01)
 ------------------
 * doc: Document nodl_docgen package and usage (`#133 <https://github.com/ros-tooling/nodl/issues/133>`_)
