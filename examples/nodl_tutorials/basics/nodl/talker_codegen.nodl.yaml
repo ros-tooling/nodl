@@ -1,0 +1,6 @@
+---
+nodl_version: 2
+description: Generator composition for the C++ talker implementation.
+include:
+  - ref: nodl://rclcpp/node
+  - ref: local://talker.nodl.yaml

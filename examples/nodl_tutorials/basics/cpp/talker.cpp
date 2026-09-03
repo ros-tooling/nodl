@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "talker.hpp"  // NOLINT(build/include_subdir)
+
 #include <chrono>
 #include <cstddef>
 #include <memory>
 #include <string>
 
 #include "example_interfaces/msg/string.hpp"
-#include "nodl/talker_base.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 using std::chrono_literals::operator""ms;

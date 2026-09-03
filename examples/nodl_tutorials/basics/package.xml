@@ -9,10 +9,22 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_nodl</buildtool_depend>
+  <buildtool_depend>nodl_generator_cpp</buildtool_depend>
+
+  <build_depend>nodl_common_interfaces</build_depend>
+
+  <depend>example_interfaces</depend>
+  <depend>rclcpp</depend>
+
+  <exec_depend>demo_nodes_cpp</exec_depend>
+  <exec_depend>demo_nodes_py</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_index_python</test_depend>
   <test_depend>python3-pytest</test_depend>
+  <test_depend>rmw_cyclonedds_cpp</test_depend>
+  <test_depend>ros2cli</test_depend>
+  <test_depend>ros2nodl</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
