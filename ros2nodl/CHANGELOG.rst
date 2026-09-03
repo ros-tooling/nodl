@@ -2,8 +2,8 @@
 Changelog for package ros2nodl
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.0.1 (2026-09-03)
+------------------
 * build: disable pip-based test dependencies by default for buildfarm, enabled in CI (`#147 <https://github.com/ros-tooling/nodl/issues/147>`_)
 * Contributors: Emerson Knapp
 
