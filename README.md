@@ -1,5 +1,17 @@
 # NoDL - Node Definition Language
 
+[![Rolling Dev](https://build.ros2.org/job/Rdev__nodl__ubuntu_resolute_amd64/badge/icon?subject=rolling-dev)](https://build.ros2.org/job/Rdev__nodl__ubuntu_resolute_amd64/)
+[![Lyrical Dev](https://build.ros2.org/job/Ldev__nodl__ubuntu_resolute_amd64/badge/icon?subject=lyrical-dev)](https://build.ros2.org/job/Ldev__nodl__ubuntu_resolute_amd64/)
+[![Kilted Dev](https://build.ros2.org/job/Kdev__nodl__ubuntu_noble_amd64/badge/icon?subject=kilted-dev)](https://build.ros2.org/job/Kdev__nodl__ubuntu_noble_amd64/)
+[![Jazzy Dev](https://build.ros2.org/job/Jdev__nodl__ubuntu_noble_amd64/badge/icon?subject=jazzy-dev)](https://build.ros2.org/job/Jdev__nodl__ubuntu_noble_amd64/)
+[![Humble Dev](https://build.ros2.org/job/Hdev__nodl__ubuntu_jammy_amd64/badge/icon?subject=humble-dev)](https://build.ros2.org/job/Hdev__nodl__ubuntu_jammy_amd64/)
+
+[![Rolling Doc](https://build.ros2.org/job/Rdoc__nodl__ubuntu_resolute_amd64/badge/icon?subject=rolling-doc)](https://build.ros2.org/job/Rdoc__nodl__ubuntu_resolute_amd64/)
+[![Lyrical Doc](https://build.ros2.org/job/Ldoc__nodl__ubuntu_resolute_amd64/badge/icon?subject=lyrical-doc)](https://build.ros2.org/job/Ldoc__nodl__ubuntu_resolute_amd64/)
+[![Kilted Doc](https://build.ros2.org/job/Kdoc__nodl__ubuntu_noble_amd64/badge/icon?subject=kilted-doc)](https://build.ros2.org/job/Kdoc__nodl__ubuntu_noble_amd64/)
+[![Jazzy Doc](https://build.ros2.org/job/Jdoc__nodl__ubuntu_noble_amd64/badge/icon?subject=jazzy-doc)](https://build.ros2.org/job/Jdoc__nodl__ubuntu_noble_amd64/)
+[![Humble Doc](https://build.ros2.org/job/Hdoc__nodl__ubuntu_jammy_amd64/badge/icon?subject=humble-doc)](https://build.ros2.org/job/Hdoc__nodl__ubuntu_jammy_amd64/)
+
 <img src="nodl/doc/nodl_logo.png" alt="NoDL logo" width="300">
 
 NoDL (Node Definition Language) is a schema and toolkit to describe a ROS 2 node's interface: parameters, topics (publishers and subscriptions), services (clients and servers), and actions (clients and servers).
