@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Generic, Sequence, TypeVar
+from typing import Any, Callable, Generic, Iterator, Sequence, TypeVar
 
 from docutils import nodes
 from docutils.parsers.rst import directives
@@ -22,6 +22,18 @@ from nodl_docgen.summarize import ActionRow, EndpointRow, NodeSummary, Parameter
 from nodl_schema import load_nodl_with_doc_tree
 from nodl_schema.composition import resolve, resolver_for
 from nodl_schema.loader import DocumentTree, IncludedDocument
+
+NodeT = TypeVar('NodeT', bound=nodes.Node)
+
+
+def findall(node: nodes.Node, node_class: type[NodeT]) -> Iterator[NodeT]:
+    """Every descendant of ``node`` that is a ``node_class``, in document order.
+
+    ``Element.findall`` arrived in docutils 0.18 (Ubuntu Noble, ROS Kilted+), it's ``traverse`` in older.
+    """
+    finder = getattr(node, 'findall', None) or node.traverse
+    return iter(finder(node_class))
+
 
 # --------------------------------
 # Cells
@@ -299,13 +311,13 @@ class NodlNodeDirective(SphinxDirective):
             raise self.error(f'nodl-node {reference}: {error}') from error
 
         for dependency in dependencies:
-            self.env.note_dependency(dependency)
+            self.env.note_dependency(str(dependency))
 
         section = build_node_section(summarize_tree(tree), self.options.get('title', default_title))
         self.set_source_info(section)
         # Every section produced here, the node section itself included, takes its id from the document,
         # which keeps ids unique across every node documented on this page.
-        for produced in section.findall(nodes.section):
+        for produced in findall(section, nodes.section):
             self.state.document.note_implicit_target(produced)
         return [section]
 
