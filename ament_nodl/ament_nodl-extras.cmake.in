@@ -2,3 +2,4 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 include("${CMAKE_CURRENT_LIST_DIR}/ament_nodl_register.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/nodl_add_conformance_test.cmake")

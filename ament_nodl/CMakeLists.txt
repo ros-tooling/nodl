@@ -13,4 +13,9 @@ install(
 install(FILES package.xml
   DESTINATION share/${PROJECT_NAME})
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_conformance_cmake test/test_conformance_cmake.py)
+endif()
+
 ament_package(CONFIG_EXTRAS "ament_nodl-extras.cmake.in")

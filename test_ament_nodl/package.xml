@@ -16,6 +16,10 @@
   <test_depend>nodl_schema</test_depend>
   <test_depend>python3-pytest</test_depend>
   <test_depend condition="$ENABLE_PIP_TEST_DEPENDS == 1">python3-pyright-pip</test_depend>
+  <test_depend>rcl_interfaces</test_depend>
+  <test_depend>rclcpp</test_depend>
+  <test_depend>std_msgs</test_depend>
+  <test_depend>std_srvs</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

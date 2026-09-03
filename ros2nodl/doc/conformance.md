@@ -21,3 +21,4 @@ reason. Semantic differences are aggregated and sorted for stable diagnostics.
 The command exits zero when the node conforms. Otherwise, it prints every
 difference and exits nonzero. It does not infer a document from the `nodl_nodes`
 resource index.
+Use `ament_nodl` when a package needs a CMake-registered launch test.

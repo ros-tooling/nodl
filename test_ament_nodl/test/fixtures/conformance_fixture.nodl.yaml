@@ -1,0 +1,28 @@
+---
+nodl_version: 2
+publishers:
+  - name: state
+    type: std_msgs/msg/String
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: RELIABLE
+      durability: VOLATILE
+      liveliness: AUTOMATIC
+subscriptions:
+  - name: command
+    type: std_msgs/msg/String
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: RELIABLE
+      durability: VOLATILE
+      liveliness: AUTOMATIC
+service_servers:
+  - name: reset
+    type: std_srvs/srv/Empty
+service_clients:
+  - name: calibrate
+    type: std_srvs/srv/Empty
+parameters:
+  limit:
+    type: int
+    read_only: true
