@@ -1,0 +1,27 @@
+# generated from nodl_generator_py/nodl_generator_py-extras.cmake.in
+
+get_filename_component(_nodl_generator_py_install_dir
+  "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+find_package(ament_cmake_python REQUIRED)
+ament_get_python_install_dir(_nodl_python_install_dir)
+string(CONCAT _nodl_generator_py_package_dir
+  "${_nodl_generator_py_install_dir}/${_nodl_python_install_dir}"
+  "/nodl_generator_py")
+
+set(_nodl_pythonpath_dirs "")
+set(_nodl_search_prefixes ${CMAKE_PREFIX_PATH})
+if(DEFINED ENV{AMENT_PREFIX_PATH})
+  string(REPLACE ":" ";" _ament_prefixes "$ENV{AMENT_PREFIX_PATH}")
+  list(APPEND _nodl_search_prefixes ${_ament_prefixes})
+endif()
+list(REMOVE_DUPLICATES _nodl_search_prefixes)
+
+foreach(prefix IN LISTS _nodl_search_prefixes)
+  list(APPEND _nodl_pythonpath_dirs "${prefix}/${_nodl_python_install_dir}")
+endforeach()
+list(REMOVE_DUPLICATES _nodl_pythonpath_dirs)
+string(JOIN ":" _nodl_generator_py_extra_pythonpath ${_nodl_pythonpath_dirs})
+
+include("${CMAKE_CURRENT_LIST_DIR}/nodl_generate_py.cmake")

@@ -1,0 +1,36 @@
+---
+nodl_version: 2
+parameters:
+  greeting:
+    type: string
+    default_value: hello
+    description: Prefix for echoed messages
+publishers:
+  - name: /echo_out
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+subscriptions:
+  - name: /echo_in
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+service_servers:
+  - name: /add
+    type: example_interfaces/srv/AddTwoInts
+service_clients:
+  - name: /delegate_add
+    type: example_interfaces/srv/AddTwoInts
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: SYSTEM_DEFAULT
+action_servers:
+  - name: /fibonacci
+    type: example_interfaces/action/Fibonacci
+action_clients:
+  - name: /delegate_fibonacci
+    type: example_interfaces/action/Fibonacci

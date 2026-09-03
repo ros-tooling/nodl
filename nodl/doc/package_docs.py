@@ -26,6 +26,7 @@ PACKAGES = [
     'ament_nodl',
     'nodl_common_interfaces',
     'nodl_generator_cpp',
+    'nodl_generator_py',
     'nodl_docgen',
     'nodl_conformance',
 ]
