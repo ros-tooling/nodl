@@ -31,6 +31,7 @@ tutorials/index
 - **`ament_nodl`** — CMake macros for registering NoDL documents with the ament index.
 - **`nodl_common_interfaces`** — NoDL descriptions for standard ROS 2 node base classes (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`), registered in the ament index until upstream ships its own.
 - **`nodl_generator_cpp`** — C++ code generation from NoDL documents: generates an abstract base class with all endpoint wiring, delegating parameters to `generate_parameter_library`.
+- **`nodl_generator_py`** — Python code generation from NoDL documents: generates an `rclpy` base class at build time.
 - **`nodl_docgen`** — Tools to generate documentation from NoDL documents.
 - **`nodl_conformance`** — semantic comparison of two loaded NoDL documents.
   `ros2nodl` provides runtime conformance checks for live nodes.
@@ -48,6 +49,7 @@ ros2nodl <_generated/packages/ros2nodl/overview>
 ament_nodl <_generated/packages/ament_nodl/overview>
 nodl_common_interfaces <_generated/packages/nodl_common_interfaces/overview>
 nodl_generator_cpp <_generated/packages/nodl_generator_cpp/overview>
+nodl_generator_py <_generated/packages/nodl_generator_py/overview>
 nodl_docgen <_generated/packages/nodl_docgen/overview>
 nodl_conformance <_generated/packages/nodl_conformance/overview>
 ```

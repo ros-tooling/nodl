@@ -1,0 +1,33 @@
+# GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_py.
+{% for imp in imports %}
+{{ imp }}
+{% endfor %}
+
+
+class {{ class_name }}(Node{% if subscriptions %}, metaclass=abc.ABCMeta{% endif %}):
+    """Generated NoDL base node."""
+
+    def __init__(self, **kwargs):
+        super().__init__('{{ node_name }}', **kwargs)
+    {% for pub in publishers %}
+        self.{{ pub.member_name }} = self.create_publisher(
+            {{ pub.py_type }},
+            '{{ pub.name }}',
+            {{ pub.qos_py | indent(12) }},
+        )
+    {% endfor %}
+    {% for sub in subscriptions %}
+        self.{{ sub.member_name }} = self.create_subscription(
+            {{ sub.py_type }},
+            '{{ sub.name }}',
+            self.{{ sub.callback_name }},
+            {{ sub.qos_py | indent(12) }},
+        )
+    {% endfor %}
+    {% for sub in subscriptions %}
+
+    @abc.abstractmethod
+    def {{ sub.callback_name }}(self, msg):
+        """Handle a message received on {{ sub.name }}."""
+        raise NotImplementedError
+    {% endfor %}

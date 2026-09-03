@@ -33,6 +33,7 @@ jobs:
           - nodl_conformance
           - nodl_docgen
           - nodl_generator_cpp
+          - nodl_generator_py
           - nodl_observe
           - nodl_schema
           - ros2nodl
