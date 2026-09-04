@@ -2,6 +2,9 @@
 Changelog for package nodl_generator_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 2.0.1 (2026-09-03)
 ------------------
 
