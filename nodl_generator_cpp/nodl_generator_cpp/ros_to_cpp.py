@@ -8,29 +8,8 @@ names into the C++ strings needed by the Jinja2 templates.
 
 from __future__ import annotations
 
-import re
-
+from nodl_generator_common.naming import camel_to_snake
 from nodl_schema.models import Durability, History, Liveliness, QosProfile, Reliability
-
-# ---------------------------------------------------------------------------
-# CamelCase → snake_case
-# ---------------------------------------------------------------------------
-
-_CAMEL_RE1 = re.compile(r'([A-Z]+)([A-Z][a-z])')
-_CAMEL_RE2 = re.compile(r'([a-z0-9])([A-Z])')
-
-
-def _camel_to_snake(name: str) -> str:
-    """Convert a CamelCase name to snake_case.
-
-    >>> _camel_to_snake('NavigateToPose')
-    'navigate_to_pose'
-    >>> _camel_to_snake('SetBool')
-    'set_bool'
-    """
-    s = _CAMEL_RE1.sub(r'\1_\2', name)
-    return _CAMEL_RE2.sub(r'\1_\2', s).lower()
-
 
 # ---------------------------------------------------------------------------
 # ROS type conversions
@@ -57,7 +36,7 @@ def ros_type_to_header(ros_type: str) -> str:
     'nav2_msgs/action/navigate_to_pose.hpp'
     """
     prefix, type_name = ros_type.rsplit('/', 1)
-    return f'{prefix}/{_camel_to_snake(type_name)}.hpp'
+    return f'{prefix}/{camel_to_snake(type_name)}.hpp'
 
 
 # ---------------------------------------------------------------------------
@@ -142,19 +121,3 @@ def to_class_name(target_name: str) -> str:
     'LaserScannerBase'
     """
     return ''.join(word.capitalize() for word in target_name.split('_')) + 'Base'
-
-
-def to_member_name(name: str) -> str:
-    """Sanitise a ROS entity name for use as a C++ identifier fragment.
-
-    Strips leading ``~/`` or ``/``, replaces remaining ``/`` with ``_``.
-
-    >>> to_member_name('/rosout')
-    'rosout'
-    >>> to_member_name('~/describe_parameters')
-    'describe_parameters'
-    >>> to_member_name('cmd_vel')
-    'cmd_vel'
-    """
-    name = name.removeprefix('~/').lstrip('/')
-    return name.replace('/', '_')

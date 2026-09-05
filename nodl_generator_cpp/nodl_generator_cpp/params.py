@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 from generate_parameter_library_py.parse_yaml import GenerateCode
 
-from nodl_generator_cpp.generated_file import GeneratedFile
+from nodl_generator_common.generated_file import GeneratedFile
 from nodl_schema.models import ParameterDefinition
 
 

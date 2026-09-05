@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 import jinja2
 
-from nodl_generator_cpp.generated_file import GeneratedFile
+from nodl_generator_common.generated_file import GeneratedFile
+from nodl_generator_common.naming import to_member_name
 from nodl_generator_cpp.ros_to_cpp import (
     qos_to_cpp,
     ros_type_to_cpp,
     ros_type_to_header,
     to_class_name,
-    to_member_name,
 )
 from nodl_schema.models import ActionEndpoint, ServiceEndpoint, TopicEndpoint
 

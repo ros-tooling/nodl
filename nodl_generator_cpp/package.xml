@@ -10,11 +10,13 @@
 
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <exec_depend>nodl_generator_common</exec_depend>
   <exec_depend>nodl_schema</exec_depend>
   <exec_depend>generate_parameter_library_py</exec_depend>
   <exec_depend>generate_parameter_library</exec_depend>
 
   <test_depend>python3-pytest</test_depend>
+  <test_depend>nodl_generator_common</test_depend>
   <test_depend>nodl_schema</test_depend>
 
   <export>
