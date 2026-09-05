@@ -4,12 +4,12 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from nodl_generator_common.generated_file import GeneratedFile
 from nodl_generator_cpp.cmake_deps import (
     format_cmake_deps,
     generated_filenames,
     ros_deps,
 )
-from nodl_generator_cpp.generated_file import GeneratedFile
 from nodl_generator_cpp.models import CodegenCpp, Role
 from nodl_generator_cpp.params import generate_genparamlib_yaml
 from nodl_generator_cpp.provenance import EntityKey, build_provenance_map
