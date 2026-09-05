@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+"""Sphinx configuration for this standalone package.
+
+This config only takes effect when rosdoc2 builds the package on its own.
+"""
+
+extensions = [
+    'myst_parser',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.extlinks',
+]
+
+# Resolve {external+nodl:...} references against the published top-level site.
+# rosdoc2 also seeds intersphinx from package.xml dependencies; this entry adds the top-level docs explicitly,
+# since the metapackage that hosts them is not a build dependency of this package.
+intersphinx_mapping = {
+    'nodl': ('https://nodl.readthedocs.io/en/latest/', None),
+}
+
+# {repo}`path` links to a file in the GitHub repo, matching the top-level site's role (see nodl/doc/conf.py).
+# Standalone builds have no RTD ref to pin, so they point at main.
+extlinks = {
+    'repo': ('https://github.com/ros-tooling/nodl/blob/main/%s', '%s'),
+}

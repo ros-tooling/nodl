@@ -33,6 +33,7 @@ jobs:
           - nodl_common_interfaces
           - nodl_conformance
           - nodl_docgen
+          - nodl_generator_common
           - nodl_generator_cpp
           - nodl_observe
           - nodl_schema
