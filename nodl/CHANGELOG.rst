@@ -2,6 +2,14 @@
 Changelog for package nodl
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.2 (2026-09-04)
+------------------
+* fix: nodl_docgen CI and fixes (`#149 <https://github.com/ros-tooling/nodl/issues/149>`_)
+* Contributors: Emerson Knapp
+
+2.0.1 (2026-09-03)
+------------------
+
 2.0.0 (2026-09-01)
 ------------------
 * Add NoDL conformance comparison and conform verb (`#115 <https://github.com/ros-tooling/nodl/issues/115>`_)

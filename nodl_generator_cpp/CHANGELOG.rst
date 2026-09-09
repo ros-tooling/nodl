@@ -2,6 +2,12 @@
 Changelog for package nodl_generator_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.2 (2026-09-04)
+------------------
+
+2.0.1 (2026-09-03)
+------------------
+
 2.0.0 (2026-09-01)
 ------------------
 * update documentation (`#141 <https://github.com/ros-tooling/nodl/issues/141>`_)

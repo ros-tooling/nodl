@@ -2,6 +2,14 @@
 Changelog for package nodl_observe
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.2 (2026-09-04)
+------------------
+
+2.0.1 (2026-09-03)
+------------------
+* build: disable pip-based test dependencies by default for buildfarm, enabled in CI (`#147 <https://github.com/ros-tooling/nodl/issues/147>`_)
+* Contributors: Emerson Knapp
+
 2.0.0 (2026-09-01)
 ------------------
 * Per-package documentation (`#87 <https://github.com/ros-tooling/nodl/issues/87>`_)

@@ -1,0 +1,16 @@
+type: 'rosdoc2 config'
+version: 1
+
+---
+settings:
+    # A metapackage: no Python or C++ API to extract, only a landing page for docs.ros.org.
+    generate_package_index: true
+
+builders:
+    - sphinx: {
+        name: 'nodl',
+        output_dir: '',
+        # Not `doc/`, which holds the combined Read the Docs site: that tree needs extensions and
+        # cross-package staging that a standalone per-package build does not have. See conf.py here.
+        sphinx_sourcedir: 'rosdoc2'
+    }

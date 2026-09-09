@@ -67,8 +67,17 @@ jobs:
         uses: ros-tooling/action-ros-ci@v0.4
         with:
           package-name: >-
-            ament_nodl nodl nodl_conformance nodl_observe nodl_schema ros2nodl test_ament_nodl
-            nodl_generator_cpp test_nodl_generator_cpp nodl_tutorial_basics
+            ament_nodl
+            nodl
+            nodl_conformance
+            nodl_docgen
+            nodl_generator_cpp
+            nodl_observe
+            nodl_schema
+            ros2nodl
+            test_ament_nodl
+            test_nodl_generator_cpp
+            nodl_tutorial_basics
           target-ros2-distro: ${{ matrix.ros }}
       - uses: actions/upload-artifact@v4
         if: >-

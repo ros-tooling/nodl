@@ -8,10 +8,14 @@ and the directive itself is exercised through a real Sphinx build of a throwaway
 """
 
 import logging
+from io import StringIO
 from pathlib import Path
 
 import pytest
 from docutils import nodes
+from sphinx.application import Sphinx
+from sphinx.environment import BuildEnvironment
+from sphinx.util.docutils import docutils_namespace
 
 from nodl_docgen.directives import (
     ACTION_COLUMNS,
@@ -21,13 +25,11 @@ from nodl_docgen.directives import (
     build_table,
     default_title_for_path,
     default_title_for_ref,
+    findall,
     include_paths,
 )
 from nodl_docgen.summarize import ActionRow, EndpointRow, NodeSummary, ParameterRow
 from nodl_schema import load_nodl_with_doc_tree
-
-pytest_plugins = ['sphinx.testing.fixtures']
-
 
 # --------------------------------
 # Reading the produced doctree
@@ -36,27 +38,27 @@ pytest_plugins = ['sphinx.testing.fixtures']
 
 def _titles(node: nodes.Element) -> list[str]:
     """Every section title in document order, the top section's included."""
-    return [section[0].astext() for section in node.findall(nodes.section)]
+    return [section[0].astext() for section in findall(node, nodes.section)]
 
 
 def _tables(node: nodes.Element) -> list[nodes.table]:
-    return list(node.findall(nodes.table))
+    return list(findall(node, nodes.table))
 
 
 def _headers(table: nodes.table) -> list[str]:
-    return [entry.astext() for head in table.findall(nodes.thead) for entry in head.findall(nodes.entry)]
+    return [entry.astext() for head in findall(table, nodes.thead) for entry in findall(head, nodes.entry)]
 
 
 def _body_rows(table: nodes.table) -> list[list[str]]:
     return [
-        [entry.astext() for entry in row.findall(nodes.entry)]
-        for body in table.findall(nodes.tbody)
-        for row in body.findall(nodes.row)
+        [entry.astext() for entry in findall(row, nodes.entry)]
+        for body in findall(table, nodes.tbody)
+        for row in findall(body, nodes.row)
     ]
 
 
 def _section_named(node: nodes.Element, title: str) -> nodes.section:
-    matches = [section for section in node.findall(nodes.section) if section[0].astext() == title]
+    matches = [section for section in findall(node, nodes.section) if section[0].astext() == title]
     assert matches, f'no section titled {title!r} in {_titles(node)}'
     return matches[0]
 
@@ -78,7 +80,7 @@ def test_table_shape_matches_its_columns_and_rows():
         ['/scan', 'sensor_msgs/msg/LaserScan', 'KEEP_LAST(5)', 'Raw scans.'],
         ['/map', 'nav_msgs/msg/OccupancyGrid', '', ''],
     ]
-    assert next(table.findall(nodes.tgroup))['cols'] == 4
+    assert next(findall(table, nodes.tgroup))['cols'] == 4
 
 
 def test_a_column_no_row_fills_in_is_dropped():
@@ -121,12 +123,12 @@ def test_a_parameter_row_reads_its_constraints_in_the_description_cell():
         ]
     ]
     # The constraint sentences are a list rather than run-on prose.
-    assert len(list(table.findall(nodes.bullet_list))) == 1
+    assert len(list(findall(table, nodes.bullet_list))) == 1
 
 
 def test_types_and_values_are_rendered_as_code():
     table = build_table(ACTION_COLUMNS, (ActionRow(name='/dock', type='nav2_msgs/action/Dock', description='Dock.'),))
-    literals = [literal.astext() for literal in table.findall(nodes.literal)]
+    literals = [literal.astext() for literal in findall(table, nodes.literal)]
     assert literals == ['/dock', 'nav2_msgs/action/Dock']
 
 
@@ -186,14 +188,14 @@ def test_the_description_becomes_one_paragraph_per_block():
     summary = NodeSummary(description='First line.\n\nSecond block.')
     section = build_node_section(summary, 'my_node')
 
-    assert [paragraph.astext() for paragraph in section.findall(nodes.paragraph)] == ['First line.', 'Second block.']
+    assert [paragraph.astext() for paragraph in findall(section, nodes.paragraph)] == ['First line.', 'Second block.']
 
 
 def test_includes_are_noted_only_when_present():
-    assert list(build_node_section(NodeSummary(), 'my_node').findall(nodes.note)) == []
+    assert list(findall(build_node_section(NodeSummary(), 'my_node'), nodes.note)) == []
 
     section = build_node_section(NodeSummary(includes=('nodl://sensor_common/imu',)), 'my_node')
-    notes = list(section.findall(nodes.note))
+    notes = list(findall(section, nodes.note))
 
     assert len(notes) == 1
     assert 'nodl://sensor_common/imu' in notes[0].astext()
@@ -328,18 +330,31 @@ def _project(
     return source
 
 
-def _build(make_app, source: Path, root: Path):
-    """Build ``source`` with warnings as errors, the way a documentation CI job does."""
-    app = make_app('html', srcdir=source, builddir=root / 'build', warningiserror=True, freshenv=True)
-    app.build()
-    return app
+def _build(source: Path, root: Path) -> tuple[BuildEnvironment, str]:
+    """Build ``source``, returning the environment it produced and everything it reported."""
+    reported = StringIO()
+    # Resets the registry after each build
+    with docutils_namespace():
+        app = Sphinx(
+            srcdir=str(source),
+            confdir=str(source),
+            outdir=str(root / 'build' / 'html'),
+            doctreedir=str(root / 'build' / 'doctrees'),
+            buildername='html',
+            status=StringIO(),
+            warning=reported,
+            freshenv=True,
+        )
+        app.build()
+    assert app.env is not None
+    return app.env, reported.getvalue()
 
 
-def _build_clean(make_app, source: Path, root: Path):
-    """Build ``source`` and insist the build reported nothing, since a warning here is a build failure."""
-    app = _build(make_app, source, root)
-    assert app.statuscode == 0, app.warning.getvalue()
-    return app
+def _build_clean(source: Path, root: Path) -> BuildEnvironment:
+    """Build ``source`` and insist the build reported nothing (warnings as errors)."""
+    env, reported = _build(source, root)
+    assert not reported, reported
+    return env
 
 
 RST_PAGE = """
@@ -350,9 +365,9 @@ Index
 """
 
 
-def test_a_directive_renders_the_document_it_names(make_app, tmp_path: Path):
-    app = _build_clean(make_app, _project(tmp_path, body=RST_PAGE), tmp_path)
-    doctree = app.env.get_doctree('index')
+def test_a_directive_renders_the_document_it_names(tmp_path: Path):
+    env = _build_clean(_project(tmp_path, body=RST_PAGE), tmp_path)
+    doctree = env.get_doctree('index')
 
     assert _titles(doctree) == ['Index', 'my_node', 'Parameters', 'Publishers', 'Action Servers']
     assert 'Watches the world.' in doctree.astext()
@@ -364,15 +379,15 @@ def test_a_directive_renders_the_document_it_names(make_app, tmp_path: Path):
     ]
 
 
-def test_a_leading_slash_means_the_source_root(make_app, tmp_path: Path):
+def test_a_leading_slash_means_the_source_root(tmp_path: Path):
     source = _project(tmp_path, body=RST_PAGE)
     (source / 'guide').mkdir()
     (source / 'guide' / 'page.rst').write_text('Page\n====\n\n.. nodl-node:: /nodl/my_node.nodl.yaml\n')
     (source / 'index.rst').write_text('Index\n=====\n\n.. toctree::\n\n   guide/page\n')
 
-    app = _build_clean(make_app, source, tmp_path)
+    env = _build_clean(source, tmp_path)
 
-    assert _titles(app.env.get_doctree('guide/page')) == [
+    assert _titles(env.get_doctree('guide/page')) == [
         'Page',
         'my_node',
         'Parameters',
@@ -381,37 +396,37 @@ def test_a_leading_slash_means_the_source_root(make_app, tmp_path: Path):
     ]
 
 
-def test_the_title_option_overrides_the_default_heading(make_app, tmp_path: Path):
+def test_the_title_option_overrides_the_default_heading(tmp_path: Path):
     page = 'Index\n=====\n\n.. nodl-node:: nodl/my_node.nodl.yaml\n   :title: Observer node\n'
-    app = _build_clean(make_app, _project(tmp_path, body=page), tmp_path)
+    env = _build_clean(_project(tmp_path, body=page), tmp_path)
 
-    assert _titles(app.env.get_doctree('index'))[1] == 'Observer node'
+    assert _titles(env.get_doctree('index'))[1] == 'Observer node'
 
 
-def test_the_document_and_its_includes_are_build_dependencies(make_app, tmp_path: Path):
+def test_the_document_and_its_includes_are_build_dependencies(tmp_path: Path):
     source = _project(tmp_path, body=RST_PAGE, document=ROOT)
     (source / 'nodl' / 'middle.nodl.yaml').write_text(MIDDLE)
     (source / 'nodl' / 'leaf.nodl.yaml').write_text(LEAF)
 
-    app = _build_clean(make_app, source, tmp_path)
+    env = _build_clean(source, tmp_path)
 
-    assert app.env.dependencies['index'] >= {
-        source / 'nodl' / 'my_node.nodl.yaml',
-        source / 'nodl' / 'middle.nodl.yaml',
-        source / 'nodl' / 'leaf.nodl.yaml',
+    assert env.dependencies['index'] >= {
+        str(source / 'nodl' / 'my_node.nodl.yaml'),
+        str(source / 'nodl' / 'middle.nodl.yaml'),
+        str(source / 'nodl' / 'leaf.nodl.yaml'),
     }
 
 
-def test_two_nodes_on_one_page_do_not_collide(make_app, tmp_path: Path):
+def test_two_nodes_on_one_page_do_not_collide(tmp_path: Path):
     page = (
         'Index\n=====\n\n'
         '.. nodl-node:: nodl/my_node.nodl.yaml\n\n'
         '.. nodl-node:: nodl/my_node.nodl.yaml\n   :title: Second\n'
     )
-    app = _build_clean(make_app, _project(tmp_path, body=page), tmp_path)
-    doctree = app.env.get_doctree('index')
+    env = _build_clean(_project(tmp_path, body=page), tmp_path)
+    doctree = env.get_doctree('index')
 
-    identifiers = [section['ids'] for section in doctree.findall(nodes.section)]
+    identifiers = [section['ids'] for section in findall(doctree, nodes.section)]
     assert all(len(ids) == 1 for ids in identifiers), identifiers
     assert len({ids[0] for ids in identifiers}) == len(identifiers)
 
@@ -426,12 +441,11 @@ def test_two_nodes_on_one_page_do_not_collide(make_app, tmp_path: Path):
     ],
     ids=['missing-file', 'invalid-document', 'unresolvable-include', 'unknown-index-entry'],
 )
-def test_a_document_that_cannot_be_rendered_fails_the_build(make_app, tmp_path: Path, body: str, document: str):
-    app = _build(make_app, _project(tmp_path, body=body, document=document), tmp_path)
-    reported = app.warning.getvalue()
+def test_a_document_that_cannot_be_rendered_fails_the_build(tmp_path: Path, body: str, document: str):
+    _, reported = _build(_project(tmp_path, body=body, document=document), tmp_path)
 
-    # Under warnings as errors, this warning is what makes the build report failure.
-    assert app.statuscode != 0, reported
+    # Under warnings as errors, this warning is what would fail the build.
+    assert reported, 'the build reported nothing at all'
     assert 'nodl-node' in reported
     # The report points at the directive, which is on the fourth line of every page above.
     assert 'index.rst:4' in reported
@@ -446,13 +460,13 @@ MYST_PAGE = """
 """
 
 
-def test_the_directive_works_from_a_markdown_source(make_app, tmp_path: Path):
+def test_the_directive_works_from_a_markdown_source(tmp_path: Path):
     pytest.importorskip('myst_parser', reason='MyST is only needed to prove markdown parity')
 
     source = _project(tmp_path, body=MYST_PAGE, suffix='.md', extensions=('myst_parser', 'nodl_docgen'))
-    app = _build_clean(make_app, source, tmp_path)
+    env = _build_clean(source, tmp_path)
 
-    assert _titles(app.env.get_doctree('index')) == [
+    assert _titles(env.get_doctree('index')) == [
         'Index',
         'From markdown',
         'Parameters',

@@ -2,6 +2,12 @@
 Changelog for package ament_nodl
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.0.2 (2026-09-04)
+------------------
+
+2.0.1 (2026-09-03)
+------------------
+
 2.0.0 (2026-09-01)
 ------------------
 * feat: ament_nodl_register rewrite local refs to ament index refs (`#111 <https://github.com/ros-tooling/nodl/issues/111>`_)

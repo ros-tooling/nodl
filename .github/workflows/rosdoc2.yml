@@ -25,9 +25,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # One job per documented package. The nodl metapackage is covered by the top-level site; test_ament_nodl
-        # is a test fixture. A ROS-distro axis could be added here later to mirror the per-distro buildfarm.
+        # One job per documented package.
+        # A ROS-distro axis could be added here later to mirror the per-distro buildfarm.
         package:
+          - nodl
           - ament_nodl
           - nodl_common_interfaces
           - nodl_conformance
