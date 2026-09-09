@@ -5,10 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from nodl_generator_common.generated_file import GeneratedFile
-from nodl_generator_common.provenance import (
-    build_provenance_map,
-    filter_provided_entities,
-)
+from nodl_generator_common.provenance import resolve_provenance
 from nodl_generator_cpp.cmake_deps import (
     format_cmake_deps,
     generated_filenames,
@@ -18,7 +15,6 @@ from nodl_generator_cpp.models import CodegenCpp, Role
 from nodl_generator_cpp.params import generate_genparamlib_yaml
 from nodl_generator_cpp.provenance import codegen_cpp
 from nodl_generator_cpp.template import render_templates
-from nodl_schema.loader import load_nodl_with_doc_tree
 
 _IDENTIFIER_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
@@ -91,26 +87,22 @@ def cmake_deps(source: Path, target_name: str) -> CmakeDepsResult:
     """
     _validate_target_name(target_name)
 
-    merged_doc, doc_tree = load_nodl_with_doc_tree(source)
-    barriers, provenance_map = build_provenance_map(doc_tree, codegen_cpp)
+    resolved = resolve_provenance(source, codegen_cpp)
 
-    _find_base_class_config(barriers)  # validates single base class
+    _find_base_class_config(resolved.barriers)  # validates single base class
 
-    entities = filter_provided_entities(merged_doc, provenance_map)
-    has_parameters = len(entities.parameters) > 0
-
-    sources = [source.resolve()] + [p.resolve() for p in doc_tree.included_paths()]
+    has_parameters = len(resolved.entities.parameters) > 0
 
     return CmakeDepsResult(
-        sources=sources,
+        sources=resolved.sources,
         ros_deps=ros_deps(
-            barriers,
-            entities.publishers,
-            entities.subscriptions,
-            entities.service_servers,
-            entities.service_clients,
-            entities.action_servers,
-            entities.action_clients,
+            resolved.barriers,
+            resolved.entities.publishers,
+            resolved.entities.subscriptions,
+            resolved.entities.service_servers,
+            resolved.entities.service_clients,
+            resolved.entities.action_servers,
+            resolved.entities.action_clients,
         ),
         generated_filenames=generated_filenames(target_name, has_parameters),
     )
@@ -128,28 +120,26 @@ def generate_cpp(source: Path, target_name: str) -> list[GeneratedFile]:
     """
     _validate_target_name(target_name)
 
-    merged_doc, doc_tree = load_nodl_with_doc_tree(source)
-    barriers, provenance_map = build_provenance_map(doc_tree, codegen_cpp)
+    resolved = resolve_provenance(source, codegen_cpp)
 
-    base_class, base_header = _find_base_class_config(barriers)
+    base_class, base_header = _find_base_class_config(resolved.barriers)
 
-    entities = filter_provided_entities(merged_doc, provenance_map)
-    has_parameters = len(entities.parameters) > 0
+    has_parameters = len(resolved.entities.parameters) > 0
 
     generated_files = []
     generated_files += render_templates(
         target_name,
         base_class,
         base_header,
-        entities.publishers,
-        entities.subscriptions,
-        entities.service_servers,
-        entities.service_clients,
-        entities.action_servers,
-        entities.action_clients,
+        resolved.entities.publishers,
+        resolved.entities.subscriptions,
+        resolved.entities.service_servers,
+        resolved.entities.service_clients,
+        resolved.entities.action_servers,
+        resolved.entities.action_clients,
         has_parameters,
     )
     if has_parameters:
-        generated_files += [generate_genparamlib_yaml(target_name, entities.parameters)]
+        generated_files += [generate_genparamlib_yaml(target_name, resolved.entities.parameters)]
 
     return generated_files

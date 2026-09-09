@@ -16,9 +16,10 @@ language.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional, TypeVar
+from pathlib import Path
+from typing import Callable, Generic, Optional, TypeVar
 
-from nodl_schema.loader import DocumentTree, IncludedDocument
+from nodl_schema.loader import DocumentTree, IncludedDocument, load_nodl_with_doc_tree
 from nodl_schema.models import (
     ActionEndpoint,
     NodlDocument,
@@ -146,3 +147,35 @@ def filter_provided_entities(
         action_clients=_keep('action_clients', merged_doc.action_clients),
         parameters=parameters,
     )
+
+
+@dataclass(frozen=True)
+class ResolvedProvenance(Generic[T]):
+    """Everything a generator needs from the load -> provenance -> filter pipeline.
+
+    - ``barriers``: the language configs found at each provenance barrier.
+    - ``entities``: the merged-document entities not behind a barrier.
+    - ``sources``: the resolved NoDL source path plus every included path.
+    """
+
+    barriers: list[T]
+    entities: FilteredEntities
+    sources: list[Path]
+
+
+def resolve_provenance(
+    source: Path,
+    extract_config: Callable[[NodlDocument], Optional[T]],
+) -> ResolvedProvenance[T]:
+    """Load *source*, walk provenance, and filter entities in one call.
+
+    Convenience wrapper over :func:`build_provenance_map` and
+    :func:`filter_provided_entities` for the common generator case. Returns a
+    :class:`ResolvedProvenance` carrying the provenance barriers, the entities
+    the generator must scaffold, and the resolved source paths.
+    """
+    merged_doc, doc_tree = load_nodl_with_doc_tree(source)
+    barriers, provenance_map = build_provenance_map(doc_tree, extract_config)
+    entities = filter_provided_entities(merged_doc, provenance_map)
+    sources = [source.resolve()] + [p.resolve() for p in doc_tree.included_paths()]
+    return ResolvedProvenance(barriers=barriers, entities=entities, sources=sources)

@@ -8,13 +8,16 @@ from typing import Optional
 from nodl_generator_common.provenance import (
     build_provenance_map,
     filter_provided_entities,
+    resolve_provenance,
 )
+from nodl_schema import dump_nodl
 from nodl_schema.loader import DocumentTree, IncludedDocument
 from nodl_schema.models import (
     ActionEndpoint,
     History,
     NodlDocument,
     QosProfile,
+    Reference,
     Reliability,
     ServiceEndpoint,
     TopicEndpoint,
@@ -303,3 +306,37 @@ def test_filter_empty_document():
     assert filtered.action_servers == []
     assert filtered.action_clients == []
     assert filtered.parameters == {}
+
+
+# ---------------------------------------------------------------------------
+# resolve_provenance (load -> provenance -> filter, from a real file)
+# ---------------------------------------------------------------------------
+
+
+def _write(path: Path, doc: NodlDocument) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(dump_nodl(doc))
+    return path
+
+
+def test_resolve_provenance_from_file(tmp_path: Path):
+    base = _write(
+        tmp_path / 'base.nodl.yaml',
+        NodlDocument(codegen=_barrier_codegen('base'), publishers=[_topic('/rosout')]),
+    )
+    root = _write(
+        tmp_path / 'node.nodl.yaml',
+        NodlDocument(
+            publishers=[_topic('/status')],
+            include=[Reference(ref='local://base.nodl.yaml')],
+        ),
+    )
+
+    resolved = resolve_provenance(root, _fake_extractor)
+
+    # The included document is a barrier that owns its own entities.
+    assert [b.name for b in resolved.barriers] == ['base']
+    # Only the root's own entity survives filtering; the barrier's does not.
+    assert [p.name for p in resolved.entities.publishers] == ['/status']
+    # Sources are the resolved root plus every included path.
+    assert resolved.sources == [root.resolve(), base.resolve()]

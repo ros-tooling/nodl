@@ -8,6 +8,10 @@ A generator becomes "a config model + a schema + templates + a type mapping" and
 - `provenance` — the include-tree barrier walk (`build_provenance_map`) and entity filtering (`filter_provided_entities`),
   keyed by `EntityKey`. The walk takes an extractor callback that returns a document's parsed language config, or `None`;
   the first document carrying config on each branch is a *barrier* that owns its whole subtree.
+  `resolve_provenance(source, extract_config)` is the one-call entry point most generators want:
+  it loads the document, walks provenance, and filters entities, returning a `ResolvedProvenance`
+  with the `barriers`, the surviving `entities`, and the resolved `sources` (the document plus its includes).
+  The three primitives stay public for generators that need finer control.
 - `generated_file` — the `GeneratedFile(filename, content)` dataclass every generator emits.
 - `ament_deps` — ament package extraction from ROS interface types and the `<target>_deps.cmake` writer.
 - `naming` — language-agnostic name-case conversions (`camel_to_snake`, `snake_to_pascal`, `to_member_name`).
