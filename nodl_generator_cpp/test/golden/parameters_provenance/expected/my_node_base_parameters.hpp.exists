@@ -1,0 +1,3 @@
+Existence-only golden marker (see test/test_golden.py).
+
+my_node_parameters.hpp is produced verbatim by generate_parameter_library.

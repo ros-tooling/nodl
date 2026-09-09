@@ -85,7 +85,7 @@ The generator produces up to four files, depending on the document's contents:
 | `<target>.hpp` | Yes | Abstract base class header. |
 | `<target>.cpp` | Yes | Constructor implementation — creates all handles. |
 | `<target>_parameters.yaml` | If parameters | `generate_parameter_library` YAML, converted from NoDL parameters. |
-| `<target>_parameters.hpp` | If parameters | `generate_parameter_library` C++ header, generated from the YAML above. |
+| `<target>_parameters.hpp` | If parameters | `generate_parameter_library` C++ header, generated from the YAML above. Its exact contents are produced by `generate_parameter_library` and vary with the installed dependency version, so golden tests assert only that it is generated (existence-only), while byte-comparing the `<target>_parameters.yaml` input we own. |
 
 When using the CMake macro, a `<target>_deps.cmake` file is also written at configure time,
 containing the NoDL source paths, ROS package dependencies, and generated file list.
