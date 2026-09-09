@@ -13,4 +13,16 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+if(BUILD_TESTING)
+  # Linting/formatting is handled repo-wide by pre-commit (polymath_code_standard),
+  # not by ament_lint_auto -- matching the other packages in this workspace.
+  find_package(ament_cmake_pytest REQUIRED)
+
+  # The unit tests are pure Python (generator pipeline, provenance, schema);
+  # they exercise the installed nodl_generator_cpp package with no C++ build.
+  ament_add_pytest_test(nodl_generator_cpp_tests test
+    TIMEOUT 120
+  )
+endif()
+
 ament_package(CONFIG_EXTRAS "nodl_generate_cpp-extras.cmake.in")
