@@ -3,7 +3,7 @@
 
 import pytest
 
-from ros2nodl.describe._transform import (
+from ros2nodl.infrastructure import (
     is_hidden_parameter,
     is_hidden_publisher,
     is_hidden_service,
