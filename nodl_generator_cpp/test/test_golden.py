@@ -46,7 +46,7 @@ def test_golden(fake_resolver, tmp_path, case):
         '--output-dir',
         str(tmp_path),
         '--target-name',
-        'my_node',
+        'my_node_base',
     ])
 
     assert result == 0, 'CLI returned non-zero'
@@ -86,7 +86,7 @@ def test_golden_cmake_deps(fake_resolver, tmp_path, case):
         '--output-dir',
         str(tmp_path),
         '--target-name',
-        'my_node',
+        'my_node_base',
         '--cmake-deps',
     ])
 
@@ -97,15 +97,15 @@ def test_golden_cmake_deps(fake_resolver, tmp_path, case):
     assert len(generated_files) == 1, f'Expected 1 file, got {[f.name for f in generated_files]}'
 
     generated_file = generated_files[0]
-    assert generated_file.name == 'my_node_deps.cmake'
+    assert generated_file.name == 'my_node_base_deps.cmake'
 
-    expected_file = expected_dir / 'my_node_deps.cmake'
+    expected_file = expected_dir / 'my_node_base_deps.cmake'
     assert expected_file.exists(), f'Missing golden file {expected_file}'
 
     generated_text = _normalize_cmake_deps(generated_file.read_text())
     expected_text = expected_file.read_text()
     assert generated_text == expected_text, (
-        f'my_node_deps.cmake does not match golden file.\n'
+        f'my_node_base_deps.cmake does not match golden file.\n'
         f'--- expected ({expected_file})\n'
         f'+++ generated ({generated_file})\n'
     )

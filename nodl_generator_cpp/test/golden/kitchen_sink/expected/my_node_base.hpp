@@ -11,7 +11,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 #include <std_srvs/srv/trigger.hpp>
-#include "my_node_parameters.hpp"
+#include "my_node_base_parameters.hpp"
 
 class MyNodeBase : public rclcpp::Node
 {
@@ -23,8 +23,8 @@ public:
 protected:
 
   // --- Parameters ---
-  my_node::ParamListener param_listener_;
-  my_node::Params params_;
+  my_node_base::ParamListener param_listener_;
+  my_node_base::Params params_;
 
   // --- Publishers ---
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_status_;

@@ -3,7 +3,7 @@
 #include "{{ target_name }}.hpp"
 
 {{ class_name }}::{{ class_name }}(const rclcpp::NodeOptions & options)
-: {{ base_class }}("{{ target_name }}", options)
+: {{ base_class }}("{{ node_name }}", options)
 {% if has_parameters %}
 , param_listener_(this->get_node_parameters_interface(), this->get_logger())
 , params_(param_listener_.get_params())

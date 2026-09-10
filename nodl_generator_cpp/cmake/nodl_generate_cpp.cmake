@@ -15,8 +15,10 @@
 #   add_executable(my_node src/my_node.cpp)
 #   target_link_libraries(my_node PRIVATE my_node_base)
 #
-# :param TARGET: Name of the library target to create.  Also used as the
-#   C++ class stem (``<TARGET>Base``) and for the generated filenames.
+# :param TARGET: Name of the library target to create.  Used verbatim as
+#   the C++ class name (PascalCased) and for the generated filenames, so a
+#   ``<node>_base`` target yields a ``<Node>Base`` class.  A single trailing
+#   ``_base`` is stripped to form the runtime node name.
 # :type TARGET: string
 # :param NODL_FILE: Path to the ``.nodl.yaml`` file, relative to
 #   ``CMAKE_CURRENT_SOURCE_DIR``.

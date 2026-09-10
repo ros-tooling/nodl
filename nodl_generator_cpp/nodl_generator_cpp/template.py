@@ -9,6 +9,7 @@ from nodl_generator_cpp.ros_to_cpp import (
     ros_type_to_header,
     to_class_name,
     to_member_name,
+    to_node_name,
 )
 from nodl_schema.models import ActionEndpoint, ServiceEndpoint, TopicEndpoint
 
@@ -74,6 +75,7 @@ def _build_template_context(
 
     return {
         'target_name': target_name,
+        'node_name': to_node_name(target_name),
         'class_name': to_class_name(target_name),
         'base_class': base_class,
         'includes': sorted(headers),

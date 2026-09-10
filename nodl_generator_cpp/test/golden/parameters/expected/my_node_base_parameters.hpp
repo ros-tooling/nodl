@@ -27,7 +27,7 @@
 
 
 
-namespace my_node {
+namespace my_node_base {
 
 // Use validators from RSL
 using rsl::unique;
@@ -62,12 +62,15 @@ template <typename T, size_t capacity>
     return rclcpp::ParameterValue(rsl::to_vector(value));
 }
     struct Params {
-        double max_speed = 1.0;
+        double max_speed = 1.5;
+        std::string robot_name = "bot";
+        bool enabled = true;
         // for detecting if the parameter struct has been updated
         rclcpp::Time __stamp;
     };
     struct StackParams {
-        double max_speed = 1.0;
+        double max_speed = 1.5;
+        bool enabled = true;
     };
 
   class ParamListener{
@@ -79,7 +82,7 @@ template <typename T, size_t capacity>
 
     ParamListener(const std::shared_ptr<rclcpp::node_interfaces::NodeParametersInterface>& parameters_interface,
                   std::string const& prefix = "")
-    : ParamListener(parameters_interface, rclcpp::get_logger("my_node"), prefix) {
+    : ParamListener(parameters_interface, rclcpp::get_logger("my_node_base"), prefix) {
       RCLCPP_DEBUG(logger_, "ParameterListener: Not using node logger, recommend using other constructors to use a node logger");
     }
 
@@ -147,6 +150,7 @@ template <typename T, size_t capacity>
       Params params = get_params();
       StackParams output;
       output.max_speed = params.max_speed;
+      output.enabled = params.enabled;
 
       return output;
     }
@@ -165,7 +169,23 @@ template <typename T, size_t capacity>
 
       for (const auto &param: parameters) {
         if (param.get_name() == (prefix_ + "max_speed")) {
+            if(auto validation_result = lt<double>(param, 10.0);
+              !validation_result) {
+                return rsl::to_parameter_result_msg(validation_result);
+            }
+            if(auto validation_result = gt<double>(param, 0.0);
+              !validation_result) {
+                return rsl::to_parameter_result_msg(validation_result);
+            }
             updated_params.max_speed = param.as_double();
+            RCLCPP_DEBUG_STREAM(logger_, param.get_name() << ": " << param.get_type_name() << " = " << param.value_to_string());
+        }
+        if (param.get_name() == (prefix_ + "robot_name")) {
+            updated_params.robot_name = param.as_string();
+            RCLCPP_DEBUG_STREAM(logger_, param.get_name() << ": " << param.get_type_name() << " = " << param.value_to_string());
+        }
+        if (param.get_name() == (prefix_ + "enabled")) {
+            updated_params.enabled = param.as_bool();
             RCLCPP_DEBUG_STREAM(logger_, param.get_name() << ": " << param.get_type_name() << " = " << param.value_to_string());
         }
       }
@@ -183,16 +203,47 @@ template <typename T, size_t capacity>
       // declare all parameters and give default values to non-required ones
       if (!parameters_interface_->has_parameter(prefix_ + "max_speed")) {
           rcl_interfaces::msg::ParameterDescriptor descriptor;
-          descriptor.description = "Maximum speed";
+          descriptor.description = "Maximum speed in m/s";
           descriptor.read_only = false;
+          descriptor.floating_point_range.resize(1);
+          descriptor.floating_point_range.at(0).from_value = 0.0;
+          descriptor.floating_point_range.at(0).to_value = 10.0;
           auto parameter = to_parameter_value(updated_params.max_speed);
           parameters_interface_->declare_parameter(prefix_ + "max_speed", parameter, descriptor);
+      }
+      if (!parameters_interface_->has_parameter(prefix_ + "robot_name")) {
+          rcl_interfaces::msg::ParameterDescriptor descriptor;
+          descriptor.description = "Name of the robot";
+          descriptor.read_only = true;
+          auto parameter = to_parameter_value(updated_params.robot_name);
+          parameters_interface_->declare_parameter(prefix_ + "robot_name", parameter, descriptor);
+      }
+      if (!parameters_interface_->has_parameter(prefix_ + "enabled")) {
+          rcl_interfaces::msg::ParameterDescriptor descriptor;
+          descriptor.description = "";
+          descriptor.read_only = false;
+          auto parameter = to_parameter_value(updated_params.enabled);
+          parameters_interface_->declare_parameter(prefix_ + "enabled", parameter, descriptor);
       }
       // get parameters and fill struct fields
       rclcpp::Parameter param;
       param = parameters_interface_->get_parameter(prefix_ + "max_speed");
       RCLCPP_DEBUG_STREAM(logger_, (prefix_ + "max_speed") << ": " << param.get_type_name() << " = " << param.value_to_string());
+      if(auto validation_result = lt<double>(param, 10.0);
+        !validation_result) {
+          throw rclcpp::exceptions::InvalidParameterValueException(fmt::format("Invalid value set during initialization for parameter 'max_speed': {}", validation_result.error()));
+      }
+      if(auto validation_result = gt<double>(param, 0.0);
+        !validation_result) {
+          throw rclcpp::exceptions::InvalidParameterValueException(fmt::format("Invalid value set during initialization for parameter 'max_speed': {}", validation_result.error()));
+      }
       updated_params.max_speed = param.as_double();
+      param = parameters_interface_->get_parameter(prefix_ + "robot_name");
+      RCLCPP_DEBUG_STREAM(logger_, (prefix_ + "robot_name") << ": " << param.get_type_name() << " = " << param.value_to_string());
+      updated_params.robot_name = param.as_string();
+      param = parameters_interface_->get_parameter(prefix_ + "enabled");
+      RCLCPP_DEBUG_STREAM(logger_, (prefix_ + "enabled") << ": " << param.get_type_name() << " = " << param.value_to_string());
+      updated_params.enabled = param.as_bool();
 
 
       updated_params.__stamp = clock_.now();
@@ -225,4 +276,4 @@ template <typename T, size_t capacity>
       std::mutex mutable mutex_;
   };
 
-} // namespace my_node
+} // namespace my_node_base

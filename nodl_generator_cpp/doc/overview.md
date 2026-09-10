@@ -45,7 +45,7 @@ It handles everything:
 
 | Argument | Description |
 |---|---|
-| `TARGET` | Name of the library target to create. Also used as the C++ class stem (`<TARGET>Base`) and for all generated filenames. |
+| `TARGET` | Name of the library target to create. Used verbatim as the C++ class name (PascalCased) and for all generated filenames, so a `<node>_base` target yields a `<Node>Base` class. A single trailing `_base` is stripped to form the runtime node name (`<node>_base` runs as `<node>`). |
 | `NODL_FILE` | Path to the `.nodl.yaml` file, relative to `CMAKE_CURRENT_SOURCE_DIR`. |
 
 ### Rebuild behavior
@@ -123,10 +123,10 @@ And this `CMakeLists.txt`:
 find_package(ament_cmake REQUIRED)
 find_package(nodl_generator_cpp REQUIRED)
 
-nodl_generate_cpp(my_node nodl/my_node.nodl.yaml)
+nodl_generate_cpp(my_node_base nodl/my_node.nodl.yaml)
 
 add_executable(my_node_exe src/my_node.cpp)
-target_link_libraries(my_node_exe PRIVATE my_node)
+target_link_libraries(my_node_exe PRIVATE my_node_base)
 
 ament_package()
 ```
@@ -169,7 +169,7 @@ And this source file:
 
 ```cpp
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
-#include "my_node.hpp"
+#include "my_node_base.hpp"
 
 MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 : rclcpp::Node("my_node", options)
@@ -191,7 +191,7 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 The user subclasses `MyNodeBase` and implements `on_cmd_vel()`:
 
 ```cpp
-#include "my_node.hpp"
+#include "my_node_base.hpp"
 
 class MyNode : public MyNodeBase
 {
@@ -358,7 +358,7 @@ python -m nodl_generator_cpp \
 |---|---|---|
 | `--nodl-file` | Yes | Path to the NoDL document. |
 | `--output-dir` | Yes | Directory to write generated files into (created if absent). |
-| `--target-name` | Yes | Used as the node name and the stem of all generated filenames. Must be a valid C++ identifier. |
+| `--target-name` | Yes | Used verbatim as the C++ class name (PascalCased) and the stem of all generated filenames. A single trailing `_base` is stripped to form the runtime node name. Must be a valid C++ identifier. |
 
 ### Dependency discovery
 

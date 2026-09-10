@@ -134,14 +134,31 @@ def qos_to_cpp(qos: QosProfile) -> str:
 
 
 def to_class_name(target_name: str) -> str:
-    """Convert a snake_case target name to PascalCase with a ``Base`` suffix.
+    """Convert a snake_case target name to a PascalCase C++ class name.
 
-    >>> to_class_name('my_node')
+    The target name is passed through verbatim, so a ``_base`` target
+    yields a ``Base`` class.
+
+    >>> to_class_name('my_node_base')
     'MyNodeBase'
-    >>> to_class_name('laser_scanner')
+    >>> to_class_name('laser_scanner_base')
     'LaserScannerBase'
     """
-    return ''.join(word.capitalize() for word in target_name.split('_')) + 'Base'
+    return ''.join(word.capitalize() for word in target_name.split('_'))
+
+
+def to_node_name(target_name: str) -> str:
+    """Derive the runtime ROS node name from a target name.
+
+    Strips a single trailing ``_base`` so a ``<node>_base`` target that
+    generates the base class still runs under the ``<node>`` name.
+
+    >>> to_node_name('my_node_base')
+    'my_node'
+    >>> to_node_name('my_node')
+    'my_node'
+    """
+    return target_name.removesuffix('_base')
 
 
 def to_member_name(name: str) -> str:
