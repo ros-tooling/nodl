@@ -1,17 +1,5 @@
 # NoDL - Node Definition Language
 
-[![Rolling Dev](https://build.ros2.org/job/Rdev__nodl__ubuntu_resolute_amd64/badge/icon?subject=rolling-dev)](https://build.ros2.org/job/Rdev__nodl__ubuntu_resolute_amd64/)
-[![Lyrical Dev](https://build.ros2.org/job/Ldev__nodl__ubuntu_resolute_amd64/badge/icon?subject=lyrical-dev)](https://build.ros2.org/job/Ldev__nodl__ubuntu_resolute_amd64/)
-[![Kilted Dev](https://build.ros2.org/job/Kdev__nodl__ubuntu_noble_amd64/badge/icon?subject=kilted-dev)](https://build.ros2.org/job/Kdev__nodl__ubuntu_noble_amd64/)
-[![Jazzy Dev](https://build.ros2.org/job/Jdev__nodl__ubuntu_noble_amd64/badge/icon?subject=jazzy-dev)](https://build.ros2.org/job/Jdev__nodl__ubuntu_noble_amd64/)
-[![Humble Dev](https://build.ros2.org/job/Hdev__nodl__ubuntu_jammy_amd64/badge/icon?subject=humble-dev)](https://build.ros2.org/job/Hdev__nodl__ubuntu_jammy_amd64/)
-
-[![Rolling Doc](https://build.ros2.org/job/Rdoc__nodl__ubuntu_resolute_amd64/badge/icon?subject=rolling-doc)](https://build.ros2.org/job/Rdoc__nodl__ubuntu_resolute_amd64/)
-[![Lyrical Doc](https://build.ros2.org/job/Ldoc__nodl__ubuntu_resolute_amd64/badge/icon?subject=lyrical-doc)](https://build.ros2.org/job/Ldoc__nodl__ubuntu_resolute_amd64/)
-[![Kilted Doc](https://build.ros2.org/job/Kdoc__nodl__ubuntu_noble_amd64/badge/icon?subject=kilted-doc)](https://build.ros2.org/job/Kdoc__nodl__ubuntu_noble_amd64/)
-[![Jazzy Doc](https://build.ros2.org/job/Jdoc__nodl__ubuntu_noble_amd64/badge/icon?subject=jazzy-doc)](https://build.ros2.org/job/Jdoc__nodl__ubuntu_noble_amd64/)
-[![Humble Doc](https://build.ros2.org/job/Hdoc__nodl__ubuntu_jammy_amd64/badge/icon?subject=humble-doc)](https://build.ros2.org/job/Hdoc__nodl__ubuntu_jammy_amd64/)
-
 <img src="nodl/doc/nodl_logo.png" alt="NoDL logo" width="300">
 
 NoDL (Node Definition Language) is a schema and toolkit to describe a ROS 2 node's interface: parameters, topics (publishers and subscriptions), services (clients and servers), and actions (clients and servers).
@@ -53,3 +41,13 @@ The packages in this repository use a few package only available from `pip` as `
 For the buildfarm environment, these dependencies and tests are disabled, because a package may not be packaged into a `deb`/`rpm` against dependencies from another package manager (`pip`).
 
 To install all dependencies and run the full test suite, export environment variable `ENABLE_PIP_TEST_DEPENDS=1` - which the GitHub Action CI for this repo does.
+
+## Buildfarm Status
+
+| Distro | Dev | Doc | Ubuntu Bin |
+|--------|-----|-----|-----------|
+| Humble | [![Hdev](https://build.ros2.org/job/Hdev__nodl__ubuntu_jammy_amd64/badge/icon?subject=Hdev)](https://build.ros2.org/job/Hdev__nodl__ubuntu_jammy_amd64/) | [![Hdoc](https://build.ros2.org/job/Hdoc__nodl__ubuntu_jammy_amd64/badge/icon?subject=Hdoc)](https://build.ros2.org/job/Hdoc__nodl__ubuntu_jammy_amd64/) | [![Hbin](https://build.ros2.org/job/Hbin_uJ64__nodl__ubuntu_jammy_amd64__binary/badge/icon?subject=Hbin)](https://build.ros2.org/job/Hbin_uJ64__nodl__ubuntu_jammy_amd64__binary/) |
+| Jazzy | [![Jdev](https://build.ros2.org/job/Jdev__nodl__ubuntu_noble_amd64/badge/icon?subject=Jdev)](https://build.ros2.org/job/Jdev__nodl__ubuntu_noble_amd64/) | [![Jdoc](https://build.ros2.org/job/Jdoc__nodl__ubuntu_noble_amd64/badge/icon?subject=Jdoc)](https://build.ros2.org/job/Jdoc__nodl__ubuntu_noble_amd64/) | [![Jbin](https://build.ros2.org/job/Jbin_uN64__nodl__ubuntu_noble_amd64__binary/badge/icon?subject=Jbin)](https://build.ros2.org/job/Jbin_uN64__nodl__ubuntu_noble_amd64__binary/) |
+| Kilted | [![Kdev](https://build.ros2.org/job/Kdev__nodl__ubuntu_noble_amd64/badge/icon?subject=Kdev)](https://build.ros2.org/job/Kdev__nodl__ubuntu_noble_amd64/) | [![Kdoc](https://build.ros2.org/job/Kdoc__nodl__ubuntu_noble_amd64/badge/icon?subject=Kdoc)](https://build.ros2.org/job/Kdoc__nodl__ubuntu_noble_amd64/) | [![Kbin](https://build.ros2.org/job/Kbin_uN64__nodl__ubuntu_noble_amd64__binary/badge/icon?subject=Kbin)](https://build.ros2.org/job/Kbin_uN64__nodl__ubuntu_noble_amd64__binary/) |
+| Lyrical | [![Ldev](https://build.ros2.org/job/Ldev__nodl__ubuntu_resolute_amd64/badge/icon?subject=Ldev)](https://build.ros2.org/job/Ldev__nodl__ubuntu_resolute_amd64/) | [![Ldoc](https://build.ros2.org/job/Ldoc__nodl__ubuntu_resolute_amd64/badge/icon?subject=Ldoc)](https://build.ros2.org/job/Ldoc__nodl__ubuntu_resolute_amd64/) | [![Lbin](https://build.ros2.org/job/Lbin_uR64__nodl__ubuntu_resolute_amd64__binary/badge/icon?subject=Lbin)](https://build.ros2.org/job/Lbin_uR64__nodl__ubuntu_resolute_amd64__binary/) |
+| Rolling | [![Rdev](https://build.ros2.org/job/Rdev__nodl__ubuntu_resolute_amd64/badge/icon?subject=Rdev)](https://build.ros2.org/job/Rdev__nodl__ubuntu_resolute_amd64/) | [![Rdoc](https://build.ros2.org/job/Rdoc__nodl__ubuntu_resolute_amd64/badge/icon?subject=Rdoc)](https://build.ros2.org/job/Rdoc__nodl__ubuntu_resolute_amd64/) | [![Rbin](https://build.ros2.org/job/Rbin_uR64__nodl__ubuntu_resolute_amd64__binary/badge/icon?subject=Rbin)](https://build.ros2.org/job/Rbin_uR64__nodl__ubuntu_resolute_amd64__binary/) |
