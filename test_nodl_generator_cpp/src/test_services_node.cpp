@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <memory>
 
-#include "services_node.hpp"  // NOLINT(build/include_subdir)
+#include "services_node_base.hpp"  // NOLINT(build/include_subdir)
 
 class TestNode : public ServicesNodeBase
 {

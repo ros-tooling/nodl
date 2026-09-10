@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <memory>
 
-#include "lifecycle_node.hpp"  // NOLINT(build/include_subdir)
+#include "lifecycle_node_base.hpp"  // NOLINT(build/include_subdir)
 
 class TestNode : public LifecycleNodeBase
 {
