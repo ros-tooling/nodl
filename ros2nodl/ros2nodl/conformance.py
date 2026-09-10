@@ -39,7 +39,9 @@ def check_conformance(
     timeout_sec: float = 15.0,
 ) -> list[Difference]:
     """Compare one running node with one explicit NoDL document."""
-    expected = _load_document(nodl_file)
+    from ros2nodl.infrastructure import strip_infrastructure
+
+    expected = strip_infrastructure(_load_document(nodl_file))
 
     from ros2nodl.describe import DescribeOptions, describe_node
 

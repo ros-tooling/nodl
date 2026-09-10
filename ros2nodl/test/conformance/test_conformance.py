@@ -152,6 +152,27 @@ def test_check_conformance_compares_resolved_includes(monkeypatch, tmp_path):
     assert node_fqn == '/fixture'
 
 
+def test_check_conformance_strips_infrastructure_from_the_spec(monkeypatch, tmp_path):
+    # A fully-formed spec that declares the framework endpoints (e.g. via
+    # ``nodl://rclcpp/node``) must still conform against an observed doc that
+    # hides them.
+    spec = NodlDocument(
+        publishers=[
+            _topic('/state'),
+            TopicEndpoint(
+                name='/rosout',
+                type='rcl_interfaces/msg/Log',
+                qos=QosProfile(history=History.KEEP_LAST, depth=1, reliability=Reliability.RELIABLE),
+            ),
+        ],
+    )
+    root = tmp_path / 'spec.nodl.yaml'
+    root.write_text(dump_nodl(spec), encoding='utf-8')
+    _patch_describe(monkeypatch, SimpleNamespace(doc=NodlDocument(publishers=[_topic('/state')]), gaps=[]))
+
+    assert check_conformance(nodl_file=str(root), node_fqn='/fixture') == []
+
+
 def test_check_conformance_rejects_unresolved_include_before_describe(monkeypatch, tmp_path):
     calls = _track_describe_calls(monkeypatch)
     root = tmp_path / 'composed.nodl.yaml'
