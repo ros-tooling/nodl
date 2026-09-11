@@ -1,33 +1,107 @@
-# Generate an `rclpy` base class
+# nodl_generator_py
 
-`nodl_generator_py` generates an `rclpy` base class at build time.
-Application code subclasses it and implements the node behavior.
+`nodl_generator_py` generates an `rclpy` base class from a NoDL document.
+The generated class creates the declared ROS interfaces.
+Application code subclasses it and implements only the node behavior.
+
+Generated files are replaced whenever the `.nodl.yaml` input changes.
+Handwritten application code remains separate from generated code.
 
 NoDL and `nodl_generator_py` are build-time dependencies.
-The generated module imports normal ROS interfaces and `rclpy`, so deployed application code does not require NoDL.
-Regeneration replaces only generated code, never the handwritten subclass.
+The installed generated module imports only normal ROS interfaces, `rclpy`, and the generated parameter module.
+A deployed application therefore does not require NoDL or `nodl_generator_py`.
 
-This initial version supports parameters, publishers, subscriptions, services, actions, and their available QoS settings in a flat NoDL document.
-It rejects documents with `include` entries.
-Lifecycle nodes and composition-aware generation are not yet supported.
+For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
-## Generate the base class
+## CMake integration
 
-Add the generator to an `ament_cmake` or `ament_cmake_python` package:
+The `nodl_generate_py()` CMake function is the primary user-facing API:
 
 ```cmake
 find_package(nodl_generator_py REQUIRED)
 
-nodl_generate_py(echo_node config/echo_node.nodl.yaml)
+nodl_generate_py(echo_node nodl/echo_node.nodl.yaml)
 ```
 
 For a project named `my_robot`, this generates and installs
 `my_robot.generated.echo_node.EchoNodeBase`.
 The target name must be a valid Python identifier.
 
-## Implement the node
+### What the function does
 
-Keep application behavior in a handwritten subclass:
+| Step | What happens |
+|---|---|
+| Code generation | Creates the base module during the package build. |
+| Build tracking | Regenerates when the NoDL input, generator, or template changes. |
+| Build target | Creates an `ALL` custom target named `echo_node`. |
+| Installation | Installs generated Python modules under `<project>.generated`. |
+| Parameters | Delegates parameter-module generation to `generate_parameter_library_py`. |
+
+The application package must declare `rclpy` and every generated ROS interface package as dependencies.
+It needs `nodl_generator_py` only as a build-tool dependency.
+
+### Arguments
+
+| Argument | Description |
+|---|---|
+| `target` | Generated module name and runtime node name. It must be a valid Python identifier. `echo_node` produces `EchoNodeBase`. |
+| `nodl_file` | Absolute path or path relative to the calling `CMakeLists.txt`. |
+
+## Generated files
+
+The generator produces these files in `<project>/generated`:
+
+| File | When | Contents |
+|---|---|---|
+| `__init__.py` | Always | Marks the generated package. |
+| `<target>.py` | Always | Generated `rclpy` base class. |
+| `<target>_params.py` | With parameters | Typed parameter listener and values. |
+
+When parameters are present, the build also creates an intermediate
+`<target>_params.yaml` file for `generate_parameter_library_py`.
+The intermediate YAML file is not installed.
+
+## Example
+
+Given this NoDL document:
+
+```yaml
+nodl_version: 2
+
+parameters:
+  greeting:
+    type: string
+    default_value: hello
+
+publishers:
+  - name: echo_out
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+
+subscriptions:
+  - name: echo_in
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+```
+
+Add the generator to the package's `CMakeLists.txt`:
+
+```cmake
+find_package(ament_cmake REQUIRED)
+find_package(nodl_generator_py REQUIRED)
+
+nodl_generate_py(echo_node nodl/echo_node.nodl.yaml)
+
+ament_package()
+```
+
+Keep behavior in a handwritten subclass:
 
 ```python
 from my_robot.generated.echo_node import EchoNodeBase
@@ -36,9 +110,70 @@ from std_msgs.msg import String
 
 class EchoNode(EchoNodeBase):
     def on_echo_in(self, msg):
-        self.pub_echo_out.publish(String(data=f'echo: {msg.data}'))
+        self.pub_echo_out.publish(
+            String(data=f'{self.params_.greeting}: {msg.data}')
+        )
 ```
 
-The generated base creates publishers, subscriptions, service servers and clients, and action servers and clients.
-Subscriptions, service servers, and action servers produce abstract callbacks that the subclass implements.
-Parameters use `generate_parameter_library_py` and are available through `param_listener_` and `params_`.
+The generated base constructs the publisher, subscription, and parameter listener.
+The subclass supplies the subscription callback and application behavior.
+
+## Generated class API
+
+Entity names become Python identifiers by removing leading and trailing `/` characters
+and replacing other non-alphanumeric groups with `_`.
+
+| NoDL entity | Generated member or callback | Subclass use |
+|---|---|---|
+| Publisher | `pub_<name>` | Publish messages. |
+| Subscription | `sub_<name>` and abstract `on_<name>(msg)` | Implement the callback. |
+| Service server | `srv_<name>` and abstract `on_<name>(request, response)` | Implement the callback. |
+| Service client | `cli_<name>` | Send requests. |
+| Action server | `action_server_<name>` and abstract `execute_<name>(goal_handle)` | Implement goal execution. |
+| Action client | `action_client_<name>` | Send goals. |
+| Parameters | `param_listener_` and `params_` | Read typed parameter values. |
+
+The constructor accepts keyword arguments and forwards them to `rclpy.node.Node`.
+
+## Parameters
+
+NoDL parameters are converted to the YAML format consumed by
+[`generate_parameter_library_py`](https://github.com/PickNikRobotics/generate_parameter_library).
+The generated base obtains the initial typed values during construction:
+
+```python
+self.param_listener_ = echo_node_params.echo_node.ParamListener(self)
+self.params_ = self.param_listener_.get_params()
+```
+
+## CLI reference
+
+The CMake function calls the generator internally.
+The same generator can be run directly for scripting or debugging:
+
+```bash
+python -m nodl_generator_py \
+  --nodl-file nodl/echo_node.nodl.yaml \
+  --output-dir generated/my_robot/generated \
+  --target-name echo_node
+```
+
+| Flag | Description |
+|---|---|
+| `--nodl-file` | NoDL document to load. |
+| `--output-dir` | Directory for generated files. It is created when absent. |
+| `--target-name` | Module and node name. It must be a valid Python identifier. |
+
+## Current scope
+
+This version supports parameters, publishers, subscriptions, services, actions,
+and their available QoS settings in a flat NoDL document.
+
+Documents with `include` entries are rejected.
+Lifecycle nodes, include composition, and base-class discovery are not yet supported.
+
+## Relationship to other packages
+
+`nodl_schema` loads and validates the input document.
+`generate_parameter_library_py` generates typed parameter support when required.
+The installed result uses `rclpy` and the ROS interface packages named by the document.
