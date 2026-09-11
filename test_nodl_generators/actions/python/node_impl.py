@@ -4,7 +4,7 @@
 
 from example_interfaces.action import Fibonacci
 
-from test_nodl_generators._generated.actions_node import ActionsNodeBase
+from test_nodl_generators.generated.actions_node import ActionsNodeBase
 
 
 class ActionsNode(ActionsNodeBase):
