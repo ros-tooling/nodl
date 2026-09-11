@@ -92,23 +92,24 @@ The generated C++ base exposes the declared publisher as `pub_chatter_`.
 
 :::{group-tab} Python
 
-```{warning}
-Python generation is not yet implemented.
-The CMake below shows the intended package-build integration and cannot be run yet.
-```
-
 ```cmake
 find_package(ament_nodl REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
 ament_nodl_register(talker FILE nodl/talker.nodl.yaml)
 nodl_generate_py(talker nodl/talker.nodl.yaml)
+
+install(PROGRAMS python/talker.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME talker)
 ```
 
 ```bash
-colcon build --packages-select nodl_tutorial_python_talker
+colcon build --packages-select nodl_tutorial_basics
 source install/setup.bash
 ```
+
+The generated Python base exposes the declared publisher as `pub_chatter`.
 
 :::
 ::::
@@ -127,11 +128,6 @@ Subclass the generated interface and keep the timer and message behavior in norm
 :::
 
 :::{group-tab} Python
-
-```{warning}
-Python generation is not yet implemented.
-The code below shows the intended generated API and cannot be run yet.
-```
 
 ```{literalinclude} ../../../examples/nodl_tutorials/basics/python/talker.py
 :language: python
@@ -161,14 +157,9 @@ ros2 nodl conform /talker \
 
 :::{group-tab} Python
 
-```{warning}
-Python generation is not yet implemented.
-The commands below show the intended workflow and cannot be run yet.
-```
-
 ```bash
 # Terminal 1
-ros2 run nodl_tutorial_python_talker talker
+ros2 run nodl_tutorial_basics talker
 # Terminal 2
 ros2 nodl conform /talker \
   --file examples/nodl_tutorials/basics/nodl/talker.nodl.yaml

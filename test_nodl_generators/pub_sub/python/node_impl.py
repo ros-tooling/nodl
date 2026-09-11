@@ -4,7 +4,7 @@
 
 from std_msgs.msg import String
 
-from test_nodl_generators._generated.pubsub_node import PubsubNodeBase
+from test_nodl_generators.generated.pubsub_node import PubsubNodeBase
 
 
 class PubsubNode(PubsubNodeBase):

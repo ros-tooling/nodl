@@ -22,7 +22,7 @@ nodl_generate_py(echo_node config/echo_node.nodl.yaml)
 ```
 
 For a project named `my_robot`, this generates and installs
-`my_robot._generated.echo_node.EchoNodeBase`.
+`my_robot.generated.echo_node.EchoNodeBase`.
 The target name must be a valid Python identifier.
 
 ## Implement the node
@@ -30,7 +30,7 @@ The target name must be a valid Python identifier.
 Keep application behavior in a handwritten subclass:
 
 ```python
-from my_robot._generated.echo_node import EchoNodeBase
+from my_robot.generated.echo_node import EchoNodeBase
 from std_msgs.msg import String
 
 

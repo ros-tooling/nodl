@@ -10,11 +10,13 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_nodl</buildtool_depend>
   <buildtool_depend>nodl_generator_cpp</buildtool_depend>
+  <buildtool_depend>nodl_generator_py</buildtool_depend>
 
   <build_depend>nodl_common_interfaces</build_depend>
 
   <depend>example_interfaces</depend>
   <depend>rclcpp</depend>
+  <depend>rclpy</depend>
 
   <exec_depend>demo_nodes_cpp</exec_depend>
   <exec_depend>demo_nodes_py</exec_depend>

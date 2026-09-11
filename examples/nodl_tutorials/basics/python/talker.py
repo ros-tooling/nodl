@@ -1,9 +1,9 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 import rclpy
 from example_interfaces.msg import String
-
-from nodl.talker_base import TalkerBase
+from nodl_tutorial_basics.generated.talker import TalkerBase
 
 
 class Talker(TalkerBase):

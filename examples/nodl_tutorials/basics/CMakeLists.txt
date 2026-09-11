@@ -16,6 +16,14 @@ target_link_libraries(talker_cpp PRIVATE talker_base)
 install(TARGETS talker_cpp
   DESTINATION lib/${PROJECT_NAME})
 
+find_package(nodl_generator_py REQUIRED)
+
+nodl_generate_py(talker nodl/talker.nodl.yaml)
+
+install(PROGRAMS python/talker.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME talker)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(tutorial_registration_tests test/test_registration.py)

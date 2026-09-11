@@ -3,7 +3,7 @@
 # nodl_generate_py(target nodl_file)
 #
 # Generates an rclpy base-node class from a NoDL file and installs it under
-# <project>._generated. Unlike the C++ generator there is nothing to compile,
+# <project>.generated. Unlike the C++ generator there is nothing to compile,
 # so this creates a build-time custom target rather than a library.
 #
 # target      - used for the generated class and module name.
@@ -20,7 +20,7 @@ function(nodl_generate_py target nodl_file)
     BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
   set(gen_root "${CMAKE_CURRENT_BINARY_DIR}/nodl_generated/${target}")
-  set(gen_dir "${gen_root}/${PROJECT_NAME}/_generated")
+  set(gen_dir "${gen_root}/${PROJECT_NAME}/generated")
 
   set(py_out "${gen_dir}/${target}.py")
   set(package_init "${gen_dir}/__init__.py")
