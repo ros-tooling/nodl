@@ -5,6 +5,7 @@ get_filename_component(_nodl_generator_py_install_dir
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 find_package(ament_cmake_python REQUIRED)
+_ament_cmake_python_register_environment_hook()
 ament_get_python_install_dir(_nodl_python_install_dir)
 string(CONCAT _nodl_generator_py_package_dir
   "${_nodl_generator_py_install_dir}/${_nodl_python_install_dir}"
