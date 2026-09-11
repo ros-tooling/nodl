@@ -14,10 +14,18 @@ from nodl_generator_py.generator import (
     _ros_type_to_import,
     _ros_type_to_py,
     _snake_to_pascal,
-    _topic_to_identifier,
 )
 from nodl_schema import load_nodl
-from nodl_schema.models import Durability, History, Liveliness, NodlDocument, QosProfile, Reference, Reliability
+from nodl_schema.models import (
+    Durability,
+    History,
+    Liveliness,
+    NodlDocument,
+    QosProfile,
+    Reference,
+    Reliability,
+    TopicEndpoint,
+)
 
 _FIXTURES = Path(__file__).parent / 'fixtures'
 
@@ -32,19 +40,6 @@ _FIXTURES = Path(__file__).parent / 'fixtures'
 )
 def test_snake_to_pascal(name, expected):
     assert _snake_to_pascal(name) == expected
-
-
-@pytest.mark.parametrize(
-    'topic,expected',
-    [
-        ('/scan', 'scan'),
-        ('/echo_out', 'echo_out'),
-        ('/my/long/topic', 'my_long_topic'),
-        ('relative', 'relative'),
-    ],
-)
-def test_topic_to_identifier(topic, expected):
-    assert _topic_to_identifier(topic) == expected
 
 
 @pytest.mark.parametrize(
@@ -101,6 +96,20 @@ def test_qos_to_py():
         assert expected in rendered
 
 
+def test_zero_qos_durations_use_unlimited_defaults():
+    qos = QosProfile(
+        history=History.KEEP_LAST,
+        depth=1,
+        reliability=Reliability.RELIABLE,
+        deadline_ns=0,
+        lifespan_ns=0,
+        liveliness_lease_duration_ns=0,
+    )
+    doc = NodlDocument(publishers=[TopicEndpoint(name='status', type='std_msgs/msg/String', qos=qos)])
+
+    assert 'Duration' not in generate_python(doc, 'example_node')
+
+
 def test_generate_python():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
@@ -115,17 +124,17 @@ def test_generate_python():
     )
     assert imports.isdisjoint({'nodl', 'nodl_schema', 'nodl_generator_py'})
     for expected in (
-        'from . import interfaces_node_params',
+        'from . import interfaces_node_parameters',
         'class InterfacesNodeBase(Node, metaclass=abc.ABCMeta):',
-        'self.param_listener_ = interfaces_node_params.interfaces_node.ParamListener(self)',
+        'self.param_listener_ = interfaces_node_parameters.interfaces_node.ParamListener(self)',
         'self.pub_echo_out = self.create_publisher(',
         'def on_echo_in(self, msg):',
         'self.srv_add = self.create_service(',
         'def on_add(self, request, response):',
         'self.cli_delegate_add = self.create_client(',
-        'self.action_server_fibonacci = rclpy.action.ActionServer(',
+        'self.action_srv_fibonacci = rclpy.action.ActionServer(',
         'def execute_fibonacci(self, goal_handle):',
-        'self.action_client_delegate_fibonacci = rclpy.action.ActionClient(',
+        'self.action_cli_delegate_fibonacci = rclpy.action.ActionClient(',
     ):
         assert expected in generated
 
@@ -158,4 +167,4 @@ def test_cli_writes_generated_module(tmp_path):
 
     assert result == 0
     assert (tmp_path / 'interfaces_node.py').is_file()
-    assert (tmp_path / 'interfaces_node_params.py').is_file()
+    assert (tmp_path / 'interfaces_node_parameters.py').is_file()

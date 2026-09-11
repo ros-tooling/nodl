@@ -46,7 +46,7 @@ def test_generated_interfaces(ros_context):
     try:
         assert node.get_parameter('greeting').value == 'hello'
         assert hasattr(node, 'cli_delegate_add')
-        assert hasattr(node, 'action_client_delegate_fibonacci')
+        assert hasattr(node, 'action_cli_delegate_fibonacci')
 
         _spin_until(executor, lambda: publisher.get_subscription_count() > 0)
         publisher.publish(String(data='world'))

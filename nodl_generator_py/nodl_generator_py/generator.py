@@ -7,20 +7,16 @@ from __future__ import annotations
 import importlib.resources
 import json
 import keyword
-import re
 
 import jinja2
 import yaml
 
+from nodl_generator_common.naming import to_member_name
 from nodl_schema.models import NodlDocument
 
 
 def _snake_to_pascal(name: str) -> str:
     return ''.join(part.capitalize() for part in name.split('_') if part)
-
-
-def _topic_to_identifier(topic: str) -> str:
-    return re.sub(r'[^a-zA-Z0-9]+', '_', topic.strip('/')).strip('_')
 
 
 def _split_ros_type(ros_type: str, expected_kind: str) -> tuple[str, str, str]:
@@ -86,7 +82,7 @@ def _qos_to_py(qos) -> str:
             args.append(f'{field}={values[_enum_value(value)]}')
     for field in ('deadline_ns', 'lifespan_ns', 'liveliness_lease_duration_ns'):
         value = getattr(qos, field)
-        if value is not None:
+        if value is not None and value > 0:
             args.append(f'{field.removesuffix("_ns")}=Duration(nanoseconds={value})')
     arguments = '\n'.join(f'    {argument},' for argument in args)
     return f'rclpy.qos.QoSProfile(\n{arguments}\n)'
@@ -102,7 +98,7 @@ def _endpoints(
     result = []
     for endpoint in items or []:
         imports.add(_ros_type_to_import(endpoint.type, kind))
-        identifier = _topic_to_identifier(endpoint.name)
+        identifier = to_member_name(endpoint.name)
         item = {
             'name': endpoint.name,
             'py_type': _ros_type_to_py(endpoint.type, kind),
@@ -139,8 +135,8 @@ def generate_python(doc: NodlDocument, target_name: str) -> str:
     subscriptions = _endpoints(doc.subscriptions, imports, 'msg', 'sub_', 'on_')
     service_servers = _endpoints(doc.service_servers, imports, 'srv', 'srv_', 'on_')
     service_clients = _endpoints(doc.service_clients, imports, 'srv', 'cli_')
-    action_servers = _endpoints(doc.action_servers, imports, 'action', 'action_server_', 'execute_')
-    action_clients = _endpoints(doc.action_clients, imports, 'action', 'action_client_')
+    action_servers = _endpoints(doc.action_servers, imports, 'action', 'action_srv_', 'execute_')
+    action_clients = _endpoints(doc.action_clients, imports, 'action', 'action_cli_')
     if subscriptions or service_servers or action_servers:
         imports.add('import abc')
     if action_servers or action_clients:
@@ -152,7 +148,7 @@ def generate_python(doc: NodlDocument, target_name: str) -> str:
     if qos_profiles:
         imports.add('import rclpy.qos')
     if any(
-        qos.deadline_ns is not None or qos.lifespan_ns is not None or qos.liveliness_lease_duration_ns is not None
+        (qos.deadline_ns or 0) > 0 or (qos.lifespan_ns or 0) > 0 or (qos.liveliness_lease_duration_ns or 0) > 0
         for qos in qos_profiles
     ):
         imports.add('from rclpy.duration import Duration')
@@ -165,7 +161,7 @@ def generate_python(doc: NodlDocument, target_name: str) -> str:
         class_name=f'{_snake_to_pascal(target_name)}Base',
         node_name=target_name,
         imports=sorted(imports, key=lambda value: (value.startswith('from '), value)),
-        params_module=f'{target_name}_params' if doc.parameters else None,
+        params_module=f'{target_name}_parameters' if doc.parameters else None,
         publishers=publishers,
         subscriptions=subscriptions,
         service_servers=service_servers,

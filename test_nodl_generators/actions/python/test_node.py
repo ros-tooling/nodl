@@ -37,8 +37,8 @@ def test_generated_actions(ros_context):
     executor.add_node(node)
     executor.add_node(harness)
     try:
-        assert hasattr(node, 'action_server_fibonacci')
-        assert hasattr(node, 'action_client_delegate_fibonacci')
+        assert hasattr(node, 'action_srv_fibonacci')
+        assert hasattr(node, 'action_cli_delegate_fibonacci')
         assert client.wait_for_server(timeout_sec=5.0)
         goal_future = client.send_goal_async(Fibonacci.Goal(order=5))
         _spin_until(executor, goal_future.done)

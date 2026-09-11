@@ -24,8 +24,8 @@ function(nodl_generate_py target nodl_file)
 
   set(py_out "${gen_dir}/${target}.py")
   set(package_init "${gen_dir}/__init__.py")
-  set(params_py "${gen_dir}/${target}_params.py")
-  set(params_yaml "${gen_dir}/${target}_params.yaml")
+  set(params_py "${gen_dir}/${target}_parameters.py")
+  set(params_yaml "${gen_dir}/${target}_parameters.yaml")
 
   # Make build-time Python dependencies importable by the generator.
   if(DEFINED ENV{PYTHONPATH})

@@ -55,10 +55,10 @@ The generator produces these files in `<project>/generated`:
 |---|---|---|
 | `__init__.py` | Always | Marks the generated package. |
 | `<target>.py` | Always | Generated `rclpy` base class. |
-| `<target>_params.py` | With parameters | Typed parameter listener and values. |
+| `<target>_parameters.py` | With parameters | Typed parameter listener and values. |
 
 When parameters are present, the build also creates an intermediate
-`<target>_params.yaml` file for `generate_parameter_library_py`.
+`<target>_parameters.yaml` file for `generate_parameter_library_py`.
 The intermediate YAML file is not installed.
 
 ## Example
@@ -129,8 +129,8 @@ and replacing other non-alphanumeric groups with `_`.
 | Subscription | `sub_<name>` and abstract `on_<name>(msg)` | Implement the callback. |
 | Service server | `srv_<name>` and abstract `on_<name>(request, response)` | Implement the callback. |
 | Service client | `cli_<name>` | Send requests. |
-| Action server | `action_server_<name>` and abstract `execute_<name>(goal_handle)` | Implement goal execution. |
-| Action client | `action_client_<name>` | Send goals. |
+| Action server | `action_srv_<name>` and abstract `execute_<name>(goal_handle)` | Implement goal execution. |
+| Action client | `action_cli_<name>` | Send goals. |
 | Parameters | `param_listener_` and `params_` | Read typed parameter values. |
 
 The constructor accepts keyword arguments and forwards them to `rclpy.node.Node`.
@@ -142,7 +142,7 @@ NoDL parameters are converted to the YAML format consumed by
 The generated base obtains the initial typed values during construction:
 
 ```python
-self.param_listener_ = echo_node_params.echo_node.ParamListener(self)
+self.param_listener_ = echo_node_parameters.echo_node.ParamListener(self)
 self.params_ = self.param_listener_.get_params()
 ```
 
@@ -175,5 +175,6 @@ Lifecycle nodes, include composition, and base-class discovery are not yet suppo
 ## Relationship to other packages
 
 `nodl_schema` loads and validates the input document.
+`nodl_generator_common` provides language-neutral entity naming.
 `generate_parameter_library_py` generates typed parameter support when required.
 The installed result uses `rclpy` and the ROS interface packages named by the document.

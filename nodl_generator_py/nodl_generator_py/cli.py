@@ -27,10 +27,10 @@ def main(argv: list[str] | None = None) -> int:
         if parameters_yaml is not None:
             from generate_parameter_library_py.generate_python_module import run
 
-            parameters_input = args.output_dir / f'{args.target_name}_params.yaml'
+            parameters_input = args.output_dir / f'{args.target_name}_parameters.yaml'
             parameters_input.write_text(parameters_yaml, encoding='utf-8')
             run(
-                str(args.output_dir / f'{args.target_name}_params.py'),
+                str(args.output_dir / f'{args.target_name}_parameters.py'),
                 str(parameters_input),
                 validation_module='',
             )
