@@ -4,11 +4,10 @@
   <name>nodl_common_interfaces</name>
   <version>2.0.3</version>
   <description>
-    NoDL interface descriptions for standard ROS 2 node base classes (rclcpp::Node, rclcpp_lifecycle::LifecycleNode).
+    NoDL interface descriptions for standard ROS 2 C++ and Python node base classes.
 
     These descriptions will eventually ship with the upstream packages themselves.
-    Until then, this package registers them in the ament index so that nodl://rclcpp/node and
-    nodl://rclcpp_lifecycle/lifecycle_node resolve correctly.
+    Until then, this package registers the rclcpp, rclcpp_lifecycle, and rclpy providers in the ament index.
   </description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>

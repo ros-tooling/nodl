@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Regenerate pydantic models from JSON schemas.
 
-Covers both nodl_schema (nodl.schema.yaml + parameter.schema.yaml) and
-nodl_generator_cpp (codegen_cpp.schema.yaml). The pre-commit hook and CI
-both invoke this script.
+Covers nodl_schema (nodl.schema.yaml + parameter.schema.yaml),
+nodl_generator_cpp (codegen_cpp.schema.yaml), and
+nodl_generator_py (codegen_python.schema.yaml).
+The pre-commit hook and CI both invoke this script.
 
 Requires (pinned to match polymath_code_standard so the generated file is a
 fixed point for the polymath-python pre-commit hook):
@@ -30,6 +31,10 @@ NODL_OUTPUT = REPO_ROOT / 'nodl_schema' / 'nodl_schema' / 'models.py'
 # nodl_generator_cpp
 CODEGEN_CPP_SCHEMA = REPO_ROOT / 'nodl_generator_cpp' / 'nodl_generator_cpp' / 'schemas' / 'codegen_cpp.schema.yaml'
 CODEGEN_CPP_OUTPUT = REPO_ROOT / 'nodl_generator_cpp' / 'nodl_generator_cpp' / 'models.py'
+
+# nodl_generator_py
+CODEGEN_PYTHON_SCHEMA = REPO_ROOT / 'nodl_generator_py' / 'nodl_generator_py' / 'schemas' / 'codegen_python.schema.yaml'
+CODEGEN_PYTHON_OUTPUT = REPO_ROOT / 'nodl_generator_py' / 'nodl_generator_py' / 'models.py'
 
 # Mirrors polymath_code_standard/config/ruff.toml so the generated file passes
 # the polymath-python hook without needing to be excluded. Keep in sync if
@@ -156,7 +161,9 @@ def main() -> int:
     if rc != 0:
         return rc
     rc = _generate(CODEGEN_CPP_SCHEMA, CODEGEN_CPP_OUTPUT, 'CodegenCpp')
-    return rc
+    if rc != 0:
+        return rc
+    return _generate(CODEGEN_PYTHON_SCHEMA, CODEGEN_PYTHON_OUTPUT, 'CodegenPython')
 
 
 if __name__ == '__main__':

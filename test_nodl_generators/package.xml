@@ -13,6 +13,8 @@
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>example_interfaces</test_depend>
   <test_depend>python3-pytest</test_depend>
+  <test_depend>nodl_common_interfaces</test_depend>
+  <test_depend>lifecycle_msgs</test_depend>
   <test_depend>rclpy</test_depend>
   <test_depend>std_msgs</test_depend>
 

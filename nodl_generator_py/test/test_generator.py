@@ -157,10 +157,10 @@ def test_generate_python():
     assert '!!python' not in parameters_yaml
 
 
-def test_generate_python_rejects_includes():
+def test_in_memory_generate_python_rejects_unresolved_includes():
     doc = NodlDocument(include=[Reference(ref='nodl://example/base')])
 
-    with pytest.raises(NotImplementedError, match='does not yet support include composition'):
+    with pytest.raises(NotImplementedError, match='requires a resolved, flat'):
         generate_python(doc, 'including_node')
 
 
@@ -182,3 +182,33 @@ def test_cli_writes_generated_module(tmp_path):
     assert result == 0
     assert (tmp_path / 'interfaces_node_base.py').is_file()
     assert (tmp_path / 'interfaces_node_base_parameters.py').is_file()
+    doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
+    assert (tmp_path / 'interfaces_node_base.py').read_text(encoding='utf-8') == generate_python(
+        doc,
+        'interfaces_node_base',
+    )
+
+
+def test_cli_writes_transitive_cmake_dependencies(tmp_path):
+    included = tmp_path / 'included.nodl.yaml'
+    included.write_text('nodl_version: 2\n', encoding='utf-8')
+    root = tmp_path / 'root.nodl.yaml'
+    root.write_text(
+        'nodl_version: 2\ninclude:\n  - ref: local://included.nodl.yaml\n',
+        encoding='utf-8',
+    )
+
+    result = main([
+        '--nodl-file',
+        str(root),
+        '--output-dir',
+        str(tmp_path),
+        '--target-name',
+        'example_base',
+        '--cmake-deps',
+    ])
+
+    assert result == 0
+    deps = (tmp_path / 'example_base_deps.cmake').read_text(encoding='utf-8')
+    assert str(root.resolve()) in deps
+    assert str(included.resolve()) in deps
