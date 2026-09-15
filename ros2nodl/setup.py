@@ -24,6 +24,7 @@ setup(
         'ros2nodl.verb': [
             'conform = ros2nodl.verb.conform:ConformVerb',
             'describe = ros2nodl.verb.describe:DescribeVerb',
+            'diff = ros2nodl.verb.diff:DiffVerb',
             'rewrite = ros2nodl.verb.rewrite:RewriteVerb',
             'validate = ros2nodl.verb.validate:ValidateVerb',
         ],

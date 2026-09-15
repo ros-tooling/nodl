@@ -13,6 +13,7 @@ For the Python API that backs this command, see the `nodl_schema` package.
 
 describe
 conformance
+diff
 ```
 
 Running `ros2 nodl` with no verb prints help. The available verbs:
@@ -26,6 +27,16 @@ ros2 nodl conform /robot/my_node --file nodl/my_node.nodl.yaml
 ```
 
 See the [Conform guide](conformance.md) for composition, diagnostics, and exit behavior.
+
+### `ros2 nodl diff`
+
+Compare two NoDL documents without observing a running node.
+
+```console
+ros2 nodl diff expected.nodl.yaml actual.nodl.yaml
+```
+
+See the [Diff guide](diff.md) for name resolution, diagnostics, and exit behavior.
 
 ### `ros2 nodl validate [files...]`
 
