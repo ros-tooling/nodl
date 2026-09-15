@@ -39,6 +39,7 @@ if(BUILD_TESTING)
   add_python_fixture(actions actions_node_base)
   add_python_fixture(parameters parameters_node_base)
   add_python_fixture(kitchen_sink kitchen_sink_node_base)
+  add_python_fixture(lifecycle lifecycle_node_base)
 endif()
 
 ament_package()

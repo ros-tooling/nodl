@@ -1,0 +1,23 @@
+---
+$schema: http://json-schema.org/draft-07/schema#
+$id: codegen_python.schema.yaml
+title: NoDL Python codegen metadata
+description: Metadata validated and consumed by nodl_generator_py.
+
+type: object
+additionalProperties: false
+required: [role, module, class]
+
+properties:
+  role:
+    enum: [BASE_CLASS]
+  module:
+    type: string
+    pattern: ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$
+  class:
+    type: string
+    pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+  publisher_method:
+    type: string
+    pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+    default: create_publisher

@@ -32,7 +32,7 @@ The target name must be a valid Python identifier.
 | Step | What happens |
 |---|---|
 | Code generation | Creates the base module during the package build. |
-| Build tracking | Regenerates when the NoDL input, generator, or template changes. |
+| Build tracking | Regenerates when the root or any transitive NoDL input, generator, schema, or template changes. |
 | Build target | Creates an `ALL` custom target named `echo_node_base`. |
 | Installation | Installs generated Python modules under `<project>.generated`. |
 | Parameters | Delegates parameter-module generation to `generate_parameter_library_py`. |
@@ -133,7 +133,46 @@ and replacing other non-alphanumeric groups with `_`.
 | Action client | `action_cli_<name>` | Send goals. |
 | Parameters | `param_listener_` and `params_` | Read typed parameter values. |
 
-The constructor accepts keyword arguments and forwards them to `rclpy.node.Node`.
+The constructor accepts keyword arguments and forwards them to the selected `rclpy` base class.
+
+## Includes and lifecycle nodes
+
+The file-based CLI and `nodl_generate_py()` resolve the complete include tree.
+An included document with `codegen.python.role: BASE_CLASS` selects the generated class's base and acts as an implementation barrier.
+Entities supplied by that provider and its includes are not generated again.
+At most one Python base provider may be visible.
+Documents without a Python base provider keep the implicit `rclpy.node.Node` base.
+
+Use the standard lifecycle provider like this:
+
+```yaml
+nodl_version: 2
+include:
+  - ref: nodl://rclpy/lifecycle_node
+
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+```
+
+This generates a subclass of `rclpy.lifecycle.LifecycleNode`.
+Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
+The constructor still creates all parameters and entities.
+Subscriptions, services, clients, and actions do not become lifecycle-managed.
+
+The generator does not emit transition callbacks.
+The default `rclpy` callbacks activate and deactivate managed publishers.
+If an application subclass overrides a transition callback and wants that default behavior, it must call and return the corresponding `super()` callback:
+
+```python
+def on_activate(self, state):
+    # Add application-specific activation work before or after this call.
+    return super().on_activate(state)
+```
 
 ## Parameters
 
@@ -163,14 +202,13 @@ python -m nodl_generator_py \
 | `--nodl-file` | NoDL document to load. |
 | `--output-dir` | Directory for generated files. It is created when absent. |
 | `--target-name` | Generated module name. It must be a valid Python identifier. It becomes the class name directly; a trailing `_base` is removed from the runtime node name. |
+| `--cmake-deps` | Write `<target>_deps.cmake` with the complete transitive NoDL source list, then exit. Intended for build integration. |
 
 ## Current scope
 
 This version supports parameters, publishers, subscriptions, services, actions,
-and their available QoS settings in a flat NoDL document.
-
-Documents with `include` entries are rejected.
-Lifecycle nodes, include composition, and base-class discovery are not yet supported.
+their available QoS settings, include composition, and one included Python base provider.
+Lifecycle management applies only to publishers created for a lifecycle base.
 
 ## Relationship to other packages
 

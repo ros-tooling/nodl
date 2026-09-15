@@ -11,7 +11,7 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
 - [ament_nodl/](./ament_nodl/): CMake macros to register NoDL documents with the ament index
 - [nodl/](./nodl/): Metapackage that pulls in the other packages as dependencies. Acts as an easy default for those who don't want a-la-carte.
   - [doc/](./nodl/doc/): Documentation source for the ReadTheDocs page
-- [nodl_common_interfaces/](./nodl_common_interfaces/): NoDL descriptions for standard ROS 2 node base classes (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`), registered in the ament index until upstream ships its own.
+- [nodl_common_interfaces/](./nodl_common_interfaces/): NoDL descriptions for standard ROS 2 node base classes (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`, `rclpy.node.Node`, and `rclpy.lifecycle.LifecycleNode`), registered in the ament index until upstream ships its own.
 - [nodl_docgen/](./nodl_docgen/): Sphinx extension rendering a NoDL document into a documentation page at build time.
 - [nodl_generator_common/](./nodl_generator_common/): Language-agnostic code-generation core shared by NoDL generators — include-tree provenance, entity filtering, ament dependency emission, and naming utilities.
 - [nodl_generator_cpp/](./nodl_generator_cpp/): C++ code generator — produces an abstract base class from a NoDL document, with a CMake macro for build integration.

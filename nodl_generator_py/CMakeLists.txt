@@ -11,7 +11,7 @@ ament_python_install_package(${PROJECT_NAME})
 ament_get_python_install_dir(PYTHON_INSTALL_DIR)
 
 install(
-  DIRECTORY nodl_generator_py/templates
+  DIRECTORY nodl_generator_py/templates nodl_generator_py/schemas
   DESTINATION "${PYTHON_INSTALL_DIR}/${PROJECT_NAME}"
 )
 
@@ -23,6 +23,8 @@ install(
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_generator test/test_generator.py)
+  ament_add_pytest_test(test_schema test/test_schema.py)
+  ament_add_pytest_test(test_provenance test/test_provenance.py)
 endif()
 
 ament_package(
