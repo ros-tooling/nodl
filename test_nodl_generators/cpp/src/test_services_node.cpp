@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <memory>
 
-#include "services_node_base.hpp"  // NOLINT(build/include_subdir)
+#include "cpp_services_node_base.hpp"  // NOLINT(build/include_subdir)
 
-class TestNode : public ServicesNodeBase
+class TestNode : public CppServicesNodeBase
 {
   void on_trigger(
     std_srvs::srv::Trigger::Request::SharedPtr /*request*/,

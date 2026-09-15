@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <memory>
 
-#include "params_node_base.hpp"  // NOLINT(build/include_subdir)
+#include "cpp_params_node_base.hpp"  // NOLINT(build/include_subdir)
 
-class TestNode : public ParamsNodeBase
+class TestNode : public CppParamsNodeBase
 {
 public:
   TestNode()

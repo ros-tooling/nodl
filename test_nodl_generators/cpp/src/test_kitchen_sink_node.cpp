@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <memory>
 
-#include "kitchen_sink_node_base.hpp"  // NOLINT(build/include_subdir)
+#include "cpp_kitchen_sink_node_base.hpp"  // NOLINT(build/include_subdir)
 
-class TestNode : public KitchenSinkNodeBase
+class TestNode : public CppKitchenSinkNodeBase
 {
   void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr /*msg*/) override
   {}

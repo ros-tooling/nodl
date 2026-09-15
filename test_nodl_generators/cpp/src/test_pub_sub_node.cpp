@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <memory>
 
-#include "minimal_node_base.hpp"  // NOLINT(build/include_subdir)
+#include "cpp_pub_sub_node_base.hpp"  // NOLINT(build/include_subdir)
 
-class TestNode : public MinimalNodeBase
-{};
+class TestNode : public CppPubSubNodeBase
+{
+  void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr /*msg*/) override
+  {}
+};
 
 int main(int argc, char ** argv)
 {

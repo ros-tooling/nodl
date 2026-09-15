@@ -201,7 +201,7 @@ A future `..._add_node_executable` for the node kind can reuse the same manifest
 - Generator (Python): mixin variants of the golden cases (pub/sub, services, actions, parameters, kitchen sink),
   plus error tests (BASE_CLASS provider under mixin kind, empty document).
 - Manifest: unit tests asserting outputs/inputs/dependencies for representative documents.
-- CMake: a new `test_nodl_generator_cpp` package that exercises the real build:
+- CMake: the `test_nodl_generators` package exercises the real build:
   two mixin NoDL documents, two generated library targets,
   one node class composing both, and a gtest that constructs it and observes the expected endpoints.
   This is the compile-level proof that the composition pattern works.
@@ -213,7 +213,7 @@ Each phase is one PR, stacked, independently green:
 1. **Design**: this document.
 2. **Generator**: `--kind mixin` in the Python core — subcommand CLI, mixin templates,
    interface-set computation, golden and error tests.
-3. **Build integration**: the `manifest` subcommand, the CMake function, and `test_nodl_generator_cpp`.
+3. **Build integration**: the `manifest` subcommand, the CMake function, and `test_nodl_generators`.
 4. **Documentation**: rewrite `nodl_generator_cpp` docs around the node/mixin distinction,
    introducing the node-mixins terminology and the composition usage pattern.
 

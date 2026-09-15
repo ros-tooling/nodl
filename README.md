@@ -20,7 +20,7 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
 - [nodl_schema/](./nodl_schema/): Package providing the NoDL schema, validation tools, a typed data model, and semantic comparison of loaded documents.
     [nodl.schema.yaml](./nodl_schema/nodl_schema/schemas/nodl.schema.yaml): The NoDL schema, key to this whole thing!
 - [ros2nodl/](./ros2nodl/): `ros2cli` extension providing `ros2 nodl ...` commands
-- [test_nodl_generator_cpp/](./test_nodl_generator_cpp/): Integration tests for `nodl_generator_cpp` — exercises the CMake macro end-to-end.
+- [test_nodl_generators/](./test_nodl_generators/): End-to-end integration tests for the C++ and Python NoDL generators.
 - [tools/](./tools/): Scripts supporting development and build workflows
 
 ## Developing
