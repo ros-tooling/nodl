@@ -15,7 +15,7 @@ import schema_reference
 project = 'NoDL'
 copyright = '2026, Open Source Robotics Foundation, Inc.'
 author = 'NoDL contributors'
-html_title = 'NoDL (v2, in development)'
+html_title = 'NoDL: Node Definition Language'
 
 extensions = [
     'myst_parser',
