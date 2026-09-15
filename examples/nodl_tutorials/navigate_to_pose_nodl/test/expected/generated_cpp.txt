@@ -1,0 +1,34 @@
+// navigate_to_pose_client_base.hpp
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#pragma once
+
+#include <memory>
+
+#include <nav2_msgs/action/navigate_to_pose.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+
+class NavigateToPoseClientBase : public rclcpp::Node
+{
+public:
+  explicit NavigateToPoseClientBase(const rclcpp::NodeOptions & options = rclcpp::NodeOptions{});
+
+  virtual ~NavigateToPoseClientBase() = default;
+
+protected:
+
+  // --- Action clients ---
+  rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr action_cli_navigate_to_pose_;
+};
+
+// navigate_to_pose_client_base.cpp
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#include "navigate_to_pose_client_base.hpp"
+
+NavigateToPoseClientBase::NavigateToPoseClientBase(const rclcpp::NodeOptions & options)
+: rclcpp::Node("navigate_to_pose_client", options)
+{
+
+  // Create action clients
+  action_cli_navigate_to_pose_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(this, "navigate_to_pose");
+}

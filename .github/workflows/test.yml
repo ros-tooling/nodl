@@ -63,6 +63,7 @@ jobs:
         if: github.event_name != 'pull_request' || needs.changes.outputs.source == 'true'
         # One pass covers every RMW (call_for_each_rmw_implementation registers a
         # ctest per RMW; the integration test self-starts rmw_zenohd for zenoh).
+        # The Nav2 tutorial fixture is omitted from Rolling because Nav2 is not released there.
         uses: ros-tooling/action-ros-ci@v0.4
         with:
           package-name: >-
@@ -80,6 +81,7 @@ jobs:
             test_nodl_generators_downstream
             nodl_tutorial_basics
             nodl_tutorial_dummy_robot
+            ${{ matrix.ros != 'rolling' && 'navigate_to_pose_nodl' || '' }}
           target-ros2-distro: ${{ matrix.ros }}
       - uses: actions/upload-artifact@v4
         if: >-

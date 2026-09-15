@@ -1,0 +1,16 @@
+# GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_py.
+import nav2_msgs.action
+import rclpy.action
+from rclpy.node import Node
+
+
+class NavigateToPoseClientPyBase(Node):
+    """Generated NoDL base node."""
+
+    def __init__(self, **kwargs):
+        super().__init__('navigate_to_pose_client_py', **kwargs)
+        self.action_cli_navigate_to_pose = rclpy.action.ActionClient(
+            self,
+            nav2_msgs.action.NavigateToPose,
+            'navigate_to_pose',
+        )

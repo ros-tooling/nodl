@@ -1,0 +1,6 @@
+---
+nodl_version: 2
+description: Generator composition for the C++ NavigateToPose client.
+include:
+  - ref: nodl://rclcpp/node
+  - ref: local://navigate_to_pose_client.nodl.yaml
