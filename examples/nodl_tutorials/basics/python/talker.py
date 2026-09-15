@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 import rclpy
 from example_interfaces.msg import String
-from nodl_tutorial_basics.generated.talker import TalkerBase
+from nodl_tutorial_basics.generated.talker_py_base import TalkerPyBase
 
 
-class Talker(TalkerBase):
+class Talker(TalkerPyBase):
     def __init__(self):
         super().__init__()
         self.count = 0

@@ -20,11 +20,11 @@ The `nodl_generate_py()` CMake function is the primary user-facing API:
 ```cmake
 find_package(nodl_generator_py REQUIRED)
 
-nodl_generate_py(echo_node nodl/echo_node.nodl.yaml)
+nodl_generate_py(echo_node_base nodl/echo_node.nodl.yaml)
 ```
 
 For a project named `my_robot`, this generates and installs
-`my_robot.generated.echo_node.EchoNodeBase`.
+`my_robot.generated.echo_node_base.EchoNodeBase`.
 The target name must be a valid Python identifier.
 
 ### What the function does
@@ -33,7 +33,7 @@ The target name must be a valid Python identifier.
 |---|---|
 | Code generation | Creates the base module during the package build. |
 | Build tracking | Regenerates when the NoDL input, generator, or template changes. |
-| Build target | Creates an `ALL` custom target named `echo_node`. |
+| Build target | Creates an `ALL` custom target named `echo_node_base`. |
 | Installation | Installs generated Python modules under `<project>.generated`. |
 | Parameters | Delegates parameter-module generation to `generate_parameter_library_py`. |
 
@@ -44,7 +44,7 @@ It needs `nodl_generator_py` only as a build-tool dependency.
 
 | Argument | Description |
 |---|---|
-| `target` | Generated module name and runtime node name. It must be a valid Python identifier. `echo_node` produces `EchoNodeBase`. |
+| `target` | Build target and generated module name. It is PascalCased directly for the class name, while a trailing `_base` is removed from the runtime node name. `echo_node_base` produces `EchoNodeBase`, running as `echo_node`. |
 | `nodl_file` | Absolute path or path relative to the calling `CMakeLists.txt`. |
 
 ## Generated files
@@ -96,7 +96,7 @@ Add the generator to the package's `CMakeLists.txt`:
 find_package(ament_cmake REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
-nodl_generate_py(echo_node nodl/echo_node.nodl.yaml)
+nodl_generate_py(echo_node_base nodl/echo_node.nodl.yaml)
 
 ament_package()
 ```
@@ -104,7 +104,7 @@ ament_package()
 Keep behavior in a handwritten subclass:
 
 ```python
-from my_robot.generated.echo_node import EchoNodeBase
+from my_robot.generated.echo_node_base import EchoNodeBase
 from std_msgs.msg import String
 
 
@@ -142,7 +142,7 @@ NoDL parameters are converted to the YAML format consumed by
 The generated base obtains the initial typed values during construction:
 
 ```python
-self.param_listener_ = echo_node_parameters.echo_node.ParamListener(self)
+self.param_listener_ = echo_node_base_parameters.echo_node.ParamListener(self)
 self.params_ = self.param_listener_.get_params()
 ```
 
@@ -155,14 +155,14 @@ The same generator can be run directly for scripting or debugging:
 python -m nodl_generator_py \
   --nodl-file nodl/echo_node.nodl.yaml \
   --output-dir generated/my_robot/generated \
-  --target-name echo_node
+  --target-name echo_node_base
 ```
 
 | Flag | Description |
 |---|---|
 | `--nodl-file` | NoDL document to load. |
 | `--output-dir` | Directory for generated files. It is created when absent. |
-| `--target-name` | Module and node name. It must be a valid Python identifier. |
+| `--target-name` | Generated module name. It must be a valid Python identifier. It becomes the class name directly; a trailing `_base` is removed from the runtime node name. |
 
 ## Current scope
 

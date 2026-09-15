@@ -12,7 +12,6 @@ import pytest
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 PACKAGE = 'nodl_tutorial_basics'
-NODE_NAME = '/talker'
 
 
 def _test_environment():
@@ -54,13 +53,13 @@ def _running_node(executable, *node_arguments):
             node.wait()
 
 
-def _run_conform(executable, *node_arguments):
+def _run_conform(executable, node_name, *node_arguments):
     ros2 = shutil.which('ros2')
     assert ros2 is not None
 
     with _running_node(executable, *node_arguments):
         return subprocess.run(
-            [ros2, 'nodl', 'conform', NODE_NAME, '--file', _contract(), '--timeout', '10'],
+            [ros2, 'nodl', 'conform', node_name, '--file', _contract(), '--timeout', '10'],
             env=_test_environment(),
             capture_output=True,
             text=True,
@@ -69,16 +68,16 @@ def _run_conform(executable, *node_arguments):
         )
 
 
-@pytest.mark.parametrize('executable', ['talker_cpp', 'talker'])
-def test_generated_node_conforms(executable):
-    result = _run_conform(executable)
+@pytest.mark.parametrize('executable,node_name', [('talker_cpp', '/talker'), ('talker', '/talker_py')])
+def test_generated_node_conforms(executable, node_name):
+    result = _run_conform(executable, node_name)
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == f'{NODE_NAME}: conforms'
+    assert result.stdout.strip() == f'{node_name}: conforms'
 
 
 def test_remapped_topic_does_not_conform():
-    result = _run_conform('talker_cpp', '--ros-args', '-r', 'chatter:=chatter_regressed')
+    result = _run_conform('talker_cpp', '/talker', '--ros-args', '-r', 'chatter:=chatter_regressed')
 
     assert result.returncode != 0
     assert "[missing] publishers '/chatter'" in result.stderr

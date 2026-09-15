@@ -14,6 +14,7 @@ from nodl_generator_py.generator import (
     _ros_type_to_import,
     _ros_type_to_py,
     _snake_to_pascal,
+    _target_to_node_name,
 )
 from nodl_schema import load_nodl
 from nodl_schema.models import (
@@ -40,6 +41,17 @@ _FIXTURES = Path(__file__).parent / 'fixtures'
 )
 def test_snake_to_pascal(name, expected):
     assert _snake_to_pascal(name) == expected
+
+
+@pytest.mark.parametrize(
+    'target,expected',
+    [
+        ('my_node_base', 'my_node'),
+        ('my_node', 'my_node'),
+    ],
+)
+def test_target_to_node_name(target, expected):
+    assert _target_to_node_name(target) == expected
 
 
 @pytest.mark.parametrize(
@@ -113,7 +125,7 @@ def test_zero_qos_durations_use_unlimited_defaults():
 def test_generate_python():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
-    generated = generate_python(doc, 'interfaces_node')
+    generated = generate_python(doc, 'interfaces_node_base')
 
     tree = ast.parse(generated)
     imports = {
@@ -124,9 +136,10 @@ def test_generate_python():
     )
     assert imports.isdisjoint({'nodl', 'nodl_schema', 'nodl_generator_py'})
     for expected in (
-        'from . import interfaces_node_parameters',
+        'from . import interfaces_node_base_parameters',
         'class InterfacesNodeBase(Node, metaclass=abc.ABCMeta):',
-        'self.param_listener_ = interfaces_node_parameters.interfaces_node.ParamListener(self)',
+        "super().__init__('interfaces_node', **kwargs)",
+        'self.param_listener_ = interfaces_node_base_parameters.interfaces_node.ParamListener(self)',
         'self.pub_echo_out = self.create_publisher(',
         'def on_echo_in(self, msg):',
         'self.srv_add = self.create_service(',
@@ -138,7 +151,8 @@ def test_generate_python():
     ):
         assert expected in generated
 
-    parameters_yaml = generate_parameter_yaml(doc, 'interfaces_node')
+    parameters_yaml = generate_parameter_yaml(doc, 'interfaces_node_base')
+    assert parameters_yaml.startswith('interfaces_node:')
     assert 'greeting:' in parameters_yaml
     assert '!!python' not in parameters_yaml
 
@@ -162,9 +176,9 @@ def test_cli_writes_generated_module(tmp_path):
         '--output-dir',
         str(tmp_path),
         '--target-name',
-        'interfaces_node',
+        'interfaces_node_base',
     ])
 
     assert result == 0
-    assert (tmp_path / 'interfaces_node.py').is_file()
-    assert (tmp_path / 'interfaces_node_parameters.py').is_file()
+    assert (tmp_path / 'interfaces_node_base.py').is_file()
+    assert (tmp_path / 'interfaces_node_base_parameters.py').is_file()

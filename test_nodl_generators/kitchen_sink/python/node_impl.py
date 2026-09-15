@@ -5,7 +5,7 @@
 from example_interfaces.action import Fibonacci
 from std_msgs.msg import String
 
-from test_nodl_generators.generated.kitchen_sink_node import KitchenSinkNodeBase
+from test_nodl_generators.generated.kitchen_sink_node_base import KitchenSinkNodeBase
 
 
 class KitchenSinkNode(KitchenSinkNodeBase):

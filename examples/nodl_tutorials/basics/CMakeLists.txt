@@ -18,7 +18,7 @@ install(TARGETS talker_cpp
 
 find_package(nodl_generator_py REQUIRED)
 
-nodl_generate_py(talker nodl/talker.nodl.yaml)
+nodl_generate_py(talker_py_base nodl/talker.nodl.yaml)
 
 install(PROGRAMS python/talker.py
   DESTINATION lib/${PROJECT_NAME}

@@ -97,7 +97,7 @@ find_package(ament_nodl REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
 ament_nodl_register(talker FILE nodl/talker.nodl.yaml)
-nodl_generate_py(talker nodl/talker.nodl.yaml)
+nodl_generate_py(talker_py_base nodl/talker.nodl.yaml)
 
 install(PROGRAMS python/talker.py
   DESTINATION lib/${PROJECT_NAME}
@@ -110,6 +110,7 @@ source install/setup.bash
 ```
 
 The generated Python base exposes the declared publisher as `pub_chatter`.
+The `_py` segment keeps its CMake target distinct from the C++ target in this combined tutorial.
 
 :::
 ::::

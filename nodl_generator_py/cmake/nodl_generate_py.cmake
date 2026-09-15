@@ -6,7 +6,8 @@
 # <project>.generated. Unlike the C++ generator there is nothing to compile,
 # so this creates a build-time custom target rather than a library.
 #
-# target      - used for the generated class and module name.
+# target      - used directly for the build target, module, and class name.
+#               A trailing _base is removed from the runtime node name.
 # nodl_file   - path to the .nodl.yaml file (absolute, or relative to the
 #               caller's CMakeLists.txt).
 #

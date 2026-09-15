@@ -19,6 +19,10 @@ def _snake_to_pascal(name: str) -> str:
     return ''.join(part.capitalize() for part in name.split('_') if part)
 
 
+def _target_to_node_name(target_name: str) -> str:
+    return target_name.removesuffix('_base')
+
+
 def _split_ros_type(ros_type: str, expected_kind: str) -> tuple[str, str, str]:
     """Split ``package[/kind]/TypeName`` into its Python import components."""
     parts = ros_type.split('/')
@@ -120,7 +124,7 @@ def generate_parameter_yaml(doc: NodlDocument, target_name: str) -> str | None:
         name: json.loads(definition.json(by_alias=True, exclude_none=True))
         for name, definition in doc.parameters.items()
     }
-    return yaml.safe_dump({target_name: parameters}, default_flow_style=False, sort_keys=False)
+    return yaml.safe_dump({_target_to_node_name(target_name): parameters}, default_flow_style=False, sort_keys=False)
 
 
 def generate_python(doc: NodlDocument, target_name: str) -> str:
@@ -158,8 +162,8 @@ def generate_python(doc: NodlDocument, target_name: str) -> str:
     )
     environment = jinja2.Environment(trim_blocks=True, lstrip_blocks=True)
     return environment.from_string(template).render(
-        class_name=f'{_snake_to_pascal(target_name)}Base',
-        node_name=target_name,
+        class_name=_snake_to_pascal(target_name),
+        node_name=_target_to_node_name(target_name),
         imports=sorted(imports, key=lambda value: (value.startswith('from '), value)),
         params_module=f'{target_name}_parameters' if doc.parameters else None,
         publishers=publishers,
