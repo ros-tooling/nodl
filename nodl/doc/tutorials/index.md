@@ -8,6 +8,7 @@ These tutorials use real ROS 2 projects to show how NoDL can describe, specify, 
 basics
 dummy-robot
 nav2-migration
+nav2-server-composition
 ```
 
 ## Available tutorials
@@ -20,3 +21,6 @@ nav2-migration
 
 - [**Nav2: migrate one client, keep the system**](nav2-migration.md)
   Replace one navigation client while every Nav2 server remains conventional and unchanged.
+
+- [**Nav2: compose a server contract**](nav2-server-composition.md)
+  Combine framework-owned lifecycle interfaces with endpoints owned by the Controller Server.
