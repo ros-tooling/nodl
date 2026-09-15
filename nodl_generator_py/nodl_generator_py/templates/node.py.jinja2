@@ -7,7 +7,7 @@ from . import {{ params_module }}
 {% endif %}
 
 
-class {{ class_name }}(Node{% if subscriptions or service_servers or action_servers %}, metaclass=abc.ABCMeta{% endif %}):
+class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or action_servers %}, metaclass=abc.ABCMeta{% endif %}):
     """Generated NoDL base node."""
 
     def __init__(self, **kwargs):
@@ -17,7 +17,7 @@ class {{ class_name }}(Node{% if subscriptions or service_servers or action_serv
         self.params_ = self.param_listener_.get_params()
     {% endif %}
     {% for pub in publishers %}
-        self.{{ pub.member_name }} = self.create_publisher(
+        self.{{ pub.member_name }} = self.{{ publisher_method }}(
             {{ pub.py_type }},
             '{{ pub.name }}',
             {{ pub.qos_py | indent(12) }},

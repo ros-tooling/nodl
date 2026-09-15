@@ -14,4 +14,12 @@ ament_nodl_register(lifecycle_node
   FILE nodl/rclcpp_lifecycle_node.nodl.yaml
   PACKAGE rclcpp_lifecycle)
 
+ament_nodl_register(node
+  FILE nodl/rclpy_node.nodl.yaml
+  PACKAGE rclpy)
+
+ament_nodl_register(lifecycle_node
+  FILE nodl/rclpy_lifecycle_node.nodl.yaml
+  PACKAGE rclpy)
+
 ament_package()
