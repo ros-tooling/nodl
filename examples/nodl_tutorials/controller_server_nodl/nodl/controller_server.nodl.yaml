@@ -1,0 +1,14 @@
+---
+nodl_version: 2
+description: Selected interfaces owned by the Nav2 Controller Server.
+include:
+  - ref: nodl://rclcpp_lifecycle/lifecycle_node
+subscriptions:
+  - name: speed_limit
+    type: nav2_msgs/msg/SpeedLimit
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: SYSTEM_DEFAULT
+action_servers:
+  - name: follow_path
+    type: nav2_msgs/action/FollowPath

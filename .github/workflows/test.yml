@@ -82,6 +82,7 @@ jobs:
             test_nodl_generators
             nodl_tutorial_basics
             nodl_tutorial_dummy_robot
+            controller_server_nodl
             ${{ matrix.ros != 'rolling' && 'navigate_to_pose_nodl' || '' }}
           target-ros2-distro: ${{ matrix.ros }}
       - uses: actions/upload-artifact@v4
