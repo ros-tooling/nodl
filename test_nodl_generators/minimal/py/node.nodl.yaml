@@ -1,0 +1,4 @@
+---
+# Simplest valid Python codegen input: no includes or own entities.
+
+nodl_version: 2

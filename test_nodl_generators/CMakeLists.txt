@@ -34,6 +34,7 @@ if(BUILD_TESTING)
     )
   endfunction()
 
+  add_python_fixture(minimal minimal_node_base)
   add_python_fixture(pub_sub pubsub_node_base)
   add_python_fixture(services services_node_base)
   add_python_fixture(actions actions_node_base)
