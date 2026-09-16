@@ -1,5 +1,5 @@
 ---
-# What nodl://rclcpp_lifecycle/lifecycle_node would resolve to.
+# What nodl://nodl_common_interfaces/lifecycle_node resolves to.
 # Declares the entities that rclcpp_lifecycle::LifecycleNode creates internally,
 # and codegen metadata telling the generator to use it as the base class.
 # Includes rclcpp_node — tests the inheritance chain / barrier system.

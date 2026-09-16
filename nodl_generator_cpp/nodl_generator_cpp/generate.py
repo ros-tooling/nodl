@@ -51,7 +51,8 @@ def _find_base_class_config(barriers: list[CodegenCpp]) -> tuple[str, str]:
     base_classes = [b for b in barriers if b.role is Role.BASE_CLASS]
     if not base_classes:
         raise CodegenError(
-            'No base class found. Include a base-class provider (e.g. nodl://rclcpp/node) in your NoDL document.'
+            'No base class found. Include a base-class provider '
+            '(e.g. nodl://nodl_common_interfaces/node) in your NoDL document.'
         )
     if len(base_classes) > 1:
         classes = ', '.join(b.class_ for b in base_classes if b.class_ is not None)

@@ -153,7 +153,7 @@ def test_check_conformance_compares_resolved_includes(monkeypatch, tmp_path):
 
 def test_check_conformance_strips_infrastructure_from_the_spec(monkeypatch, tmp_path):
     # A fully-formed spec that declares the framework endpoints (e.g. via
-    # ``nodl://rclcpp/node``) must still conform against an observed doc that
+    # ``nodl://nodl_common_interfaces/node``) must still conform against an observed doc that
     # hides them.
     spec = NodlDocument(
         publishers=[

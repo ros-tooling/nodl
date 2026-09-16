@@ -4,7 +4,7 @@
 nodl_version: 2
 
 include:
-  - ref: nodl://rclcpp/node
+  - ref: nodl://nodl_common_interfaces/node
 
 service_servers:
   - name: trigger

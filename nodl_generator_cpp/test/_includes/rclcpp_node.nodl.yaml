@@ -1,5 +1,5 @@
 ---
-# What nodl://rclcpp/node would resolve to in a real workspace.
+# What nodl://nodl_common_interfaces/node resolves to in a real workspace.
 # Declares the entities that rclcpp::Node creates internally,
 # and codegen metadata telling the generator to use it as the base class.
 

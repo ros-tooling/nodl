@@ -66,7 +66,7 @@ def strip_infrastructure(doc: NodlDocument) -> NodlDocument:
 
     Symmetric with describe's ``keep_hidden=False``:
     a no-op on an already-stripped document,
-    and on a spec that includes ``nodl://rclcpp/node`` it removes exactly the
+    and on a spec that includes ``nodl://nodl_common_interfaces/node`` it removes exactly the
     endpoints and parameters that live introspection hides.
     """
     updates: dict = {}

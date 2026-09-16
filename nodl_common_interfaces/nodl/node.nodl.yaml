@@ -1,17 +1,22 @@
 ---
-# NoDL interface description for rclcpp::Node.
+# NoDL interface description for the standard ROS 2 node base type.
 #
-# This file is a stand-in until rclcpp ships its own .nodl.yaml.
-# It is registered in the ament index as nodl://rclcpp/node.
+# This file provides language-specific code generation metadata while keeping
+# the shared ROS interface contract independent of any client library.
+# It is registered in the ament index as nodl://nodl_common_interfaces/node.
 
 nodl_version: 2
-description: rclcpp::Node base class interface
+description: Standard ROS 2 node base interface
 
 codegen:
   cpp:
     role: BASE_CLASS
     class: rclcpp::Node
     header: rclcpp/rclcpp.hpp
+  python:
+    role: BASE_CLASS
+    module: rclpy.node
+    class: Node
 
 parameters:
   use_sim_time:

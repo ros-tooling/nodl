@@ -1,20 +1,26 @@
 ---
-# NoDL interface description for rclcpp_lifecycle::LifecycleNode.
+# NoDL interface description for the standard ROS 2 lifecycle node base type.
 #
-# This file is a stand-in until rclcpp_lifecycle ships its own .nodl.yaml.
-# It is registered in the ament index as nodl://rclcpp_lifecycle/lifecycle_node.
+# This file provides language-specific code generation metadata while keeping
+# the shared ROS interface contract independent of any client library.
+# It is registered as nodl://nodl_common_interfaces/lifecycle_node.
 
 nodl_version: 2
-description: rclcpp_lifecycle::LifecycleNode interface
+description: Standard ROS 2 lifecycle node base interface
 
 codegen:
   cpp:
     role: BASE_CLASS
     class: rclcpp_lifecycle::LifecycleNode
     header: rclcpp_lifecycle/lifecycle_node.hpp
+  python:
+    role: BASE_CLASS
+    module: rclpy.lifecycle
+    class: LifecycleNode
+    publisher_method: create_lifecycle_publisher
 
 include:
-  - ref: local://rclcpp_node.nodl.yaml
+  - ref: local://node.nodl.yaml
 
 publishers:
   - name: ~/transition_event

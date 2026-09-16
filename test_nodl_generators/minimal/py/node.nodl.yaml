@@ -1,4 +1,6 @@
 ---
-# Simplest valid Python codegen input: no includes or own entities.
+# Simplest valid Python codegen input: the standard node base and no own entities.
 
 nodl_version: 2
+include:
+  - ref: nodl://nodl_common_interfaces/node
