@@ -5,6 +5,12 @@ parameters:
     type: string
     default_value: hello
     description: Prefix for echoed messages
+  colour.r:
+    type: double
+    default_value: 0.8
+  colour.g:
+    type: double
+    default_value: 0.4
 publishers:
   - name: /echo_out
     type: std_msgs/msg/String

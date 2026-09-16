@@ -14,6 +14,7 @@ import jinja2
 import yaml
 
 from nodl_generator_common.naming import to_member_name
+from nodl_generator_common.parameters import nest_dotted_parameters
 from nodl_generator_common.provenance import resolve_provenance
 from nodl_generator_py.models import CodegenPython, Role
 from nodl_generator_py.provenance import codegen_python
@@ -146,10 +147,10 @@ def generate_parameter_yaml(doc: NodlDocument, target_name: str) -> str | None:
     """Render the input consumed by ``generate_parameter_library_py``."""
     if not doc.parameters:
         return None
-    parameters = {
+    parameters = nest_dotted_parameters({
         name: json.loads(definition.json(by_alias=True, exclude_none=True))
         for name, definition in doc.parameters.items()
-    }
+    })
     return yaml.safe_dump({_target_to_node_name(target_name): parameters}, default_flow_style=False, sort_keys=False)
 
 

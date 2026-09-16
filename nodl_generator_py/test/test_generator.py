@@ -6,6 +6,7 @@ import ast
 from pathlib import Path
 
 import pytest
+import yaml
 
 from nodl_generator_py import generate_parameter_yaml
 from nodl_generator_py.cli import main
@@ -160,6 +161,10 @@ def test_render_python():
     assert parameters_yaml.startswith('interfaces_node:')
     assert 'greeting:' in parameters_yaml
     assert '!!python' not in parameters_yaml
+    parameters = yaml.safe_load(parameters_yaml)['interfaces_node']
+    assert 'colour.r' not in parameters
+    assert parameters['colour']['r']['default_value'] == 0.8
+    assert parameters['colour']['g']['default_value'] == 0.4
 
 
 def test_render_python_rejects_unresolved_includes():
@@ -186,7 +191,9 @@ def test_cli_writes_generated_module(tmp_path):
 
     assert result == 0
     assert (tmp_path / 'interfaces_node_base.py').is_file()
-    assert (tmp_path / 'interfaces_node_base_parameters.py').is_file()
+    parameters_module = tmp_path / 'interfaces_node_base_parameters.py'
+    assert parameters_module.is_file()
+    ast.parse(parameters_module.read_text(encoding='utf-8'))
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
     assert (tmp_path / 'interfaces_node_base.py').read_text(encoding='utf-8') == _render_python(
         doc,

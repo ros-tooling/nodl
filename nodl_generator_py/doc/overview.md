@@ -178,6 +178,8 @@ def on_activate(self, state):
 
 NoDL parameters are converted to the YAML format consumed by
 [`generate_parameter_library_py`](https://github.com/PickNikRobotics/generate_parameter_library).
+Dotted NoDL names remain flat in the source document, while the intermediate YAML is nested as required by genparamlib.
+For example, `colour.r` is available as `self.params_.colour.r` and retains `colour.r` as its ROS parameter name.
 The generated base obtains the initial typed values during construction:
 
 ```python
