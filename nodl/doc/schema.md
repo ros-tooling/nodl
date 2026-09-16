@@ -28,6 +28,21 @@ Parameters reference the subschema {repo}`nodl_schema/nodl_schema/schemas/parame
 This is a formalization of the implicit schema defined by [`generate_parameter_library`](https://github.com/pickNikRobotics/generate_parameter_library) - NoDL builds on that work rather than reinventing the wheel.
 The ``byte_array`` parameter type represents a sequence of byte integers from ``0`` through ``255``.
 
+### Parameter names and namespaces
+
+Dotted parameter names remain flat keys in NoDL:
+
+```yaml
+parameters:
+  colour.r:
+    type: double
+  colour.g:
+    type: double
+```
+
+Parameters may share a namespace, but a parameter cannot also be that namespace.
+For example, declaring both `colour` and `colour.r` is invalid, including when the declarations come from different included documents.
+
 ```{eval-rst}
 .. include:: _generated/schemas/parameter_definitions.txt
 ```

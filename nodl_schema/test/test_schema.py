@@ -120,6 +120,43 @@ def test_parameter_with_all_fields():
     })
 
 
+def test_dotted_parameter_names_are_valid():
+    validate({
+        'nodl_version': 2,
+        'parameters': {
+            'colour.r': {'type': 'double'},
+            'colour.g': {'type': 'double'},
+        },
+    })
+
+
+@pytest.mark.parametrize(
+    'parameters',
+    [
+        {'colour': {'type': 'string'}, 'colour.r': {'type': 'double'}},
+        {'camera.exposure.auto': {'type': 'bool'}, 'camera.exposure': {'type': 'double'}},
+        {
+            'colour': {'type': 'string'},
+            'colour-green': {'type': 'double'},
+            'colour.r': {'type': 'double'},
+        },
+    ],
+)
+def test_parameter_cannot_also_be_a_namespace(parameters):
+    with pytest.raises(ValidationError, match='cannot also be a parameter namespace'):
+        validate({'nodl_version': 2, 'parameters': parameters})
+
+
+def test_parameter_namespace_check_uses_dot_boundaries():
+    validate({
+        'nodl_version': 2,
+        'parameters': {
+            'colour': {'type': 'string'},
+            'colourful.r': {'type': 'double'},
+        },
+    })
+
+
 def test_publisher_minimal():
     validate({
         'nodl_version': 2,

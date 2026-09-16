@@ -30,19 +30,10 @@ Raises a validation error if the document does not conform to the schema.
 
 If `resolve=True`, each `include` reference is resolved and merged in (see [Composition](#composition)), returning a document with the full interface and no `include`.
 
-```python
-from nodl_schema import load_nodl
-
-with open('my_node.nodl.yaml') as f:
-    doc = load_nodl(f)
-
-for name, parameter in (doc.parameters or {}).items():
-    print(name, parameter.type)
-```
-
 ### `validate(data) -> None`
 
-Validate a plain `dict` against the NoDL JSON schema, raising on the first violation.
+Validate a plain `dict` against the NoDL schema and its semantic constraints, raising on the first violation.
+Semantic validation includes parameter namespace conflicts such as declaring both `colour` and `colour.r`.
 Use this when you already have parsed data and only need the conformance check, not the typed model.
 
 ### `dump_nodl(doc, *, format='yaml') -> str`
@@ -76,6 +67,7 @@ publishers:
 Includes are followed recursively.
 Double-inclusions of the same reference (including cycles) are rejected.
 The same entity type with the same name declared twice is an error.
+Parameter namespace conflicts are checked again after all included documents are merged.
 Resolution failures raise `ResolutionError`, and collisions raise `MergeError`.
 
 ## Code generation metadata: the `codegen` key

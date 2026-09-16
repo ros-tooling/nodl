@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Generator
 
 from nodl_schema.models import NodlDocument, ParameterDefinition
+from nodl_schema.parameters import validate_parameter_namespaces
 
 # --------------------------------
 # Reference resolution
@@ -136,6 +137,9 @@ def _merge_parameters(docs: list[NodlDocument]) -> dict[str, ParameterDefinition
                 raise MergeError(_collision('parameter', name, origin[name], index))
             merged[name] = parameter
             origin[name] = index
+
+    if error := validate_parameter_namespaces(merged):
+        raise MergeError(error)
 
     return merged
 

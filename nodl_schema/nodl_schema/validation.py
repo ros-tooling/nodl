@@ -7,8 +7,10 @@ from __future__ import annotations
 import importlib.resources as ir
 
 import yaml
-from jsonschema import RefResolver
+from jsonschema import RefResolver, ValidationError
 from jsonschema.validators import Draft7Validator
+
+from nodl_schema.parameters import validate_parameter_namespaces
 
 _schema_cache: dict | None = None
 _validator_cache: Draft7Validator | None = None
@@ -44,8 +46,15 @@ def _make_validator() -> Draft7Validator:
 
 
 def validate(data: dict) -> None:
-    """Validate a plain dict against the NoDL JSON schema.
+    """Validate a plain dict against the NoDL schema and semantic constraints.
 
     Raises jsonschema.ValidationError on failure.
     """
     _make_validator().validate(data)
+
+    parameters = data.get('parameters')
+    if not isinstance(parameters, dict):
+        return
+
+    if error := validate_parameter_namespaces(parameters):
+        raise ValidationError(error)

@@ -280,6 +280,27 @@ def test_parameter_collision_errors(docs):
         merge_documents(resolve_document(base).flatten())
 
 
+@pytest.mark.parametrize(
+    ('root_name', 'included_name'),
+    [
+        ('colour', 'colour.r'),
+        ('camera.exposure.auto', 'camera.exposure'),
+    ],
+)
+def test_parameter_namespace_conflict_after_merge_errors(docs, root_name, included_name):
+    ref = docs.add(
+        'nested_parameter',
+        NodlDocument(parameters={included_name: ParameterDefinition(type='double')}),
+    )
+    base = NodlDocument(
+        parameters={root_name: ParameterDefinition(type='double')},
+        include=_refs(ref),
+    )
+
+    with pytest.raises(MergeError, match='cannot also be a parameter namespace'):
+        merge_documents(resolve_document(base).flatten())
+
+
 def test_service_collision_errors(docs):
     ref = docs.add('svc', NodlDocument(service_servers=[_service('/reset')]))
     base = NodlDocument(service_servers=[_service('/reset')], include=_refs(ref))
