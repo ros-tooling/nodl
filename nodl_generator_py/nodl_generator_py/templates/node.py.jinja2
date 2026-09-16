@@ -56,6 +56,8 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
             {{ action.py_type }},
             '{{ action.name }}',
             self.{{ action.callback_name }},
+            goal_callback=self.on_{{ action.identifier }}_goal,
+            cancel_callback=self.on_{{ action.identifier }}_cancel,
         )
     {% endfor %}
     {% for action in action_clients %}
@@ -80,6 +82,14 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         raise NotImplementedError
     {% endfor %}
     {% for action in action_servers %}
+
+    def on_{{ action.identifier }}_goal(self, goal_request):
+        """Accept or reject a goal received on {{ action.name }}."""
+        return rclpy.action.GoalResponse.ACCEPT
+
+    def on_{{ action.identifier }}_cancel(self, goal_handle):
+        """Accept or reject cancellation of a goal on {{ action.name }}."""
+        return rclpy.action.CancelResponse.ACCEPT
 
     @abc.abstractmethod
     def {{ action.callback_name }}(self, goal_handle):

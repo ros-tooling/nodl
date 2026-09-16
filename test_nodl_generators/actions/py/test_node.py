@@ -40,6 +40,10 @@ def test_generated_actions(ros_context):
         assert hasattr(node, 'action_srv_fibonacci')
         assert hasattr(node, 'action_cli_delegate_fibonacci')
         assert client.wait_for_server(timeout_sec=5.0)
+        rejected_future = client.send_goal_async(Fibonacci.Goal(order=-1))
+        _spin_until(executor, rejected_future.done)
+        assert not rejected_future.result().accepted
+
         goal_future = client.send_goal_async(Fibonacci.Goal(order=5))
         _spin_until(executor, goal_future.done)
         assert goal_future.result().accepted

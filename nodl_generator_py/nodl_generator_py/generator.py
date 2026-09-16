@@ -129,6 +129,7 @@ def _endpoints(
         imports.add(_ros_type_to_import(endpoint.type, kind))
         identifier = to_member_name(endpoint.name)
         item = {
+            'identifier': identifier,
             'name': endpoint.name,
             'py_type': _ros_type_to_py(endpoint.type, kind),
             'member_name': f'{member_prefix}{identifier}',

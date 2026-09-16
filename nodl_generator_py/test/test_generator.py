@@ -147,6 +147,10 @@ def test_render_python():
         'def on_add(self, request, response):',
         'self.cli_delegate_add = self.create_client(',
         'self.action_srv_fibonacci = rclpy.action.ActionServer(',
+        'goal_callback=self.on_fibonacci_goal,',
+        'cancel_callback=self.on_fibonacci_cancel,',
+        'def on_fibonacci_goal(self, goal_request):',
+        'def on_fibonacci_cancel(self, goal_handle):',
         'def execute_fibonacci(self, goal_handle):',
         'self.action_cli_delegate_fibonacci = rclpy.action.ActionClient(',
     ):

@@ -129,7 +129,7 @@ and replacing other non-alphanumeric groups with `_`.
 | Subscription | `sub_<name>` and abstract `on_<name>(msg)` | Implement the callback. |
 | Service server | `srv_<name>` and abstract `on_<name>(request, response)` | Implement the callback. |
 | Service client | `cli_<name>` | Send requests. |
-| Action server | `action_srv_<name>` and abstract `execute_<name>(goal_handle)` | Implement goal execution. |
+| Action server | `action_srv_<name>`, `on_<name>_goal()`, `on_<name>_cancel()`, and abstract `execute_<name>()` | Optionally override admission and cancellation policy; implement execution. |
 | Action client | `action_cli_<name>` | Send goals. |
 | Parameters | `param_listener_` and `params_` | Read typed parameter values. |
 
