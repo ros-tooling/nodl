@@ -44,6 +44,22 @@ codegen:
     )
 
 
+def _no_generate(path: Path, *, include: str | None = None) -> Path:
+    include_yaml = f'include:\n  - ref: local://{include}\n' if include is not None else ''
+    return _write(
+        path,
+        f"""nodl_version: 2
+codegen:
+  python:
+    role: NO_GENERATE
+{include_yaml}publishers:
+  - name: /ignored
+    type: sensor_msgs/msg/Image
+    qos: {{history: KEEP_LAST, depth: 1, reliability: RELIABLE}}
+""",
+    )
+
+
 def test_lifecycle_base_and_provider_entities_are_filtered(tmp_path):
     _write(
         tmp_path / 'node.nodl.yaml',
@@ -113,3 +129,46 @@ include:
 
     with pytest.raises(CodegenError, match='LifecycleNode, OtherNode'):
         generate_python(root, 'conflict_base')
+
+
+def test_no_generate_filters_entities_without_selecting_base(tmp_path):
+    _provider(tmp_path / 'base.nodl.yaml', entities=False)
+    ignored = _no_generate(tmp_path / 'ignored.nodl.yaml')
+    root = _write(
+        tmp_path / 'root.nodl.yaml',
+        """nodl_version: 2
+include:
+  - ref: local://base.nodl.yaml
+  - ref: local://ignored.nodl.yaml
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos: {history: KEEP_LAST, depth: 10, reliability: RELIABLE}
+""",
+    )
+
+    result = generate_python(root, 'example_node_base')
+
+    assert 'from rclpy.lifecycle import LifecycleNode' in result.module
+    assert 'import std_msgs.msg' in result.module
+    assert 'sensor_msgs' not in result.module
+    assert '/ignored' not in result.module
+    assert ignored.resolve() in result.sources
+
+
+def test_no_generate_hides_transitive_base_class(tmp_path):
+    _provider(tmp_path / 'base.nodl.yaml', entities=False)
+    _no_generate(tmp_path / 'ignored.nodl.yaml', include='base.nodl.yaml')
+    root = _write(
+        tmp_path / 'root.nodl.yaml',
+        """nodl_version: 2
+include:
+  - ref: local://ignored.nodl.yaml
+""",
+    )
+
+    result = generate_python(root, 'example_node_base')
+
+    assert 'from rclpy.node import Node' in result.module
+    assert 'LifecycleNode' not in result.module
+    assert '/ignored' not in result.module

@@ -6,11 +6,15 @@ description: Metadata validated and consumed by nodl_generator_py.
 
 type: object
 additionalProperties: false
-required: [role, module, class]
+required: [role]
 
 properties:
   role:
-    enum: [BASE_CLASS]
+    description: |
+      How this document's implementation participates in code generation.
+      ``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``
+      excludes this document and its transitive includes from generation.
+    enum: [BASE_CLASS, NO_GENERATE]
   module:
     type: string
     pattern: ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$
@@ -21,3 +25,17 @@ properties:
     type: string
     pattern: ^[A-Za-z_][A-Za-z0-9_]*$
     default: create_publisher
+
+allOf:
+  - if:
+      properties:
+        role:
+          const: BASE_CLASS
+    then:
+      required: [module, class]
+    else:
+      not:
+        anyOf:
+          - required: [module]
+          - required: [class]
+          - required: [publisher_method]

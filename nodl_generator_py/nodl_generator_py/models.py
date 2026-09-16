@@ -15,7 +15,15 @@ except ImportError:
 
 
 class Role(Enum):
+    """
+    How this document's implementation participates in code generation.
+    ``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``
+    excludes this document and its transitive includes from generation.
+
+    """
+
     BASE_CLASS = 'BASE_CLASS'
+    NO_GENERATE = 'NO_GENERATE'
 
 
 class CodegenPython(BaseModel):
@@ -26,7 +34,10 @@ class CodegenPython(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    role: Role
-    module: constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$')
-    class_: constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*$') = Field(..., alias='class')
+    role: Role = Field(
+        ...,
+        description="How this document's implementation participates in code generation.\n``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``\nexcludes this document and its transitive includes from generation.\n",
+    )
+    module: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$')] = None
+    class_: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*$')] = Field(None, alias='class')
     publisher_method: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*$')] = 'create_publisher'

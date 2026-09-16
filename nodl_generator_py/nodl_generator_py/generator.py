@@ -159,12 +159,16 @@ def _find_base_class_config(barriers: list[CodegenPython]) -> CodegenPython:
     if not base_classes:
         return _DEFAULT_BASE
     if len(base_classes) > 1:
-        classes = ', '.join(base.class_ for base in base_classes)
+        classes = ', '.join(base.class_ for base in base_classes if base.class_ is not None)
         raise CodegenError(
             f'Multiple conflicting Python base class providers found: {classes}. '
             'A generated node can only inherit from one base class.'
         )
-    return base_classes[0]
+    base = base_classes[0]
+    assert base.module is not None
+    assert base.class_ is not None
+    assert base.publisher_method is not None
+    return base
 
 
 def _render_python(

@@ -39,9 +39,8 @@ def validate(codegen: dict) -> None:
     python = codegen.get(CODEGEN_KEY)
     if python is not None:
         _make_validator().validate(python)
-        names = [*python['module'].split('.'), python['class']]
-        if 'publisher_method' in python:
-            names.append(python['publisher_method'])
+        names = python.get('module', '').split('.') if 'module' in python else []
+        names += [python[field] for field in ('class', 'publisher_method') if field in python]
         invalid = next((name for name in names if keyword.iskeyword(name)), None)
         if invalid is not None:
             raise ValidationError(f'{invalid!r} is a Python keyword, not a valid codegen.python name')

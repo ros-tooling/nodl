@@ -15,6 +15,12 @@ def _base(**overrides):
     return {'python': value}
 
 
+def _no_generate(**overrides):
+    value = {'role': 'NO_GENERATE'}
+    value.update(overrides)
+    return {'python': value}
+
+
 def test_load_base_class_defaults_publisher_method():
     config = load(_base())
     assert isinstance(config, CodegenPython)
@@ -22,6 +28,14 @@ def test_load_base_class_defaults_publisher_method():
     assert config.module == 'rclpy.node'
     assert config.class_ == 'Node'
     assert config.publisher_method == 'create_publisher'
+
+
+def test_load_no_generate():
+    config = load(_no_generate())
+    assert isinstance(config, CodegenPython)
+    assert config.role is Role.NO_GENERATE
+    assert config.module is None
+    assert config.class_ is None
 
 
 @pytest.mark.parametrize(
@@ -41,6 +55,19 @@ def test_load_base_class_defaults_publisher_method():
 def test_invalid_metadata_fails(codegen):
     with pytest.raises(ValidationError):
         validate(codegen)
+
+
+@pytest.mark.parametrize(
+    'field,value',
+    [
+        ('module', 'rclpy.node'),
+        ('class', 'Node'),
+        ('publisher_method', 'create_publisher'),
+    ],
+)
+def test_no_generate_rejects_base_class_fields(field, value):
+    with pytest.raises(ValidationError):
+        validate(_no_generate(**{field: value}))
 
 
 def test_other_language_metadata_is_ignored():
