@@ -7,10 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from nodl_generator_py import generate_parameter_yaml, generate_python
+from nodl_generator_py import generate_parameter_yaml
 from nodl_generator_py.cli import main
 from nodl_generator_py.generator import (
     _qos_to_py,
+    _render_python,
     _ros_type_to_import,
     _ros_type_to_py,
     _snake_to_pascal,
@@ -119,13 +120,13 @@ def test_zero_qos_durations_use_unlimited_defaults():
     )
     doc = NodlDocument(publishers=[TopicEndpoint(name='status', type='std_msgs/msg/String', qos=qos)])
 
-    assert 'Duration' not in generate_python(doc, 'example_node')
+    assert 'Duration' not in _render_python(doc, 'example_node')
 
 
-def test_generate_python():
+def test_render_python():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
-    generated = generate_python(doc, 'interfaces_node_base')
+    generated = _render_python(doc, 'interfaces_node_base')
 
     tree = ast.parse(generated)
     imports = {
@@ -157,16 +158,16 @@ def test_generate_python():
     assert '!!python' not in parameters_yaml
 
 
-def test_in_memory_generate_python_rejects_unresolved_includes():
+def test_render_python_rejects_unresolved_includes():
     doc = NodlDocument(include=[Reference(ref='nodl://example/base')])
 
     with pytest.raises(NotImplementedError, match='requires a resolved, flat'):
-        generate_python(doc, 'including_node')
+        _render_python(doc, 'including_node')
 
 
-def test_generate_python_rejects_invalid_target_name():
+def test_render_python_rejects_invalid_target_name():
     with pytest.raises(ValueError, match='valid Python identifier'):
-        generate_python(NodlDocument(), 'invalid-name')
+        _render_python(NodlDocument(), 'invalid-name')
 
 
 def test_cli_writes_generated_module(tmp_path):
@@ -183,7 +184,7 @@ def test_cli_writes_generated_module(tmp_path):
     assert (tmp_path / 'interfaces_node_base.py').is_file()
     assert (tmp_path / 'interfaces_node_base_parameters.py').is_file()
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
-    assert (tmp_path / 'interfaces_node_base.py').read_text(encoding='utf-8') == generate_python(
+    assert (tmp_path / 'interfaces_node_base.py').read_text(encoding='utf-8') == _render_python(
         doc,
         'interfaces_node_base',
     )

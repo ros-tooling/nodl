@@ -166,8 +166,14 @@ def _find_base_class_config(barriers: list[CodegenPython]) -> CodegenPython:
     return base_classes[0]
 
 
-def _render_python(doc: NodlDocument, target_name: str, base: CodegenPython) -> str:
+def _render_python(
+    doc: NodlDocument,
+    target_name: str,
+    base: CodegenPython = _DEFAULT_BASE,
+) -> str:
     """Render an already resolved and filtered document."""
+    if doc.include:
+        raise NotImplementedError('_render_python requires a resolved, flat NoDL document')
     if not target_name.isidentifier() or keyword.iskeyword(target_name):
         raise ValueError(f'target name must be a valid Python identifier: {target_name!r}')
 
@@ -212,13 +218,6 @@ def _render_python(doc: NodlDocument, target_name: str, base: CodegenPython) -> 
         action_servers=action_servers,
         action_clients=action_clients,
     )
-
-
-def generate_python(doc: NodlDocument, target_name: str) -> str:
-    """Render a flat Python module without writing to the filesystem."""
-    if doc.include:
-        raise NotImplementedError('generate_python requires a resolved, flat NoDL document')
-    return _render_python(doc, target_name, _DEFAULT_BASE)
 
 
 def generate_python_from_file(source: Path, target_name: str) -> PythonGeneration:
