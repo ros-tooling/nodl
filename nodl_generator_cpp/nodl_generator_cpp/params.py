@@ -11,6 +11,7 @@ import yaml
 from generate_parameter_library_py.parse_yaml import GenerateCode
 
 from nodl_generator_common.generated_file import GeneratedFile
+from nodl_generator_common.parameters import nest_dotted_parameters
 from nodl_schema.models import ParameterDefinition
 
 
@@ -36,7 +37,7 @@ def generate_genparamlib_yaml(
     to be written to disk and then passed to
     :func:`generate_parameter_header`.
     """
-    params_dict = {name: _param_to_dict(param) for name, param in parameters.items()}
+    params_dict = nest_dotted_parameters({name: _param_to_dict(param) for name, param in parameters.items()})
     content = yaml.dump(
         {target_name: params_dict},
         default_flow_style=False,

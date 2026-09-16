@@ -24,6 +24,12 @@ parameters:
   enabled:
     type: bool
     default_value: true
+  colour.r:
+    type: double
+    default_value: 0.8
+  colour.g:
+    type: double
+    default_value: 0.4
 
 publishers:
   - name: status

@@ -328,6 +328,8 @@ by design — the NoDL parameter schema is a formalization of genparamlib's impl
 
 The generator converts NoDL parameters to a genparamlib YAML file, then delegates to genparamlib to produce the
 C++ parameter header.
+Dotted NoDL names remain flat in the source document, while the intermediate YAML is nested as required by genparamlib.
+For example, `colour.r` is available as `params_.colour.r` and retains `colour.r` as its ROS parameter name.
 No `declare_parameter()` calls appear in the generated templates.
 
 The generated base class holds two protected members for parameter access:

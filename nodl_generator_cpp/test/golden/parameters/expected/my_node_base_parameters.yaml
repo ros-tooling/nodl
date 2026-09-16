@@ -23,3 +23,16 @@ my_node_base:
     description: ''
     read_only: false
     additional_constraints: ''
+  colour:
+    r:
+      type: double
+      default_value: 0.8
+      description: ''
+      read_only: false
+      additional_constraints: ''
+    g:
+      type: double
+      default_value: 0.4
+      description: ''
+      read_only: false
+      additional_constraints: ''
