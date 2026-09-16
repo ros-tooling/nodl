@@ -21,6 +21,9 @@ class TestValidate:
         codegen = {CODEGEN_KEY: {'role': 'BASE_CLASS', 'class': 'rclcpp::Node', 'header': 'rclcpp/rclcpp.hpp'}}
         validate(codegen)  # should not raise
 
+    def test_valid_no_generate(self):
+        validate({CODEGEN_KEY: {'role': 'NO_GENERATE'}})
+
     def test_no_cpp_key_is_ok(self):
         validate({})  # no cpp key — nothing to validate
         validate({'python': {'something': 'else'}})  # other languages are fine
@@ -43,6 +46,12 @@ class TestValidate:
     def test_base_class_missing_header(self):
         codegen = {CODEGEN_KEY: {'role': 'BASE_CLASS', 'class': 'rclcpp::Node'}}
         with pytest.raises(ValidationError, match="'header' is a required property"):
+            validate(codegen)
+
+    @pytest.mark.parametrize('field,value', [('class', 'Ignored'), ('header', 'ignored.hpp')])
+    def test_no_generate_rejects_base_class_fields(self, field, value):
+        codegen = {CODEGEN_KEY: {'role': 'NO_GENERATE', field: value}}
+        with pytest.raises(ValidationError):
             validate(codegen)
 
     def test_extra_key_rejected(self):
@@ -73,6 +82,13 @@ class TestLoad:
         assert result.role == Role.BASE_CLASS
         assert result.class_ == 'rclcpp::Node'
         assert result.header == 'rclcpp/rclcpp.hpp'
+
+    def test_returns_no_generate_model(self):
+        result = load({CODEGEN_KEY: {'role': 'NO_GENERATE'}})
+        assert isinstance(result, CodegenCpp)
+        assert result.role is Role.NO_GENERATE
+        assert result.class_ is None
+        assert result.header is None
 
     def test_returns_none_when_no_cpp(self):
         assert load({}) is None

@@ -16,12 +16,14 @@ except ImportError:
 
 class Role(Enum):
     """
-    How this document's implementation participates in the
-    generated class.  Currently only ``BASE_CLASS`` is supported.
+    How this document's implementation participates in code generation.
+    ``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``
+    excludes this document and its transitive includes from generation.
 
     """
 
     BASE_CLASS = 'BASE_CLASS'
+    NO_GENERATE = 'NO_GENERATE'
 
 
 class CodegenCpp(BaseModel):
@@ -36,7 +38,7 @@ class CodegenCpp(BaseModel):
 
     role: Role = Field(
         ...,
-        description="How this document's implementation participates in the\ngenerated class.  Currently only ``BASE_CLASS`` is supported.\n",
+        description="How this document's implementation participates in code generation.\n``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``\nexcludes this document and its transitive includes from generation.\n",
     )
     class_: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_:]*$')] = Field(
         None,

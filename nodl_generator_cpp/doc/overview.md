@@ -271,9 +271,20 @@ publishers:
     qos: {history: KEEP_LAST, depth: 10, reliability: RELIABLE}
 ```
 
+Use `NO_GENERATE` when an included document has an existing implementation but does not provide the generated class's base:
+
+```yaml
+codegen:
+  cpp:
+    role: NO_GENERATE
+```
+
+`NO_GENERATE` takes no `class` or `header` fields.
+The root being generated should not carry this metadata; the role describes included provider documents.
+
 ### Barriers and entity filtering
 
-An included document that carries `codegen.cpp` is an **implementation barrier**.
+An included document that carries `codegen.cpp`, with either role, is an **implementation barrier**.
 All entities it declares — and all entities in documents *it* transitively includes — are *provided*: the existing
 implementation already handles them, so the generator filters them out.
 
@@ -302,6 +313,10 @@ root (being generated)
 The inner `rclcpp::Node` sits behind `LifecycleNode`'s barrier, so all of Node's entities are attributed to
 LifecycleNode.
 The generator sees exactly one base class — the outermost barrier — and inherits from it.
+
+A `NO_GENERATE` barrier also owns its complete subtree.
+If it transitively includes a `BASE_CLASS`, that base is hidden from the generator.
+The root must include another visible `BASE_CLASS` provider or C++ generation fails with the normal no-base-class error.
 
 ### Error: multiple direct base classes
 

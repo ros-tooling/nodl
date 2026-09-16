@@ -14,9 +14,10 @@ required:
 properties:
   role:
     description: |
-      How this document's implementation participates in the
-      generated class.  Currently only ``BASE_CLASS`` is supported.
-    enum: [BASE_CLASS]
+      How this document's implementation participates in code generation.
+      ``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``
+      excludes this document and its transitive includes from generation.
+    enum: [BASE_CLASS, NO_GENERATE]
 
   class:
     description: |
@@ -40,3 +41,8 @@ allOf:
       required:
         - class
         - header
+    else:
+      not:
+        anyOf:
+          - required: [class]
+          - required: [header]
