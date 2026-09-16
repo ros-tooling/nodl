@@ -17,11 +17,11 @@ include:
   - ref: local://rclcpp_node.nodl.yaml
 
 publishers:
-  - name: transition_event
+  - name: ~/transition_event
     type: lifecycle_msgs/msg/TransitionEvent
     qos:
       history: KEEP_LAST
-      depth: 1
+      depth: 10
       reliability: RELIABLE
 
 service_servers:
