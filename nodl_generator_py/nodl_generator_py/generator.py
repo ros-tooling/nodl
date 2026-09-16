@@ -220,7 +220,7 @@ def _render_python(
     )
 
 
-def generate_python_from_file(source: Path, target_name: str) -> PythonGeneration:
+def generate_python(source: Path, target_name: str) -> PythonGeneration:
     """Resolve includes and generate Python content from a NoDL source file."""
     resolved = resolve_provenance(source, codegen_python)
     base = _find_base_class_config(resolved.barriers)

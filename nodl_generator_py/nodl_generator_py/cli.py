@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from nodl_generator_py.generator import format_cmake_deps, generate_python_from_file
+from nodl_generator_py.generator import format_cmake_deps, generate_python
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -22,7 +22,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        generation = generate_python_from_file(args.nodl_file, args.target_name)
+        generation = generate_python(args.nodl_file, args.target_name)
         args.output_dir.mkdir(parents=True, exist_ok=True)
         if args.cmake_deps:
             output = args.output_dir / f'{args.target_name}_deps.cmake'

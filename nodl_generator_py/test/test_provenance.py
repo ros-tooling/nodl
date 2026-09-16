@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from nodl_generator_py.generator import CodegenError, generate_python_from_file
+from nodl_generator_py import generate_python
+from nodl_generator_py.generator import CodegenError
 
 
 def _write(path: Path, content: str) -> Path:
@@ -83,7 +84,7 @@ publishers:
 """,
     )
 
-    result = generate_python_from_file(root, 'lifecycle_node_base')
+    result = generate_python(root, 'lifecycle_node_base')
 
     assert 'from rclpy.lifecycle import LifecycleNode' in result.module
     assert 'class LifecycleNodeBase(LifecycleNode):' in result.module
@@ -111,4 +112,4 @@ include:
     )
 
     with pytest.raises(CodegenError, match='LifecycleNode, OtherNode'):
-        generate_python_from_file(root, 'conflict_base')
+        generate_python(root, 'conflict_base')
