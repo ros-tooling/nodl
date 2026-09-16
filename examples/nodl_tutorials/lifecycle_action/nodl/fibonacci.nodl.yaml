@@ -1,0 +1,6 @@
+---
+nodl_version: 2
+description: Public Fibonacci action-server contract shared by C++ and Python.
+action_servers:
+  - name: fibonacci
+    type: example_interfaces/action/Fibonacci

@@ -1,0 +1,33 @@
+# GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_py.
+import abc
+import example_interfaces.action
+import rclpy.action
+from rclpy.lifecycle import LifecycleNode
+
+
+class FibonacciActionServerPyBase(LifecycleNode, metaclass=abc.ABCMeta):
+    """Generated NoDL base node."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__('fibonacci_action_server_py', **kwargs)
+        self.action_srv_fibonacci = rclpy.action.ActionServer(
+            self,
+            example_interfaces.action.Fibonacci,
+            'fibonacci',
+            self.execute_fibonacci,
+            goal_callback=self.on_fibonacci_goal,
+            cancel_callback=self.on_fibonacci_cancel,
+        )
+
+    def on_fibonacci_goal(self, goal_request: example_interfaces.action.Fibonacci.Goal) -> rclpy.action.GoalResponse:
+        """Accept or reject a goal received on fibonacci."""
+        return rclpy.action.GoalResponse.ACCEPT
+
+    def on_fibonacci_cancel(self, goal_handle: rclpy.action.server.ServerGoalHandle) -> rclpy.action.CancelResponse:
+        """Accept or reject cancellation of a goal on fibonacci."""
+        return rclpy.action.CancelResponse.ACCEPT
+
+    @abc.abstractmethod
+    def execute_fibonacci(self, goal_handle: rclpy.action.server.ServerGoalHandle) -> example_interfaces.action.Fibonacci.Result:
+        """Execute a goal received on fibonacci."""
+        raise NotImplementedError
