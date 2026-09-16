@@ -10,7 +10,7 @@ import yaml
 from jsonschema import RefResolver, ValidationError
 from jsonschema.validators import Draft7Validator
 
-from nodl_schema.parameters import validate_parameter_namespaces
+from nodl_schema.parameters import validate_parameter_names
 
 _schema_cache: dict | None = None
 _validator_cache: Draft7Validator | None = None
@@ -56,5 +56,5 @@ def validate(data: dict) -> None:
     if not isinstance(parameters, dict):
         return
 
-    if error := validate_parameter_namespaces(parameters):
+    if error := validate_parameter_names(parameters):
         raise ValidationError(error)

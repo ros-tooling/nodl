@@ -5,9 +5,14 @@
 from collections.abc import Iterable
 
 
-def validate_parameter_namespaces(parameters: Iterable[str]) -> str | None:
-    """Validate that the set of parameter names, returning an error message if validation fails."""
-    conflict = find_parameter_namespace_conflict(parameters)
+def validate_parameter_names(parameters: Iterable[str]) -> str | None:
+    """Validate parameter names, returning an error message if validation fails."""
+    parameter_names = list(parameters)
+    for name in parameter_names:
+        if any(not part for part in name.split('.')):
+            return f'invalid dotted parameter name {name!r}: name components cannot be empty'
+
+    conflict = find_parameter_namespace_conflict(parameter_names)
     if conflict is not None:
         parameter, nested_parameter = conflict
         return f'parameter {parameter!r} conflicts with {nested_parameter!r}: a parameter cannot also be a parameter namespace'

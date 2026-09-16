@@ -14,6 +14,7 @@ A generator becomes "a config model + a schema + templates + a type mapping" and
   The three primitives stay public for generators that need finer control.
 - `generated_file` — the `GeneratedFile(filename, content)` dataclass every generator emits.
 - `naming` — language-agnostic name-case conversions (`camel_to_snake`, `to_member_name`).
+- `parameters` — expansion of flat dotted NoDL parameter names into nested generator input mappings.
 
 ## Writing a generator
 

@@ -157,6 +157,12 @@ def test_parameter_namespace_check_uses_dot_boundaries():
     })
 
 
+@pytest.mark.parametrize('name', ['', '.colour', 'colour.', 'colour..r'])
+def test_dotted_parameter_names_cannot_have_empty_components(name):
+    with pytest.raises(ValidationError, match='components cannot be empty'):
+        validate({'nodl_version': 2, 'parameters': {name: {'type': 'double'}}})
+
+
 def test_publisher_minimal():
     validate({
         'nodl_version': 2,
