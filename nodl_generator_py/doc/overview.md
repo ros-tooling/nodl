@@ -148,7 +148,7 @@ Use the standard lifecycle provider like this:
 ```yaml
 nodl_version: 2
 include:
-  - ref: nodl://rclpy/lifecycle_node
+  - ref: nodl://nodl_common_interfaces/lifecycle_node
 
 publishers:
   - name: status

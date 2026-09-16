@@ -66,15 +66,14 @@ Kilted+, `parameter_traits` present on Humble/Jazzy but removed on Kilted+).
 
 The generator requires that a nodl document includes exactly one spec with a codegen class type `BASE_CLASS`.
 
-The `nodl_common_interfaces` package provides NoDL descriptions for `rclcpp::Node` and `rclcpp_lifecycle::LifecycleNode`, which are of type `BASE_CLASS`. They are registered as `nodl://rclcpp/node` and `nodl://rclcpp_lifecycle/lifecycle_node`.
-Add it as a dependency:
+The `nodl_common_interfaces` package provides shared NoDL descriptions for the standard node and lifecycle-node base types.
+Their `codegen.cpp` metadata selects `rclcpp::Node` or `rclcpp_lifecycle::LifecycleNode` as the `BASE_CLASS`.
+They are registered as `nodl://nodl_common_interfaces/node` and `nodl://nodl_common_interfaces/lifecycle_node`.
+Add the package as a dependency:
 
 ```xml
 <depend>nodl_common_interfaces</depend>
 ```
-
-This is a stopgap: once upstream packages ship their own `.nodl.yaml`, `nodl_common_interfaces` will be deprecated
-and replaced by a direct dependency on the upstream package.
 
 ## Generated files
 
@@ -98,7 +97,7 @@ Given this NoDL input:
 nodl_version: 2
 
 include:
-  - ref: nodl://rclcpp/node
+  - ref: nodl://nodl_common_interfaces/node
 
 publishers:
   - name: status
@@ -240,10 +239,10 @@ A NoDL document can carry a `codegen.cpp` field declaring that it has an existin
 The schema for this field is defined in {repo}`nodl_generator_cpp/nodl_generator_cpp/schemas/codegen_cpp.schema.yaml`
 and validated by `nodl_generator_cpp`, not `nodl_schema`.
 
-For example, `nodl://rclcpp/node` (provided by `nodl_common_interfaces`) declares itself as a base-class provider:
+For example, `nodl://nodl_common_interfaces/node` declares itself as a C++ base-class provider:
 
 ```yaml
-# nodl://rclcpp/node
+# nodl://nodl_common_interfaces/node
 nodl_version: 2
 codegen:
   cpp:
@@ -264,7 +263,7 @@ A consumer simply includes it — no codegen metadata of its own is needed:
 # my_node.nodl.yaml
 nodl_version: 2
 include:
-  - ref: nodl://rclcpp/node
+  - ref: nodl://nodl_common_interfaces/node
 publishers:
   - name: /status
     type: std_msgs/msg/String
@@ -279,9 +278,9 @@ implementation already handles them, so the generator filters them out.
 
 ```
 root (being generated — no codegen)
- ├── include: nodl://rclcpp/node          [has codegen → barrier]
- │    → /rosout, /parameter_events, …      filtered out
- └── own: /status                          scaffolded
+ ├── include: nodl://nodl_common_interfaces/node   [has codegen → barrier]
+ │    → /rosout, /parameter_events, …               filtered out
+ └── own: /status                                   scaffolded
 ```
 
 The generator builds a provenance map: each entity maps to the `codegen.cpp` of its provider, or is absent (meaning
@@ -294,9 +293,9 @@ A base-class provider can itself include another base class.
 
 ```
 root (being generated)
- └── include: nodl://rclcpp_lifecycle/lifecycle_node   [codegen: BASE_CLASS → barrier]
-      └── include: nodl://rclcpp/node                  [codegen: BASE_CLASS, behind barrier]
-           → /rosout, /parameter_events, …              all attributed to lifecycle_node
+ └── include: nodl://nodl_common_interfaces/lifecycle_node   [codegen: BASE_CLASS → barrier]
+      └── include: nodl://nodl_common_interfaces/node        [codegen: BASE_CLASS, behind barrier]
+           → /rosout, /parameter_events, …                    all attributed to lifecycle_node
 ```
 
 The inner `rclcpp::Node` sits behind `LifecycleNode`'s barrier, so all of Node's entities are attributed to
@@ -310,8 +309,8 @@ single-inheritance means it cannot produce a class that inherits from two unrela
 
 ```
 root
- ├── include: nodl://rclcpp/node                      [codegen: BASE_CLASS]
- └── include: nodl://rclcpp_lifecycle/lifecycle_node   [codegen: BASE_CLASS]
+ ├── include: nodl://nodl_common_interfaces/node             [codegen: BASE_CLASS]
+ └── include: nodl://nodl_common_interfaces/lifecycle_node   [codegen: BASE_CLASS]
 ```
 
 These are siblings; neither is behind the other's barrier.
@@ -389,6 +388,6 @@ The NoDL document consumed by this generator is validated by `nodl_schema`.
 Include resolution and the document tree are provided by `nodl_schema`'s loader.
 The `codegen.cpp` sub-object is opaque to `nodl_schema` — its schema and interpretation are owned entirely by this
 package.
-`nodl_common_interfaces` registers the base-class NoDL descriptions (`nodl://rclcpp/node`,
-`nodl://rclcpp_lifecycle/lifecycle_node`) that the generator's include references resolve against.
+`nodl_common_interfaces` registers the shared base-type descriptions (`nodl://nodl_common_interfaces/node`
+and `nodl://nodl_common_interfaces/lifecycle_node`) that the generator's include references resolve against.
 For registering a NoDL document with the ament index, see the `ament_nodl` package.

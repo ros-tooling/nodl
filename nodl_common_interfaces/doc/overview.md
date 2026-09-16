@@ -1,11 +1,7 @@
 # nodl_common_interfaces
 
-`nodl_common_interfaces` registers NoDL interface descriptions for the standard ROS 2 node base classes
-with the ament index, so that `nodl://` include references resolve correctly.
-
-This is a stopgap package.
-Eventually, upstream packages (`rclcpp`, `rclcpp_lifecycle`, and `rclpy`) will ship their own `.nodl.yaml` files.
-Until then, this package provides the descriptions and will be deprecated when upstream adopts them.
+`nodl_common_interfaces` registers language-independent NoDL interface descriptions for the standard ROS 2 node base types.
+Each description carries the C++ and Python code-generation metadata needed to select the corresponding client-library class.
 
 For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
@@ -13,13 +9,11 @@ For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
 | Reference | Describes |
 |---|---|
-| `nodl://rclcpp/node` | `rclcpp::Node` — publishers (`/rosout`, `/parameter_events`), parameter services, and `use_sim_time`. |
-| `nodl://rclcpp_lifecycle/lifecycle_node` | `rclcpp_lifecycle::LifecycleNode` — includes `rclcpp::Node`, adds the `transition_event` publisher and lifecycle services (`change_state`, `get_state`, etc.). |
-| `nodl://rclpy/node` | `rclpy.node.Node` — reuses the standard node interface contract. |
-| `nodl://rclpy/lifecycle_node` | `rclpy.lifecycle.LifecycleNode` — reuses the standard lifecycle interface contract and selects lifecycle publisher creation. |
+| `nodl://nodl_common_interfaces/node` | The standard node interface — publishers (`/rosout`, `/parameter_events`), parameter services, and `use_sim_time`. Selects `rclcpp::Node` or `rclpy.node.Node` for code generation. |
+| `nodl://nodl_common_interfaces/lifecycle_node` | The standard lifecycle-node interface — includes `node`, adds the `transition_event` publisher and lifecycle services, and selects `rclcpp_lifecycle::LifecycleNode` or `rclpy.lifecycle.LifecycleNode`. |
 
-Each document carries language-specific `BASE_CLASS` metadata used by its generator to select the generated class's base.
-The `rclpy` provider documents include the existing interface documents instead of duplicating their entities.
+Both documents carry `codegen.cpp` and `codegen.python` `BASE_CLASS` metadata.
+Each generator reads only its own metadata while sharing the same interface contract and reference.
 
 ## Usage
 
