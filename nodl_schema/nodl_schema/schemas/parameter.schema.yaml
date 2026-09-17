@@ -215,11 +215,17 @@ definitions:
         $ref: '#/definitions/custom_validator'
 
   # Validator argument types
+  numeric_value:
+    description: |
+      An integer or floating-point value.
+      Both forms are explicit so generated models preserve the authored YAML type.
+    type: [integer, number]
+
   bounds_validator:
     description: 'Inclusive bounds checking: ``[lower, upper]``'
     type: array
     items:
-      type: number
+      $ref: '#/definitions/numeric_value'
     minItems: 2
     maxItems: 2
     examples:
@@ -232,10 +238,10 @@ definitions:
     oneOf:
       - type: array
         items:
-          type: number
+          $ref: '#/definitions/numeric_value'
         minItems: 1
         maxItems: 1
-      - type: number
+      - $ref: '#/definitions/numeric_value'
         description: Can also be specified as a bare number
     examples:
       - [0]
@@ -307,7 +313,7 @@ definitions:
     oneOf:
       - type: 'null'
       - type: array
-      - type: number
+      - $ref: '#/definitions/numeric_value'
       - type: string
       - type: boolean
     examples:

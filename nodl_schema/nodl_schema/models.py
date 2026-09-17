@@ -9,9 +9,9 @@ from enum import Enum
 from typing import Any, Optional, Union
 
 try:
-    from pydantic.v1 import BaseModel, Extra, Field, conint, constr
+    from pydantic.v1 import BaseModel, Extra, Field, StrictFloat, StrictInt, conint, constr
 except ImportError:
-    from pydantic import BaseModel, Extra, Field, conint, constr
+    from pydantic import BaseModel, Extra, Field, StrictFloat, StrictInt, conint, constr
 
 
 class ScalarType(Enum):
@@ -123,19 +123,21 @@ class QosProfile(BaseModel):
         extra = Extra.forbid
 
     history: History = Field(..., description='History policy.')
-    depth: Optional[conint(ge=1)] = Field(None, description='Queue depth. Required when ``history`` is ``KEEP_LAST``.')
+    depth: Optional[conint(ge=1, strict=True)] = Field(
+        None, description='Queue depth. Required when ``history`` is ``KEEP_LAST``.'
+    )
     reliability: Reliability = Field(..., description='Reliability policy.')
     durability: Optional[Durability] = Field(None, description='Durability policy.')
-    deadline_ns: Optional[conint(ge=0)] = Field(
+    deadline_ns: Optional[conint(ge=0, strict=True)] = Field(
         None,
         description='Deadline between successive messages, in nanoseconds.\nZero means no deadline is enforced. Stored as a signed\n64-bit integer (~292 years range).\n',
     )
-    lifespan_ns: Optional[conint(ge=0)] = Field(
+    lifespan_ns: Optional[conint(ge=0, strict=True)] = Field(
         None,
         description='Maximum age of a message before it is dropped, in\nnanoseconds. Zero means messages never expire.\n',
     )
     liveliness: Optional[Liveliness] = Field(None, description='Liveliness policy.')
-    liveliness_lease_duration_ns: Optional[conint(ge=0)] = Field(
+    liveliness_lease_duration_ns: Optional[conint(ge=0, strict=True)] = Field(
         None,
         description='Maximum time between liveliness assertions before the\npublisher is considered not alive, in nanoseconds. Zero\nmeans the lease never expires.\n',
     )
@@ -241,31 +243,31 @@ class Validation(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    bounds__: Optional[list[float]] = Field(
+    bounds__: Optional[list[Union[StrictInt, StrictFloat]]] = Field(
         None,
         alias='bounds<>',
         description='Inclusive bounds checking: ``[lower, upper]``',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
-    lt__: Optional[Union[list[float], float]] = Field(
+    lt__: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         alias='lt<>',
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    gt__: Optional[Union[list[float], float]] = Field(
+    gt__: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         alias='gt<>',
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    lt_eq__: Optional[Union[list[float], float]] = Field(
+    lt_eq__: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         alias='lt_eq<>',
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    gt_eq__: Optional[Union[list[float], float]] = Field(
+    gt_eq__: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         alias='gt_eq<>',
         description='Single value comparison: ``[value]`` or bare value',
@@ -277,27 +279,27 @@ class Validation(BaseModel):
         description='Parameter must be one of the specified values: ``[[val1, val2, ...]]``',
         examples=[[['spline', 'linear']], [[0, 1, 2, -1]], [[True, False]]],
     )
-    bounds: Optional[list[float]] = Field(
+    bounds: Optional[list[Union[StrictInt, StrictFloat]]] = Field(
         None,
         description='Inclusive bounds checking: ``[lower, upper]``',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
-    lt: Optional[Union[list[float], float]] = Field(
+    lt: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    gt: Optional[Union[list[float], float]] = Field(
+    gt: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    lt_eq: Optional[Union[list[float], float]] = Field(
+    lt_eq: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    gt_eq: Optional[Union[list[float], float]] = Field(
+    gt_eq: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
@@ -314,35 +316,35 @@ class Validation(BaseModel):
         examples=[None, []],
     )
     not_empty: Optional[list] = Field(None, description='Validator that takes no arguments', examples=[None, []])
-    fixed_size__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
+    fixed_size__: Optional[Union[list[conint(ge=0, strict=True)], conint(ge=0, strict=True)]] = Field(
         None,
         alias='fixed_size<>',
         description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
     )
-    size_gt__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
+    size_gt__: Optional[Union[list[conint(ge=0, strict=True)], conint(ge=0, strict=True)]] = Field(
         None,
         alias='size_gt<>',
         description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
     )
-    size_lt__: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
+    size_lt__: Optional[Union[list[conint(ge=0, strict=True)], conint(ge=0, strict=True)]] = Field(
         None,
         alias='size_lt<>',
         description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
     )
-    fixed_size: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
+    fixed_size: Optional[Union[list[conint(ge=0, strict=True)], conint(ge=0, strict=True)]] = Field(
         None,
         description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
     )
-    size_gt: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
+    size_gt: Optional[Union[list[conint(ge=0, strict=True)], conint(ge=0, strict=True)]] = Field(
         None,
         description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
     )
-    size_lt: Optional[Union[list[conint(ge=0)], conint(ge=0)]] = Field(
+    size_lt: Optional[Union[list[conint(ge=0, strict=True)], conint(ge=0, strict=True)]] = Field(
         None,
         description='Size/length constraint: ``[length]``',
         examples=[[6], [10], 6],
@@ -359,19 +361,19 @@ class Validation(BaseModel):
         description='All array elements must be in the specified set: ``[[val1, val2, ...]]``',
         examples=[[['x', 'y', 'z']], [[1, 2, 3, 4, 5]]],
     )
-    element_bounds__: Optional[list[float]] = Field(
+    element_bounds__: Optional[list[Union[StrictInt, StrictFloat]]] = Field(
         None,
         alias='element_bounds<>',
         description='Inclusive bounds checking: ``[lower, upper]``',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
-    lower_element_bounds__: Optional[Union[list[float], float]] = Field(
+    lower_element_bounds__: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         alias='lower_element_bounds<>',
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    upper_element_bounds__: Optional[Union[list[float], float]] = Field(
+    upper_element_bounds__: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         alias='upper_element_bounds<>',
         description='Single value comparison: ``[value]`` or bare value',
@@ -383,17 +385,17 @@ class Validation(BaseModel):
         description='All array elements must be in the specified set: ``[[val1, val2, ...]]``',
         examples=[[['x', 'y', 'z']], [[1, 2, 3, 4, 5]]],
     )
-    element_bounds: Optional[list[float]] = Field(
+    element_bounds: Optional[list[Union[StrictInt, StrictFloat]]] = Field(
         None,
         description='Inclusive bounds checking: ``[lower, upper]``',
         examples=[[0, 100], [0.0, 1.0], [-1.0, 1.0]],
     )
-    lower_element_bounds: Optional[Union[list[float], float]] = Field(
+    lower_element_bounds: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
     )
-    upper_element_bounds: Optional[Union[list[float], float]] = Field(
+    upper_element_bounds: Optional[Union[list[Union[StrictInt, StrictFloat]], Union[StrictInt, StrictFloat]]] = Field(
         None,
         description='Single value comparison: ``[value]`` or bare value',
         examples=[[0], [100], [0.001], 15, 0.5],
@@ -449,7 +451,7 @@ class NodlDocument(BaseModel):
     class Config:
         extra = Extra.forbid
 
-    nodl_version: int = Field(2, const=True, description='NoDL schema major version this document targets.')
+    nodl_version: StrictInt = Field(2, const=True, description='NoDL schema major version this document targets.')
     description: Optional[str] = Field(None, description='Human-readable description of what this node does.')
     codegen: Optional[dict[str, dict[str, Any]]] = Field(
         None,

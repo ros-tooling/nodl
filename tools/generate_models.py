@@ -123,7 +123,13 @@ def _strip_orphan_root_classes(source: str) -> str:
             return source
 
 
-def _generate(schema: Path, output: Path, class_name: str) -> int:
+def _generate(
+    schema: Path,
+    output: Path,
+    class_name: str,
+    *,
+    strict_types: tuple[str, ...] = (),
+) -> int:
     """Run datamodel-codegen for a single schema → models file."""
     cmd = [
         'datamodel-codegen',
@@ -144,6 +150,8 @@ def _generate(schema: Path, output: Path, class_name: str) -> int:
         class_name,
         '--disable-timestamp',
     ]
+    if strict_types:
+        cmd.extend(['--strict-types', *strict_types])
     result = subprocess.run(cmd)
     if result.returncode != 0:
         return result.returncode
@@ -157,7 +165,7 @@ def _generate(schema: Path, output: Path, class_name: str) -> int:
 
 
 def main() -> int:
-    rc = _generate(NODL_SCHEMA, NODL_OUTPUT, 'NodlDocument')
+    rc = _generate(NODL_SCHEMA, NODL_OUTPUT, 'NodlDocument', strict_types=('int', 'float'))
     if rc != 0:
         return rc
     rc = _generate(CODEGEN_CPP_SCHEMA, CODEGEN_CPP_OUTPUT, 'CodegenCpp')
