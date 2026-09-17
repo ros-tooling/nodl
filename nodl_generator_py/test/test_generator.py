@@ -18,7 +18,7 @@ from nodl_generator_py.generator import (
     _snake_to_pascal,
     _target_to_node_name,
 )
-from nodl_schema import load_nodl
+from nodl_schema import load_nodl, parse_nodl
 from nodl_schema.models import (
     Durability,
     History,
@@ -165,6 +165,30 @@ def test_render_python():
     assert 'colour.r' not in parameters
     assert parameters['colour']['r']['default_value'] == 0.8
     assert parameters['colour']['g']['default_value'] == 0.4
+
+
+def test_generate_parameter_yaml_preserves_integer_validation_values():
+    doc = parse_nodl(
+        """
+        nodl_version: 2
+        parameters:
+          count:
+            type: int
+            default_value: 3
+            validation:
+              bounds<>: [0, 10]
+        """
+    )
+
+    parameters_yaml = generate_parameter_yaml(doc, 'test_node_base')
+    assert parameters_yaml is not None
+    data = yaml.safe_load(parameters_yaml)
+    parameter = data['test_node']['count']
+
+    assert parameter['default_value'] == 3
+    assert type(parameter['default_value']) is int
+    assert parameter['validation']['bounds<>'] == [0, 10]
+    assert [type(value) for value in parameter['validation']['bounds<>']] == [int, int]
 
 
 def test_render_python_rejects_unresolved_includes():

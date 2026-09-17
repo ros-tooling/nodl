@@ -529,6 +529,55 @@ def test_load_nodl_from_file_like():
     assert 'p' in doc.parameters
 
 
+def test_parse_nodl_preserves_parameter_numeric_value_types():
+    doc = parse_nodl(
+        """
+        nodl_version: 2
+        parameters:
+          integer_bounds:
+            type: int
+            default_value: 3
+            validation:
+              bounds<>: [0, 10]
+          floating_bounds:
+            type: double
+            default_value: 3.5
+            validation:
+              bounds<>: [0.0, 10.0]
+          mixed_bounds:
+            type: double
+            default_value: 3.5
+            validation:
+              bounds<>: [0, 10.0]
+          integer_threshold:
+            type: int
+            default_value: 3
+            validation:
+              gt<>: 0
+          integer_samples:
+            type: int_array
+            default_value: [1, 2, 3]
+            validation:
+              element_bounds<>: [0, 10]
+        """
+    )
+
+    assert doc.parameters is not None
+    parameters = {
+        name: json.loads(definition.json(by_alias=True, exclude_none=True))
+        for name, definition in doc.parameters.items()
+    }
+
+    assert type(parameters['integer_bounds']['default_value']) is int
+    assert [type(value) for value in parameters['integer_bounds']['validation']['bounds<>']] == [int, int]
+    assert type(parameters['floating_bounds']['default_value']) is float
+    assert [type(value) for value in parameters['floating_bounds']['validation']['bounds<>']] == [float, float]
+    assert [type(value) for value in parameters['mixed_bounds']['validation']['bounds<>']] == [int, float]
+    assert type(parameters['integer_threshold']['validation']['gt<>']) is int
+    assert all(type(value) is int for value in parameters['integer_samples']['default_value'])
+    assert [type(value) for value in parameters['integer_samples']['validation']['element_bounds<>']] == [int, int]
+
+
 def test_load_nodl_invalid_raises():
     with pytest.raises(ValidationError):
         parse_nodl('nodl_version: 2\nparameters:\n  p:\n    type: bad_type\n')
