@@ -145,7 +145,7 @@ def test_no_validation_has_no_sentences():
     ('validation', 'expected'),
     [
         ({'bounds': [0.0, 1.0]}, 'must be within bounds [0.0, 1.0]'),
-        ({'lt': 3}, 'must be less than 3.0'),
+        ({'lt': 3}, 'must be less than 3'),
         ({'lt_eq': [3.0]}, 'must be less than or equal to 3.0'),
         ({'gt': 0.5}, 'must be greater than 0.5'),
         ({'gt_eq': 0.5}, 'must be greater than or equal to 0.5'),
