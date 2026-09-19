@@ -10,7 +10,7 @@ from . import {{ params_module }}
 class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or action_servers %}, metaclass=abc.ABCMeta{% endif %}):
     """Generated NoDL base node."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__('{{ node_name }}', **kwargs)
     {% if params_module %}
         self.param_listener_ = {{ params_module }}.{{ node_name }}.ParamListener(self)
@@ -70,29 +70,29 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
     {% for sub in subscriptions %}
 
     @abc.abstractmethod
-    def {{ sub.callback_name }}(self, msg):
+    def {{ sub.callback_name }}(self, msg: {{ sub.py_type }}) -> None:
         """Handle a message received on {{ sub.name }}."""
         raise NotImplementedError
     {% endfor %}
     {% for service in service_servers %}
 
     @abc.abstractmethod
-    def {{ service.callback_name }}(self, request, response):
+    def {{ service.callback_name }}(self, request: {{ service.py_type }}.Request, response: {{ service.py_type }}.Response) -> {{ service.py_type }}.Response:
         """Handle a request received on {{ service.name }}."""
         raise NotImplementedError
     {% endfor %}
     {% for action in action_servers %}
 
-    def on_{{ action.identifier }}_goal(self, goal_request):
+    def on_{{ action.identifier }}_goal(self, goal_request: {{ action.py_type }}.Goal) -> rclpy.action.GoalResponse:
         """Accept or reject a goal received on {{ action.name }}."""
         return rclpy.action.GoalResponse.ACCEPT
 
-    def on_{{ action.identifier }}_cancel(self, goal_handle):
+    def on_{{ action.identifier }}_cancel(self, goal_handle: rclpy.action.server.ServerGoalHandle[{{ action.py_type }}.Goal, {{ action.py_type }}.Result, {{ action.py_type }}.Feedback, {{ action.py_type }}.Impl]) -> rclpy.action.CancelResponse:
         """Accept or reject cancellation of a goal on {{ action.name }}."""
         return rclpy.action.CancelResponse.ACCEPT
 
     @abc.abstractmethod
-    def {{ action.callback_name }}(self, goal_handle):
+    def {{ action.callback_name }}(self, goal_handle: rclpy.action.server.ServerGoalHandle[{{ action.py_type }}.Goal, {{ action.py_type }}.Result, {{ action.py_type }}.Feedback, {{ action.py_type }}.Impl]) -> {{ action.py_type }}.Result:
         """Execute a goal received on {{ action.name }}."""
         raise NotImplementedError
     {% endfor %}
