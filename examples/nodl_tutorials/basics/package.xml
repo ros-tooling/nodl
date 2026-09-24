@@ -11,8 +11,7 @@
   <buildtool_depend>ament_nodl</buildtool_depend>
   <buildtool_depend>nodl_generator_cpp</buildtool_depend>
   <buildtool_depend>nodl_generator_py</buildtool_depend>
-
-  <build_depend>nodl_common_interfaces</build_depend>
+  <buildtool_depend>nodl_common_interfaces</buildtool_depend>
 
   <depend>example_interfaces</depend>
   <depend>rclcpp</depend>
