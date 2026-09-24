@@ -8,6 +8,7 @@
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
   <buildtool_depend>ament_nodl</buildtool_depend>
   <buildtool_depend>nodl_generator_cpp</buildtool_depend>
   <buildtool_depend>nodl_generator_py</buildtool_depend>
