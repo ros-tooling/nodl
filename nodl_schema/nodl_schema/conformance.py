@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from nodl_schema.models import NodlDocument, ParameterDefinition, QosProfile
+from nodl_schema.parameters import parse_parameter_type
 
 _SECTION_ORDER = {
     'publishers': 0,
@@ -228,14 +229,6 @@ def _no_properties(expected, actual, section: str, name: str) -> list[Difference
     return []
 
 
-def _is_fixed_type(type_name: str) -> bool:
-    return '_fixed_' in type_name
-
-
-def _fixed_base_type(type_name: str) -> str:
-    return type_name.split('_fixed_', 1)[0]
-
-
 def _parameter_differences(
     expected: dict[str, ParameterDefinition],
     actual: dict[str, ParameterDefinition],
@@ -254,7 +247,8 @@ def _parameter_differences(
         expected_type = _type_name(expected_parameter.type)
         actual_type = _type_name(actual_parameter.type)
         if expected_type != actual_type:
-            if _is_fixed_type(expected_type) and _fixed_base_type(expected_type) == actual_type:
+            expected_parsed = parse_parameter_type(expected_type)
+            if expected_parsed.fixed_size is not None and expected_parsed.unfixed_name == actual_type:
                 differences.append(
                     _difference(
                         'unverifiable',

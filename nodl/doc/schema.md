@@ -43,6 +43,29 @@ parameters:
 Parameters may share a namespace, but a parameter cannot also be that namespace.
 For example, declaring both `colour` and `colour.r` is invalid, including when the declarations come from different included documents.
 
+### Parameter types, defaults, and validators
+
+Validation also enforces rules that JSON Schema cannot express.
+A `default_value` must match the parameter `type`, and a fixed-size type's default may not exceed its size.
+An `int` default or validator argument is accepted for a `double` parameter, but not the reverse.
+A `none` parameter takes no default and no built-in validators.
+
+Each built-in validator must apply to the parameter `type`:
+
+| Validators | Applies to |
+| --- | --- |
+| `bounds`, `lt`, `gt`, `lt_eq`, `gt_eq` | `int`, `double` |
+| `one_of` | any scalar type |
+| `fixed_size`, `size_gt`, `size_lt`, `not_empty` | `string` types and all array types |
+| `unique`, `subset_of` | all array types |
+| `element_bounds`, `lower_element_bounds`, `upper_element_bounds` | numeric array types |
+
+Values passed to a validator (bounds, `one_of` options, `subset_of` members) must match the parameter's element type,
+and a lower bound may not exceed its upper bound.
+`bounds` cannot be combined with `lt`, `gt`, `lt_eq`, or `gt_eq`,
+and `element_bounds` cannot be combined with `lower_element_bounds` or `upper_element_bounds`.
+Custom, namespace-qualified validators are not checked.
+
 ```{eval-rst}
 .. include:: _generated/schemas/parameter_definitions.txt
 ```
