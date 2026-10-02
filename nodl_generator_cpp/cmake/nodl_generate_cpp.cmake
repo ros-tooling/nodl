@@ -2,8 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #
+# nodl_generate_cpp(TARGET [SHARED|STATIC] NODL_FILE)
+#
 # Generate an rclcpp base-node class from a NoDL document and expose it
-# as a STATIC library target that the caller can link against.
+# as a library target that the caller can link against.
+# The library is SHARED by default, or STATIC when requested.
+# Giving both SHARED and STATIC is an error.
+# The library type does not follow ``BUILD_SHARED_LIBS``.
+# Both types are built as position-independent code, so a STATIC library
+# can be linked into a SHARED library.
+# SHARED libraries are installed to ``lib`` (``bin`` for DLLs), which is on
+# the library path of a sourced workspace.
 #
 # Example::
 #
@@ -14,20 +23,45 @@
 #   add_executable(my_node src/my_node.cpp)
 #   target_link_libraries(my_node PRIVATE my_node_base)
 #
+# Request a static library explicitly::
+#
+#   nodl_generate_cpp(my_node_base STATIC my_node.nodl.yaml)
+#
 # :param TARGET: Name of the library target to create.  Used verbatim as
 #   the C++ class name (PascalCased) and for the generated filenames, so a
 #   ``<node>_base`` target yields a ``<Node>Base`` class.  A single trailing
 #   ``_base`` is stripped to form the runtime node name.
 # :type TARGET: string
+# :param SHARED: Build a SHARED library.  This is the default, installed to ``lib``.
+# :param STATIC: Build a STATIC library.  It is not installed.
 # :param NODL_FILE: Path to the ``.nodl.yaml`` file, relative to
 #   ``CMAKE_CURRENT_SOURCE_DIR``.
 # :type NODL_FILE: string
 #
 # @public
 #
-macro(nodl_generate_cpp TARGET NODL_FILE)
+macro(nodl_generate_cpp TARGET)
+  # ── argument parsing ───────────────────────────────────────────────
+  cmake_parse_arguments(_nodl "SHARED;STATIC" "" "" ${ARGN})
+  if(_nodl_SHARED AND _nodl_STATIC)
+    message(FATAL_ERROR
+      "nodl_generate_cpp: target '${TARGET}' cannot be both SHARED and STATIC")
+  endif()
+  list(LENGTH _nodl_UNPARSED_ARGUMENTS _nodl_unparsed_count)
+  if(NOT _nodl_unparsed_count EQUAL 1)
+    message(FATAL_ERROR
+      "nodl_generate_cpp: target '${TARGET}' requires exactly one NODL_FILE, "
+      "got ${_nodl_unparsed_count}: '${_nodl_UNPARSED_ARGUMENTS}'")
+  endif()
+  set(_nodl_file_arg "${_nodl_UNPARSED_ARGUMENTS}")
+  if(_nodl_STATIC)
+    set(_nodl_library_type STATIC)
+  else()
+    set(_nodl_library_type SHARED)
+  endif()
+
   # ── paths ───────────────────────────────────────────────────────────
-  set(_nodl_file "${CMAKE_CURRENT_SOURCE_DIR}/${NODL_FILE}")
+  set(_nodl_file "${CMAKE_CURRENT_SOURCE_DIR}/${_nodl_file_arg}")
   set(_output_dir "${CMAKE_CURRENT_BINARY_DIR}/nodl_generated/${TARGET}")
   set(_deps_file "${_output_dir}/${TARGET}_deps.cmake")
 
@@ -77,12 +111,12 @@ macro(nodl_generate_cpp TARGET NODL_FILE)
       --output-dir "${_output_dir}"
       --target-name "${TARGET}"
     DEPENDS ${${TARGET}_NODL_SOURCES}
-    COMMENT "nodl_generate_cpp: ${NODL_FILE} -> ${TARGET}"
+    COMMENT "nodl_generate_cpp: ${_nodl_file_arg} -> ${TARGET}"
     VERBATIM
   )
 
   # ── create the library target ──────────────────────────────────────
-  add_library(${TARGET} STATIC)
+  add_library(${TARGET} ${_nodl_library_type})
   foreach(_f IN LISTS _generated_paths)
     if(_f MATCHES "\\.cpp$")
       target_sources(${TARGET} PRIVATE "${_f}")
@@ -91,6 +125,17 @@ macro(nodl_generate_cpp TARGET NODL_FILE)
   target_include_directories(${TARGET} PUBLIC
     $<BUILD_INTERFACE:${_output_dir}>
   )
+  # PIC lets a STATIC library link into a SHARED one.
+  set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  if(_nodl_library_type STREQUAL "SHARED")
+    # The generated code has no export macros.
+    set_target_properties(${TARGET} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    install(TARGETS ${TARGET}
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib
+      RUNTIME DESTINATION bin
+    )
+  endif()
 
   # ── wire up ROS dependencies ────────────────────────────────────────
   # ${pkg_TARGETS} is available since Foxy and works across all
