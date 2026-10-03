@@ -25,6 +25,12 @@ def main(argv: list[str] | None = None) -> int:
         action='store_true',
         help='Write a <target>_deps.cmake file and exit without generating code.',
     )
+    parser.add_argument(
+        '--include-prefix',
+        type=str,
+        default=None,
+        help='Place generated headers under PREFIX/ in the output directory and include them by that path.',
+    )
     args = parser.parse_args(argv)
 
     if args.cmake_deps:
@@ -35,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 def _cmake_deps(args: argparse.Namespace) -> int:
     """Write a ``<target>_deps.cmake`` file and exit."""
     try:
-        result = cmake_deps(args.nodl_file, args.target_name)
+        result = cmake_deps(args.nodl_file, args.target_name, include_prefix=args.include_prefix)
     except Exception as exc:
         print(f'{args.nodl_file}: {exc}', file=sys.stderr)
         return 1
@@ -50,7 +56,7 @@ def _cmake_deps(args: argparse.Namespace) -> int:
 def _generate(args: argparse.Namespace) -> int:
     """Run the full code generator."""
     try:
-        generated_files = generate_cpp(args.nodl_file, args.target_name)
+        generated_files = generate_cpp(args.nodl_file, args.target_name, include_prefix=args.include_prefix)
     except Exception as exc:
         print(f'{args.nodl_file}: {exc}', file=sys.stderr)
         return 1
@@ -58,6 +64,7 @@ def _generate(args: argparse.Namespace) -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for gf in generated_files:
         out_path = args.output_dir / gf.filename
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(gf.content)
         print(f'wrote {out_path}')
 
@@ -68,8 +75,9 @@ def _generate(args: argparse.Namespace) -> int:
     # or fork the implementation into nodl, so we can avoid this.
     params_yaml = args.output_dir / f'{args.target_name}_parameters.yaml'
     if params_yaml.exists():
-        gf = generate_parameter_header(params_yaml)
+        gf = generate_parameter_header(params_yaml, include_prefix=args.include_prefix)
         out_path = args.output_dir / gf.filename
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(gf.content)
         print(f'wrote {out_path}')
 

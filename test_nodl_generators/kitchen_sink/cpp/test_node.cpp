@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <memory>
 
-#include "cpp_kitchen_sink_node_base.hpp"  // NOLINT(build/include_subdir)
+#include "test_nodl_generators/cpp_kitchen_sink_node_base.hpp"
 
 class TestNode : public CppKitchenSinkNodeBase
 {

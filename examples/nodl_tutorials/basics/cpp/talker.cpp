@@ -7,8 +7,8 @@
 #include <string>
 
 #include "example_interfaces/msg/string.hpp"
+#include "nodl_tutorial_basics/talker_base.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "talker_base.hpp"  // NOLINT(build/include_subdir)
 
 using std::chrono_literals::operator""ms;
 

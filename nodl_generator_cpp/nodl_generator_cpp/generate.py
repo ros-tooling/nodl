@@ -11,6 +11,7 @@ from nodl_generator_cpp.cmake_deps import (
     generated_filenames,
     ros_deps,
 )
+from nodl_generator_cpp.include_prefix import validate_include_prefix
 from nodl_generator_cpp.models import CodegenCpp, Role
 from nodl_generator_cpp.params import generate_genparamlib_yaml
 from nodl_generator_cpp.provenance import codegen_cpp
@@ -78,15 +79,17 @@ class CmakeDepsResult:
         return format_cmake_deps(target, self.sources, self.ros_deps, self.generated_filenames)
 
 
-def cmake_deps(source: Path, target_name: str) -> CmakeDepsResult:
+def cmake_deps(source: Path, target_name: str, *, include_prefix: str | None = None) -> CmakeDepsResult:
     """Compute CMake dependency information from a NoDL document.
 
     Runs the same load → provenance → filter pipeline as :func:`generate_cpp` but stops before template rendering.
 
     Returns a :class:`CmakeDepsResult` containing the NoDL source paths, ROS package dependencies,
     and the list of files the generator will produce.
+    The file paths are relative to the output directory and include *include_prefix* for headers.
     """
     _validate_target_name(target_name)
+    validate_include_prefix(include_prefix)
 
     resolved = resolve_provenance(source, codegen_cpp)
 
@@ -105,21 +108,25 @@ def cmake_deps(source: Path, target_name: str) -> CmakeDepsResult:
             resolved.entities.action_servers,
             resolved.entities.action_clients,
         ),
-        generated_filenames=generated_filenames(target_name, has_parameters),
+        generated_filenames=generated_filenames(target_name, has_parameters, include_prefix=include_prefix),
     )
 
 
-def generate_cpp(source: Path, target_name: str) -> list[GeneratedFile]:
+def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None = None) -> list[GeneratedFile]:
     """Generate C++ base-node class files from a NoDL document.
 
     Loads and resolves the NoDL document at *source* (a filesystem path),
     walks the include tree for provenance, and renders the C++ header
     and source files.
 
+    When *include_prefix* is given, the header is placed under it and the source includes it from there.
+    The ``filename`` of each returned file is relative to the output directory.
+
     Returns a list of :class:`GeneratedFile` objects ready to be written
     to disk by the caller.
     """
     _validate_target_name(target_name)
+    validate_include_prefix(include_prefix)
 
     resolved = resolve_provenance(source, codegen_cpp)
 
@@ -139,6 +146,7 @@ def generate_cpp(source: Path, target_name: str) -> list[GeneratedFile]:
         resolved.entities.action_servers,
         resolved.entities.action_clients,
         has_parameters,
+        include_prefix=include_prefix,
     )
     if has_parameters:
         generated_files += [generate_genparamlib_yaml(target_name, resolved.entities.parameters)]

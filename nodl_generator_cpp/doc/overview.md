@@ -38,7 +38,7 @@ It handles everything:
 | `find_package` | Configure time | Automatically calls `find_package` for every ROS dependency (message, service, action, and base-class packages). |
 | File watching | Configure time | Registers every file in the NoDL include tree as a `CMAKE_CONFIGURE_DEPENDS`, so any change to the root or a transitive include triggers a reconfigure. |
 | Code generation | Build time | Runs the full generator via `add_custom_command`, only when an input file has changed. |
-| Library creation | Build time | Compiles the generated `.cpp` into a SHARED (default) or STATIC library with position-independent code, and sets up include directories. |
+| Library creation | Build time | Compiles the generated `.cpp` into a SHARED (default) or STATIC library with position-independent code, and adds the output directory to the include path. |
 | Install | Install time | Installs SHARED libraries to `lib` (`bin` for Windows DLLs). STATIC libraries are not installed. |
 | ROS linking | Build time | Links all ROS dependencies via `${pkg}_TARGETS`. |
 | Parameter library | Build time | When the document has parameters, links `generate_parameter_library` and its transitive dependencies (`fmt`, `rsl`, `tcb_span`, etc.). |
@@ -50,6 +50,19 @@ It handles everything:
 | `TARGET` | Name of the library target to create. Used verbatim as the C++ class name (PascalCased) and for all generated filenames, so a `<node>_base` target yields a `<Node>Base` class. A single trailing `_base` is stripped to form the runtime node name (`<node>_base` runs as `<node>`). |
 | `SHARED` / `STATIC` | Optional library type. The default is `SHARED`. SHARED libraries are installed to `lib`, which is on the library path of a sourced workspace. The library type does not follow `BUILD_SHARED_LIBS`. The library file is named after `<PROJECT_NAME>_<TARGET>`, for example `lib<PROJECT_NAME>_<TARGET>.so`, to avoid collisions between packages, while the CMake target name stays `TARGET`. A target that already starts with the package name gets it twice, so target `my_pkg_base` in project `my_pkg` produces `libmy_pkg_my_pkg_base.so`. STATIC libraries are not installed. Both are built with position-independent code, so a STATIC library can still be linked into a SHARED library such as an `rclcpp_components` plugin. Giving both is an error. |
 | `NODL_FILE` | Path to the `.nodl.yaml` file, relative to `CMAKE_CURRENT_SOURCE_DIR`. |
+
+### Including the generated header
+
+The macro passes `--include-prefix ${PROJECT_NAME}`, so headers are generated under a directory named after your package.
+Consumers include them by the package-scoped path, following the ROS convention:
+
+```cpp
+#include "my_package/my_node_base.hpp"
+```
+
+Linking against `TARGET` adds the output directory to your include path, so the include resolves with no further setup.
+The prefix is always the project name and cannot be overridden from the macro.
+An existing build directory may still hold a stale flat header from older versions, so do a clean build to catch leftover flat includes.
 
 ### Rebuild behavior
 
@@ -79,17 +92,19 @@ Add the package as a dependency:
 
 ## Generated files
 
-The generator produces up to four files, depending on the document's contents:
+The generator produces up to four files, depending on the document's contents.
+Paths are relative to the output directory, and `<prefix>` is the `--include-prefix` value (the package name when using the CMake macro).
+Without a prefix, the headers are written to the output directory itself.
 
 | File | Always | Contents |
 |---|---|---|
-| `<target>.hpp` | Yes | Abstract base class header. |
-| `<target>.cpp` | Yes | Constructor implementation — creates all handles. |
+| `<prefix>/<target>.hpp` | Yes | Abstract base class header. |
+| `<target>.cpp` | Yes | Constructor implementation that creates all handles. It includes `<prefix>/<target>.hpp`. |
 | `<target>_parameters.yaml` | If parameters | `generate_parameter_library` YAML, converted from NoDL parameters. |
-| `<target>_parameters.hpp` | If parameters | `generate_parameter_library` C++ header, generated from the YAML above. Its exact contents are produced by `generate_parameter_library` and vary with the installed dependency version, so golden tests assert only that it is generated (existence-only), while byte-comparing the `<target>_parameters.yaml` input we own. |
+| `<prefix>/<target>_parameters.hpp` | If parameters | `generate_parameter_library` C++ header, generated from the YAML above. Its exact contents are produced by `generate_parameter_library` and vary with the installed dependency version, so golden tests assert only that it is generated (existence-only), while byte-comparing the `<target>_parameters.yaml` input we own. |
 
 When using the CMake macro, a `<target>_deps.cmake` file is also written at configure time,
-containing the NoDL source paths, ROS package dependencies, and generated file list.
+containing the NoDL source paths, ROS package dependencies, and generated file list (with the prefixed header paths).
 
 ## Example
 
@@ -118,9 +133,12 @@ subscriptions:
       reliability: BEST_EFFORT
 ```
 
-And this `CMakeLists.txt`:
+And this `CMakeLists.txt`, in a package named `my_package`:
 
 ```cmake
+cmake_minimum_required(VERSION 3.22)
+project(my_package)
+
 find_package(ament_cmake REQUIRED)
 find_package(nodl_generator_cpp REQUIRED)
 
@@ -132,7 +150,7 @@ target_link_libraries(my_node_exe PRIVATE my_node_base)
 ament_package()
 ```
 
-The generator produces this header:
+The generator produces this header, written to `my_package/my_node_base.hpp` in the output directory:
 
 ```cpp
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
@@ -166,11 +184,11 @@ private:
 };
 ```
 
-And this source file:
+And this source file, written to `my_node_base.cpp`:
 
 ```cpp
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
-#include "my_node_base.hpp"
+#include "my_package/my_node_base.hpp"
 
 MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 : rclcpp::Node("my_node", options)
@@ -192,7 +210,7 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 The user subclasses `MyNodeBase` and implements `on_cmd_vel()`:
 
 ```cpp
-#include "my_node_base.hpp"
+#include "my_package/my_node_base.hpp"
 
 class MyNode : public MyNodeBase
 {
@@ -377,6 +395,7 @@ python -m nodl_generator_cpp \
 | `--nodl-file` | Yes | Path to the NoDL document. |
 | `--output-dir` | Yes | Directory to write generated files into (created if absent). |
 | `--target-name` | Yes | Used verbatim as the C++ class name (PascalCased) and the stem of all generated filenames. A single trailing `_base` is stripped to form the runtime node name. Must be a valid C++ identifier. |
+| `--include-prefix` | No | Place the generated headers under `PREFIX/` in the output directory, and include them by that path. One or more `/`-separated path segments, such as `my_package` or `my_package/detail`. Each segment starts with a letter, digit, or underscore and continues with letters, digits, `_`, `.`, or `-`. Backslashes and the segments `.` and `..` are rejected. The `.cpp` and the parameter YAML stay at the output directory root. Without the flag, headers are written to the output directory itself. |
 
 ### Dependency discovery
 
@@ -396,7 +415,7 @@ It writes a `<target>_deps.cmake` file containing three CMake variables:
 |---|---|
 | `<target>_NODL_SOURCES` | Absolute paths to the root NoDL file and every transitive include. |
 | `<target>_ROS_DEPS` | Sorted, deduplicated ROS package names needed by the generated code. |
-| `<target>_GENERATED_FILES` | The filenames the full generator will produce. |
+| `<target>_GENERATED_FILES` | The paths the full generator will produce, relative to the output directory and including `--include-prefix` for headers. |
 
 This is what the `nodl_generate_cpp()` CMake macro calls at configure time to set up `find_package`, file watching,
 and the `add_custom_command` output list.
