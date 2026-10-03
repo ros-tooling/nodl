@@ -13,6 +13,12 @@
 # can be linked into a SHARED library.
 # SHARED libraries are installed to ``lib`` (``bin`` for DLLs), which is on
 # the library path of a sourced workspace.
+# The library file is named after ``<PROJECT_NAME>_<TARGET>``,
+# for example ``lib<PROJECT_NAME>_<TARGET>.so``,
+# to avoid collisions between packages in a shared install space.
+# The CMake target name remains ``TARGET``.
+# A target that already starts with the package name gets it twice,
+# so target ``my_pkg_base`` in project ``my_pkg`` produces ``libmy_pkg_my_pkg_base.so``.
 #
 # Example::
 #
@@ -127,6 +133,7 @@ macro(nodl_generate_cpp TARGET)
   )
   # PIC lets a STATIC library link into a SHARED one.
   set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}_${TARGET}")
   if(_nodl_library_type STREQUAL "SHARED")
     # The generated code has no export macros.
     set_target_properties(${TARGET} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)

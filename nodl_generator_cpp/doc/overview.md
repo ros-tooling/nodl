@@ -48,7 +48,7 @@ It handles everything:
 | Argument | Description |
 |---|---|
 | `TARGET` | Name of the library target to create. Used verbatim as the C++ class name (PascalCased) and for all generated filenames, so a `<node>_base` target yields a `<Node>Base` class. A single trailing `_base` is stripped to form the runtime node name (`<node>_base` runs as `<node>`). |
-| `SHARED` / `STATIC` | Optional library type. The default is `SHARED`. SHARED libraries are installed to `lib`, which is on the library path of a sourced workspace. The library type does not follow `BUILD_SHARED_LIBS`. STATIC libraries are not installed. Both are built with position-independent code, so a STATIC library can still be linked into a SHARED library such as an `rclcpp_components` plugin. Giving both is an error. |
+| `SHARED` / `STATIC` | Optional library type. The default is `SHARED`. SHARED libraries are installed to `lib`, which is on the library path of a sourced workspace. The library type does not follow `BUILD_SHARED_LIBS`. The library file is named after `<PROJECT_NAME>_<TARGET>`, for example `lib<PROJECT_NAME>_<TARGET>.so`, to avoid collisions between packages, while the CMake target name stays `TARGET`. A target that already starts with the package name gets it twice, so target `my_pkg_base` in project `my_pkg` produces `libmy_pkg_my_pkg_base.so`. STATIC libraries are not installed. Both are built with position-independent code, so a STATIC library can still be linked into a SHARED library such as an `rclcpp_components` plugin. Giving both is an error. |
 | `NODL_FILE` | Path to the `.nodl.yaml` file, relative to `CMAKE_CURRENT_SOURCE_DIR`. |
 
 ### Rebuild behavior
