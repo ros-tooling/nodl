@@ -45,12 +45,8 @@ ament_auto_add_executable(observe
 target_link_libraries(observe ${PROJECT_NAME} CLI11::CLI11)
 
 # ament_auto_add_library / _executable already install and export their targets
-# via ament_auto_package() below (lib -> lib, executable -> lib/${PROJECT_NAME});
-# only the public headers need an explicit install.
-install(
-  DIRECTORY include/
-  DESTINATION include
-)
+# via ament_auto_package() below (lib -> lib, executable -> lib/${PROJECT_NAME}),
+# which also installs and exports the public headers.
 
 if(BUILD_TESTING)
   # Linting/formatting is handled repo-wide by pre-commit (polymath_code_standard),
@@ -98,4 +94,4 @@ if(BUILD_TESTING)
   call_for_each_rmw_implementation(observe_integration_test_for_rmw)
 endif()
 
-ament_auto_package()
+ament_auto_package(USE_SCOPED_HEADER_INSTALL_DIR)
