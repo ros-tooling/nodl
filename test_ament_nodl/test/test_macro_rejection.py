@@ -51,7 +51,7 @@ _INVALID_NODL = textwrap.dedent("""
 
 # A project that registers a document whose local:// include points at an unregistered sibling.
 # The sibling exists on disk (so validation resolves it) but is never registered, so the rewrite
-# has no nodl:// key to substitute and must fail the build.
+# has no nodl:// key to substitute and must fail configuration.
 _UNREGISTERED_INCLUDE_CMAKELISTS = textwrap.dedent("""
     cmake_minimum_required(VERSION 3.22)
     project(unregistered_include_fixture)
@@ -148,26 +148,32 @@ def unregistered_include_pkg(tmp_path: Path) -> Path:
 
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
 def test_macro_rejects_unregistered_local_include(unregistered_include_pkg: Path):
-    build = unregistered_include_pkg / 'build'
-    configure = subprocess.run(
-        ['cmake', '-S', str(unregistered_include_pkg), '-B', str(build)],
-        capture_output=True,
-        text=True,
-        env=os.environ,
-    )
-    assert configure.returncode == 0, f'Configure failed:\n{configure.stderr}'
+    configure = _configure(unregistered_include_pkg)
 
-    result = subprocess.run(
-        ['cmake', '--build', str(build)],
+    assert configure.returncode != 0
+    message = _unwrapped(configure.stderr)
+    assert 'unregistered_include_fixture__root_exe includes a local:// reference that is not registered' in message
+    assert 'local reference local://leaf.nodl.yaml was not registered to rewrite' in message
+    assert 'Register the included file with ament_nodl_register(<name> FILE <path>) in the same package' in message
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rechecks_includes_when_a_registered_document_changes(unregistered_include_pkg: Path):
+    # Configured while the root document has no includes, then edited to include the unregistered sibling.
+    root = unregistered_include_pkg / 'root.nodl.yaml'
+    root.write_text(_LEAF_NODL)
+    assert _configure(unregistered_include_pkg).returncode == 0
+
+    root.write_text(_ROOT_WITH_LOCAL_INCLUDE)
+    build = subprocess.run(
+        ['cmake', '--build', str(unregistered_include_pkg / 'build')],
         capture_output=True,
         text=True,
         env=os.environ,
     )
-    assert result.returncode != 0, 'Expected the build to fail on the unregistered local include'
-    combined = result.stdout + result.stderr
-    assert 'was not registered to rewrite' in combined, (
-        f'Expected the rewrite error to appear in the build output, got:\n{combined}'
-    )
+
+    assert build.returncode != 0
+    assert 'includes a local:// reference that is not registered' in _unwrapped(build.stdout, build.stderr)
 
 
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')

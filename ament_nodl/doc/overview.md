@@ -29,6 +29,13 @@ ament_nodl_register(my_node
 A `nodl://<package>/<name>` reference resolves through the ament index, which holds what is *installed*.
 Validation runs before this package is installed, so a referenced package must already be built and be a dependency of this one.
 
+### Local includes
+
+A `local://` include in a registered document is rewritten to a `nodl://<package>/<name>` reference on install.
+The included file must therefore be registered with `ament_nodl_register` as well.
+Configuration fails if it is not, naming the registered document and the missing include.
+The check reruns whenever a registered document changes.
+
 ### Subdirectories
 
 `ament_nodl_register` can be called from any CMake directory of the project.

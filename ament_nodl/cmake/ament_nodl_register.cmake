@@ -19,6 +19,7 @@
 #
 # ``local://`` includes are rewritten to ``nodl://<package>/<name>`` references on install.
 # Every ``local://`` target must itself be registered in the same package, an unregistered sibling would not be reachable downstream.
+# Configuration fails when a registered document includes an unregistered ``local://`` target.
 # The rewrite is deferred to the end of the project's directory, which may be a subdirectory of a larger build.
 # Registration order and the directory each call is made from do not matter.
 #
@@ -154,6 +155,25 @@ function(_ament_nodl_finalize)
     list(GET _map_names ${_i} _name)
     set(_key "${_pkg}__${_name}")
     set(_out "${_work_dir}/rewritten/${_key}")
+
+    # Fail at configure time for a local:// include that no registration covers, rather than at build time.
+    # Any other failure is left for the build step, which reports invalid or missing documents.
+    # Rerun configure when the document changes so this check does not go stale.
+    if(EXISTS "${_abs_file}")
+      set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_abs_file}")
+      execute_process(
+        COMMAND "${_python}" -m ros2nodl rewrite --check ${_ref_args} "${_abs_file}"
+        RESULT_VARIABLE _check_result
+        ERROR_VARIABLE _check_error
+        ERROR_STRIP_TRAILING_WHITESPACE)
+      if(_check_result EQUAL 3)
+        message(FATAL_ERROR
+          "ament_nodl_register: ${_key} includes a local:// reference that is not registered.\n"
+          "${_check_error}\n"
+          "Register the included file with ament_nodl_register(<name> FILE <path>) in the same package, "
+          "so the reference can be rewritten to a nodl:// reference.")
+      endif()
+    endif()
 
     # Rewrite refs.
     # Depends on the source and on every registering directory's CMakeLists so a change to the registered set retriggers the rewrite.
