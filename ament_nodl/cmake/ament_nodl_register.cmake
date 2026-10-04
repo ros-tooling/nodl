@@ -29,10 +29,12 @@
 #     FILE nodl/my_node.nodl.yaml
 #   )
 #
-# :param resource_name: target name for this NoDL document.
+# :param resource_name: name of this NoDL document within its package.
+#   Combined with ``PACKAGE`` to form the resource key.
 #   Registering the same ``<package>__<resource_name>`` twice is an error.
 # :type resource_name: string
-# :param FILE: Required path to the NoDL file.
+# :param FILE: Required path to the NoDL file describing the interface.
+#   The document may describe a node, a mixin, or any other partial interface.
 #   May be absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
 #   Registering the same file under two names is an error, since its ``local://`` rewrite would be ambiguous.
 # :type FILE: string
@@ -99,7 +101,7 @@ function(ament_nodl_register resource_name)
     COMMENT "Validating NoDL ${_ARGS_PACKAGE}/${resource_name}"
     VERBATIM
   )
-  add_custom_target(_ament_nodl_validate_node_${_ARGS_PACKAGE}__${resource_name} ALL
+  add_custom_target(_ament_nodl_validate_${_ARGS_PACKAGE}__${resource_name} ALL
     DEPENDS "${_stamp}"
   )
 

@@ -36,8 +36,8 @@ def test_default_package_uses_project_name():
 
 
 def test_explicit_package_override():
-    # PACKAGE custom_pkg makes the key custom_pkg__custom_exe even though the registering package is test_ament_nodl.
-    content, _ = get_resource('nodl', 'custom_pkg__custom_exe')
+    # PACKAGE custom_pkg makes the key custom_pkg__custom_resource even though the registering package is test_ament_nodl.
+    content, _ = get_resource('nodl', 'custom_pkg__custom_resource')
     assert 'explicit PACKAGE override' in content
 
 

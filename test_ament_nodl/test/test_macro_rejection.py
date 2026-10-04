@@ -23,7 +23,7 @@ _INNER_CMAKELISTS = textwrap.dedent("""
     project(rejection_fixture)
     find_package(ament_cmake REQUIRED)
     find_package(ament_nodl REQUIRED)
-    ament_nodl_register(bad_exe FILE bad.nodl.yaml)
+    ament_nodl_register(bad_resource FILE bad.nodl.yaml)
     ament_package()
 """)
 
@@ -57,7 +57,7 @@ _UNREGISTERED_INCLUDE_CMAKELISTS = textwrap.dedent("""
     project(unregistered_include_fixture)
     find_package(ament_cmake REQUIRED)
     find_package(ament_nodl REQUIRED)
-    ament_nodl_register(root_exe FILE root.nodl.yaml)
+    ament_nodl_register(root_resource FILE root.nodl.yaml)
     ament_package()
 """)
 

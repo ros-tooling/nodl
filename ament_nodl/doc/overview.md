@@ -1,7 +1,7 @@
 # ament_nodl
 
-`ament_nodl` provides CMake integration for registering a node's NoDL document
-and checking a live node against it during `colcon test`.
+`ament_nodl` provides CMake integration for registering NoDL documents
+and checking a live node against one during `colcon test`.
 
 For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
@@ -52,7 +52,8 @@ A second name for the same file would add a second rewrite rule for one path, so
 
 ### Arguments
 
-:`executable_name`: Name of the executable the document describes. Combined with `PACKAGE` to form the resource key, which must be unique.
+:`resource_name`: Name of the registered document within its package.
+  Combined with `PACKAGE` to form the resource key, which must be unique.
 :`FILE`: Path to the NoDL file. Absolute, or relative to `CMAKE_CURRENT_SOURCE_DIR`. Required.
   Each file can be registered once.
 :`PACKAGE`: Package name used in the resource key. Defaults to `${PROJECT_NAME}`.
