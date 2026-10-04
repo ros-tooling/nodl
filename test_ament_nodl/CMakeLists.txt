@@ -21,6 +21,11 @@ ament_nodl_register(custom_exe
 # Non-yaml frontend. Make sure the macro is extension-agnostic.
 ament_nodl_register(json_node FILE test/fixtures/json_node.nodl.json)
 
+# Registration from a subdirectory.
+# The root document registered here includes it, so rewriting must see registrations from every directory.
+ament_nodl_register(root_includes_subdir_node FILE test/fixtures/root_includes_subdir_node.nodl.yaml)
+add_subdirectory(test/fixtures/subdir)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   find_package(rcl_interfaces REQUIRED)
@@ -48,6 +53,7 @@ if(BUILD_TESTING)
 
   ament_add_pytest_test(test_register_node test/test_register_node.py)
   ament_add_pytest_test(test_macro_rejection test/test_macro_rejection.py)
+  ament_add_pytest_test(test_superbuild test/test_superbuild.py)
   ament_add_pytest_test(test_composition test/test_composition.py)
   ament_add_pytest_test(test_pyright test/test_pyright.py)
 endif()

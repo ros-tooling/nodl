@@ -27,6 +27,14 @@ ament_nodl_register(my_node
 A `nodl://<package>/<name>` reference resolves through the ament index, which holds what is *installed*.
 Validation runs before this package is installed, so a referenced package must already be built and be a dependency of this one.
 
+### Subdirectories
+
+`ament_nodl_register` can be called from any CMake directory of the project.
+Rewriting and installing run once per project, at the end of the `CMakeLists.txt` that calls `project()`, with every registration known.
+When the package is added to a larger build with `add_subdirectory`, that is the package's own `CMakeLists.txt`, not the root of the larger build.
+A subdirectory that calls `project()` starts its own set of registrations.
+A document can therefore include one registered from another directory, regardless of registration order.
+
 ### Unique names and files
 
 Each `<package>__<name>` resource key can be registered only once, and configuration fails with an error naming the key otherwise.
