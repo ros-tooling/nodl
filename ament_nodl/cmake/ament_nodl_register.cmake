@@ -13,7 +13,9 @@
 #
 #   ament_index_python.packages.get_resource('nodl', '<pkg>__<name>')
 #
-# The document is also installed as YAML under ``share/<package>/nodl/`` for direct filesystem access.
+# The document is also installed as YAML at ``share/<package>/nodl/<resource_name>.nodl.yaml`` for direct filesystem access.
+# The copy is named after the resource, not the source file.
+# Files that share a name in different directories therefore do not overwrite each other.
 #
 # ``local://`` includes are rewritten to ``nodl://<package>/<name>`` references on install.
 # Every ``local://`` target must itself be registered in the same package, an unregistered sibling would not be reachable downstream.
@@ -152,8 +154,6 @@ function(_ament_nodl_finalize)
     list(GET _map_names ${_i} _name)
     set(_key "${_pkg}__${_name}")
     set(_out "${_work_dir}/rewritten/${_key}")
-    # The share copy keeps the source stem but is uniformly YAML (its content is now YAML).
-    get_filename_component(_stem "${_abs_file}" NAME_WLE)
 
     # Rewrite refs.
     # Depends on the source and on every registering directory's CMakeLists so a change to the registered set retriggers the rewrite.
@@ -175,6 +175,6 @@ function(_ament_nodl_finalize)
     install(
       FILES "${_out}"
       DESTINATION "share/${_pkg}/nodl"
-      RENAME "${_stem}.yaml")
+      RENAME "${_name}.nodl.yaml")
   endforeach()
 endfunction()
