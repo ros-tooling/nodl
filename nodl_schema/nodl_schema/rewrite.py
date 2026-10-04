@@ -32,6 +32,15 @@ from nodl_schema.loader import parse_nodl
 from nodl_schema.local_resolver import LocalResolver
 
 
+class UnrewrittenReferenceError(ResolutionError):
+    """Raised when a ``local://`` reference has no rewrite rule, so it would not resolve once installed."""
+
+    def __init__(self, source: Path, reference: str):
+        super().__init__(f'{source}: local reference {reference} was not registered to rewrite')
+        self.source = source
+        self.reference = reference
+
+
 def _force_block_style(node) -> None:
     """Normalize a ruamel node tree to block style, so JSON (flow) input dumps as block YAML.
 
@@ -61,7 +70,7 @@ def rewrite_references(source: Path, rewrites: dict[str, str]) -> str:
     A ``local://`` key is matched by resolved absolute path, so it should be given in absolute form.
 
     Raises the loader's validation errors when ``source`` is not a valid NoDL document.
-    Raises :class:`ResolutionError` when any ``local://`` reference remains after rewriting,
+    Raises :class:`UnrewrittenReferenceError` when any ``local://`` reference remains after rewriting,
     since such a reference does not resolve once the document is installed.
     """
     source = source.resolve()
@@ -88,7 +97,7 @@ def rewrite_references(source: Path, rewrites: dict[str, str]) -> str:
         if replacement is None:
             # NOTE(emerson) this check bakes in a usage understanding that all local references must be rewritten
             if LocalResolver().handles(ref):
-                raise ResolutionError(f'{source}: local reference {original} was not registered to rewrite')
+                raise UnrewrittenReferenceError(source, original)
         else:
             entry['ref'] = replacement
 

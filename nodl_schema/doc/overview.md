@@ -71,6 +71,7 @@ Double-inclusions of the same reference (including cycles) are rejected.
 The same entity type with the same name declared twice is an error.
 Parameter namespace conflicts are checked again after all included documents are merged.
 Resolution failures raise `ResolutionError`, and collisions raise `MergeError`.
+`rewrite_references` raises `UnrewrittenReferenceError`, a `ResolutionError` subclass, for a `local://` include that no rewrite rule covers.
 
 ## Code generation metadata: the `codegen` key
 
