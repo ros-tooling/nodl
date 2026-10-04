@@ -28,7 +28,7 @@ target_link_libraries(my_node PRIVATE my_node_base)
 
 ### What the macro does
 
-`nodl_generate_cpp(TARGET [SHARED|STATIC] NODL_FILE)` creates a library target named `TARGET` that you link against.
+`nodl_generate_cpp(TARGET [SHARED|STATIC] [NO_EXPORT] NODL_FILE)` creates a library target named `TARGET` that you link against.
 The library is SHARED unless you pass `STATIC`, as in `nodl_generate_cpp(my_node_base STATIC nodl/my_node.nodl.yaml)`.
 It handles everything:
 
@@ -40,6 +40,7 @@ It handles everything:
 | Code generation | Build time | Runs the full generator via `add_custom_command`, only when an input file has changed. |
 | Library creation | Build time | Compiles the generated `.cpp` into a SHARED (default) or STATIC library with position-independent code, and adds the output directory to the include path. |
 | Install | Install time | Installs SHARED libraries to `lib` (`bin` for Windows DLLs). STATIC libraries are not installed. |
+| Export | Install time | For SHARED libraries, installs the generated headers (including `<target>_parameters.hpp`) to `include/<package>/<package>/` and exports the library as `<package>::TARGET` with `ament_export_targets` and `ament_export_dependencies`. The `.cpp`, the deps file and the parameter YAML are not installed. `NO_EXPORT` and STATIC skip this step. |
 | ROS linking | Build time | Links all ROS dependencies via `${pkg}_TARGETS`. |
 | Parameter library | Build time | When the document has parameters, links `generate_parameter_library` and its transitive dependencies (`fmt`, `rsl`, `tcb_span`, etc.). |
 
@@ -49,7 +50,41 @@ It handles everything:
 |---|---|
 | `TARGET` | Name of the library target to create. Used verbatim as the C++ class name (PascalCased) and for all generated filenames, so a `<node>_base` target yields a `<Node>Base` class. A single trailing `_base` is stripped to form the runtime node name (`<node>_base` runs as `<node>`). |
 | `SHARED` / `STATIC` | Optional library type. The default is `SHARED`. SHARED libraries are installed to `lib`, which is on the library path of a sourced workspace. The library type does not follow `BUILD_SHARED_LIBS`. The library file is named after `<PROJECT_NAME>_<TARGET>`, for example `lib<PROJECT_NAME>_<TARGET>.so`, to avoid collisions between packages, while the CMake target name stays `TARGET`. A target that already starts with the package name gets it twice, so target `my_pkg_base` in project `my_pkg` produces `libmy_pkg_my_pkg_base.so`. STATIC libraries are not installed. Both are built with position-independent code, so a STATIC library can still be linked into a SHARED library such as an `rclcpp_components` plugin. Giving both is an error. |
+| `NO_EXPORT` | Optional. Skip the header install, the export set and the exported dependencies, for libraries that only this package uses. The SHARED library is still installed to `lib`, because executables need it at runtime. STATIC libraries are never exported, so `NO_EXPORT` has no effect on them. |
 | `NODL_FILE` | Path to the `.nodl.yaml` file, relative to `CMAKE_CURRENT_SOURCE_DIR`. |
+
+(using-a-generated-base)=
+
+### Using a generated base from another package
+
+A SHARED library is exported by default, so a downstream package can subclass its generated base class.
+Add the package that calls `nodl_generate_cpp()` as a dependency in `package.xml`, then link the exported target:
+
+```cmake
+find_package(my_package REQUIRED)
+
+add_library(my_plugin SHARED src/my_plugin.cpp)
+target_link_libraries(my_plugin PRIVATE my_package::my_node_base)
+```
+
+```cpp
+#include "my_package/my_node_base.hpp"
+```
+
+The exported target carries its ROS dependencies, so `find_package(my_package)` also finds `rclcpp`, the message packages, and `generate_parameter_library` with its dependencies when the document has parameters.
+The include path is the same in the build tree and the install space.
+
+The exporting package must declare the ROS dependencies of its documents as `<depend>` (or `<build_export_depend>`), plus `generate_parameter_library` when a document has parameters.
+`nodl_generated/<target>/<target>_deps.cmake` in the build directory lists them as `<target>_ROS_DEPS`.
+A missing `<depend>` does not break workspace builds, but it breaks rosdep and binary installs.
+
+The export is registered with `ament_export_targets` and `ament_export_dependencies`.
+Call `nodl_generate_cpp()` before `ament_package()` and in the same `CMakeLists.txt` as `ament_package()`, not inside a function or subdirectory, because the export would be lost.
+Use `NO_EXPORT` for libraries created there, or turn a wrapper function into a macro.
+Each target gets its own export set named `export_<TARGET>`, so a package can generate several libraries.
+One namespace applies to all export sets of a package, and the last `ament_export_targets` call wins.
+A call of your own with a custom `NAMESPACE` therefore also changes the names of the generated targets.
+The `test_nodl_generators_downstream` package in the repository is a tested example of this workflow.
 
 ### Including the generated header
 

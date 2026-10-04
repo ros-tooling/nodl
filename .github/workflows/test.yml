@@ -76,6 +76,7 @@ jobs:
             ros2nodl
             test_ament_nodl
             test_nodl_generators
+            test_nodl_generators_downstream
             nodl_tutorial_basics
             nodl_tutorial_dummy_robot
           target-ros2-distro: ${{ matrix.ros }}

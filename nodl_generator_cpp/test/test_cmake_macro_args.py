@@ -18,9 +18,12 @@ MACRO_FILE = Path(__file__).parent.parent / 'cmake' / 'nodl_generate_cpp.cmake'
 pytestmark = pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
 
 
-def _run_macro(tmp_path: Path, call_args: str) -> subprocess.CompletedProcess:
+def _run_macro(tmp_path: Path, call_args: str, *, in_function: bool = False) -> subprocess.CompletedProcess:
+    call = f'nodl_generate_cpp({call_args})'
+    if in_function:
+        call = f'function(wrapper)\n  {call}\nendfunction()\nwrapper()'
     script = tmp_path / 'call.cmake'
-    script.write_text(f'include("{MACRO_FILE.as_posix()}")\nnodl_generate_cpp({call_args})\n')
+    script.write_text(f'include("{MACRO_FILE.as_posix()}")\n{call}\n')
     return subprocess.run(
         ['cmake', '-P', str(script)],
         capture_output=True,
@@ -35,9 +38,10 @@ def _run_macro(tmp_path: Path, call_args: str) -> subprocess.CompletedProcess:
         ('my_base SHARED STATIC my.nodl.yaml', "target 'my_base' cannot be both SHARED and STATIC"),
         ('my_base', "target 'my_base' requires exactly one NODL_FILE, got 0"),
         ('my_base STATIC', "target 'my_base' requires exactly one NODL_FILE, got 0"),
+        ('my_base NO_EXPORT', "target 'my_base' requires exactly one NODL_FILE, got 0"),
         ('my_base a.nodl.yaml b.nodl.yaml', "target 'my_base' requires exactly one NODL_FILE, got 2"),
     ],
-    ids=['shared-and-static', 'missing-file', 'missing-file-with-type', 'two-files'],
+    ids=['shared-and-static', 'missing-file', 'missing-file-with-type', 'missing-file-with-no-export', 'two-files'],
 )
 def test_bad_arguments_are_rejected(tmp_path, call_args, expected):
     result = _run_macro(tmp_path, call_args)
@@ -45,3 +49,80 @@ def test_bad_arguments_are_rejected(tmp_path, call_args, expected):
     assert result.returncode != 0
     assert 'nodl_generate_cpp:' in result.stderr
     assert expected in result.stderr
+
+
+@pytest.mark.parametrize(
+    ('call_args', 'rejected'),
+    [
+        ('my_base my.nodl.yaml', True),
+        ('my_base SHARED my.nodl.yaml', True),
+        ('my_base NO_EXPORT my.nodl.yaml', False),
+        ('my_base STATIC my.nodl.yaml', False),
+        ('my_base STATIC NO_EXPORT my.nodl.yaml', False),
+    ],
+    ids=['default', 'shared', 'no-export', 'static', 'static-no-export'],
+)
+def test_exported_target_is_rejected_inside_a_function(tmp_path, call_args, rejected):
+    result = _run_macro(tmp_path, call_args, in_function=True)
+
+    stderr = ' '.join(result.stderr.split())
+    assert ("cannot be created inside function 'wrapper'" in stderr) is rejected
+
+
+def _configure_project_with_subdirectory(tmp_path: Path, call_args: str) -> subprocess.CompletedProcess:
+    """Configure a project that calls the macro from a subdirectory.
+
+    Script mode has no ``add_subdirectory``, so this runs a real configure.
+    The configure fails later for lack of a NoDL file, which these tests ignore.
+    """
+    (tmp_path / 'sub').mkdir()
+    (tmp_path / 'sub' / 'CMakeLists.txt').write_text(f'nodl_generate_cpp({call_args})\n')
+    (tmp_path / 'CMakeLists.txt').write_text(
+        'cmake_minimum_required(VERSION 3.22)\n'
+        'project(subdirectory_test NONE)\n'
+        f'include("{MACRO_FILE.as_posix()}")\n'
+        'add_subdirectory(sub)\n'
+    )
+    return subprocess.run(
+        ['cmake', '-S', str(tmp_path), '-B', str(tmp_path / 'build')],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.parametrize(
+    ('call_args', 'rejected'),
+    [
+        ('my_base my.nodl.yaml', True),
+        ('my_base SHARED my.nodl.yaml', True),
+        ('my_base NO_EXPORT my.nodl.yaml', False),
+        ('my_base STATIC my.nodl.yaml', False),
+    ],
+    ids=['default', 'shared', 'no-export', 'static'],
+)
+def test_exported_target_is_rejected_in_a_subdirectory(tmp_path, call_args, rejected):
+    result = _configure_project_with_subdirectory(tmp_path, call_args)
+
+    stderr = ' '.join(result.stderr.split())
+    assert ('cannot be created in subdirectory' in stderr) is rejected
+    if rejected:
+        assert 'or pass NO_EXPORT' in stderr
+
+
+def test_exported_target_is_accepted_in_the_project_directory(tmp_path):
+    (tmp_path / 'CMakeLists.txt').write_text(
+        'cmake_minimum_required(VERSION 3.22)\n'
+        'project(toplevel_test NONE)\n'
+        f'include("{MACRO_FILE.as_posix()}")\n'
+        'nodl_generate_cpp(my_base my.nodl.yaml)\n'
+    )
+
+    result = subprocess.run(
+        ['cmake', '-S', str(tmp_path), '-B', str(tmp_path / 'build')],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert 'cannot be created in' not in ' '.join(result.stderr.split())
