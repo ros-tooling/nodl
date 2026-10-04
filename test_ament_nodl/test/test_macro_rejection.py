@@ -121,6 +121,20 @@ def test_macro_rejects_invalid_node(inner_pkg: Path):
     )
 
 
+def _unwrapped(*outputs: str) -> str:
+    # CMake wraps long error messages, so compare on single-spaced text.
+    return ' '.join(' '.join(outputs).split())
+
+
+def _configure(pkg: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ['cmake', '-S', str(pkg), '-B', str(pkg / 'build')],
+        capture_output=True,
+        text=True,
+        env=os.environ,
+    )
+
+
 @pytest.fixture
 def unregistered_include_pkg(tmp_path: Path) -> Path:
     pkg = tmp_path / 'unregistered_include_fixture'
@@ -154,3 +168,54 @@ def test_macro_rejects_unregistered_local_include(unregistered_include_pkg: Path
     assert 'was not registered to rewrite' in combined, (
         f'Expected the rewrite error to appear in the build output, got:\n{combined}'
     )
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_duplicate_resource_name(inner_pkg: Path):
+    (inner_pkg / 'CMakeLists.txt').write_text(
+        _INNER_CMAKELISTS.replace(
+            'ament_nodl_register(bad_exe FILE bad.nodl.yaml)',
+            'ament_nodl_register(dup_resource FILE first.nodl.yaml)\n    ament_nodl_register(dup_resource FILE second.nodl.yaml)',
+        )
+    )
+    (inner_pkg / 'first.nodl.yaml').write_text(_LEAF_NODL)
+    (inner_pkg / 'second.nodl.yaml').write_text(_LEAF_NODL)
+
+    configure = _configure(inner_pkg)
+
+    assert configure.returncode != 0
+    assert 'rejection_fixture__dup_resource is already registered' in _unwrapped(configure.stderr)
+    assert 'resource names must be unique within a package' in _unwrapped(configure.stderr)
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_same_file_under_two_names(inner_pkg: Path):
+    (inner_pkg / 'CMakeLists.txt').write_text(
+        _INNER_CMAKELISTS.replace(
+            'ament_nodl_register(bad_exe FILE bad.nodl.yaml)',
+            'ament_nodl_register(first_resource FILE leaf.nodl.yaml)\n    ament_nodl_register(second_resource FILE leaf.nodl.yaml)',
+        )
+    )
+    (inner_pkg / 'leaf.nodl.yaml').write_text(_LEAF_NODL)
+
+    configure = _configure(inner_pkg)
+
+    assert configure.returncode != 0
+    assert 'is already registered as rejection_fixture__first_resource' in _unwrapped(configure.stderr)
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_same_file_spelled_through_a_symlink(inner_pkg: Path):
+    (inner_pkg / 'CMakeLists.txt').write_text(
+        _INNER_CMAKELISTS.replace(
+            'ament_nodl_register(bad_exe FILE bad.nodl.yaml)',
+            'ament_nodl_register(first_resource FILE leaf.nodl.yaml)\n    ament_nodl_register(second_resource FILE link.nodl.yaml)',
+        )
+    )
+    (inner_pkg / 'leaf.nodl.yaml').write_text(_LEAF_NODL)
+    (inner_pkg / 'link.nodl.yaml').symlink_to('leaf.nodl.yaml')
+
+    configure = _configure(inner_pkg)
+
+    assert configure.returncode != 0
+    assert 'is already registered as rejection_fixture__first_resource' in _unwrapped(configure.stderr)
