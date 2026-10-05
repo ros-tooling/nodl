@@ -1,12 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
+
 #
 # Register a NoDL document in the ament resource index.
 #
 # Publishes the contents of a NoDL file under the ``nodl`` resource type.
 # The resource key is ``<package>__<resource_name>``.
 #
-# Consumers may retrieve the content via::
+# Consumers may retrieve the content via:
+#
+# .. code-block:: python
 #
 #   ament_index_python.packages.get_resource('nodl', '<pkg>__<name>')
 #

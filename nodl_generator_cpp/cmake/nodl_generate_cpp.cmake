@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-#
-# nodl_generate_cpp(TARGET NODL_FILE)
+
 #
 # Generate an rclcpp base-node class from a NoDL document and expose it
 # as a STATIC library target that the caller can link against.
