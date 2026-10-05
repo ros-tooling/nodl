@@ -72,7 +72,7 @@ def rewrite_references(source: Path, rewrites: dict[str, str]) -> str:
 
     yaml = YAML()
     # Wide enough not to wrap long scalars; indent so sequences sit under their key.
-    # Older ruamel builds (humble/jazzy/kilted) mistype `width` as None, so pyright rejects the int there.
+    # Older ruamel builds (humble/jazzy) mistype `width` as None, so pyright rejects the int there.
     yaml.width = 4096  # pyright: ignore[reportAttributeAccessIssue]
     yaml.indent(mapping=2, sequence=4, offset=2)
     data = yaml.load(text)

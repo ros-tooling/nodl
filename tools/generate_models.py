@@ -99,7 +99,7 @@ def _strip_orphan_root_classes(source: str) -> str:
     --collapse-root-models inlines all uses of root types, but the generator
     still emits the original class definition. Those orphan classes use the
     ``__root__`` field syntax, which pydantic v2 rejects with a TypeError.
-    Stripping them keeps the output usable on both v1 (humble/jazzy/kilted)
+    Stripping them keeps the output usable on both v1 (humble/jazzy)
     and v2 (lyrical+).
     """
     class_pattern = re.compile(

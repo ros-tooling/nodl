@@ -83,7 +83,7 @@ def parse_nodl(data: Union[str, bytes, IO]) -> NodlDocument:
     validate(data)
 
     # parse_obj is pydantic v1 API, retained as a deprecated alias in v2.
-    # Used so this module works against both rosdep-shipped pydantic v1 (humble/jazzy/kilted) and v2 (lyrical+).
+    # Used so this module works against both rosdep-shipped pydantic v1 (humble/jazzy) and v2 (lyrical+).
     doc = NodlDocument.parse_obj(data)
 
     return doc

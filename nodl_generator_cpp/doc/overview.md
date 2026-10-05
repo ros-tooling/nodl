@@ -57,10 +57,9 @@ Subsequent builds skip generation entirely until a source file changes.
 
 ### Cross-distro compatibility
 
-The macro works across Humble through Lyrical.
-It uses `${pkg}_TARGETS` for linking (available since Foxy) and handles distro-specific target name changes
-for `generate_parameter_library` dependencies (`tl_expected::tl_expected` on Humble/Jazzy vs `tl::expected` on
-Kilted+, `parameter_traits` present on Humble/Jazzy but removed on Kilted+).
+The macro works across all supported ROS distributions.
+It uses `${pkg}_TARGETS` for linking and handles distro-specific target name changes for `generate_parameter_library` dependencies
+(`tl_expected::tl_expected` on Humble/Jazzy vs `tl::expected` on Lyrical+, `parameter_traits` present on Humble/Jazzy but removed on Lyrical+).
 
 ## Prerequisites
 

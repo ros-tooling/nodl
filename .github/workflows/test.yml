@@ -44,14 +44,12 @@ jobs:
         # One job per distro — RMW variation is handled inside the job.
         # nodl_observe is ament_cmake (C++): a missing rosgraph_msgs/Node.msg is a
         # BUILD failure (loud), not a silent test-skip, so requires_node_msg is gone.
-        ros: [humble, jazzy, kilted, lyrical, rolling]
+        ros: [humble, jazzy, lyrical, rolling]
         # ubuntu is mapped per distro; add a distro by extending both lists.
         include:
           - ros: humble
             ubuntu: jammy
           - ros: jazzy
-            ubuntu: noble
-          - ros: kilted
             ubuntu: noble
           - ros: lyrical
             ubuntu: resolute
