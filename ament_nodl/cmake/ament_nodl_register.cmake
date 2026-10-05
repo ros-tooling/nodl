@@ -25,7 +25,7 @@
 # :param resource_name: target name for this NoDL document.
 #   Registering the same ``<package>__<resource_name>`` twice is an error.
 # :type resource_name: string
-# :param FILE: Required path to the NoDL file describing the executable's interface.
+# :param FILE: Required path to the NoDL file.
 #   May be absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
 #   Registering the same file under two names is an error, since its ``local://`` rewrite would be ambiguous.
 # :type FILE: string
