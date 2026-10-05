@@ -112,7 +112,6 @@ def test_qos_zero_durations_are_omitted():
         ([1, 2, 3], '[1, 2, 3]'),
         (['a', 'b'], '[a, b]'),
         ([], '[]'),
-        (None, 'null'),
         (float('inf'), '.inf'),
         # Stripping the YAML document end marker must not eat a value that itself ends in dots.
         ('wait...', 'wait...'),
@@ -337,11 +336,6 @@ def test_a_parameter_without_a_default_is_required():
             additional_constraints='',
         ),
     )
-
-
-def test_an_explicit_null_default_is_rendered():
-    doc = parse_nodl('nodl_version: 2\nparameters:\n  maybe:\n    type: string\n    default_value: null\n')
-    assert summarize_document(doc).parameters[0].default == 'null'
 
 
 def test_unresolved_includes_are_listed_from_the_document():

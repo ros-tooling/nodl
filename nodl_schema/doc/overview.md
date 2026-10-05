@@ -34,6 +34,8 @@ If `resolve=True`, each `include` reference is resolved and merged in (see [Comp
 
 Validate a plain `dict` against the NoDL schema and its semantic constraints, raising on the first violation.
 Semantic validation includes parameter namespace conflicts such as declaring both `colour` and `colour.r`.
+It also checks that each parameter's `default_value` matches its `type`,
+and that each built-in validator applies to the parameter's `type`, with arguments of the matching element type.
 Use this when you already have parsed data and only need the conformance check, not the typed model.
 
 ### `dump_nodl(doc, *, format='yaml') -> str`
