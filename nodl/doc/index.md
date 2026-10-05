@@ -17,6 +17,7 @@ why-nodl
 concepts
 schema
 documenting
+CMake API <_generated/cmake/index>
 roadmap
 tutorials/index
 ```

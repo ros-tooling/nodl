@@ -9,6 +9,7 @@ from pathlib import Path
 # Make this directory importable so the local schema_reference helper resolves.
 # (sys.path entries must be str, not Path, or the import machinery ignores them.)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cmake_api_docs
 import package_docs
 import schema_reference
 
@@ -24,6 +25,9 @@ extensions = [
     'sphinx_immaterial.apidoc.json.domain',
     'sphinx.ext.extlinks',
     'sphinx.ext.intersphinx',
+    # cmake:command domain for the generated CMake API page (see cmake_api_docs.py), with typed :param: fields
+    'sphinxcontrib.moderncmakedomain',
+    'cmake_fields',
     # Dogfood our own extension by rendering an example NoDL
     'nodl_docgen',
 ]
@@ -115,11 +119,16 @@ html_theme_options = {
     ],
 }
 
-exclude_patterns = ['_build', '.venv', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', '.venv', '.pytest_cache', 'Thumbs.db', '.DS_Store']
+
+# sphinxcontrib.moderncmakedomain does not implement resolve_any_xref, so MyST warns once per build (myst.domains).
+# MyST then falls back to resolve_xref for that domain, which still works, so only the warning is hidden.
+suppress_warnings = ['myst.domains']
 
 
 def setup(app):
-    """Prepare the schema reference before the JSON domain reads the schemas, and stage per-package docs."""
+    """Prepare the schema reference before the JSON domain reads the schemas, and stage per-package docs and CMake API."""
     schema_reference.mirror_schemas_for_docs()
     schema_reference.patch_object_value_type()
     package_docs.mirror_package_docs()
+    cmake_api_docs.generate_cmake_api_docs()
