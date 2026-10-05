@@ -29,7 +29,7 @@ NodeT = TypeVar('NodeT', bound=nodes.Node)
 def findall(node: nodes.Node, node_class: type[NodeT]) -> Iterator[NodeT]:
     """Every descendant of ``node`` that is a ``node_class``, in document order.
 
-    ``Element.findall`` arrived in docutils 0.18 (Ubuntu Noble, ROS Kilted+), it's ``traverse`` in older.
+    ``Element.findall`` arrived in docutils 0.18 (Ubuntu Noble), it's ``traverse`` in older.
     """
     finder = getattr(node, 'findall', None) or node.traverse
     return iter(finder(node_class))

@@ -44,12 +44,19 @@ For the buildfarm environment, these dependencies and tests are disabled, becaus
 
 To install all dependencies and run the full test suite, export environment variable `ENABLE_PIP_TEST_DEPENDS=1` - which the GitHub Action CI for this repo does.
 
-## Buildfarm Status
+## ROS Distribution Status
 
 | Distro | Dev | Doc | Ubuntu Bin |
 |--------|-----|-----|-----------|
 | Humble | [![Hdev](https://build.ros2.org/job/Hdev__nodl__ubuntu_jammy_amd64/badge/icon?subject=Hdev)](https://build.ros2.org/job/Hdev__nodl__ubuntu_jammy_amd64/) | [![Hdoc](https://build.ros2.org/job/Hdoc__nodl__ubuntu_jammy_amd64/badge/icon?subject=Hdoc)](https://build.ros2.org/job/Hdoc__nodl__ubuntu_jammy_amd64/) | [![Hbin](https://build.ros2.org/job/Hbin_uJ64__nodl__ubuntu_jammy_amd64__binary/badge/icon?subject=Hbin)](https://build.ros2.org/job/Hbin_uJ64__nodl__ubuntu_jammy_amd64__binary/) |
 | Jazzy | [![Jdev](https://build.ros2.org/job/Jdev__nodl__ubuntu_noble_amd64/badge/icon?subject=Jdev)](https://build.ros2.org/job/Jdev__nodl__ubuntu_noble_amd64/) | [![Jdoc](https://build.ros2.org/job/Jdoc__nodl__ubuntu_noble_amd64/badge/icon?subject=Jdoc)](https://build.ros2.org/job/Jdoc__nodl__ubuntu_noble_amd64/) | [![Jbin](https://build.ros2.org/job/Jbin_uN64__nodl__ubuntu_noble_amd64__binary/badge/icon?subject=Jbin)](https://build.ros2.org/job/Jbin_uN64__nodl__ubuntu_noble_amd64__binary/) |
-| Kilted | [![Kdev](https://build.ros2.org/job/Kdev__nodl__ubuntu_noble_amd64/badge/icon?subject=Kdev)](https://build.ros2.org/job/Kdev__nodl__ubuntu_noble_amd64/) | [![Kdoc](https://build.ros2.org/job/Kdoc__nodl__ubuntu_noble_amd64/badge/icon?subject=Kdoc)](https://build.ros2.org/job/Kdoc__nodl__ubuntu_noble_amd64/) | [![Kbin](https://build.ros2.org/job/Kbin_uN64__nodl__ubuntu_noble_amd64__binary/badge/icon?subject=Kbin)](https://build.ros2.org/job/Kbin_uN64__nodl__ubuntu_noble_amd64__binary/) |
 | Lyrical | [![Ldev](https://build.ros2.org/job/Ldev__nodl__ubuntu_resolute_amd64/badge/icon?subject=Ldev)](https://build.ros2.org/job/Ldev__nodl__ubuntu_resolute_amd64/) | [![Ldoc](https://build.ros2.org/job/Ldoc__nodl__ubuntu_resolute_amd64/badge/icon?subject=Ldoc)](https://build.ros2.org/job/Ldoc__nodl__ubuntu_resolute_amd64/) | [![Lbin](https://build.ros2.org/job/Lbin_uR64__nodl__ubuntu_resolute_amd64__binary/badge/icon?subject=Lbin)](https://build.ros2.org/job/Lbin_uR64__nodl__ubuntu_resolute_amd64__binary/) |
 | Rolling | [![Rdev](https://build.ros2.org/job/Rdev__nodl__ubuntu_resolute_amd64/badge/icon?subject=Rdev)](https://build.ros2.org/job/Rdev__nodl__ubuntu_resolute_amd64/) | [![Rdoc](https://build.ros2.org/job/Rdoc__nodl__ubuntu_resolute_amd64/badge/icon?subject=Rdoc)](https://build.ros2.org/job/Rdoc__nodl__ubuntu_resolute_amd64/) | [![Rbin](https://build.ros2.org/job/Rbin_uR64__nodl__ubuntu_resolute_amd64__binary/badge/icon?subject=Rbin)](https://build.ros2.org/job/Rbin_uR64__nodl__ubuntu_resolute_amd64__binary/) |
+
+### Unsupported Distributions
+
+These ROS distributions will receive no future release updates or code compatibility support.
+
+| Distro | Date Support Ended | Reason |
+| ------ | ------------------ | ------ |
+| Kilted Kaiju | October 5, 2026 | Distro EOL in November |

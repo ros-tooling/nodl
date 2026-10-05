@@ -116,13 +116,13 @@ macro(nodl_generate_cpp TARGET NODL_FILE)
       rsl::rsl
       tcb_span::tcb_span
     )
-    # tl_expected::tl_expected (Humble/Jazzy) → tl::expected (Kilted+)
+    # tl_expected::tl_expected (Humble/Jazzy) → tl::expected (Lyrical+)
     if(TARGET tl::expected)
       list(APPEND _nodl_genparamlib_deps tl::expected)
     elseif(TARGET tl_expected::tl_expected)
       list(APPEND _nodl_genparamlib_deps tl_expected::tl_expected)
     endif()
-    # parameter_traits present in Humble/Jazzy, removed in Kilted+
+    # parameter_traits present in Humble/Jazzy, removed in Lyrical+
     if(TARGET parameter_traits::parameter_traits)
       list(APPEND _nodl_genparamlib_deps parameter_traits::parameter_traits)
     endif()
