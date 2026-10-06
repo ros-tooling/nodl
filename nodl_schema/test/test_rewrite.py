@@ -3,7 +3,7 @@
 import pytest
 from ruamel.yaml import YAML
 
-from nodl_schema import ResolutionError, rewrite_references
+from nodl_schema import ResolutionError, UnrewrittenReferenceError, rewrite_references
 
 _LEAF = 'nodl_version: 2\ndescription: Leaf document.\n'
 
@@ -80,6 +80,17 @@ class TestRewriteReferences:
         # No rule covers the local include, so it would not resolve after install.
         with pytest.raises(ResolutionError, match='not registered'):
             rewrite_references(root, {})
+
+    def test_surviving_local_ref_is_named_on_the_error(self, tmp_path):
+        _write(tmp_path / 'leaf.nodl.yaml', _LEAF)
+        root = _write(
+            tmp_path / 'root.nodl.yaml',
+            'nodl_version: 2\ninclude:\n  - ref: local://leaf.nodl.yaml\n',
+        )
+        with pytest.raises(UnrewrittenReferenceError) as excinfo:
+            rewrite_references(root, {})
+        assert excinfo.value.reference == 'local://leaf.nodl.yaml'
+        assert excinfo.value.source == root.resolve()
 
     def test_invalid_source_raises(self, tmp_path):
         root = _write(tmp_path / 'bad.nodl.yaml', 'nodl_version: 2\nparameters:\n  p:\n    type: not_a_type\n')

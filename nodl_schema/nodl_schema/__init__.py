@@ -14,7 +14,7 @@ from nodl_schema.composition import (
 from nodl_schema.conformance import Difference, diff
 from nodl_schema.loader import dump_nodl, load_nodl, load_nodl_with_doc_tree, parse_nodl, resolve_document
 from nodl_schema.local_resolver import LocalResolver
-from nodl_schema.rewrite import rewrite_references
+from nodl_schema.rewrite import UnrewrittenReferenceError, rewrite_references
 from nodl_schema.validation import load_schema, validate
 
 register_resolver(AmentIndexResolver())
@@ -25,6 +25,7 @@ __all__ = [
     'Difference',
     'ResolutionError',
     'Resolver',
+    'UnrewrittenReferenceError',
     'dump_nodl',
     'diff',
     'load_nodl',

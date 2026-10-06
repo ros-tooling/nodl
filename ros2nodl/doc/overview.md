@@ -54,6 +54,26 @@ cat my_node.nodl.yaml | ros2 nodl validate
 The command exits non-zero and prints the validation error if a document does not conform to the schema,
 so it composes cleanly into shell pipelines and CI checks.
 
+### `ros2 nodl rewrite`
+
+Rewrite the references in a NoDL document.
+Build tooling uses it to turn `local://` includes into `nodl://` references before a document is installed.
+
+```console
+ros2 nodl rewrite -r FROM:=TO [-r FROM:=TO ...] -o OUT.yaml my_node.nodl.yaml
+ros2 nodl rewrite -r FROM:=TO [-r FROM:=TO ...] --check my_node.nodl.yaml
+```
+
+`-r FROM:=TO` replaces the include reference `FROM` with `TO`, and can be repeated.
+A `local://` `FROM` is matched by its resolved absolute path.
+`-o` writes the rewritten document as YAML.
+`--check` writes nothing and only checks that every `local://` include has a rewrite rule.
+Exactly one of `-o` and `--check` is required.
+
+The command exits 0 on success and 3 when a `local://` include has no rewrite rule.
+Any other failure, such as an invalid document, exits 1.
+Exit status 2 is left to argument parsing errors.
+
 ### `ros2 nodl describe`
 
 Create a NoDL draft from a running or captured ROS 2 node.
