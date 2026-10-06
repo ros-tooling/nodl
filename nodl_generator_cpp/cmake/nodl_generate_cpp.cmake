@@ -21,21 +21,9 @@
 # so target ``my_pkg_base`` in project ``my_pkg`` produces ``libmy_pkg_my_pkg_base.so``.
 #
 # SHARED libraries are also exported as ament CMake targets by default.
-# Downstream packages call ``find_package(<project>)`` and link ``<project>::<TARGET>``,
-# for example to subclass the generated base class.
-# The generated headers are installed to ``include/<project>/<project>/``,
-# and the exported target carries ``include/<project>`` as its include directory,
-# so ``#include "<project>/<target>.hpp"`` works the same in the install space.
-# Only the headers are installed, including ``<target>_parameters.hpp`` when the document has parameters.
-# The export is registered with ``ament_export_targets`` and ``ament_export_dependencies``,
-# so the macro must be called before ``ament_package()``,
-# in the same CMakeLists.txt as ``ament_package()``, not inside a function or subdirectory.
-# Use ``NO_EXPORT`` for libraries created there.
-# Each call uses its own export set named ``export_<TARGET>``.
-# One namespace applies to all export sets of a package, and the last ``ament_export_targets`` call wins.
-# A call with a custom ``NAMESPACE`` therefore also renames the generated targets.
-# The package must declare the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``,
-# plus ``generate_parameter_library`` when a document has parameters.
+# Downstream packages may call ``find_package(<project>)``, link ``<project>::<TARGET>``, and ``#include <project>/<target>.hpp``.
+# This macro must be called before ``ament_package()``, in the same CMakeLists.txt, not inside a function or subdirectory.
+# The caller must declare the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``,
 # STATIC libraries are never exported or installed.
 #
 # Example::
@@ -105,13 +93,11 @@ macro(nodl_generate_cpp TARGET)
   if(_nodl_library_type STREQUAL "SHARED" AND NOT _nodl_NO_EXPORT)
     if(DEFINED CMAKE_CURRENT_FUNCTION)
       message(FATAL_ERROR
-        "nodl_generate_cpp: target '${TARGET}' is exported, so it cannot be created "
-        "inside function '${CMAKE_CURRENT_FUNCTION}'. "
+        "nodl_generate_cpp: target '${TARGET}' is exported, so it cannot be created inside function '${CMAKE_CURRENT_FUNCTION}'. "
         "Turn the function into a macro or pass NO_EXPORT.")
     elseif(PROJECT_SOURCE_DIR AND NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
       message(FATAL_ERROR
-        "nodl_generate_cpp: target '${TARGET}' is exported, so it cannot be created "
-        "in subdirectory '${CMAKE_CURRENT_SOURCE_DIR}'. "
+        "nodl_generate_cpp: target '${TARGET}' is exported, so it cannot be created in subdirectory '${CMAKE_CURRENT_SOURCE_DIR}'. "
         "Call it from the CMakeLists.txt that calls ament_package() or pass NO_EXPORT.")
     endif()
   endif()
