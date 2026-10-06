@@ -1,15 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-# nodl_generate_py(target nodl_file)
+
 #
-# Generates an rclpy base-node class from a NoDL file and installs it under
-# <project>.generated. Unlike the C++ generator there is nothing to compile,
-# so this creates a build-time custom target rather than a library.
+# Generate an rclpy base-node class from a NoDL file and install it under ``<project>.generated``.
 #
-# target      - used directly for the build target, module, and class name.
-#               A trailing _base is removed from the runtime node name.
-# nodl_file   - path to the .nodl.yaml file (absolute, or relative to the
-#               caller's CMakeLists.txt).
+# Unlike the C++ generator there is nothing to compile, so this creates a build-time custom target rather than a library.
+#
+# :param target: used directly for the build target, module, and class name.
+#   A trailing ``_base`` is removed from the runtime node name.
+# :type target: string
+# :param nodl_file: path to the ``.nodl.yaml`` file, absolute or relative to the caller's ``CMakeLists.txt``.
+# :type nodl_file: string
+#
+# @public
 #
 function(nodl_generate_py target nodl_file)
   if(ARGN)

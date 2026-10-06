@@ -1,12 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-#[=[
-Register a launch test that compares one executable with one NoDL document.
-
-Required arguments are EXECUTABLE, NODL_FILE, and NODE_NAME.
-PACKAGE defaults to PROJECT_NAME. NODE_NAMESPACE defaults to /.
-TIMEOUT defaults to 15 seconds.
-]=]
 
 set(_nodl_conformance_cmake_dir "${CMAKE_CURRENT_LIST_DIR}")
 
@@ -18,6 +11,31 @@ function(_nodl_conformance_python_string output value)
   set(${output} "'${_escaped}'" PARENT_SCOPE)
 endfunction()
 
+#
+# Register a launch test that compares one executable with one NoDL document.
+#
+# Finds ``launch_testing_ament_cmake`` if ``add_launch_test`` is not already available.
+#
+# :param test_name: name of the test target to create.
+# :type test_name: string
+# :param EXECUTABLE: Required executable to launch and compare against the document.
+# :type EXECUTABLE: string
+# :param NODL_FILE: Required path to the NoDL file, absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
+# :type NODL_FILE: string
+# :param NODE_NAME: Required name of the node the executable runs.
+# :type NODE_NAME: string
+# :param PACKAGE: package that provides the executable.
+#   Defaults to ``${PROJECT_NAME}``.
+# :type PACKAGE: string
+# :param NODE_NAMESPACE: namespace of the node.
+#   Defaults to ``/``.
+# :type NODE_NAMESPACE: string
+# :param TIMEOUT: positive integer number of seconds to wait for the node.
+#   Defaults to 15.
+# :type TIMEOUT: integer
+#
+# @public
+#
 function(nodl_add_conformance_test test_name)
   cmake_parse_arguments(
     _ARGS

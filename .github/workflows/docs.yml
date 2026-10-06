@@ -23,6 +23,7 @@ jobs:
           python-version: 3.11
           activate-environment: true
       - run: uv sync --all-extras
+      - run: uv run poe test
       - run: uv run poe build
 
       - uses: actions/upload-artifact@v4

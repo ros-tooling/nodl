@@ -16,6 +16,8 @@ docs = [
     "myst-parser>=2",
     "sphinx-autobuild",
     "sphinx-tabs>=3.4",
+    # cmake:command domain for the generated CMake API page.
+    "sphinxcontrib-moderncmakedomain>=3",
     # Theme + its built-in JSON Schema domain (json:schema directive/role),
     # which replaces sphinx-jsonschema and sphinx-rtd-theme.
     "sphinx-immaterial>=0.12",
@@ -30,6 +32,8 @@ docs = [
     "ruamel.yaml>=0.17",
     "ament-index-python @ git+https://github.com/ament/ament_index@1.9.0#subdirectory=ament_index_python",
 ]
+# Unit tests for the build-time doc helpers in this directory.
+test = ["pytest>=7"]
 
 # The two NoDL packages live in this repo, not on an index.
 # Install editable so a doc build renders the working tree.
@@ -43,7 +47,12 @@ nodl-schema = { path = "../../nodl_schema", editable = true }
 [tool.setuptools]
 py-modules = []
 
+[tool.pytest.ini_options]
+# Staged and built output is not test source.
+norecursedirs = ["_generated", "_build"]
+
 [tool.poe.tasks]
+test = "pytest -q"
 # Mirror the ReadTheDocs build but treat warnings as errors.
 # So, a broken cross-reference or missing schema field fails the GitHub check.
 build = "sphinx-build -b html -W --keep-going . ./_build"
