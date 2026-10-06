@@ -8,18 +8,23 @@ find_package(nodl_generator_cpp REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
 function(add_cpp_fixture fixture target)
-  nodl_generate_cpp(${target} ${fixture}/cpp/node.nodl.yaml)
+  nodl_generate_cpp(${target} ${ARGN} ${fixture}/cpp/node.nodl.yaml)
   add_executable(test_cpp_${fixture} ${fixture}/cpp/test_node.cpp)
   target_link_libraries(test_cpp_${fixture} PRIVATE ${target})
 endfunction()
 
 # The target prefix keeps these distinct from the Python generator fixtures.
-add_cpp_fixture(minimal cpp_minimal_node_base)
+add_cpp_fixture(minimal cpp_minimal_node_base SHARED)
 add_cpp_fixture(pub_sub cpp_pub_sub_node_base)
 add_cpp_fixture(services cpp_services_node_base)
 add_cpp_fixture(parameters cpp_params_node_base)
 add_cpp_fixture(kitchen_sink cpp_kitchen_sink_node_base)
 add_cpp_fixture(lifecycle cpp_lifecycle_node_base)
+
+# A STATIC base linked into a SHARED library needs position-independent code.
+nodl_generate_cpp(cpp_minimal_static_node_base STATIC minimal/cpp/node.nodl.yaml)
+add_library(cpp_minimal_static_plugin SHARED minimal/cpp/test_static_plugin.cpp)
+target_link_libraries(cpp_minimal_static_plugin PRIVATE cpp_minimal_static_node_base)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
