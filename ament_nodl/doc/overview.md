@@ -27,10 +27,17 @@ ament_nodl_register(my_node
 A `nodl://<package>/<name>` reference resolves through the ament index, which holds what is *installed*.
 Validation runs before this package is installed, so a referenced package must already be built and be a dependency of this one.
 
+### Unique names and files
+
+Each `<package>__<name>` resource key can be registered only once, and configuration fails with an error naming the key otherwise.
+Each file can also be registered under only one name.
+A second name for the same file would add a second rewrite rule for one path, so the `nodl://` reference its includers receive would be ambiguous.
+
 ### Arguments
 
-:`executable_name`: Name of the executable the document describes. Combined with `PACKAGE` to form the resource key.
+:`executable_name`: Name of the executable the document describes. Combined with `PACKAGE` to form the resource key, which must be unique.
 :`FILE`: Path to the NoDL file. Absolute, or relative to `CMAKE_CURRENT_SOURCE_DIR`. Required.
+  Each file can be registered once.
 :`PACKAGE`: Package name used in the resource key. Defaults to `${PROJECT_NAME}`.
 
 See the macro source at {repo}`ament_nodl/cmake/ament_nodl_register.cmake`.

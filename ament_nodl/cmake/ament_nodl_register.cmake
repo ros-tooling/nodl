@@ -26,9 +26,11 @@
 #   )
 #
 # :param resource_name: target name for this NoDL document.
+#   Registering the same ``<package>__<resource_name>`` twice is an error.
 # :type resource_name: string
-# :param FILE: Required path to the NoDL file describing the executable's interface.
+# :param FILE: Required path to the NoDL file.
 #   May be absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
+#   Registering the same file under two names is an error, since its ``local://`` rewrite would be ambiguous.
 # :type FILE: string
 # :param PACKAGE: package name to use in the resource key.
 #   Defaults to ``${PROJECT_NAME}``.
@@ -47,8 +49,30 @@ function(ament_nodl_register resource_name)
     set(_ARGS_PACKAGE "${PROJECT_NAME}")
   endif()
 
+  set(_key "${_ARGS_PACKAGE}__${resource_name}")
+  get_property(_registered_keys GLOBAL PROPERTY _AMENT_NODL_KEYS)
+  list(FIND _registered_keys "${_key}" _key_index)
+  if(NOT _key_index EQUAL -1)
+    message(FATAL_ERROR
+      "${CMAKE_CURRENT_FUNCTION}: ${_key} is already registered, resource names must be unique within a package")
+  endif()
+
   get_filename_component(_abs_file "${_ARGS_FILE}" ABSOLUTE
     BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+
+  # Compare real paths, so two spellings of one file through symlinks or ".." are caught.
+  file(REAL_PATH "${_ARGS_FILE}" _real_file BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+  get_property(_registered_real_paths GLOBAL PROPERTY _AMENT_NODL_REAL_PATHS)
+  list(FIND _registered_real_paths "${_real_file}" _path_index)
+  if(NOT _path_index EQUAL -1)
+    get_property(_registered_pkgs GLOBAL PROPERTY _AMENT_NODL_MAP_PKGS)
+    get_property(_registered_names GLOBAL PROPERTY _AMENT_NODL_MAP_NAMES)
+    list(GET _registered_pkgs ${_path_index} _other_pkg)
+    list(GET _registered_names ${_path_index} _other_name)
+    message(FATAL_ERROR
+      "${CMAKE_CURRENT_FUNCTION}: ${_abs_file} is already registered as ${_other_pkg}__${_other_name}, "
+      "a file can be registered under only one name so local:// references to it rewrite unambiguously")
+  endif()
 
   if(NOT EXISTS "${_abs_file}")
     message(WARNING
@@ -74,6 +98,8 @@ function(ament_nodl_register resource_name)
 
   # Record this document, mapping the source path to package+name to drive rewrite and install.
   # Rewrite and install are deferred so all docs registered in this directory are available at rewrite time.
+  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_KEYS "${_key}")
+  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_REAL_PATHS "${_real_file}")
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PATHS "${_abs_file}")
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PKGS "${_ARGS_PACKAGE}")
   set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_NAMES "${resource_name}")
