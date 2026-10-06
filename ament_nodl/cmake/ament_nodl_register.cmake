@@ -17,7 +17,8 @@
 #
 # ``local://`` includes are rewritten to ``nodl://<package>/<name>`` references on install.
 # Every ``local://`` target must itself be registered in the same package, an unregistered sibling would not be reachable downstream.
-# The rewrite is deferred until all registrations in the directory are known, so registration order does not matter.
+# The rewrite is deferred to the end of the project's directory, which may be a subdirectory of a larger build.
+# Registration order and the directory each call is made from do not matter.
 #
 # Example::
 #
@@ -49,8 +50,11 @@ function(ament_nodl_register resource_name)
     set(_ARGS_PACKAGE "${PROJECT_NAME}")
   endif()
 
+  # Registrations are recorded per project, so packages in one superbuild do not share state.
+  set(_project_dir "${PROJECT_SOURCE_DIR}")
+
   set(_key "${_ARGS_PACKAGE}__${resource_name}")
-  get_property(_registered_keys GLOBAL PROPERTY _AMENT_NODL_KEYS)
+  get_property(_registered_keys DIRECTORY "${_project_dir}" PROPERTY _AMENT_NODL_KEYS)
   list(FIND _registered_keys "${_key}" _key_index)
   if(NOT _key_index EQUAL -1)
     message(FATAL_ERROR
@@ -62,11 +66,11 @@ function(ament_nodl_register resource_name)
 
   # Compare real paths, so two spellings of one file through symlinks or ".." are caught.
   file(REAL_PATH "${_ARGS_FILE}" _real_file BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-  get_property(_registered_real_paths GLOBAL PROPERTY _AMENT_NODL_REAL_PATHS)
+  get_property(_registered_real_paths DIRECTORY "${_project_dir}" PROPERTY _AMENT_NODL_REAL_PATHS)
   list(FIND _registered_real_paths "${_real_file}" _path_index)
   if(NOT _path_index EQUAL -1)
-    get_property(_registered_pkgs GLOBAL PROPERTY _AMENT_NODL_MAP_PKGS)
-    get_property(_registered_names GLOBAL PROPERTY _AMENT_NODL_MAP_NAMES)
+    get_property(_registered_pkgs DIRECTORY "${_project_dir}" PROPERTY _AMENT_NODL_MAP_PKGS)
+    get_property(_registered_names DIRECTORY "${_project_dir}" PROPERTY _AMENT_NODL_MAP_NAMES)
     list(GET _registered_pkgs ${_path_index} _other_pkg)
     list(GET _registered_names ${_path_index} _other_name)
     message(FATAL_ERROR
@@ -97,28 +101,37 @@ function(ament_nodl_register resource_name)
   )
 
   # Record this document, mapping the source path to package+name to drive rewrite and install.
-  # Rewrite and install are deferred so all docs registered in this directory are available at rewrite time.
-  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_KEYS "${_key}")
-  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_REAL_PATHS "${_real_file}")
-  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PATHS "${_abs_file}")
-  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_PKGS "${_ARGS_PACKAGE}")
-  set_property(GLOBAL APPEND PROPERTY _AMENT_NODL_MAP_NAMES "${resource_name}")
+  # Rewrite and install are deferred so all registrations in the project are available at rewrite time.
+  set_property(DIRECTORY "${_project_dir}" APPEND PROPERTY _AMENT_NODL_KEYS "${_key}")
+  set_property(DIRECTORY "${_project_dir}" APPEND PROPERTY _AMENT_NODL_REAL_PATHS "${_real_file}")
+  set_property(DIRECTORY "${_project_dir}" APPEND PROPERTY _AMENT_NODL_MAP_PATHS "${_abs_file}")
+  set_property(DIRECTORY "${_project_dir}" APPEND PROPERTY _AMENT_NODL_MAP_PKGS "${_ARGS_PACKAGE}")
+  set_property(DIRECTORY "${_project_dir}" APPEND PROPERTY _AMENT_NODL_MAP_NAMES "${resource_name}")
+  set_property(DIRECTORY "${_project_dir}" APPEND PROPERTY _AMENT_NODL_MAP_LISTFILES "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt")
 
-  get_property(_scheduled DIRECTORY PROPERTY _AMENT_NODL_FINALIZE_SCHEDULED)
+  # The finalize step is scheduled once per project, with the interpreter found in this scope.
+  # Deferred calls at the end of the project's directory run after every subdirectory has been processed.
+  set_property(DIRECTORY "${_project_dir}" PROPERTY _AMENT_NODL_PYTHON "${Python3_EXECUTABLE}")
+  get_property(_scheduled DIRECTORY "${_project_dir}" PROPERTY _AMENT_NODL_FINALIZE_SCHEDULED)
   if(NOT _scheduled)
-    set_property(DIRECTORY PROPERTY _AMENT_NODL_FINALIZE_SCHEDULED TRUE)
-    cmake_language(DEFER CALL _ament_nodl_finalize)
+    set_property(DIRECTORY "${_project_dir}" PROPERTY _AMENT_NODL_FINALIZE_SCHEDULED TRUE)
+    cmake_language(DEFER DIRECTORY "${_project_dir}" CALL _ament_nodl_finalize)
   endif()
 endfunction()
 
-# Run once at the end of the directory scope, after all ament_nodl_register calls have been made.
+# Run once per project at the end of its directory, after all ament_nodl_register calls have been made.
+# It is deferred to the project directory, so that is the current directory here and holds the registrations.
+# That directory may be a subdirectory of a larger build, so nothing from the root scope can be assumed.
 function(_ament_nodl_finalize)
   set(_NODL_RESOURCE_TYPE "nodl")
   set(_work_dir "${CMAKE_CURRENT_BINARY_DIR}/ament_nodl")
 
-  get_property(_map_paths GLOBAL PROPERTY _AMENT_NODL_MAP_PATHS)
-  get_property(_map_pkgs GLOBAL PROPERTY _AMENT_NODL_MAP_PKGS)
-  get_property(_map_names GLOBAL PROPERTY _AMENT_NODL_MAP_NAMES)
+  get_property(_map_paths DIRECTORY PROPERTY _AMENT_NODL_MAP_PATHS)
+  get_property(_map_pkgs DIRECTORY PROPERTY _AMENT_NODL_MAP_PKGS)
+  get_property(_map_names DIRECTORY PROPERTY _AMENT_NODL_MAP_NAMES)
+  get_property(_map_listfiles DIRECTORY PROPERTY _AMENT_NODL_MAP_LISTFILES)
+  get_property(_python DIRECTORY PROPERTY _AMENT_NODL_PYTHON)
+  list(REMOVE_DUPLICATES _map_listfiles)
 
   # One rewrite rule per registered document: its absolute source path -> its nodl:// reference.
   # Every document's rewrite is given the full set, since any of them may include any other.
@@ -143,11 +156,11 @@ function(_ament_nodl_finalize)
     get_filename_component(_stem "${_abs_file}" NAME_WLE)
 
     # Rewrite refs.
-    # Depends on the source and on the directory's CMakeLists so a change to the registered set retriggers the rewrite.
+    # Depends on the source and on every registering directory's CMakeLists so a change to the registered set retriggers the rewrite.
     add_custom_command(
       OUTPUT "${_out}"
-      DEPENDS "${_abs_file}" "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt"
-      COMMAND "${Python3_EXECUTABLE}" -m ros2nodl rewrite ${_ref_args}
+      DEPENDS "${_abs_file}" ${_map_listfiles}
+      COMMAND "${_python}" -m ros2nodl rewrite ${_ref_args}
         --output "${_out}" "${_abs_file}"
       COMMENT "Rewriting NoDL ${_key}"
       VERBATIM

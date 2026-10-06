@@ -1,0 +1,5 @@
+---
+nodl_version: 2
+description: Node registered from the root directory that includes a document registered from a subdirectory.
+include:
+  - ref: local://subdir/subdir_node.nodl.yaml

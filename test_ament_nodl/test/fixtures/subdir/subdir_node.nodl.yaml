@@ -1,0 +1,9 @@
+---
+nodl_version: 2
+description: Node registered from a CMake subdirectory.
+subscriptions:
+  - name: /subdir_input
+    type: std_msgs/msg/String
+    qos:
+      history: SYSTEM_DEFAULT
+      reliability: SYSTEM_DEFAULT

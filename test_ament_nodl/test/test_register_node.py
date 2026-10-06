@@ -75,3 +75,27 @@ def test_source_file_installed_under_override_package():
     # PACKAGE override redirects the source-file install to share/<override>/nodl/.
     target = _share('custom_pkg') / 'nodl' / 'alt_pkg_node.nodl.yaml'
     assert target.is_file()
+
+
+# ---------------------------------------------------------------------------
+# Registration from more than one CMake directory
+# ---------------------------------------------------------------------------
+
+
+def test_subdirectory_registration_is_indexed():
+    # subdir_node is registered from test/fixtures/subdir/CMakeLists.txt, not the root directory.
+    content, _ = get_resource('nodl', 'test_ament_nodl__subdir_node')
+    assert 'registered from a CMake subdirectory' in content
+    assert (_share() / 'nodl' / 'subdir_node.nodl.yaml').is_file()
+
+
+def test_root_registration_is_indexed_alongside_subdirectory():
+    content, _ = get_resource('nodl', 'test_ament_nodl__root_includes_subdir_node')
+    assert 'registered from the root directory' in content
+
+
+def test_root_document_includes_subdirectory_registration():
+    # The root registration appears before the subdirectory's, and its local:// include still resolves.
+    content, _ = get_resource('nodl', 'test_ament_nodl__root_includes_subdir_node')
+    assert 'ref: nodl://test_ament_nodl/subdir_node' in content
+    assert 'local://' not in content
