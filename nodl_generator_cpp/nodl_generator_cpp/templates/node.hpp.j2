@@ -9,7 +9,7 @@
 #include <{{ header }}>
 {% endfor %}
 {% if has_parameters %}
-#include "{{ target_name }}_parameters.hpp"
+#include "{{ parameters_include }}"
 {% endif %}
 
 class {{ class_name }} : public {{ base_class }}

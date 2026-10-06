@@ -5,7 +5,10 @@
 
 Each subdirectory under ``golden/`` (except ``includes/``) is a test case:
   - ``input.nodl.yaml`` — the root NoDL document
-  - ``expected/``       — the files the generator should produce
+  - ``expected/``       — the files the generator should produce,
+    with subdirectories mirroring the output layout
+
+Cases listed in ``_CASE_ARGS`` pass extra command-line arguments to the generator.
 
 Files in ``expected/`` are byte-compared against the generated output,
 with two exceptions:
@@ -38,6 +41,11 @@ GOLDEN_DIR = Path(__file__).parent / 'golden'
 _CASES = sorted(d.name for d in GOLDEN_DIR.iterdir() if d.is_dir() and (d / 'input.nodl.yaml').exists())
 
 
+# Extra CLI arguments for cases that exercise a generator option.
+_CASE_ARGS: dict[str, list[str]] = {
+    'include_prefix': ['--include-prefix', 'my_package'],
+}
+
 _CMAKE_DEPS_SUFFIX = '_deps.cmake'
 _EXISTS_MARKER_SUFFIX = '.exists'
 
@@ -60,17 +68,22 @@ def test_golden(fake_resolver, tmp_path, case):
         str(tmp_path),
         '--target-name',
         'my_node_base',
+        *_CASE_ARGS.get(case, []),
     ])
 
     assert result == 0, 'CLI returned non-zero'
 
     # Entries to consider (*_deps.cmake is compared by test_golden_cmake_deps).
-    entries = sorted(f for f in expected_dir.iterdir() if not f.name.endswith(_CMAKE_DEPS_SUFFIX))
+    entries = sorted(f for f in expected_dir.rglob('*') if f.is_file() and not f.name.endswith(_CMAKE_DEPS_SUFFIX))
     assert entries, f'No expected files in {expected_dir}'
 
     # ``<name>.exists`` markers: the file must be generated, but its
     # contents are not asserted (external, version-varying output).
-    existence_only = {f.name[: -len(_EXISTS_MARKER_SUFFIX)] for f in entries if f.name.endswith(_EXISTS_MARKER_SUFFIX)}
+    existence_only = {
+        f.relative_to(expected_dir).as_posix()[: -len(_EXISTS_MARKER_SUFFIX)]
+        for f in entries
+        if f.name.endswith(_EXISTS_MARKER_SUFFIX)
+    }
     content_files = [f for f in entries if not f.name.endswith(_EXISTS_MARKER_SUFFIX)]
 
     # Existence-only files must be generated; contents are intentionally not checked.
@@ -79,20 +92,19 @@ def test_golden(fake_resolver, tmp_path, case):
 
     # Every remaining expected file must be generated with identical content.
     for expected_file in content_files:
-        generated = tmp_path / expected_file.name
-        assert generated.exists(), f'{expected_file.name} was not generated'
+        name = expected_file.relative_to(expected_dir).as_posix()
+        generated = tmp_path / name
+        assert generated.exists(), f'{name} was not generated'
 
         expected_text = expected_file.read_text()
         generated_text = generated.read_text()
         assert generated_text == expected_text, (
-            f'{expected_file.name} does not match golden file.\n'
-            f'--- expected ({expected_file})\n'
-            f'+++ generated ({generated})\n'
+            f'{name} does not match golden file.\n--- expected ({expected_file})\n+++ generated ({generated})\n'
         )
 
     # No unexpected files.
-    generated_names = {f.name for f in tmp_path.iterdir()}
-    expected_names = {f.name for f in content_files} | existence_only
+    generated_names = {f.relative_to(tmp_path).as_posix() for f in tmp_path.rglob('*') if f.is_file()}
+    expected_names = {f.relative_to(expected_dir).as_posix() for f in content_files} | existence_only
     extra = generated_names - expected_names
     assert not extra, f'Unexpected generated files: {extra}'
 
@@ -110,6 +122,7 @@ def test_golden_cmake_deps(fake_resolver, tmp_path, case):
         str(tmp_path),
         '--target-name',
         'my_node_base',
+        *_CASE_ARGS.get(case, []),
         '--cmake-deps',
     ])
 

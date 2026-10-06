@@ -29,6 +29,10 @@
 #   add_executable(my_node src/my_node.cpp)
 #   target_link_libraries(my_node PRIVATE my_node_base)
 #
+# The generated header is included by its package-scoped path::
+#
+#   #include "<project>/my_node_base.hpp"
+#
 # Request a static library explicitly::
 #
 #   nodl_generate_cpp(my_node_base STATIC my_node.nodl.yaml)
@@ -70,6 +74,7 @@ macro(nodl_generate_cpp TARGET)
   set(_nodl_file "${CMAKE_CURRENT_SOURCE_DIR}/${_nodl_file_arg}")
   set(_output_dir "${CMAKE_CURRENT_BINARY_DIR}/nodl_generated/${TARGET}")
   set(_deps_file "${_output_dir}/${TARGET}_deps.cmake")
+  set(_nodl_include_prefix "${PROJECT_NAME}")
 
   # ── configure-time: emit deps ──────────────────────────────────────
   # Runs the generator in --cmake-deps mode which writes a small CMake
@@ -80,6 +85,7 @@ macro(nodl_generate_cpp TARGET)
       --nodl-file "${_nodl_file}"
       --output-dir "${_output_dir}"
       --target-name "${TARGET}"
+      --include-prefix "${_nodl_include_prefix}"
       --cmake-deps
     RESULT_VARIABLE _nodl_result
   )
@@ -116,6 +122,7 @@ macro(nodl_generate_cpp TARGET)
       --nodl-file "${_nodl_file}"
       --output-dir "${_output_dir}"
       --target-name "${TARGET}"
+      --include-prefix "${_nodl_include_prefix}"
     DEPENDS ${${TARGET}_NODL_SOURCES}
     COMMENT "nodl_generate_cpp: ${_nodl_file_arg} -> ${TARGET}"
     VERBATIM
@@ -157,7 +164,7 @@ macro(nodl_generate_cpp TARGET)
   # includes fmt, rsl, etc.  Mirror the same link set that
   # generate_parameter_library's own CMake macro uses.
   # Target names changed across distros, so we use if(TARGET) guards.
-  list(FIND ${TARGET}_GENERATED_FILES "${TARGET}_parameters.hpp" _has_params_idx)
+  list(FIND ${TARGET}_GENERATED_FILES "${TARGET}_parameters.yaml" _has_params_idx)
   if(NOT _has_params_idx EQUAL -1)
     find_package(generate_parameter_library REQUIRED)
     set(_nodl_genparamlib_deps

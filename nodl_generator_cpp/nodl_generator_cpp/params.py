@@ -12,6 +12,7 @@ from generate_parameter_library_py.parse_yaml import GenerateCode
 
 from nodl_generator_common.generated_file import GeneratedFile
 from nodl_generator_common.parameters import nest_dotted_parameters
+from nodl_generator_cpp.include_prefix import prefixed
 from nodl_schema.models import ParameterDefinition
 
 
@@ -50,17 +51,18 @@ def generate_genparamlib_yaml(
     )
 
 
-def generate_parameter_header(yaml_path: Path) -> GeneratedFile:
+def generate_parameter_header(yaml_path: Path, *, include_prefix: str | None = None) -> GeneratedFile:
     """Generate a C++ parameter header from a genparamlib YAML file on disk.
 
     Delegates to :class:`generate_parameter_library_py.parse_yaml.GenerateCode`
     to produce the header content.
 
     Returns a :class:`GeneratedFile` with the header content.
+    Its ``filename`` is placed under *include_prefix* when it is given.
     """
     gen = GenerateCode('cpp')
     gen.parse(str(yaml_path), '')
     return GeneratedFile(
-        filename=yaml_path.stem + '.hpp',
+        filename=prefixed(include_prefix, yaml_path.stem + '.hpp'),
         content=str(gen),
     )

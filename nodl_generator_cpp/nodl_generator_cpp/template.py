@@ -4,6 +4,7 @@ import jinja2
 
 from nodl_generator_common.generated_file import GeneratedFile
 from nodl_generator_common.naming import to_member_name
+from nodl_generator_cpp.include_prefix import prefixed
 from nodl_generator_cpp.ros_to_cpp import (
     qos_to_cpp,
     ros_type_to_cpp,
@@ -49,6 +50,8 @@ def _build_template_context(
     action_servers: list[ActionEndpoint],
     action_clients: list[ActionEndpoint],
     has_parameters: bool = False,
+    *,
+    include_prefix: str | None = None,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -133,6 +136,8 @@ def _build_template_context(
             for e in action_clients
         ],
         'has_parameters': has_parameters,
+        'header_include': prefixed(include_prefix, f'{target_name}.hpp'),
+        'parameters_include': prefixed(include_prefix, f'{target_name}_parameters.hpp'),
     }
 
 
@@ -152,11 +157,14 @@ def render_templates(
     action_servers: list[ActionEndpoint],
     action_clients: list[ActionEndpoint],
     has_parameters: bool = False,
+    *,
+    include_prefix: str | None = None,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
     Builds a template context, renders the Jinja2 templates, and returns
     the generated files.
+    When *include_prefix* is given, the header is placed under that prefix and the source includes it from there.
     """
     ctx = _build_template_context(
         target_name,
@@ -169,6 +177,7 @@ def render_templates(
         action_servers,
         action_clients,
         has_parameters,
+        include_prefix=include_prefix,
     )
 
     env = _get_env()
@@ -176,6 +185,6 @@ def render_templates(
     cpp = env.get_template('node.cpp.j2').render(ctx)
 
     return [
-        GeneratedFile(filename=f'{target_name}.hpp', content=hpp),
+        GeneratedFile(filename=prefixed(include_prefix, f'{target_name}.hpp'), content=hpp),
         GeneratedFile(filename=f'{target_name}.cpp', content=cpp),
     ]

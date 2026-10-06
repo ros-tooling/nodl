@@ -1,6 +1,6 @@
 {% set has_entities = publishers or subscriptions or service_servers or service_clients or action_servers or action_clients or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
-#include "{{ target_name }}.hpp"
+#include "{{ header_include }}"
 
 {{ class_name }}::{{ class_name }}(const rclcpp::NodeOptions & options)
 : {{ base_class }}("{{ node_name }}", options)

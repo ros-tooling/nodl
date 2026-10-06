@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from nodl_generator_cpp.include_prefix import prefixed
 from nodl_generator_cpp.models import CodegenCpp
 from nodl_schema.models import ActionEndpoint, ServiceEndpoint, TopicEndpoint
 
@@ -78,17 +79,19 @@ def ros_deps(
     return sorted(pkgs)
 
 
-def generated_filenames(target_name: str, has_parameters: bool) -> list[str]:
-    """Return the list of filenames the generator will produce.
+def generated_filenames(target_name: str, has_parameters: bool, *, include_prefix: str | None = None) -> list[str]:
+    """Return the list of file paths the generator will produce, relative to the output directory.
 
     Always includes ``<target>.hpp`` and ``<target>.cpp``.
     When *has_parameters* is true, also includes
     ``<target>_parameters.yaml`` and ``<target>_parameters.hpp``.
+    Headers are placed under *include_prefix* when it is given.
+    The source and YAML files always stay at the root.
     """
-    filenames = [f'{target_name}.hpp', f'{target_name}.cpp']
+    filenames = [prefixed(include_prefix, f'{target_name}.hpp'), f'{target_name}.cpp']
     if has_parameters:
         filenames.append(f'{target_name}_parameters.yaml')
-        filenames.append(f'{target_name}_parameters.hpp')
+        filenames.append(prefixed(include_prefix, f'{target_name}_parameters.hpp'))
     return filenames
 
 
