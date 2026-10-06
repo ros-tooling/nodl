@@ -13,6 +13,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Supersede obsolete runs for the same PR; never cancel a push to main.
+concurrency:
+  group: rosdoc2-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   rosdoc2:
     name: rosdoc2 build (${{ matrix.package }})

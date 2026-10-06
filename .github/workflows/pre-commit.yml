@@ -6,6 +6,11 @@ on:
     branches: [main]
   pull_request:
 
+# Supersede obsolete runs for the same PR; never cancel a push to main.
+concurrency:
+  group: lint-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
