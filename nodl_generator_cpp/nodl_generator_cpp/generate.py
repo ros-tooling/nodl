@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 import re
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
 from nodl_generator_common.generated_file import GeneratedFile
-from nodl_generator_common.provenance import resolve_provenance
 from nodl_generator_cpp.cmake_deps import (
     format_cmake_deps,
     generated_filenames,
@@ -14,8 +14,11 @@ from nodl_generator_cpp.cmake_deps import (
 from nodl_generator_cpp.include_prefix import validate_include_prefix
 from nodl_generator_cpp.models import CodegenCpp, Role
 from nodl_generator_cpp.params import generate_genparamlib_yaml
-from nodl_generator_cpp.provenance import codegen_cpp
+from nodl_generator_cpp.schema import load as load_codegen_cpp
 from nodl_generator_cpp.template import render_templates
+from nodl_schema.composition import merge_documents
+from nodl_schema.loader import DocumentTree, load_nodl_with_doc_tree
+from nodl_schema.models import NodlDocument
 
 _IDENTIFIER_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
@@ -23,9 +26,58 @@ _IDENTIFIER_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 class CodegenError(Exception):
     """Raised when codegen-specific validation fails.
 
-    Covers provenance errors such as conflicting base classes,
+    Covers errors such as conflicting base classes,
     missing codegen metadata, and unsupported codegen roles.
     """
+
+
+@dataclass(frozen=True)
+class _Plan:
+    """What the generator owns, read from the document tree.
+
+    - ``bases``: the ``BASE_CLASS`` configs of included documents the walk reached.
+    - ``doc``: the merged document of everything the generator owns,
+      which is the root plus every included document without ``codegen.cpp``.
+    - ``sources``: the resolved NoDL source path plus every included path.
+    """
+
+    bases: list[CodegenCpp]
+    doc: NodlDocument
+    sources: list[Path]
+
+
+def _plan_tree(doc_tree: DocumentTree) -> tuple[list[CodegenCpp], NodlDocument]:
+    """Walk *doc_tree* and split it into base classes and the document the generator owns.
+
+    An included document with ``codegen.cpp`` already has an implementation,
+    so the walk does not descend into it.
+    Its role decides what it contributes: ``BASE_CLASS`` its class, ``NO_GENERATE`` nothing.
+    Every other document is owned, and the walk continues into its includes.
+    The walk is breadth-first, matching the order of the fully merged document.
+    """
+    bases: list[CodegenCpp] = []
+    owned = [doc_tree.root_doc]
+    queue = deque(doc_tree.resolved_includes)
+    while queue:
+        included = queue.popleft()
+        config = load_codegen_cpp(included.doc.codegen) if included.doc.codegen else None
+        if config is None:
+            owned.append(included.doc)
+            queue.extend(included.resolved_includes)
+        elif config.role is Role.BASE_CLASS:
+            bases.append(config)
+    return bases, merge_documents(owned)
+
+
+def _plan(source: Path) -> _Plan:
+    """Load *source* and plan generation from its document tree.
+
+    Loading still merges the whole tree, so name collisions anywhere in it are reported.
+    """
+    _, doc_tree = load_nodl_with_doc_tree(source)
+    bases, doc = _plan_tree(doc_tree)
+    sources = [source.resolve(), *(path.resolve() for path in doc_tree.included_paths())]
+    return _Plan(bases=bases, doc=doc, sources=sources)
 
 
 def _validate_target_name(target_name: str) -> None:
@@ -38,18 +90,16 @@ def _validate_target_name(target_name: str) -> None:
         raise ValueError(f'target_name must be a valid C++ identifier, got {target_name!r}')
 
 
-def _find_base_class_config(barriers: list[CodegenCpp]) -> tuple[str, str]:
-    """Find the single base-class config from the provenance barriers.
+def _find_base_class_config(base_classes: list[CodegenCpp]) -> tuple[str, str]:
+    """Find the single base-class config.
 
-    Filters *barriers* to those with ``role == BASE_CLASS`` and ensures
-    exactly one exists.
+    Ensures exactly one of *base_classes* exists.
 
     Returns ``(class, header)`` — the C++ class name and its header.
 
     Raises :class:`CodegenError` if there is no base class or if
     multiple conflicting base classes are found.
     """
-    base_classes = [b for b in barriers if b.role is Role.BASE_CLASS]
     if not base_classes:
         raise CodegenError(
             'No base class found. Include a base-class provider '
@@ -82,7 +132,7 @@ class CmakeDepsResult:
 def cmake_deps(source: Path, target_name: str, *, include_prefix: str | None = None) -> CmakeDepsResult:
     """Compute CMake dependency information from a NoDL document.
 
-    Runs the same load → provenance → filter pipeline as :func:`generate_cpp` but stops before template rendering.
+    Plans generation the same way as :func:`generate_cpp` but stops before template rendering.
 
     Returns a :class:`CmakeDepsResult` containing the NoDL source paths, ROS package dependencies,
     and the list of files the generator will produce.
@@ -91,22 +141,23 @@ def cmake_deps(source: Path, target_name: str, *, include_prefix: str | None = N
     _validate_target_name(target_name)
     validate_include_prefix(include_prefix)
 
-    resolved = resolve_provenance(source, codegen_cpp)
+    plan = _plan(source)
+    doc = plan.doc
 
-    _find_base_class_config(resolved.barriers)  # validates single base class
+    _find_base_class_config(plan.bases)  # validates single base class
 
-    has_parameters = len(resolved.entities.parameters) > 0
+    has_parameters = bool(doc.parameters)
 
     return CmakeDepsResult(
-        sources=resolved.sources,
+        sources=plan.sources,
         ros_deps=ros_deps(
-            resolved.barriers,
-            resolved.entities.publishers,
-            resolved.entities.subscriptions,
-            resolved.entities.service_servers,
-            resolved.entities.service_clients,
-            resolved.entities.action_servers,
-            resolved.entities.action_clients,
+            plan.bases,
+            doc.publishers or [],
+            doc.subscriptions or [],
+            doc.service_servers or [],
+            doc.service_clients or [],
+            doc.action_servers or [],
+            doc.action_clients or [],
         ),
         generated_filenames=generated_filenames(target_name, has_parameters, include_prefix=include_prefix),
     )
@@ -116,8 +167,8 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
     """Generate C++ base-node class files from a NoDL document.
 
     Loads and resolves the NoDL document at *source* (a filesystem path),
-    walks the include tree for provenance, and renders the C++ header
-    and source files.
+    walks the include tree for the documents it owns and its base class,
+    and renders the C++ header and source files.
 
     When *include_prefix* is given, the header is placed under it and the source includes it from there.
     The ``filename`` of each returned file is relative to the output directory.
@@ -128,27 +179,28 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
     _validate_target_name(target_name)
     validate_include_prefix(include_prefix)
 
-    resolved = resolve_provenance(source, codegen_cpp)
+    plan = _plan(source)
+    doc = plan.doc
 
-    base_class, base_header = _find_base_class_config(resolved.barriers)
+    base_class, base_header = _find_base_class_config(plan.bases)
 
-    has_parameters = len(resolved.entities.parameters) > 0
+    has_parameters = bool(doc.parameters)
 
     generated_files = []
     generated_files += render_templates(
         target_name,
         base_class,
         base_header,
-        resolved.entities.publishers,
-        resolved.entities.subscriptions,
-        resolved.entities.service_servers,
-        resolved.entities.service_clients,
-        resolved.entities.action_servers,
-        resolved.entities.action_clients,
+        doc.publishers or [],
+        doc.subscriptions or [],
+        doc.service_servers or [],
+        doc.service_clients or [],
+        doc.action_servers or [],
+        doc.action_clients or [],
         has_parameters,
         include_prefix=include_prefix,
     )
     if has_parameters:
-        generated_files += [generate_genparamlib_yaml(target_name, resolved.entities.parameters)]
+        generated_files += [generate_genparamlib_yaml(target_name, doc.parameters)]
 
     return generated_files

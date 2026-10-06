@@ -18,7 +18,7 @@ if(BUILD_TESTING)
   # not by ament_lint_auto -- matching the other packages in this workspace.
   find_package(ament_cmake_pytest REQUIRED)
 
-  # The unit tests are pure Python (generator pipeline, provenance, schema);
+  # The unit tests are pure Python (generator pipeline, document tree walk, schema);
   # they exercise the installed nodl_generator_cpp package with no C++ build.
   ament_add_pytest_test(nodl_generator_cpp_tests test
     TIMEOUT 120

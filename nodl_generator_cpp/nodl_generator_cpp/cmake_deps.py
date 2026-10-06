@@ -37,7 +37,7 @@ def _package_from_type(ros_type: str) -> str:
 
 
 def ros_deps(
-    barriers: list[CodegenCpp],
+    bases: list[CodegenCpp],
     publishers: list[TopicEndpoint],
     subscriptions: list[TopicEndpoint],
     service_servers: list[ServiceEndpoint],
@@ -49,18 +49,18 @@ def ros_deps(
 
     Sources:
 
-    - Every barrier with a ``header`` field contributes its package
+    - Every base class contributes the package of its ``header``
       (part before first ``/``).
-    - Every filtered entity contributes its message/service/action package
+    - Every generated entity contributes its message/service/action package
       (part before first ``/`` of its ``type``).
     - If any action servers or action clients are present, ``rclcpp_action``
       is added (the generated code includes ``rclcpp_action/rclcpp_action.hpp``).
     """
     pkgs: set[str] = set()
 
-    for barrier in barriers:
-        if barrier.header is not None:
-            pkgs.add(_package_from_header(barrier.header))
+    for base in bases:
+        if base.header is not None:
+            pkgs.add(_package_from_header(base.header))
 
     all_entities: list[TopicEndpoint | ServiceEndpoint | ActionEndpoint] = [
         *publishers,

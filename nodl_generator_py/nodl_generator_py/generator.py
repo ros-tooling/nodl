@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.resources
 import json
 import keyword
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,9 +16,10 @@ import yaml
 
 from nodl_generator_common.naming import to_member_name
 from nodl_generator_common.parameters import nest_dotted_parameters
-from nodl_generator_common.provenance import resolve_provenance
 from nodl_generator_py.models import CodegenPython, Role
-from nodl_generator_py.provenance import codegen_python
+from nodl_generator_py.schema import load as load_codegen_python
+from nodl_schema.composition import merge_documents
+from nodl_schema.loader import DocumentTree, load_nodl_with_doc_tree
 from nodl_schema.models import NodlDocument
 
 
@@ -154,9 +156,31 @@ def generate_parameter_yaml(doc: NodlDocument, target_name: str) -> str | None:
     return yaml.safe_dump({_target_to_node_name(target_name): parameters}, default_flow_style=False, sort_keys=False)
 
 
-def _find_base_class_config(barriers: list[CodegenPython]) -> CodegenPython:
+def _plan_tree(doc_tree: DocumentTree) -> tuple[list[CodegenPython], NodlDocument]:
+    """Walk *doc_tree* and split it into base classes and the document the generator owns.
+
+    An included document with ``codegen.python`` already has an implementation,
+    so the walk does not descend into it.
+    Its role decides what it contributes: ``BASE_CLASS`` its class, ``NO_GENERATE`` nothing.
+    Every other document is owned, and the walk continues into its includes.
+    The walk is breadth-first, matching the order of the fully merged document.
+    """
+    bases: list[CodegenPython] = []
+    owned = [doc_tree.root_doc]
+    queue = deque(doc_tree.resolved_includes)
+    while queue:
+        included = queue.popleft()
+        config = load_codegen_python(included.doc.codegen) if included.doc.codegen else None
+        if config is None:
+            owned.append(included.doc)
+            queue.extend(included.resolved_includes)
+        elif config.role is Role.BASE_CLASS:
+            bases.append(config)
+    return bases, merge_documents(owned)
+
+
+def _find_base_class_config(base_classes: list[CodegenPython]) -> CodegenPython:
     """Select the one visible provider, or the compatible implicit Node base."""
-    base_classes = [barrier for barrier in barriers if barrier.role is Role.BASE_CLASS]
     if not base_classes:
         return _DEFAULT_BASE
     if len(base_classes) > 1:
@@ -177,7 +201,7 @@ def _render_python(
     target_name: str,
     base: CodegenPython = _DEFAULT_BASE,
 ) -> str:
-    """Render an already resolved and filtered document."""
+    """Render an already resolved document of only the entities to generate."""
     if doc.include:
         raise NotImplementedError('_render_python requires a resolved, flat NoDL document')
     if not target_name.isidentifier() or keyword.iskeyword(target_name):
@@ -228,22 +252,14 @@ def _render_python(
 
 def generate_python(source: Path, target_name: str) -> PythonGeneration:
     """Resolve includes and generate Python content from a NoDL source file."""
-    resolved = resolve_provenance(source, codegen_python)
-    base = _find_base_class_config(resolved.barriers)
-    entities = resolved.entities
-    doc = NodlDocument(
-        publishers=entities.publishers,
-        subscriptions=entities.subscriptions,
-        service_servers=entities.service_servers,
-        service_clients=entities.service_clients,
-        action_servers=entities.action_servers,
-        action_clients=entities.action_clients,
-        parameters=entities.parameters,
-    )
+    # Loading still merges the whole tree, so name collisions anywhere in it are reported.
+    _, doc_tree = load_nodl_with_doc_tree(source)
+    bases, doc = _plan_tree(doc_tree)
+    base = _find_base_class_config(bases)
     return PythonGeneration(
         module=_render_python(doc, target_name, base),
         parameters_yaml=generate_parameter_yaml(doc, target_name),
-        sources=resolved.sources,
+        sources=[source.resolve(), *(path.resolve() for path in doc_tree.included_paths())],
     )
 
 
