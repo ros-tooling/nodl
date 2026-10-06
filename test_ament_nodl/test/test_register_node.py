@@ -73,8 +73,16 @@ def test_json_source_file_installed_as_yaml():
 
 def test_source_file_installed_under_override_package():
     # PACKAGE override redirects the source-file install to share/<override>/nodl/.
-    target = _share('custom_pkg') / 'nodl' / 'alt_pkg_node.nodl.yaml'
-    assert target.is_file()
+    # The copy is named after the resource (custom_exe), not the source file (alt_pkg_node.nodl.yaml).
+    assert (_share('custom_pkg') / 'nodl' / 'custom_exe.nodl.yaml').is_file()
+
+
+def test_share_copies_are_named_after_the_resource_not_the_source_stem():
+    # basic_node.nodl.yaml and subdir/basic_node.nodl.yaml share a stem, so naming by stem would overwrite one.
+    basic = (_share() / 'nodl' / 'basic_node.nodl.yaml').read_text()
+    same_stem = (_share() / 'nodl' / 'subdir_basic_node.nodl.yaml').read_text()
+    assert 'Basic test node' in basic
+    assert 'source file name matches basic_node' in same_stem
 
 
 # ---------------------------------------------------------------------------

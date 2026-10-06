@@ -12,7 +12,9 @@ Register a NoDL document with the ament index. This does three things:
 1. Validates the file at build time so authoring errors surface when registering rather than downstream when a consumer reads the spec.
    If the document uses `include`, this step also checks that its references resolve.
 2. Installs the file into the ament index under the `nodl` resource type, keyed `<package>__<name>`.
-3. Installs the file under `share/<package>/nodl/` for direct filesystem access.
+3. Installs the file as `share/<package>/nodl/<name>.nodl.yaml` for direct filesystem access.
+   The copy is named after the resource, not the source file, so files with the same name in different directories do not overwrite each other.
+   It is always YAML, whatever the source format.
 
 ```cmake
 find_package(ament_nodl REQUIRED)
