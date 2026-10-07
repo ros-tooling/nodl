@@ -52,6 +52,7 @@ def _build_template_context(
     has_parameters: bool = False,
     *,
     include_prefix: str | None = None,
+    namespace: str | None = None,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -138,6 +139,7 @@ def _build_template_context(
         'has_parameters': has_parameters,
         'header_include': prefixed(include_prefix, f'{target_name}.hpp'),
         'parameters_include': prefixed(include_prefix, f'{target_name}_parameters.hpp'),
+        'namespace': namespace,
     }
 
 
@@ -159,12 +161,16 @@ def render_templates(
     has_parameters: bool = False,
     *,
     include_prefix: str | None = None,
+    namespace: str | None = None,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
     Builds a template context, renders the Jinja2 templates, and returns
     the generated files.
     When *include_prefix* is given, the header is placed under that prefix and the source includes it from there.
+    When *namespace* is set, the class and its constructor are declared inside it,
+    and the parameter structs are expected under ``<namespace>::<target_name>``,
+    which the class reaches as ``<target_name>::``.
     """
     ctx = _build_template_context(
         target_name,
@@ -178,6 +184,7 @@ def render_templates(
         action_clients,
         has_parameters,
         include_prefix=include_prefix,
+        namespace=namespace,
     )
 
     env = _get_env()

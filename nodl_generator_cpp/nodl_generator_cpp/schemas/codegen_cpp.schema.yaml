@@ -14,10 +14,11 @@ required:
 properties:
   role:
     description: |
-      How this document's implementation participates in code generation.
-      ``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``
-      excludes this document and its transitive includes from generation.
-    enum: [BASE_CLASS, NO_GENERATE]
+      How this document participates in code generation.
+      On included documents, ``BASE_CLASS`` selects the generated class's base,
+      while ``NO_GENERATE`` excludes this document and its transitive includes from generation.
+      ``NODE`` is only valid on the root document being generated.
+    enum: [BASE_CLASS, NO_GENERATE, NODE]
 
   class:
     description: |
@@ -31,6 +32,13 @@ properties:
       C++ header to ``#include`` for the base class
       (e.g. ``rclcpp/rclcpp.hpp``).
     type: string
+
+  namespace:
+    description: |
+      C++ namespace for the generated class and its parameter structs
+      (e.g. ``my_pkg::nodes``). Only valid with role ``NODE``.
+    type: string
+    pattern: ^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*$
 
 allOf:
   - if:
@@ -46,3 +54,10 @@ allOf:
         anyOf:
           - required: [class]
           - required: [header]
+  - if:
+      properties:
+        role:
+          const: NODE
+    else:
+      not:
+        required: [namespace]

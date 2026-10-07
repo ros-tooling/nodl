@@ -2,6 +2,10 @@
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
 
+{% if namespace %}
+namespace {{ namespace }}
+{
+{% endif %}
 {{ class_name }}::{{ class_name }}(const rclcpp::NodeOptions & options)
 : {{ base_class }}("{{ node_name }}", options)
 {% if has_parameters %}
@@ -75,4 +79,8 @@
 }
 {% else %}
 {}
+{% endif %}
+{% if namespace %}
+
+}  // namespace {{ namespace }}
 {% endif %}

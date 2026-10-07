@@ -1,0 +1,32 @@
+---
+# The NODE role places the generated class and its parameter structs in a nested C++ namespace.
+# The repeated name guards against qualified-lookup mistakes inside the namespace.
+
+nodl_version: 2
+
+codegen:
+  cpp:
+    role: NODE
+    namespace: nodl_test::nodl_test
+
+include:
+  - ref: nodl://nodl_common_interfaces/node
+
+parameters:
+  max_speed:
+    type: double
+    default_value: 1.5
+    validation:
+      gt<>: [0.0]
+  robot_name:
+    type: string
+    default_value: bot
+    read_only: true
+
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE

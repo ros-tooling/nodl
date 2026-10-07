@@ -24,6 +24,31 @@ class TestValidate:
         codegen = {CODEGEN_KEY: {'role': 'BASE_CLASS', 'class': 'rclcpp::Node', 'header': 'rclcpp/rclcpp.hpp'}}
         load(codegen)  # should not raise
 
+    @pytest.mark.parametrize('namespace', [None, 'polymath_health', 'my_pkg::nodes', '_a::b1::c_2'])
+    def test_valid_node(self, namespace):
+        load({CODEGEN_KEY: {'role': 'NODE', **({'namespace': namespace} if namespace else {})}})
+
+    @pytest.mark.parametrize('namespace', ['', '1bad', 'a::', '::a', 'a:b', 'a::1b', 'a b', 'a::::b'])
+    def test_invalid_node_namespace(self, namespace):
+        with pytest.raises(ValidationError):
+            load({CODEGEN_KEY: {'role': 'NODE', 'namespace': namespace}})
+
+    @pytest.mark.parametrize('field,value', [('class', 'rclcpp::Node'), ('header', 'rclcpp/rclcpp.hpp')])
+    def test_node_rejects_base_class_fields(self, field, value):
+        with pytest.raises(ValidationError):
+            load({CODEGEN_KEY: {'role': 'NODE', field: value}})
+
+    @pytest.mark.parametrize(
+        'config',
+        [
+            {'role': 'BASE_CLASS', 'class': 'rclcpp::Node', 'header': 'rclcpp/rclcpp.hpp'},
+            {'role': 'NO_GENERATE'},
+        ],
+    )
+    def test_namespace_only_valid_on_node(self, config):
+        with pytest.raises(ValidationError, match='namespace'):
+            load({CODEGEN_KEY: {**config, 'namespace': 'ns'}})
+
     def test_valid_no_generate(self):
         load({CODEGEN_KEY: {'role': 'NO_GENERATE'}})
 
@@ -92,6 +117,12 @@ class TestLoad:
         assert result.role is Role.NO_GENERATE
         assert result.class_ is None
         assert result.header is None
+
+    def test_returns_node_model(self):
+        result = load({CODEGEN_KEY: {'role': 'NODE', 'namespace': 'my_pkg::nodes'}})
+        assert isinstance(result, CodegenCpp)
+        assert result.role is Role.NODE
+        assert result.namespace == 'my_pkg::nodes'
 
     def test_returns_none_when_no_cpp(self):
         assert load({}) is None

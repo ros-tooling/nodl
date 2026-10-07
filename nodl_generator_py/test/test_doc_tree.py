@@ -172,3 +172,27 @@ include:
     assert 'from rclpy.node import Node' in result.module
     assert 'LifecycleNode' not in result.module
     assert '/ignored' not in result.module
+
+
+def test_root_cpp_node_metadata_is_ignored(tmp_path):
+    _provider(tmp_path / 'base.nodl.yaml', entities=False)
+    root = _write(
+        tmp_path / 'root.nodl.yaml',
+        """nodl_version: 2
+codegen:
+  cpp:
+    role: NODE
+    namespace: my_pkg::nodes
+include:
+  - ref: local://base.nodl.yaml
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos: {history: KEEP_LAST, depth: 10, reliability: RELIABLE}
+""",
+    )
+
+    result = generate_python(root, 'example_node_base')
+
+    assert 'from rclpy.lifecycle import LifecycleNode' in result.module
+    assert 'my_pkg' not in result.module

@@ -12,6 +12,10 @@
 #include "{{ parameters_include }}"
 {% endif %}
 
+{% if namespace %}
+namespace {{ namespace }}
+{
+{% endif %}
 class {{ class_name }} : public {{ base_class }}
 {
 public:
@@ -102,3 +106,7 @@ private:
 {% endif %}
 {% endif %}
 };
+{% if namespace %}
+
+}  // namespace {{ namespace }}
+{% endif %}

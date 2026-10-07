@@ -36,8 +36,9 @@ class BaseClass:
 
 
 class CppPlanner(CodegenPlanner[CodegenCpp]):
-    """Find the base class, and generate every included document without ``codegen.cpp``.
+    """Find the base class and namespace, and generate every included document without ``codegen.cpp``.
 
+    The root may have role ``NODE``, whose ``namespace`` sets :attr:`namespace`.
     The walk stops at an included document with ``codegen.cpp``, since it already has an implementation.
     ``BASE_CLASS`` contributes its class, and ``NO_GENERATE`` contributes nothing.
     :meth:`finalize` sets :attr:`base_class` to the single base class.
@@ -45,6 +46,8 @@ class CppPlanner(CodegenPlanner[CodegenCpp]):
 
     def __init__(self) -> None:
         self.base_classes: list[CodegenCpp] = []
+        self.namespace: Optional[str] = None
+        self._errors: list[str] = []
         self._base_class: Optional[BaseClass] = None
 
     @property
@@ -58,22 +61,38 @@ class CppPlanner(CodegenPlanner[CodegenCpp]):
         return self._base_class
 
     def root(self, config: Optional[CodegenCpp]) -> None:
-        pass
+        if config is None:
+            return
+        if config.role is Role.NODE:
+            self.namespace = config.namespace
+        else:
+            self._errors.append(
+                f'The root document has codegen.cpp role {config.role.value}, '
+                'which describes included provider documents, not the generated root. '
+                'Use role NODE or omit codegen.cpp on the root document.'
+            )
 
     def visit(self, included: IncludedDocument, config: Optional[CodegenCpp]) -> Walk:
         if config is None:
             return Walk.CONTINUE
         if config.role is Role.BASE_CLASS:
             self.base_classes.append(config)
+        elif config.role is Role.NODE:
+            self._errors.append(
+                'codegen.cpp role NODE is only valid on the root document being generated, '
+                f'but {included.ref} ({included.path}) declares it.'
+            )
         return Walk.STOP
 
     def finalize(self) -> None:
         """Set :attr:`base_class` to the single base class.
 
-        Raises :class:`CodegenError` if there is no base class,
-        if multiple conflicting base classes are found,
+        Raises :class:`CodegenError` if a document has a role that is invalid where it is,
+        if there is no base class, if multiple conflicting base classes are found,
         or if the base class is missing its ``class`` or ``header``.
         """
+        if self._errors:
+            raise CodegenError('\n'.join(self._errors))
         if not self.base_classes:
             raise CodegenError(
                 'No base class found. Include a base-class provider '
@@ -183,8 +202,9 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
         doc.action_clients or [],
         has_parameters,
         include_prefix=include_prefix,
+        namespace=planner.namespace,
     )
     if has_parameters:
-        generated_files += [generate_genparamlib_yaml(target_name, doc.parameters)]
+        generated_files += [generate_genparamlib_yaml(target_name, doc.parameters, namespace=planner.namespace)]
 
     return generated_files

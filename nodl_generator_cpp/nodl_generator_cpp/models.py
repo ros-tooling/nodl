@@ -16,14 +16,16 @@ except ImportError:
 
 class Role(Enum):
     """
-    How this document's implementation participates in code generation.
-    ``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``
-    excludes this document and its transitive includes from generation.
+    How this document participates in code generation.
+    On included documents, ``BASE_CLASS`` selects the generated class's base,
+    while ``NO_GENERATE`` excludes this document and its transitive includes from generation.
+    ``NODE`` is only valid on the root document being generated.
 
     """
 
     BASE_CLASS = 'BASE_CLASS'
     NO_GENERATE = 'NO_GENERATE'
+    NODE = 'NODE'
 
 
 class CodegenCpp(BaseModel):
@@ -38,7 +40,7 @@ class CodegenCpp(BaseModel):
 
     role: Role = Field(
         ...,
-        description="How this document's implementation participates in code generation.\n``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``\nexcludes this document and its transitive includes from generation.\n",
+        description="How this document participates in code generation.\nOn included documents, ``BASE_CLASS`` selects the generated class's base,\nwhile ``NO_GENERATE`` excludes this document and its transitive includes from generation.\n``NODE`` is only valid on the root document being generated.\n",
     )
     class_: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_:]*$')] = Field(
         None,
@@ -48,4 +50,8 @@ class CodegenCpp(BaseModel):
     header: Optional[str] = Field(
         None,
         description='C++ header to ``#include`` for the base class\n(e.g. ``rclcpp/rclcpp.hpp``).\n',
+    )
+    namespace: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*$')] = Field(
+        None,
+        description='C++ namespace for the generated class and its parameter structs\n(e.g. ``my_pkg::nodes``). Only valid with role ``NODE``.\n',
     )
