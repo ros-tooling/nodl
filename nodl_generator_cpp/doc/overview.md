@@ -261,7 +261,7 @@ A NoDL document can carry a `codegen.cpp` field describing how it takes part in 
 
 | Role | Valid on | Fields | Meaning |
 |---|---|---|---|
-| `BASE_CLASS` | Included documents | `class`, `header` (both required) | The document is implemented by a C++ base class that the generated class inherits from. |
+| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
 | `NO_GENERATE` | Included documents | none | The document has an existing implementation but does not provide the generated class's base. |
 | `NODE` | The root document | `namespace` (optional) | The document is the one being generated. |
 
@@ -310,6 +310,25 @@ codegen:
 `BASE_CLASS` and `NO_GENERATE` describe included provider documents, and the generator reports an error if the root carries either.
 `NODE` describes the root, and the generator reports an error if an included document it walks into carries it.
 A root without `codegen.cpp` is also valid.
+
+### Publisher type
+
+`BASE_CLASS` accepts an optional `publisher_type`, the C++ publisher class template that the base class's `create_publisher` returns.
+It defaults to `rclcpp::Publisher`, and `header` must declare it.
+`nodl://nodl_common_interfaces/lifecycle_node` sets it to `rclcpp_lifecycle::LifecyclePublisher`:
+
+```yaml
+codegen:
+  cpp:
+    role: BASE_CLASS
+    class: rclcpp_lifecycle::LifecycleNode
+    header: rclcpp_lifecycle/lifecycle_node.hpp
+    publisher_type: rclcpp_lifecycle::LifecyclePublisher
+```
+
+The generated class declares each publisher as `<publisher_type><MessageT>::SharedPtr`.
+`rclcpp_lifecycle::LifecycleNode::on_activate` and `on_deactivate` activate and deactivate its lifecycle publishers.
+A subclass that overrides those callbacks calls the base class's implementation to keep that behavior.
 
 ### Namespace
 

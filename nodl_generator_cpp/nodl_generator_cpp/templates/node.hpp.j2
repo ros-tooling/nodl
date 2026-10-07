@@ -35,7 +35,7 @@ protected:
 
   // --- Publishers ---
 {% for pub in publishers %}
-  rclcpp::Publisher<{{ pub.cpp_type }}>::SharedPtr {{ pub.member }};
+  {{ publisher_class }}<{{ pub.cpp_type }}>::SharedPtr {{ pub.member }};
 {% endfor %}
 {% endif %}
 {% if subscriptions %}

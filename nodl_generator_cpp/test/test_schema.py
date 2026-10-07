@@ -18,6 +18,7 @@ _BASE_CLASS = {'role': 'BASE_CLASS', 'class': 'rclcpp::Node', 'header': 'rclcpp/
 
 _VALID = [
     _BASE_CLASS,
+    {**_BASE_CLASS, 'publisher_type': 'rclcpp_lifecycle::LifecyclePublisher'},
     {'role': 'NO_GENERATE'},
     {'role': 'NODE'},
     {'role': 'NODE', 'namespace': 'my_pkg::nodes'},
@@ -31,6 +32,9 @@ _INVALID = [
     {'role': 'BASE_CLASS', 'header': 'rclcpp/rclcpp.hpp'},
     {**_BASE_CLASS, 'namespace': 'ns'},
     {**_BASE_CLASS, 'extra': True},
+    {**_BASE_CLASS, 'publisher_type': 'rclcpp_lifecycle/LifecyclePublisher'},
+    {'role': 'NO_GENERATE', 'publisher_type': 'rclcpp_lifecycle::LifecyclePublisher'},
+    {'role': 'NODE', 'publisher_type': 'rclcpp_lifecycle::LifecyclePublisher'},
     {'role': 'NO_GENERATE', 'class': 'Ignored'},
     {'role': 'NO_GENERATE', 'header': 'ignored.hpp'},
     {'role': 'NODE', 'class': 'rclcpp::Node'},
@@ -176,6 +180,12 @@ class TestLoad:
         assert isinstance(result, CodegenBaseClass)
         assert result.class_ == 'rclcpp::Node'
         assert result.header == 'rclcpp/rclcpp.hpp'
+        assert result.publisher_type == 'rclcpp::Publisher'
+
+    def test_returns_publisher_type(self):
+        result = load({CODEGEN_KEY: {**_BASE_CLASS, 'publisher_type': 'rclcpp_lifecycle::LifecyclePublisher'}})
+        assert isinstance(result, CodegenBaseClass)
+        assert result.publisher_type == 'rclcpp_lifecycle::LifecyclePublisher'
 
     def test_returns_no_generate_model(self):
         result = load({CODEGEN_KEY: {'role': 'NO_GENERATE'}})

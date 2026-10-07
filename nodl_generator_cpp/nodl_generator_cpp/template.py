@@ -53,6 +53,7 @@ def _build_template_context(
     *,
     include_prefix: str | None = None,
     namespace: str | None = None,
+    publisher_class: str,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -140,6 +141,7 @@ def _build_template_context(
         'header_include': prefixed(include_prefix, f'{target_name}.hpp'),
         'parameters_include': prefixed(include_prefix, f'{target_name}_parameters.hpp'),
         'namespace': namespace,
+        'publisher_class': publisher_class,
     }
 
 
@@ -162,6 +164,7 @@ def render_templates(
     *,
     include_prefix: str | None = None,
     namespace: str | None = None,
+    publisher_class: str,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
@@ -171,6 +174,7 @@ def render_templates(
     When *namespace* is set, the class and its constructor are declared inside it,
     and the parameter structs are expected under ``<namespace>::<target_name>``,
     which the class reaches as ``<target_name>::``.
+    Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
     """
     ctx = _build_template_context(
         target_name,
@@ -185,6 +189,7 @@ def render_templates(
         has_parameters,
         include_prefix=include_prefix,
         namespace=namespace,
+        publisher_class=publisher_class,
     )
 
     env = _get_env()
