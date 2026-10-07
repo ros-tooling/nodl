@@ -14,7 +14,7 @@ from typing import Callable, Generic, Optional, TypeVar
 from nodl_schema.composition import merge_documents
 from nodl_schema.loader import DocumentTree, IncludedDocument, load_nodl_with_doc_tree
 from nodl_schema.models import NodlDocument
-from nodl_schema.schema import schema_validator
+from nodl_schema.schema import schema_validator, validate_tagged
 
 # The generator's parsed ``codegen.<key>`` model, such as ``CodegenCpp``.
 ConfigT = TypeVar('ConfigT')
@@ -26,11 +26,14 @@ class CodegenSchema(Generic[ConfigT]):
 
     ``parse`` receives the schema-valid ``codegen.<key>`` object,
     and may raise :class:`jsonschema.ValidationError` for checks the schema cannot express.
+    When ``tag`` is set, the schema is a ``oneOf`` of variants selected by that property,
+    validated with :func:`nodl_schema.schema.validate_tagged`.
     """
 
     key: str
     schema: Path
     parse: Callable[[dict], ConfigT]
+    tag: Optional[str] = None
 
     def load(self, codegen: Optional[dict]) -> Optional[ConfigT]:
         """Validate and parse ``codegen.<key>``, or return ``None`` if it is absent.
@@ -40,7 +43,10 @@ class CodegenSchema(Generic[ConfigT]):
         config = (codegen or {}).get(self.key)
         if config is None:
             return None
-        schema_validator(self.schema).validate(config)
+        if self.tag is None:
+            schema_validator(self.schema).validate(config)
+        else:
+            validate_tagged(self.schema, config, self.tag)
         return self.parse(config)
 
 

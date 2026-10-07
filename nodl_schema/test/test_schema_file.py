@@ -6,7 +6,7 @@ import pytest
 import yaml
 from jsonschema import ValidationError
 
-from nodl_schema.schema import load_schema_file, schema_validator
+from nodl_schema.schema import load_schema_file, schema_validator, validate_tagged
 
 
 def _write(path, schema):
@@ -35,3 +35,48 @@ def test_schema_validator_resolves_references_by_name_and_id(tmp_path, reference
     validator.validate({'count': 1})
     with pytest.raises(ValidationError):
         validator.validate({'count': 0})
+
+
+@pytest.fixture
+def tagged(tmp_path):
+    return _write(
+        tmp_path / 'tagged.schema.yaml',
+        {
+            'oneOf': [{'$ref': '#/definitions/a'}, {'$ref': '#/definitions/b'}],
+            'definitions': {
+                'a': {
+                    'type': 'object',
+                    'additionalProperties': False,
+                    'required': ['kind', 'size'],
+                    'properties': {'kind': {'const': 'A'}, 'size': {'type': 'integer'}},
+                },
+                'b': {
+                    'type': 'object',
+                    'additionalProperties': False,
+                    'required': ['kind'],
+                    'properties': {'kind': {'const': 'B'}},
+                },
+            },
+        },
+    )
+
+
+@pytest.mark.parametrize('instance', [{'kind': 'A', 'size': 1}, {'kind': 'B'}])
+def test_validate_tagged_accepts_each_variant(tagged, instance):
+    validate_tagged(tagged, instance, 'kind')
+
+
+@pytest.mark.parametrize(
+    'instance,message',
+    [
+        ({'kind': 'A'}, "'size' is a required property"),
+        ({'kind': 'B', 'size': 1}, "'size' was unexpected"),
+        ({'kind': 'C'}, r"'C' is not one of \['A', 'B'\]"),
+        ({'kind': ['A']}, r"\['A'\] is not one of"),
+        ({}, "'kind' is a required property"),
+        ('A', "is not of type 'object'"),
+    ],
+)
+def test_validate_tagged_reports_the_selected_variant_error(tagged, instance, message):
+    with pytest.raises(ValidationError, match=message):
+        validate_tagged(tagged, instance, 'kind')

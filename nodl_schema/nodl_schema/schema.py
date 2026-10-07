@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import functools
 from pathlib import Path
+from typing import Any
 
 import yaml
-from jsonschema import RefResolver
+from jsonschema import RefResolver, ValidationError
 from jsonschema.validators import Draft7Validator
 
 
@@ -34,3 +35,34 @@ def schema_validator(schema: Path, *references: Path) -> Draft7Validator:
     root = load_schema_file(schema)
     # TODO(emerson) RefResolver is deprecated in favor of https://github.com/python-jsonschema/referencing
     return Draft7Validator(root, resolver=RefResolver.from_schema(root, store=store))
+
+
+@functools.cache
+def _variant_validators(schema: Path, tag: str) -> dict[str, Draft7Validator]:
+    """Map each ``oneOf`` variant's *tag* ``const`` to a validator for that variant alone."""
+    validator = schema_validator(schema)
+    variants = {}
+    for branch in load_schema_file(schema)['oneOf']:
+        _, variant = validator.resolver.resolve(branch['$ref'])
+        variants[variant['properties'][tag]['const']] = Draft7Validator(variant, resolver=validator.resolver)
+    return variants
+
+
+def validate_tagged(schema: Path, instance: Any, tag: str) -> None:
+    """Validate *instance* against the variant of *schema* selected by its *tag* property.
+
+    *schema* is a ``oneOf`` of ``$ref``s to object variants, each with a ``const`` *tag* property.
+    Errors name the problem in the selected variant,
+    rather than reporting that *instance* matches none of them.
+
+    Raises :class:`jsonschema.ValidationError` on failure.
+    """
+    variants = _variant_validators(schema, tag)
+    if not isinstance(instance, dict):
+        raise ValidationError(f"{instance!r} is not of type 'object'")
+    if tag not in instance:
+        raise ValidationError(f'{tag!r} is a required property')
+    value = instance[tag]
+    if not isinstance(value, str) or value not in variants:
+        raise ValidationError(f'{value!r} is not one of {list(variants)}')
+    variants[value].validate(instance)

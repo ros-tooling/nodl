@@ -5,59 +5,67 @@ title: NoDL C++ codegen metadata
 description: |
   Schema for the ``codegen.cpp`` object in NoDL documents.
   Validated by ``nodl_generator_cpp``, not ``nodl_schema``.
+  The ``role`` field selects which of the variants applies:
+  ``BASE_CLASS`` and ``NO_GENERATE`` describe included provider documents,
+  and ``NODE`` describes the root document being generated.
 
-type: object
-additionalProperties: false
-required:
-  - role
+oneOf:
+  - $ref: '#/definitions/codegen_base_class'
+  - $ref: '#/definitions/codegen_no_generate'
+  - $ref: '#/definitions/codegen_node'
 
-properties:
-  role:
+definitions:
+  codegen_base_class:
     description: |
-      How this document participates in code generation.
-      On included documents, ``BASE_CLASS`` selects the generated class's base,
-      while ``NO_GENERATE`` excludes this document and its transitive includes from generation.
-      ``NODE`` is only valid on the root document being generated.
-    enum: [BASE_CLASS, NO_GENERATE, NODE]
+      An included document that provides the generated class's base.
+    type: object
+    additionalProperties: false
+    required:
+      - role
+      - class
+      - header
+    properties:
+      role:
+        const: BASE_CLASS
+      class:
+        description: |
+          Fully-qualified C++ class name to inherit from
+          (e.g. ``rclcpp::Node``).
+        type: string
+        pattern: ^[A-Za-z_][A-Za-z0-9_:]*$
+      header:
+        description: |
+          C++ header to ``#include`` for the base class
+          (e.g. ``rclcpp/rclcpp.hpp``).
+        type: string
 
-  class:
+  codegen_no_generate:
     description: |
-      Fully-qualified C++ class name to inherit from
-      (e.g. ``rclcpp::Node``).
-    type: string
-    pattern: ^[A-Za-z_][A-Za-z0-9_:]*$
+      An included document that has an existing implementation
+      but does not provide the generated class's base.
+      It excludes this document and its transitive includes from generation.
+    type: object
+    additionalProperties: false
+    required:
+      - role
+    properties:
+      role:
+        const: NO_GENERATE
 
-  header:
+  codegen_node:
     description: |
-      C++ header to ``#include`` for the base class
-      (e.g. ``rclcpp/rclcpp.hpp``).
-    type: string
-
-  namespace:
-    description: |
-      C++ namespace for the generated class and its parameter structs
-      (e.g. ``my_pkg::nodes``). Only valid with role ``NODE``.
-    type: string
-    pattern: ^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*$
-
-allOf:
-  - if:
-      properties:
-        role:
-          const: BASE_CLASS
-    then:
-      required:
-        - class
-        - header
-    else:
-      not:
-        anyOf:
-          - required: [class]
-          - required: [header]
-  - if:
-      properties:
-        role:
-          const: NODE
-    else:
-      not:
-        required: [namespace]
+      The root document being generated.
+      Only valid on the root document.
+    type: object
+    additionalProperties: false
+    required:
+      - role
+    properties:
+      role:
+        const: NODE
+      namespace:
+        description: |
+          C++ namespace for the generated class and its parameter structs
+          (e.g. ``my_pkg::nodes``).
+        type: string
+        pattern: ^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*$

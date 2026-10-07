@@ -10,8 +10,7 @@ from pathlib import Path
 import pytest
 
 from nodl_generator_common.plan import CodegenError, walk_tree
-from nodl_generator_cpp.generate import CODEGEN_CPP_SCHEMA, BaseClass, CppPlanner, cmake_deps, generate_cpp
-from nodl_generator_cpp.models import CodegenCpp, Role
+from nodl_generator_cpp.generate import CODEGEN_CPP_SCHEMA, CppPlanner, cmake_deps, generate_cpp
 from nodl_schema import dump_nodl
 from nodl_schema.loader import DocumentTree, IncludedDocument
 from nodl_schema.models import History, NodlDocument, QosProfile, Reference, Reliability, TopicEndpoint
@@ -139,16 +138,7 @@ def test_base_class_is_set_by_finalize():
 
     planner.finalize()
 
-    assert planner.base_class == BaseClass(class_name='rclcpp::Node', header='rclcpp/rclcpp.hpp')
-
-
-def test_finalize_rejects_base_class_without_header():
-    planner = CppPlanner()
-    planner.visit(
-        _included('test://base', NodlDocument()), CodegenCpp(role=Role.BASE_CLASS, **{'class': 'rclcpp::Node'})
-    )
-    with pytest.raises(CodegenError, match='class and header'):
-        planner.finalize()
+    assert (planner.base_class.class_, planner.base_class.header) == ('rclcpp::Node', 'rclcpp/rclcpp.hpp')
 
 
 # ---------------------------------------------------------------------------

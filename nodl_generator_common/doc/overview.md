@@ -34,6 +34,7 @@ the generator decides what it generates and supplies the language-specific piece
 
    The generator supplies the rest:
    - A `CodegenSchema`: its `codegen.<lang>` key, the JSON schema file for it, and a `parse` function into a typed model.
+     A schema that is a `oneOf` of variants selected by a property, such as `role`, sets `tag` to that property for errors specific to the selected variant.
      `parse` may raise `jsonschema.ValidationError` for checks the schema cannot express.
    - A `CodegenPlanner`, which receives each reached document's parsed config.
      `root` sees the root document, which is always generated.
