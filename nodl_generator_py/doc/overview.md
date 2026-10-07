@@ -155,7 +155,6 @@ A `BASE_CLASS` included by a `NO_GENERATE` provider is hidden from the generator
 At most one Python base provider may be visible.
 Documents without a visible Python base provider keep the implicit `rclpy.node.Node` base.
 The root being generated should not carry `codegen.python` metadata; roles describe included provider documents.
-The Python generator ignores `codegen.cpp`, including the C++ `NODE` role on the root.
 
 Use the standard lifecycle provider like this:
 
