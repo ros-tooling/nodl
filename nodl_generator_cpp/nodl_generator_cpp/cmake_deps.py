@@ -10,7 +10,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from nodl_generator_cpp.include_prefix import prefixed
-from nodl_generator_cpp.models import CodegenCpp
 from nodl_schema.models import ActionEndpoint, ServiceEndpoint, TopicEndpoint
 
 
@@ -37,7 +36,7 @@ def _package_from_type(ros_type: str) -> str:
 
 
 def ros_deps(
-    base: CodegenCpp,
+    base_header: str,
     publishers: list[TopicEndpoint],
     subscriptions: list[TopicEndpoint],
     service_servers: list[ServiceEndpoint],
@@ -49,17 +48,13 @@ def ros_deps(
 
     Sources:
 
-    - The base class contributes the package of its ``header``
-      (part before first ``/``).
+    - *base_header* contributes its package (part before first ``/``).
     - Every generated entity contributes its message/service/action package
       (part before first ``/`` of its ``type``).
     - If any action servers or action clients are present, ``rclcpp_action``
       is added (the generated code includes ``rclcpp_action/rclcpp_action.hpp``).
     """
-    pkgs: set[str] = set()
-
-    if base.header is not None:
-        pkgs.add(_package_from_header(base.header))
+    pkgs = {_package_from_header(base_header)}
 
     all_entities: list[TopicEndpoint | ServiceEndpoint | ActionEndpoint] = [
         *publishers,

@@ -27,6 +27,14 @@ CODEGEN_CPP_SCHEMA = CodegenSchema(
 )
 
 
+@dataclass(frozen=True)
+class BaseClass:
+    """The C++ class the generated class inherits from, and the header that declares it."""
+
+    class_name: str
+    header: str
+
+
 class CppPlanner(CodegenPlanner[CodegenCpp]):
     """Find the base class, and generate every included document without ``codegen.cpp``.
 
@@ -37,10 +45,10 @@ class CppPlanner(CodegenPlanner[CodegenCpp]):
 
     def __init__(self) -> None:
         self.base_classes: list[CodegenCpp] = []
-        self._base_class: Optional[CodegenCpp] = None
+        self._base_class: Optional[BaseClass] = None
 
     @property
-    def base_class(self) -> CodegenCpp:
+    def base_class(self) -> BaseClass:
         """The single base class.
 
         Raises :class:`RuntimeError` before :meth:`finalize` sets it.
@@ -62,8 +70,9 @@ class CppPlanner(CodegenPlanner[CodegenCpp]):
     def finalize(self) -> None:
         """Set :attr:`base_class` to the single base class.
 
-        Raises :class:`CodegenError` if there is no base class or if
-        multiple conflicting base classes are found.
+        Raises :class:`CodegenError` if there is no base class,
+        if multiple conflicting base classes are found,
+        or if the base class is missing its ``class`` or ``header``.
         """
         if not self.base_classes:
             raise CodegenError(
@@ -76,7 +85,10 @@ class CppPlanner(CodegenPlanner[CodegenCpp]):
                 f'Multiple conflicting base class providers found: {classes}. '
                 'A generated node can only inherit from one base class.'
             )
-        self._base_class = self.base_classes[0]
+        base = self.base_classes[0]
+        if base.class_ is None or base.header is None:
+            raise CodegenError('The base class provider must declare both class and header.')
+        self._base_class = BaseClass(class_name=base.class_, header=base.header)
 
 
 def _validate_target_name(target_name: str) -> None:
@@ -123,7 +135,7 @@ def cmake_deps(source: Path, target_name: str, *, include_prefix: str | None = N
     return CmakeDepsResult(
         sources=planned.sources,
         ros_deps=ros_deps(
-            planner.base_class,
+            planner.base_class.header,
             doc.publishers or [],
             doc.subscriptions or [],
             doc.service_servers or [],
@@ -155,15 +167,13 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
     planned = plan(source, CODEGEN_CPP_SCHEMA, planner)
     doc = planned.doc
     base = planner.base_class
-    assert base.class_ is not None
-    assert base.header is not None
 
     has_parameters = bool(doc.parameters)
 
     generated_files = []
     generated_files += render_templates(
         target_name,
-        base.class_,
+        base.class_name,
         base.header,
         doc.publishers or [],
         doc.subscriptions or [],
