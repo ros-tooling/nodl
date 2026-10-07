@@ -1,0 +1,31 @@
+---
+# Tests the NODE role's namespace.
+# The generated class and the generate_parameter_library structs
+# should both be declared under my_pkg::nodes.
+
+nodl_version: 2
+
+codegen:
+  cpp:
+    role: NODE
+    namespace: my_pkg::nodes
+
+include:
+  - ref: test://rclcpp_node
+
+parameters:
+  max_speed:
+    type: double
+    default_value: 1.5
+    description: Maximum speed in m/s
+  colour.r:
+    type: double
+    default_value: 0.8
+
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE

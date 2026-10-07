@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from nodl_generator_common.generated_file import GeneratedFile
 from nodl_generator_common.plan import CodegenError, CodegenPlanner, CodegenSchema, Walk, plan
@@ -13,42 +13,46 @@ from nodl_generator_cpp.cmake_deps import (
     ros_deps,
 )
 from nodl_generator_cpp.include_prefix import validate_include_prefix
-from nodl_generator_cpp.models import CodegenCpp, Role
+from nodl_generator_cpp.models import CodegenBaseClass, CodegenNode, CodegenNoGenerate
 from nodl_generator_cpp.params import generate_genparamlib_yaml
 from nodl_generator_cpp.template import render_templates
 from nodl_schema.loader import IncludedDocument
 
 _IDENTIFIER_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
+# The parsed ``codegen.cpp`` metadata, one model per ``role``.
+CodegenCpp = Union[CodegenBaseClass, CodegenNoGenerate, CodegenNode]
+_ROLE_MODELS: dict[str, type[CodegenCpp]] = {
+    'BASE_CLASS': CodegenBaseClass,
+    'NO_GENERATE': CodegenNoGenerate,
+    'NODE': CodegenNode,
+}
+
 CODEGEN_CPP_SCHEMA = CodegenSchema(
     key='cpp',
     schema=Path(__file__).parent / 'schemas' / 'codegen_cpp.schema.yaml',
-    parse=CodegenCpp.parse_obj,
+    parse=lambda config: _ROLE_MODELS[config['role']].parse_obj(config),
+    tag='role',
 )
 
 
-@dataclass(frozen=True)
-class BaseClass:
-    """The C++ class the generated class inherits from, and the header that declares it."""
-
-    class_name: str
-    header: str
-
-
 class CppPlanner(CodegenPlanner[CodegenCpp]):
-    """Find the base class, and generate every included document without ``codegen.cpp``.
+    """Find the base class and namespace, and generate every included document without ``codegen.cpp``.
 
+    The root may have role ``NODE``, whose ``namespace`` sets :attr:`namespace`.
     The walk stops at an included document with ``codegen.cpp``, since it already has an implementation.
     ``BASE_CLASS`` contributes its class, and ``NO_GENERATE`` contributes nothing.
     :meth:`finalize` sets :attr:`base_class` to the single base class.
     """
 
     def __init__(self) -> None:
-        self.base_classes: list[CodegenCpp] = []
-        self._base_class: Optional[BaseClass] = None
+        self.base_classes: list[CodegenBaseClass] = []
+        self.namespace: Optional[str] = None
+        self._errors: list[str] = []
+        self._base_class: Optional[CodegenBaseClass] = None
 
     @property
-    def base_class(self) -> BaseClass:
+    def base_class(self) -> CodegenBaseClass:
         """The single base class.
 
         Raises :class:`RuntimeError` before :meth:`finalize` sets it.
@@ -58,37 +62,49 @@ class CppPlanner(CodegenPlanner[CodegenCpp]):
         return self._base_class
 
     def root(self, config: Optional[CodegenCpp]) -> None:
-        pass
+        if config is None:
+            return
+        if isinstance(config, CodegenNode):
+            self.namespace = config.namespace
+        else:
+            self._errors.append(
+                f'The root document has codegen.cpp role {config.role}, '
+                'which describes included provider documents, not the generated root. '
+                'Use role NODE or omit codegen.cpp on the root document.'
+            )
 
     def visit(self, included: IncludedDocument, config: Optional[CodegenCpp]) -> Walk:
         if config is None:
             return Walk.CONTINUE
-        if config.role is Role.BASE_CLASS:
+        if isinstance(config, CodegenBaseClass):
             self.base_classes.append(config)
+        elif isinstance(config, CodegenNode):
+            self._errors.append(
+                'codegen.cpp role NODE is only valid on the root document being generated, '
+                f'but {included.ref} ({included.path}) declares it.'
+            )
         return Walk.STOP
 
     def finalize(self) -> None:
         """Set :attr:`base_class` to the single base class.
 
-        Raises :class:`CodegenError` if there is no base class,
-        if multiple conflicting base classes are found,
-        or if the base class is missing its ``class`` or ``header``.
+        Raises :class:`CodegenError` if a document has a role that is invalid where it is,
+        if there is no base class, or if multiple conflicting base classes are found.
         """
+        if self._errors:
+            raise CodegenError('\n'.join(self._errors))
         if not self.base_classes:
             raise CodegenError(
                 'No base class found. Include a base-class provider '
                 '(e.g. nodl://nodl_common_interfaces/node) in your NoDL document.'
             )
         if len(self.base_classes) > 1:
-            classes = ', '.join(b.class_ for b in self.base_classes if b.class_ is not None)
+            classes = ', '.join(b.class_ for b in self.base_classes)
             raise CodegenError(
                 f'Multiple conflicting base class providers found: {classes}. '
                 'A generated node can only inherit from one base class.'
             )
-        base = self.base_classes[0]
-        if base.class_ is None or base.header is None:
-            raise CodegenError('The base class provider must declare both class and header.')
-        self._base_class = BaseClass(class_name=base.class_, header=base.header)
+        self._base_class = self.base_classes[0]
 
 
 def _validate_target_name(target_name: str) -> None:
@@ -173,7 +189,7 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
     generated_files = []
     generated_files += render_templates(
         target_name,
-        base.class_name,
+        base.class_,
         base.header,
         doc.publishers or [],
         doc.subscriptions or [],
@@ -183,8 +199,9 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
         doc.action_clients or [],
         has_parameters,
         include_prefix=include_prefix,
+        namespace=planner.namespace,
     )
     if has_parameters:
-        generated_files += [generate_genparamlib_yaml(target_name, doc.parameters)]
+        generated_files += [generate_genparamlib_yaml(target_name, doc.parameters, namespace=planner.namespace)]
 
     return generated_files

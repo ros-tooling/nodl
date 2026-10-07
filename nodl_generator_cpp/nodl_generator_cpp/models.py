@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Optional
 
 try:
@@ -14,38 +13,53 @@ except ImportError:
     from pydantic import BaseModel, Extra, Field, constr
 
 
-class Role(Enum):
+class CodegenBaseClass(BaseModel):
     """
-    How this document's implementation participates in code generation.
-    ``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``
-    excludes this document and its transitive includes from generation.
-
-    """
-
-    BASE_CLASS = 'BASE_CLASS'
-    NO_GENERATE = 'NO_GENERATE'
-
-
-class CodegenCpp(BaseModel):
-    """
-    Schema for the ``codegen.cpp`` object in NoDL documents.
-    Validated by ``nodl_generator_cpp``, not ``nodl_schema``.
+    An included document that provides the generated class's base.
 
     """
 
     class Config:
         extra = Extra.forbid
 
-    role: Role = Field(
+    role: str = Field('BASE_CLASS', const=True)
+    class_: constr(regex=r'^[A-Za-z_][A-Za-z0-9_:]*$') = Field(
         ...,
-        description="How this document's implementation participates in code generation.\n``BASE_CLASS`` selects the generated class's base, while ``NO_GENERATE``\nexcludes this document and its transitive includes from generation.\n",
-    )
-    class_: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_:]*$')] = Field(
-        None,
         alias='class',
         description='Fully-qualified C++ class name to inherit from\n(e.g. ``rclcpp::Node``).\n',
     )
-    header: Optional[str] = Field(
-        None,
+    header: str = Field(
+        ...,
         description='C++ header to ``#include`` for the base class\n(e.g. ``rclcpp/rclcpp.hpp``).\n',
+    )
+
+
+class CodegenNoGenerate(BaseModel):
+    """
+    An included document that has an existing implementation
+    but does not provide the generated class's base.
+    It excludes this document and its transitive includes from generation.
+
+    """
+
+    class Config:
+        extra = Extra.forbid
+
+    role: str = Field('NO_GENERATE', const=True)
+
+
+class CodegenNode(BaseModel):
+    """
+    The root document being generated.
+    Only valid on the root document.
+
+    """
+
+    class Config:
+        extra = Extra.forbid
+
+    role: str = Field('NODE', const=True)
+    namespace: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*$')] = Field(
+        None,
+        description='C++ namespace for the generated class and its parameter structs\n(e.g. ``my_pkg::nodes``).\n',
     )

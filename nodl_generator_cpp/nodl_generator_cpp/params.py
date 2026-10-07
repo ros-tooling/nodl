@@ -31,8 +31,14 @@ def _param_to_dict(param: ParameterDefinition) -> dict:
 def generate_genparamlib_yaml(
     target_name: str,
     parameters: dict[str, ParameterDefinition],
+    *,
+    namespace: str | None = None,
 ) -> GeneratedFile:
     """Convert NoDL parameters to a generate_parameter_library YAML file.
+
+    The top-level key becomes the C++ namespace of the generated structs,
+    so a *namespace* yields ``<namespace>::<target_name>``.
+    It does not affect ROS parameter names.
 
     Returns a :class:`GeneratedFile` containing the YAML content, ready
     to be written to disk and then passed to
@@ -40,7 +46,7 @@ def generate_genparamlib_yaml(
     """
     params_dict = nest_dotted_parameters({name: _param_to_dict(param) for name, param in parameters.items()})
     content = yaml.dump(
-        {target_name: params_dict},
+        {f'{namespace}::{target_name}' if namespace else target_name: params_dict},
         default_flow_style=False,
         sort_keys=False,
         explicit_start=True,

@@ -20,6 +20,7 @@ add_cpp_fixture(services cpp_services_node_base)
 add_cpp_fixture(parameters cpp_params_node_base)
 add_cpp_fixture(kitchen_sink cpp_kitchen_sink_node_base)
 add_cpp_fixture(lifecycle cpp_lifecycle_node_base)
+add_cpp_fixture(namespace cpp_namespace_node_base)
 
 # A STATIC base linked into a SHARED library needs position-independent code.
 nodl_generate_cpp(cpp_minimal_static_node_base STATIC minimal/cpp/node.nodl.yaml)

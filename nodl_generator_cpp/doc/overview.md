@@ -257,7 +257,14 @@ For example, the base class already provides its interface, so those endpoints s
 
 ### The `codegen.cpp` metadata
 
-A NoDL document can carry a `codegen.cpp` field declaring that it has an existing C++ implementation.
+A NoDL document can carry a `codegen.cpp` field describing how it takes part in C++ generation, selected by its `role`:
+
+| Role | Valid on | Fields | Meaning |
+|---|---|---|---|
+| `BASE_CLASS` | Included documents | `class`, `header` (both required) | The document is implemented by a C++ base class that the generated class inherits from. |
+| `NO_GENERATE` | Included documents | none | The document has an existing implementation but does not provide the generated class's base. |
+| `NODE` | The root document | `namespace` (optional) | The document is the one being generated. |
+
 The schema for this field is defined in {repo}`nodl_generator_cpp/nodl_generator_cpp/schemas/codegen_cpp.schema.yaml`
 and validated by `nodl_generator_cpp`, not `nodl_schema`.
 
@@ -300,8 +307,29 @@ codegen:
     role: NO_GENERATE
 ```
 
-`NO_GENERATE` takes no `class` or `header` fields.
-The root being generated should not carry this metadata; the role describes included provider documents.
+`BASE_CLASS` and `NO_GENERATE` describe included provider documents, and the generator reports an error if the root carries either.
+`NODE` describes the root, and the generator reports an error if an included document it walks into carries it.
+A root without `codegen.cpp` is also valid.
+
+### Namespace
+
+`NODE` accepts an optional `namespace`, which may be nested with `::`:
+
+```yaml
+nodl_version: 2
+codegen:
+  cpp:
+    role: NODE
+    namespace: my_pkg::nodes
+include:
+  - ref: nodl://nodl_common_interfaces/node
+```
+
+The generated header declares the class inside the namespace, and the source defines the constructor inside it,
+so subclasses inherit from `my_pkg::nodes::MyNodeBase`.
+The parameter structs live under it too, as `my_pkg::nodes::my_node_base::Params`.
+ROS parameter names never include the namespace.
+Without a `namespace`, the class is generated in the global namespace.
 
 ### Walking the include tree
 

@@ -15,7 +15,7 @@ Document-construction helpers follow the same pattern as
 import pytest
 
 from nodl_generator_common.plan import CodegenError
-from nodl_generator_cpp.generate import generate_cpp
+from nodl_generator_cpp.generate import cmake_deps, generate_cpp
 from nodl_schema import dump_nodl
 from nodl_schema.models import (
     History,
@@ -63,6 +63,14 @@ def _write_nodl(tmp_path, doc, name='root.nodl.yaml'):
     return path
 
 
+def _node_doc(namespace=None):
+    """A document that declares the ``NODE`` role, valid only on the root."""
+    return NodlDocument(
+        codegen={'cpp': {'role': 'NODE', **({'namespace': namespace} if namespace else {})}},
+        publishers=[_topic('/node_topic')],
+    )
+
+
 _TARGET = 'my_node'
 
 
@@ -107,6 +115,58 @@ def test_no_base_class_with_include_fails(fake_resolver, tmp_path):
     )
     with pytest.raises(CodegenError, match='[Nn]o base class'):
         generate_cpp(_write_nodl(tmp_path, root), _TARGET)
+
+
+# ---------------------------------------------------------------------------
+# Codegen roles on the root and included documents (CodegenError)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize('codegen', [_base_class_codegen(), {'cpp': {'role': 'NO_GENERATE'}}])
+def test_root_with_provider_role_fails(fake_resolver, tmp_path, codegen):
+    root = NodlDocument(codegen=codegen, include=_refs('test://rclcpp_node'))
+    with pytest.raises(CodegenError, match='root document.*included provider documents'):
+        generate_cpp(_write_nodl(tmp_path, root), _TARGET)
+    with pytest.raises(CodegenError, match='root document.*included provider documents'):
+        cmake_deps(_write_nodl(tmp_path, root), _TARGET)
+
+
+def test_root_node_role_without_namespace_matches_no_codegen(fake_resolver, tmp_path):
+    plain = NodlDocument(include=_refs('test://rclcpp_node'), publishers=[_topic('/status')])
+    node = NodlDocument(
+        codegen={'cpp': {'role': 'NODE'}},
+        include=_refs('test://rclcpp_node'),
+        publishers=[_topic('/status')],
+    )
+    expected = generate_cpp(_write_nodl(tmp_path, plain, 'plain.nodl.yaml'), _TARGET)
+    actual = generate_cpp(_write_nodl(tmp_path, node, 'node.nodl.yaml'), _TARGET)
+    assert actual == expected
+
+
+def test_included_node_role_fails(fake_resolver, tmp_path):
+    ref = fake_resolver.add('node', _node_doc())
+    root = NodlDocument(include=_refs('test://rclcpp_node', ref))
+    with pytest.raises(CodegenError, match=f'NODE.*only valid on the root.*{ref}'):
+        generate_cpp(_write_nodl(tmp_path, root), _TARGET)
+    with pytest.raises(CodegenError, match=f'NODE.*only valid on the root.*{ref}'):
+        cmake_deps(_write_nodl(tmp_path, root), _TARGET)
+
+
+def test_nested_included_node_role_fails(fake_resolver, tmp_path):
+    inner = fake_resolver.add('inner_node', _node_doc())
+    outer = fake_resolver.add('outer', _including(inner))
+    root = NodlDocument(include=_refs('test://rclcpp_node', outer))
+    with pytest.raises(CodegenError, match=f'NODE.*only valid on the root.*{inner}'):
+        generate_cpp(_write_nodl(tmp_path, root), _TARGET)
+
+
+def test_node_role_behind_provider_is_not_inspected(fake_resolver, tmp_path):
+    inner = fake_resolver.add('inner_node', _node_doc(namespace='ignored'))
+    provider = fake_resolver.add(
+        'provider', NodlDocument(codegen={'cpp': {'role': 'NO_GENERATE'}}, include=_refs(inner))
+    )
+    root = NodlDocument(include=_refs('test://rclcpp_node', provider))
+    assert generate_cpp(_write_nodl(tmp_path, root), _TARGET)
 
 
 # ---------------------------------------------------------------------------
