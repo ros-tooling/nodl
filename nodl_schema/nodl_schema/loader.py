@@ -7,10 +7,16 @@ from pathlib import Path
 from typing import IO, TypeAlias, Union
 
 import yaml
+from jsonschema import ValidationError
 
 from nodl_schema.composition import ResolutionError, merge_documents, resolve
 from nodl_schema.models import NodlDocument
-from nodl_schema.validation import validate
+from nodl_schema.parameters import validate_parameter_definitions, validate_parameter_names
+from nodl_schema.schema import load_schema_file, schema_validator
+
+_SCHEMAS = Path(__file__).parent / 'schemas'
+_NODL_SCHEMA = _SCHEMAS / 'nodl.schema.yaml'
+_PARAMETER_SCHEMA = _SCHEMAS / 'parameter.schema.yaml'
 
 
 @dataclass
@@ -73,6 +79,26 @@ def resolve_document(doc: NodlDocument, origin: Path | None = None) -> DocumentT
     root_children = [_resolve_ref(r.ref, chain=[], origin=origin) for r in (doc.include or [])]
 
     return DocumentTree(root_doc=doc, resolved_includes=root_children)
+
+
+def load_schema() -> dict:
+    """Load and cache the NoDL JSON schema."""
+    return load_schema_file(_NODL_SCHEMA)
+
+
+def validate(data: dict) -> None:
+    """Validate a plain dict against the NoDL schema and semantic constraints.
+
+    Raises jsonschema.ValidationError on failure.
+    """
+    schema_validator(_NODL_SCHEMA, _PARAMETER_SCHEMA).validate(data)
+
+    parameters = data.get('parameters')
+    if not isinstance(parameters, dict):
+        return
+
+    if error := validate_parameter_names(parameters) or validate_parameter_definitions(parameters):
+        raise ValidationError(error)
 
 
 def parse_nodl(data: Union[str, bytes, IO]) -> NodlDocument:

@@ -9,8 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from nodl_schema import dump_nodl
-from nodl_schema.validation import validate
+from nodl_schema import dump_nodl, validate
 from ros2nodl.describe import node_to_nodl
 
 _FIXTURES = Path(__file__).parents[3] / 'nodl_observe' / 'test' / 'fixtures'

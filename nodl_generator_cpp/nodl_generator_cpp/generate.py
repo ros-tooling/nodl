@@ -3,9 +3,10 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from nodl_generator_common.generated_file import GeneratedFile
-from nodl_generator_common.provenance import resolve_provenance
+from nodl_generator_common.plan import CodegenError, CodegenPlanner, CodegenSchema, Walk, plan
 from nodl_generator_cpp.cmake_deps import (
     format_cmake_deps,
     generated_filenames,
@@ -14,18 +15,80 @@ from nodl_generator_cpp.cmake_deps import (
 from nodl_generator_cpp.include_prefix import validate_include_prefix
 from nodl_generator_cpp.models import CodegenCpp, Role
 from nodl_generator_cpp.params import generate_genparamlib_yaml
-from nodl_generator_cpp.provenance import codegen_cpp
 from nodl_generator_cpp.template import render_templates
+from nodl_schema.loader import IncludedDocument
 
 _IDENTIFIER_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
+CODEGEN_CPP_SCHEMA = CodegenSchema(
+    key='cpp',
+    schema=Path(__file__).parent / 'schemas' / 'codegen_cpp.schema.yaml',
+    parse=CodegenCpp.parse_obj,
+)
 
-class CodegenError(Exception):
-    """Raised when codegen-specific validation fails.
 
-    Covers provenance errors such as conflicting base classes,
-    missing codegen metadata, and unsupported codegen roles.
+@dataclass(frozen=True)
+class BaseClass:
+    """The C++ class the generated class inherits from, and the header that declares it."""
+
+    class_name: str
+    header: str
+
+
+class CppPlanner(CodegenPlanner[CodegenCpp]):
+    """Find the base class, and generate every included document without ``codegen.cpp``.
+
+    The walk stops at an included document with ``codegen.cpp``, since it already has an implementation.
+    ``BASE_CLASS`` contributes its class, and ``NO_GENERATE`` contributes nothing.
+    :meth:`finalize` sets :attr:`base_class` to the single base class.
     """
+
+    def __init__(self) -> None:
+        self.base_classes: list[CodegenCpp] = []
+        self._base_class: Optional[BaseClass] = None
+
+    @property
+    def base_class(self) -> BaseClass:
+        """The single base class.
+
+        Raises :class:`RuntimeError` before :meth:`finalize` sets it.
+        """
+        if self._base_class is None:
+            raise RuntimeError('base_class is not set until finalize() succeeds')
+        return self._base_class
+
+    def root(self, config: Optional[CodegenCpp]) -> None:
+        pass
+
+    def visit(self, included: IncludedDocument, config: Optional[CodegenCpp]) -> Walk:
+        if config is None:
+            return Walk.CONTINUE
+        if config.role is Role.BASE_CLASS:
+            self.base_classes.append(config)
+        return Walk.STOP
+
+    def finalize(self) -> None:
+        """Set :attr:`base_class` to the single base class.
+
+        Raises :class:`CodegenError` if there is no base class,
+        if multiple conflicting base classes are found,
+        or if the base class is missing its ``class`` or ``header``.
+        """
+        if not self.base_classes:
+            raise CodegenError(
+                'No base class found. Include a base-class provider '
+                '(e.g. nodl://nodl_common_interfaces/node) in your NoDL document.'
+            )
+        if len(self.base_classes) > 1:
+            classes = ', '.join(b.class_ for b in self.base_classes if b.class_ is not None)
+            raise CodegenError(
+                f'Multiple conflicting base class providers found: {classes}. '
+                'A generated node can only inherit from one base class.'
+            )
+        base = self.base_classes[0]
+        if base.class_ is None or base.header is None:
+            raise CodegenError('The base class provider must declare both class and header.')
+        self._base_class = BaseClass(class_name=base.class_, header=base.header)
 
 
 def _validate_target_name(target_name: str) -> None:
@@ -36,34 +99,6 @@ def _validate_target_name(target_name: str) -> None:
     """
     if not target_name or not _IDENTIFIER_RE.match(target_name):
         raise ValueError(f'target_name must be a valid C++ identifier, got {target_name!r}')
-
-
-def _find_base_class_config(barriers: list[CodegenCpp]) -> tuple[str, str]:
-    """Find the single base-class config from the provenance barriers.
-
-    Filters *barriers* to those with ``role == BASE_CLASS`` and ensures
-    exactly one exists.
-
-    Returns ``(class, header)`` — the C++ class name and its header.
-
-    Raises :class:`CodegenError` if there is no base class or if
-    multiple conflicting base classes are found.
-    """
-    base_classes = [b for b in barriers if b.role is Role.BASE_CLASS]
-    if not base_classes:
-        raise CodegenError(
-            'No base class found. Include a base-class provider '
-            '(e.g. nodl://nodl_common_interfaces/node) in your NoDL document.'
-        )
-    if len(base_classes) > 1:
-        classes = ', '.join(b.class_ for b in base_classes if b.class_ is not None)
-        raise CodegenError(
-            f'Multiple conflicting base class providers found: {classes}. '
-            'A generated node can only inherit from one base class.'
-        )
-    assert base_classes[0].class_ is not None
-    assert base_classes[0].header is not None
-    return base_classes[0].class_, base_classes[0].header
 
 
 @dataclass
@@ -82,7 +117,7 @@ class CmakeDepsResult:
 def cmake_deps(source: Path, target_name: str, *, include_prefix: str | None = None) -> CmakeDepsResult:
     """Compute CMake dependency information from a NoDL document.
 
-    Runs the same load → provenance → filter pipeline as :func:`generate_cpp` but stops before template rendering.
+    Plans generation the same way as :func:`generate_cpp` but stops before template rendering.
 
     Returns a :class:`CmakeDepsResult` containing the NoDL source paths, ROS package dependencies,
     and the list of files the generator will produce.
@@ -91,22 +126,22 @@ def cmake_deps(source: Path, target_name: str, *, include_prefix: str | None = N
     _validate_target_name(target_name)
     validate_include_prefix(include_prefix)
 
-    resolved = resolve_provenance(source, codegen_cpp)
+    planner = CppPlanner()
+    planned = plan(source, CODEGEN_CPP_SCHEMA, planner)
+    doc = planned.doc
 
-    _find_base_class_config(resolved.barriers)  # validates single base class
-
-    has_parameters = len(resolved.entities.parameters) > 0
+    has_parameters = bool(doc.parameters)
 
     return CmakeDepsResult(
-        sources=resolved.sources,
+        sources=planned.sources,
         ros_deps=ros_deps(
-            resolved.barriers,
-            resolved.entities.publishers,
-            resolved.entities.subscriptions,
-            resolved.entities.service_servers,
-            resolved.entities.service_clients,
-            resolved.entities.action_servers,
-            resolved.entities.action_clients,
+            planner.base_class.header,
+            doc.publishers or [],
+            doc.subscriptions or [],
+            doc.service_servers or [],
+            doc.service_clients or [],
+            doc.action_servers or [],
+            doc.action_clients or [],
         ),
         generated_filenames=generated_filenames(target_name, has_parameters, include_prefix=include_prefix),
     )
@@ -116,8 +151,8 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
     """Generate C++ base-node class files from a NoDL document.
 
     Loads and resolves the NoDL document at *source* (a filesystem path),
-    walks the include tree for provenance, and renders the C++ header
-    and source files.
+    walks the include tree for the documents it owns and its base class,
+    and renders the C++ header and source files.
 
     When *include_prefix* is given, the header is placed under it and the source includes it from there.
     The ``filename`` of each returned file is relative to the output directory.
@@ -128,27 +163,28 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
     _validate_target_name(target_name)
     validate_include_prefix(include_prefix)
 
-    resolved = resolve_provenance(source, codegen_cpp)
+    planner = CppPlanner()
+    planned = plan(source, CODEGEN_CPP_SCHEMA, planner)
+    doc = planned.doc
+    base = planner.base_class
 
-    base_class, base_header = _find_base_class_config(resolved.barriers)
-
-    has_parameters = len(resolved.entities.parameters) > 0
+    has_parameters = bool(doc.parameters)
 
     generated_files = []
     generated_files += render_templates(
         target_name,
-        base_class,
-        base_header,
-        resolved.entities.publishers,
-        resolved.entities.subscriptions,
-        resolved.entities.service_servers,
-        resolved.entities.service_clients,
-        resolved.entities.action_servers,
-        resolved.entities.action_clients,
+        base.class_name,
+        base.header,
+        doc.publishers or [],
+        doc.subscriptions or [],
+        doc.service_servers or [],
+        doc.service_clients or [],
+        doc.action_servers or [],
+        doc.action_clients or [],
         has_parameters,
         include_prefix=include_prefix,
     )
     if has_parameters:
-        generated_files += [generate_genparamlib_yaml(target_name, resolved.entities.parameters)]
+        generated_files += [generate_genparamlib_yaml(target_name, doc.parameters)]
 
     return generated_files

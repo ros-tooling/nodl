@@ -5,99 +5,78 @@ A generator becomes "a config model + a schema + templates + a type mapping" and
 
 ## Modules
 
-- `provenance` — the include-tree barrier walk (`build_provenance_map`) and entity filtering (`filter_provided_entities`),
-  keyed by `EntityKey`. The walk takes an extractor callback that returns a document's parsed language config, or `None`;
-  the first document carrying config on each branch is a *barrier* that owns its whole subtree.
-  `resolve_provenance(source, extract_config)` is the one-call entry point most generators want:
-  it loads the document, walks provenance, and filters entities, returning a `ResolvedProvenance`
-  with the `barriers`, the surviving `entities`, and the resolved `sources` (the document plus its includes).
-  The three primitives stay public for generators that need finer control.
 - `generated_file` — the `GeneratedFile(filename, content)` dataclass every generator emits.
 - `naming` — language-agnostic name-case conversions (`camel_to_snake`, `to_member_name`).
 - `parameters` — expansion of flat dotted NoDL parameter names into nested generator input mappings.
+- `plan` — the document tree walk (`plan`, `walk_tree`), driven by a generator's `CodegenSchema` and `CodegenPlanner`.
 
 ## Writing a generator
 
 This section is the guide for authoring a new target-language generator (Python, Rust, …).
 `nodl_generator_cpp` is the reference implementation; file references below point into it.
 
-### What a generator does, end to end
+### Generation process
 
-A generator turns one NoDL document into a set of source files for a target language.
-Everything from parsing to include resolution to provenance is shared;
-the generator supplies only the language-specific pieces.
+A generator turns one NoDL root document into a set of source files for a target language.
+Parsing and include resolution are shared through `nodl_schema`;
+the generator decides what it generates and supplies the language-specific pieces.
 
-`nodl_generator_common` provides shared implementations of parts of this pipeline. Each step below is either marked **(common)** or **(generator)**.
+`nodl_generator_common` provides shared implementations of parts of this pipeline.
 
-1. **Parse the CLI** — **(generator)**
+1. **Parse the CLI**
    The generator owns its command line: the NoDL source, an output directory, a target name, and any language options.
    See `cli.py` / `__main__.py`. The generator manages this because the cli is the main interface for build-system integration.
 
-2. **Load and resolve the document** — **(common)**
-   `resolve_provenance(source, extract_config)` loads the document and its include tree (via the `nodl_schema` loader),
-   walks the tree for provenance, filters entities, and returns a `ResolvedProvenance`
-   (`barriers`, the `entities` to scaffold, and the resolved `sources`).
-   Steps 2a–2c happen inside this one call.
+1. **Plan what to generate**
+   `plan(source, codegen, planner)` loads and validates the document, resolves its include tree,
+   and walks the tree breadth-first from the root.
+   It returns a `CodegenPlan`: the merged document to generate, and the source files the build system watches.
 
-   - 2a. **Detect barriers** — **(generator predicate, common walk)**
-     The walk calls the generator's `extract_config` predicate on each document.
-     This pure `NodlDocument -> Optional[Config]` selects and parses the generator's `codegen.<lang>` key,
-     returning `None` when the document carries none.
-     A document for which it returns non-`None` is a *barrier* that owns its whole subtree.
-     That predicate *is* the definition of a barrier for your language; it is the only thing the core needs from you.
+   The generator supplies the rest:
+   - A `CodegenSchema`: its `codegen.<lang>` key, the JSON schema file for it, and a `parse` function into a typed model.
+     `parse` may raise `jsonschema.ValidationError` for checks the schema cannot express.
+   - A `CodegenPlanner`, which receives each reached document's parsed config.
+     `root` sees the root document, which is always generated.
+     `visit` sees each included document and returns `Walk.CONTINUE` to generate it and walk into its includes,
+     or `Walk.STOP` to do neither.
+     `finalize` checks what the walk found against the language's rules
+     (e.g. how many documents of a given role are allowed, which are required, which combinations conflict),
+     raising the generator's own error type, and completes the planner's results, such as the base class.
+     The generator reads those from the planner after `plan` returns.
 
-   - 2b. **Attribute and filter entities** — **(common)**
-     Every entity behind a barrier is already implemented by a base or dependency, so the core filters it out;
-     what remains in `entities` is exactly what the generator must scaffold.
+   See `CppPlanner` in `nodl_generator_cpp/generate.py`.
 
-   - 2c. **Collect sources** — **(common)**
-     The resolved root path plus every transitive include, for build-system file watching.
-
-3. **Validate language policy** — **(generator)**
-   The core never rejects a document; whether the resolved barriers form a *valid* target for your language is your rule
-   (e.g. how many barriers of a given role are allowed, which are required, which combinations conflict),
-   raised as your own error type.
-
-4. **Map ROS-domain values to the target language** — **(generator)**
+1. **Map ROS-domain values to the target language**
    Convert interface types, QoS, and names into finished language strings with pure, doctested functions
    (`ros_to_cpp.py`). Language-agnostic name conversions are reused from `nodl_generator_common.naming` (`camel_to_snake`, `to_member_name`); language-specific ones stay local (e.g. `to_class_name`).
 
-5. **Build the template context and render** — **(generator)**
+1. **Build the template context and render**
    Assemble a flat context of already-converted strings in one place and render the templates.
    Templates should contain no conversion logic.
 
-6. **Return generated files** — **(common type, generator content)**
+1. **Return generated files**
    Rendering returns `list[GeneratedFile]` (`GeneratedFile(filename, content)` from `generated_file`).
    The core produces data, not side effects.
 
-7. **Write to disk** — **(generator)**
+1. **Write to disk**
    Only the CLI/build glue touches the filesystem, writing each `GeneratedFile` into the output directory.
 
-### Principles that fall out of this
+### Design Principles
 
-- **Return data, never write files from the core.**
-  The generation core returns `GeneratedFile`s; only the CLI writes them.
-  This keeps the core usable and testable from a shell or REPL with no knowledge of the larger build system.
+- **Return data, never write files from the generator implementation.**
+  The generator library returns `GeneratedFile`s, only the interface (CLI, build glue) writes them.
+  This keeps the core logic flexible and testable.
 
 - **The `codegen.<lang>` schema is the single source of truth.**
-  It is opaque to `nodl_schema`: its schema and meaning are owned entirely by the generator.
-  Ship a JSON schema, validate against it in your loader, and generate the config model from it
-  rather than hand-writing a second copy of the same contract (e.g. `datamodel-codegen` to produce `models.py` from the schema).
+  This subschema is owned by the generator, its contents are opaque to `nodl_schema`.
+  Ship a JSON schema, validate against it in your loader, and generate the config model from it.
 
 - **Keep templates dumb; pre-convert in the context builder.**
   Render with strict, fail-loud settings (e.g. `StrictUndefined` with `trim_blocks`/`lstrip_blocks`) so a missing value is an error, not silent empty output.
 
-- **Make the type mapping pure and doctested.**
-  The smell test: each conversion is callable and verifiable from a REPL on its own.
-
-- **Put policy in the generator, not the core.**
-  Different target languages disagree on validity rules, so encoding any of them in the core
-  would leak one language's policy into all the others.
-
 - **Make output deterministic.**
   Generated files are never hand-edited — they are regenerated whenever the NoDL source changes.
-  Sort and deduplicate anything with no inherent order (includes, dependency lists) so output is stable;
-  this is what makes golden tests reliable and keeps rebuilds from churning.
+  Sort and deduplicate anything with no inherent order (includes, dependency lists) so output is stable.
 
 - **Test with goldens.**
   Drive end-to-end tests from `test/golden/<case>/input.nodl.yaml` to a checked-in `expected/` tree.
@@ -105,6 +84,6 @@ the generator supplies only the language-specific pieces.
 
 ## Relationship to other packages
 
-A generator such as `nodl_generator_cpp` keeps its own config model, JSON schema, templates, and type mapping,
-and passes a thin adapter selecting its `codegen.<lang>` key into `build_provenance_map`.
-The shared core stays generic so a second generator (Python, Rust, …) reuses it instead of re-implementing the include-tree analysis.
+A generator such as `nodl_generator_cpp` keeps its own config model, JSON schema, templates, type mapping,
+and the walk over the include tree that interprets its `codegen.cpp` roles.
+This package holds only what is identical across languages.

@@ -24,7 +24,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_generator test/test_generator.py)
   ament_add_pytest_test(test_schema test/test_schema.py)
-  ament_add_pytest_test(test_provenance test/test_provenance.py)
+  ament_add_pytest_test(test_doc_tree test/test_doc_tree.py)
 endif()
 
 ament_package(

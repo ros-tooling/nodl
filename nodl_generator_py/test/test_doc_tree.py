@@ -1,13 +1,13 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Include-resolution and Python provider tests."""
+"""Document-tree walk and Python provider tests."""
 
 from pathlib import Path
 
 import pytest
 
+from nodl_generator_common.plan import CodegenError
 from nodl_generator_py import generate_python
-from nodl_generator_py.generator import CodegenError
 
 
 def _write(path: Path, content: str) -> Path:

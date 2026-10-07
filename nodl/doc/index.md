@@ -32,7 +32,7 @@ Documentation for these packages is available:
 - [`ament_nodl`](_generated/packages/ament_nodl/overview) — CMake integration for registering NoDL documents and checking live-node conformance with `colcon test`.
 - [`nodl_common_interfaces`](_generated/packages/nodl_common_interfaces/overview) — language-independent NoDL descriptions for the standard ROS 2 node and lifecycle-node base types, with C++ and Python code-generation metadata.
 - [`nodl_docgen`](_generated/packages/nodl_docgen/overview) — Tools to generate documentation from NoDL documents.
-- [`nodl_generator_common`](_generated/packages/nodl_generator_common/overview) — language-agnostic code-generation core shared by NoDL generators: include-tree provenance, entity filtering, ament dependency emission, and naming utilities.
+- [`nodl_generator_common`](_generated/packages/nodl_generator_common/overview) — Language-agnostic code generator logic shared by NoDL generators.
 - [`nodl_generator_cpp`](_generated/packages/nodl_generator_cpp/overview) — C++ code generation from NoDL documents: generates an abstract base class with all endpoint wiring, delegating parameters to `generate_parameter_library`.
 - [`nodl_generator_py`](_generated/packages/nodl_generator_py/overview) — Python code generation from NoDL documents: generates an `rclpy` base class at build time.
 - [`nodl_observe`](_generated/packages/nodl_observe/overview) — observe a running node and produce its runtime description as a `rosgraph_msgs/Node` message; the library behind `ros2 nodl describe`.

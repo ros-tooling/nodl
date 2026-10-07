@@ -13,7 +13,7 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
   - [doc/](./nodl/doc/): Documentation source for the ReadTheDocs page
 - [nodl_common_interfaces/](./nodl_common_interfaces/): Language-independent NoDL descriptions for the standard ROS 2 node and lifecycle-node base types, with C++ and Python code-generation metadata.
 - [nodl_docgen/](./nodl_docgen/): Sphinx extension rendering a NoDL document into a documentation page at build time.
-- [nodl_generator_common/](./nodl_generator_common/): Language-agnostic code-generation core shared by NoDL generators — include-tree provenance, entity filtering, ament dependency emission, and naming utilities.
+- [nodl_generator_common/](./nodl_generator_common/): Language-agnostic code generator logic shared by NoDL generators.
 - [nodl_generator_cpp/](./nodl_generator_cpp/): C++ code generator — produces an abstract base class from a NoDL document, with a CMake macro for build integration.
 - [nodl_generator_py/](./nodl_generator_py/): Python code generator — produces an `rclpy` base class from a NoDL document at build time.
 - [nodl_observe/](./nodl_observe/): C++ (`ament_cmake`) package that observes a running ROS 2 node and produces its runtime interface as a `rosgraph_msgs/Node` message — a reusable `observe_node(...)` library plus an `observe` executable. Stage one of Observe → Describe.

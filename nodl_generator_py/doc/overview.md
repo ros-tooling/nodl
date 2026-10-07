@@ -138,8 +138,10 @@ The constructor accepts keyword arguments and forwards them to the selected `rcl
 ## Includes and lifecycle nodes
 
 The file-based CLI and `nodl_generate_py()` resolve the complete include tree.
-An included document with `codegen.python.role: BASE_CLASS` selects the generated class's base and acts as an implementation barrier.
-An included document with `codegen.python.role: NO_GENERATE` acts as a barrier without selecting a base:
+An included document with `codegen.python` is a provider: it already has an implementation,
+so the generator does not generate it or walk into its includes.
+A provider with `codegen.python.role: BASE_CLASS` also selects the generated class's base.
+A provider with `codegen.python.role: NO_GENERATE` does not select a base:
 
 ```yaml
 codegen:
@@ -149,7 +151,7 @@ codegen:
 
 `NO_GENERATE` takes no `module`, `class`, or `publisher_method` fields.
 Entities supplied by either kind of provider and all of its transitive includes are not generated again.
-A nested `BASE_CLASS` behind a `NO_GENERATE` barrier is hidden from the generator.
+A `BASE_CLASS` included by a `NO_GENERATE` provider is hidden from the generator.
 At most one Python base provider may be visible.
 Documents without a visible Python base provider keep the implicit `rclpy.node.Node` base.
 The root being generated should not carry codegen metadata; roles describe included provider documents.

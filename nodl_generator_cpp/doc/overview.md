@@ -247,11 +247,13 @@ The generated class uses visibility to separate concerns:
 
 Entity names are sanitised for use as C++ identifiers: leading `~/` or `/` is stripped, remaining `/` becomes `_`.
 
-## Base class and provenance
+## Base class and includes
 
-The generator does not hardcode what class to inherit from.
-Instead, it walks the NoDL document's include tree to determine the base class and to filter out entities that are
-already provided by an existing implementation.
+When generating a node, the generator walks the NoDL document tree to find a `BASE_CLASS` role document.
+The metadata there informs which base class (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`, or a custom class) this node implementation inherits from.
+
+Included documents' roles inform the generator what entities need to be generated, and which do not.
+For example, the base class already provides its interface, so those endpoints should not be created by the generator.
 
 ### The `codegen.cpp` metadata
 
@@ -301,21 +303,26 @@ codegen:
 `NO_GENERATE` takes no `class` or `header` fields.
 The root being generated should not carry this metadata; the role describes included provider documents.
 
-### Barriers and entity filtering
+### Walking the include tree
 
-An included document that carries `codegen.cpp`, with either role, is an **implementation barrier**.
-All entities it declares — and all entities in documents *it* transitively includes — are *provided*: the existing
-implementation already handles them, so the generator filters them out.
+The generator walks the include tree from the root and decides, for each included document, by its `codegen.cpp`:
+
+| Included document | Generated | Walk continues into its includes |
+|---|---|---|
+| No `codegen.cpp` | Yes | Yes |
+| `role: BASE_CLASS` | No, its class becomes the base | No |
+| `role: NO_GENERATE` | No | No |
+
+An included document with `codegen.cpp` is a **provider**: an existing implementation handles it and everything it includes,
+so the generator does not look inside.
+The root and every document without `codegen.cpp` are merged into the one document the generator scaffolds.
 
 ```
 root (being generated — no codegen)
- ├── include: nodl://nodl_common_interfaces/node   [has codegen → barrier]
- │    → /rosout, /parameter_events, …               filtered out
+ ├── include: nodl://nodl_common_interfaces/node   [BASE_CLASS → provider]
+ │    → /rosout, /parameter_events, …               not generated
  └── own: /status                                   scaffolded
 ```
-
-The generator builds a provenance map: each entity maps to the `codegen.cpp` of its provider, or is absent (meaning
-the generator must scaffold it).
 
 ### Inheritance chains
 
@@ -324,16 +331,15 @@ A base-class provider can itself include another base class.
 
 ```
 root (being generated)
- └── include: nodl://nodl_common_interfaces/lifecycle_node   [codegen: BASE_CLASS → barrier]
-      └── include: nodl://nodl_common_interfaces/node        [codegen: BASE_CLASS, behind barrier]
-           → /rosout, /parameter_events, …                    all attributed to lifecycle_node
+ └── include: nodl://nodl_common_interfaces/lifecycle_node   [codegen: BASE_CLASS → provider]
+      └── include: nodl://nodl_common_interfaces/node        [codegen: BASE_CLASS, not visited]
+           → /rosout, /parameter_events, …                    provided by lifecycle_node
 ```
 
-The inner `rclcpp::Node` sits behind `LifecycleNode`'s barrier, so all of Node's entities are attributed to
-LifecycleNode.
-The generator sees exactly one base class — the outermost barrier — and inherits from it.
+The walk stops at `LifecycleNode`, so it never visits the inner `rclcpp::Node`.
+The generator sees exactly one base class, the outermost provider, and inherits from it.
 
-A `NO_GENERATE` barrier also owns its complete subtree.
+The walk also stops at a `NO_GENERATE` provider.
 If it transitively includes a `BASE_CLASS`, that base is hidden from the generator.
 The root must include another visible `BASE_CLASS` provider or C++ generation fails with the normal no-base-class error.
 
@@ -348,7 +354,7 @@ root
  └── include: nodl://nodl_common_interfaces/lifecycle_node   [codegen: BASE_CLASS]
 ```
 
-These are siblings; neither is behind the other's barrier.
+These are siblings, so the walk reaches both.
 
 ### No base class
 
@@ -374,8 +380,8 @@ protected:
   my_node::Params params_;
 ```
 
-Parameters declared by included documents behind a barrier (e.g. `use_sim_time` from `rclcpp::Node`) are filtered
-out and do not appear in the genparamlib YAML or the generated header.
+Parameters declared by providers and their includes (e.g. `use_sim_time` from `rclcpp::Node`) are not generated,
+and do not appear in the genparamlib YAML or the generated header.
 
 ## CLI reference
 
@@ -407,7 +413,7 @@ python -m nodl_generator_cpp \
   --cmake-deps
 ```
 
-The `--cmake-deps` flag runs the same load → provenance → filter pipeline as the full generator but stops before
+The `--cmake-deps` flag loads and walks the document the same way as the full generator but stops before
 template rendering.
 It writes a `<target>_deps.cmake` file containing three CMake variables:
 

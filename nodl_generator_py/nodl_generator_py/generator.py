@@ -9,20 +9,18 @@ import json
 import keyword
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 import jinja2
 import yaml
+from jsonschema import ValidationError
 
 from nodl_generator_common.naming import to_member_name
 from nodl_generator_common.parameters import nest_dotted_parameters
-from nodl_generator_common.provenance import resolve_provenance
+from nodl_generator_common.plan import CodegenError, CodegenPlanner, CodegenSchema, Walk, plan
 from nodl_generator_py.models import CodegenPython, Role
-from nodl_generator_py.provenance import codegen_python
+from nodl_schema.loader import IncludedDocument
 from nodl_schema.models import NodlDocument
-
-
-class CodegenError(Exception):
-    """Raised when Python code-generation configuration is invalid."""
 
 
 @dataclass(frozen=True)
@@ -154,22 +152,59 @@ def generate_parameter_yaml(doc: NodlDocument, target_name: str) -> str | None:
     return yaml.safe_dump({_target_to_node_name(target_name): parameters}, default_flow_style=False, sort_keys=False)
 
 
-def _find_base_class_config(barriers: list[CodegenPython]) -> CodegenPython:
-    """Select the one visible provider, or the compatible implicit Node base."""
-    base_classes = [barrier for barrier in barriers if barrier.role is Role.BASE_CLASS]
-    if not base_classes:
-        return _DEFAULT_BASE
-    if len(base_classes) > 1:
-        classes = ', '.join(base.class_ for base in base_classes if base.class_ is not None)
-        raise CodegenError(
-            f'Multiple conflicting Python base class providers found: {classes}. '
-            'A generated node can only inherit from one base class.'
-        )
-    base = base_classes[0]
-    assert base.module is not None
-    assert base.class_ is not None
-    assert base.publisher_method is not None
-    return base
+def _parse_codegen_python(config: dict) -> CodegenPython:
+    """Parse schema-valid ``codegen.python`` metadata, rejecting Python keywords as names."""
+    names = config['module'].split('.') if 'module' in config else []
+    names += [config[field] for field in ('class', 'publisher_method') if field in config]
+    invalid = next((name for name in names if keyword.iskeyword(name)), None)
+    if invalid is not None:
+        raise ValidationError(f'{invalid!r} is a Python keyword, not a valid codegen.python name')
+    return CodegenPython.parse_obj(config)
+
+
+CODEGEN_PY_SCHEMA = CodegenSchema(
+    key='python',
+    schema=Path(__file__).parent / 'schemas' / 'codegen_python.schema.yaml',
+    parse=_parse_codegen_python,
+)
+
+
+class PythonPlanner(CodegenPlanner[CodegenPython]):
+    """Find the base class, and generate every included document without ``codegen.python``.
+
+    The walk stops at an included document with ``codegen.python``, since it already has an implementation.
+    ``BASE_CLASS`` contributes its class, and ``NO_GENERATE`` contributes nothing.
+    :meth:`finalize` sets :attr:`base_class` to the single base class,
+    or keeps the implicit ``rclpy.node.Node`` base if there is none.
+    """
+
+    def __init__(self) -> None:
+        self.base_classes: list[CodegenPython] = []
+        self.base_class: CodegenPython = _DEFAULT_BASE
+
+    def root(self, config: Optional[CodegenPython]) -> None:
+        pass
+
+    def visit(self, included: IncludedDocument, config: Optional[CodegenPython]) -> Walk:
+        if config is None:
+            return Walk.CONTINUE
+        if config.role is Role.BASE_CLASS:
+            self.base_classes.append(config)
+        return Walk.STOP
+
+    def finalize(self) -> None:
+        """Set :attr:`base_class` to the single base class, if there is one.
+
+        Raises :class:`CodegenError` if multiple base classes are found.
+        """
+        if len(self.base_classes) > 1:
+            classes = ', '.join(base.class_ for base in self.base_classes if base.class_ is not None)
+            raise CodegenError(
+                f'Multiple conflicting Python base class providers found: {classes}. '
+                'A generated node can only inherit from one base class.'
+            )
+        if self.base_classes:
+            self.base_class = self.base_classes[0]
 
 
 def _render_python(
@@ -177,7 +212,7 @@ def _render_python(
     target_name: str,
     base: CodegenPython = _DEFAULT_BASE,
 ) -> str:
-    """Render an already resolved and filtered document."""
+    """Render an already resolved document of only the entities to generate."""
     if doc.include:
         raise NotImplementedError('_render_python requires a resolved, flat NoDL document')
     if not target_name.isidentifier() or keyword.iskeyword(target_name):
@@ -228,22 +263,12 @@ def _render_python(
 
 def generate_python(source: Path, target_name: str) -> PythonGeneration:
     """Resolve includes and generate Python content from a NoDL source file."""
-    resolved = resolve_provenance(source, codegen_python)
-    base = _find_base_class_config(resolved.barriers)
-    entities = resolved.entities
-    doc = NodlDocument(
-        publishers=entities.publishers,
-        subscriptions=entities.subscriptions,
-        service_servers=entities.service_servers,
-        service_clients=entities.service_clients,
-        action_servers=entities.action_servers,
-        action_clients=entities.action_clients,
-        parameters=entities.parameters,
-    )
+    planner = PythonPlanner()
+    planned = plan(source, CODEGEN_PY_SCHEMA, planner)
     return PythonGeneration(
-        module=_render_python(doc, target_name, base),
-        parameters_yaml=generate_parameter_yaml(doc, target_name),
-        sources=resolved.sources,
+        module=_render_python(planned.doc, target_name, planner.base_class),
+        parameters_yaml=generate_parameter_yaml(planned.doc, target_name),
+        sources=planned.sources,
     )
 
 
