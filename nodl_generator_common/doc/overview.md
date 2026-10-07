@@ -8,6 +8,7 @@ A generator becomes "a config model + a schema + templates + a type mapping" and
 - `generated_file` — the `GeneratedFile(filename, content)` dataclass every generator emits.
 - `naming` — language-agnostic name-case conversions (`camel_to_snake`, `to_member_name`).
 - `parameters` — expansion of flat dotted NoDL parameter names into nested generator input mappings.
+- `plan` — the document tree walk (`plan`, `walk_tree`), driven by a generator's `CodegenSchema` and `CodegenPlanner`.
 
 ## Writing a generator
 
@@ -26,23 +27,24 @@ the generator decides what it generates and supplies the language-specific piece
    The generator owns its command line: the NoDL source, an output directory, a target name, and any language options.
    See `cli.py` / `__main__.py`. The generator manages this because the cli is the main interface for build-system integration.
 
-1. **Load and resolve the document**
-   `nodl_schema.loader.load_nodl_with_doc_tree(source)` loads and validates the document,
-   resolves its include tree, and returns the merged document alongside the unmerged `DocumentTree`.
-   Merging the whole tree reports name collisions anywhere in it.
-   The tree's `included_paths()` plus the source are the files the build system watches.
+1. **Plan what to generate**
+   `plan(source, codegen, planner)` loads and validates the document, resolves its include tree,
+   and walks the tree breadth-first from the root.
+   It returns a `CodegenPlan`: the merged document to generate, and the source files the build system watches.
 
-1. **Walk the tree and decide what to generate**
-   Walk the `DocumentTree` and read your `codegen.<lang>` key on each included document.
-   Its schema and roles are yours, so the walk is too:
-   it decides which documents you generate, which already have an implementation (and whether to look inside them),
-   and what each contributes, such as a base class.
-   Merge the documents you generate with `nodl_schema.composition.merge_documents`.
-   See `_plan_tree` in `nodl_generator_cpp/generate.py`.
+   The generator supplies the rest:
+   - A `CodegenSchema`: its `codegen.<lang>` key, the JSON schema file for it, and a `parse` function into a typed model.
+     `parse` may raise `jsonschema.ValidationError` for checks the schema cannot express.
+   - A `CodegenPlanner`, which receives each reached document's parsed config.
+     `root` sees the root document, which is always generated.
+     `visit` sees each included document and returns `Walk.CONTINUE` to generate it and walk into its includes,
+     or `Walk.STOP` to do neither.
+     `finalize` checks what the walk found against the language's rules
+     (e.g. how many documents of a given role are allowed, which are required, which combinations conflict),
+     raising the generator's own error type, and completes the planner's results, such as the base class.
+     The generator reads those from the planner after `plan` returns.
 
-1. **Validate language policy**
-   Find out whether the results of the walk produces a valid target for your language
-   (e.g. how many documents of a given role are allowed, which are required, which combinations conflict),
+   See `CppPlanner` in `nodl_generator_cpp/generate.py`.
 
 1. **Map ROS-domain values to the target language**
    Convert interface types, QoS, and names into finished language strings with pure, doctested functions

@@ -4,7 +4,7 @@
 """Error-path tests for nodl_generator_cpp.
 
 Tests that ``generate_cpp`` rejects invalid inputs with the correct
-exception types.  Provenance and codegen-semantic errors raise
+exception types.  Planning errors raise
 :class:`CodegenError`; upstream schema/resolution errors propagate
 unchanged; bad ``target_name`` values raise :class:`ValueError`.
 
@@ -14,7 +14,8 @@ Document-construction helpers follow the same pattern as
 
 import pytest
 
-from nodl_generator_cpp.generate import CodegenError, generate_cpp
+from nodl_generator_common.plan import CodegenError
+from nodl_generator_cpp.generate import generate_cpp
 from nodl_schema import dump_nodl
 from nodl_schema.models import (
     History,
@@ -66,7 +67,7 @@ _TARGET = 'my_node'
 
 
 # ---------------------------------------------------------------------------
-# Provenance errors (CodegenError)
+# Planning errors (CodegenError)
 # ---------------------------------------------------------------------------
 
 

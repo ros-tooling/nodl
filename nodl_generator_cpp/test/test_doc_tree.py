@@ -2,14 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for how the C++ generator walks the document tree.
 
-``_plan_tree`` splits the tree into base classes and the merged document the generator owns.
+:class:`CppPlanner` finds the base classes, and the walk merges the documents it generates.
 """
 
 from pathlib import Path
 
 import pytest
 
-from nodl_generator_cpp.generate import CodegenError, _plan_tree, cmake_deps, generate_cpp
+from nodl_generator_common.plan import CodegenError, walk_tree
+from nodl_generator_cpp.generate import CODEGEN_CPP_SCHEMA, CppPlanner, cmake_deps, generate_cpp
 from nodl_schema import dump_nodl
 from nodl_schema.loader import DocumentTree, IncludedDocument
 from nodl_schema.models import History, NodlDocument, QosProfile, Reference, Reliability, TopicEndpoint
@@ -42,8 +43,14 @@ def _publishers(doc):
     return [p.name for p in doc.publishers or []]
 
 
+def _plan_tree(tree):
+    planner = CppPlanner()
+    doc = walk_tree(tree, CODEGEN_CPP_SCHEMA, planner)
+    return planner.base_classes, doc
+
+
 # ---------------------------------------------------------------------------
-# _plan_tree
+# Walking with CppPlanner
 # ---------------------------------------------------------------------------
 
 
@@ -117,6 +124,21 @@ def test_two_base_classes_are_both_returned():
     bases, _ = _plan_tree(tree)
 
     assert len(bases) == 2
+
+
+def test_base_class_is_set_by_finalize():
+    planner = CppPlanner()
+    walk_tree(
+        _tree(NodlDocument(), [_included('test://base', NodlDocument(codegen=_base_class_codegen()))]),
+        CODEGEN_CPP_SCHEMA,
+        planner,
+    )
+    with pytest.raises(RuntimeError, match='finalize'):
+        planner.base_class
+
+    planner.finalize()
+
+    assert planner.base_class.class_ == 'rclcpp::Node'
 
 
 # ---------------------------------------------------------------------------

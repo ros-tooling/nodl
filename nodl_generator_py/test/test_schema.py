@@ -5,8 +5,10 @@
 import pytest
 from jsonschema import ValidationError
 
+from nodl_generator_py.generator import CODEGEN_PY_SCHEMA
 from nodl_generator_py.models import CodegenPython, Role
-from nodl_generator_py.schema import load, validate
+
+load = CODEGEN_PY_SCHEMA.load
 
 
 def _base(**overrides):
@@ -54,7 +56,7 @@ def test_load_no_generate():
 )
 def test_invalid_metadata_fails(codegen):
     with pytest.raises(ValidationError):
-        validate(codegen)
+        load(codegen)
 
 
 @pytest.mark.parametrize(
@@ -67,7 +69,7 @@ def test_invalid_metadata_fails(codegen):
 )
 def test_no_generate_rejects_base_class_fields(field, value):
     with pytest.raises(ValidationError):
-        validate(_no_generate(**{field: value}))
+        load(_no_generate(**{field: value}))
 
 
 def test_other_language_metadata_is_ignored():

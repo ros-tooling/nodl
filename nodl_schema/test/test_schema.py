@@ -10,10 +10,9 @@ import pytest
 import yaml
 from jsonschema import ValidationError
 
-from nodl_schema import dump_nodl, parse_nodl, validate
+from nodl_schema import dump_nodl, load_schema, parse_nodl, validate
 from nodl_schema.models import NodlDocument
 from nodl_schema.parameters import _VALIDATORS
-from nodl_schema.validation import load_schema
 
 _MIN_QOS = {'history': 'SYSTEM_DEFAULT', 'reliability': 'SYSTEM_DEFAULT'}
 _KEEP_LAST_QOS = {'history': 'KEEP_LAST', 'depth': 10, 'reliability': 'RELIABLE'}

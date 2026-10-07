@@ -137,8 +137,8 @@ def _run(
         print(f'ros2 nodl describe: failed to interpret node: {exc}', file=sys.stderr)
         return 1
 
+    from nodl_schema import validate
     from nodl_schema.loader import dump_nodl
-    from nodl_schema.validation import validate
 
     try:
         validate(json.loads(result.doc.json(exclude_none=True)))

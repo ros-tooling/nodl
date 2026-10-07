@@ -1,11 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 import re
-from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from nodl_generator_common.generated_file import GeneratedFile
+from nodl_generator_common.plan import CodegenError, CodegenPlanner, CodegenSchema, Walk, plan
 from nodl_generator_cpp.cmake_deps import (
     format_cmake_deps,
     generated_filenames,
@@ -14,70 +15,68 @@ from nodl_generator_cpp.cmake_deps import (
 from nodl_generator_cpp.include_prefix import validate_include_prefix
 from nodl_generator_cpp.models import CodegenCpp, Role
 from nodl_generator_cpp.params import generate_genparamlib_yaml
-from nodl_generator_cpp.schema import load as load_codegen_cpp
 from nodl_generator_cpp.template import render_templates
-from nodl_schema.composition import merge_documents
-from nodl_schema.loader import DocumentTree, load_nodl_with_doc_tree
-from nodl_schema.models import NodlDocument
+from nodl_schema.loader import IncludedDocument
 
 _IDENTIFIER_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
+CODEGEN_CPP_SCHEMA = CodegenSchema(
+    key='cpp',
+    schema=Path(__file__).parent / 'schemas' / 'codegen_cpp.schema.yaml',
+    parse=CodegenCpp.parse_obj,
+)
 
-class CodegenError(Exception):
-    """Raised when codegen-specific validation fails.
 
-    Covers errors such as conflicting base classes,
-    missing codegen metadata, and unsupported codegen roles.
+class CppPlanner(CodegenPlanner[CodegenCpp]):
+    """Find the base class, and generate every included document without ``codegen.cpp``.
+
+    The walk stops at an included document with ``codegen.cpp``, since it already has an implementation.
+    ``BASE_CLASS`` contributes its class, and ``NO_GENERATE`` contributes nothing.
+    :meth:`finalize` sets :attr:`base_class` to the single base class.
     """
 
+    def __init__(self) -> None:
+        self.base_classes: list[CodegenCpp] = []
+        self._base_class: Optional[CodegenCpp] = None
 
-@dataclass(frozen=True)
-class _Plan:
-    """What the generator owns, read from the document tree.
+    @property
+    def base_class(self) -> CodegenCpp:
+        """The single base class.
 
-    - ``bases``: the ``BASE_CLASS`` configs of included documents the walk reached.
-    - ``doc``: the merged document of everything the generator owns,
-      which is the root plus every included document without ``codegen.cpp``.
-    - ``sources``: the resolved NoDL source path plus every included path.
-    """
+        Raises :class:`RuntimeError` before :meth:`finalize` sets it.
+        """
+        if self._base_class is None:
+            raise RuntimeError('base_class is not set until finalize() succeeds')
+        return self._base_class
 
-    bases: list[CodegenCpp]
-    doc: NodlDocument
-    sources: list[Path]
+    def root(self, config: Optional[CodegenCpp]) -> None:
+        pass
 
-
-def _plan_tree(doc_tree: DocumentTree) -> tuple[list[CodegenCpp], NodlDocument]:
-    """Walk *doc_tree* and split it into base classes and the document the generator owns.
-
-    An included document with ``codegen.cpp`` already has an implementation,
-    so the walk does not descend into it.
-    Its role decides what it contributes: ``BASE_CLASS`` its class, ``NO_GENERATE`` nothing.
-    Every other document is owned, and the walk continues into its includes.
-    The walk is breadth-first, matching the order of the fully merged document.
-    """
-    bases: list[CodegenCpp] = []
-    owned = [doc_tree.root_doc]
-    queue = deque(doc_tree.resolved_includes)
-    while queue:
-        included = queue.popleft()
-        config = load_codegen_cpp(included.doc.codegen) if included.doc.codegen else None
+    def visit(self, included: IncludedDocument, config: Optional[CodegenCpp]) -> Walk:
         if config is None:
-            owned.append(included.doc)
-            queue.extend(included.resolved_includes)
-        elif config.role is Role.BASE_CLASS:
-            bases.append(config)
-    return bases, merge_documents(owned)
+            return Walk.CONTINUE
+        if config.role is Role.BASE_CLASS:
+            self.base_classes.append(config)
+        return Walk.STOP
 
+    def finalize(self) -> None:
+        """Set :attr:`base_class` to the single base class.
 
-def _plan(source: Path) -> _Plan:
-    """Load *source* and plan generation from its document tree.
-
-    Loading still merges the whole tree, so name collisions anywhere in it are reported.
-    """
-    _, doc_tree = load_nodl_with_doc_tree(source)
-    bases, doc = _plan_tree(doc_tree)
-    sources = [source.resolve(), *(path.resolve() for path in doc_tree.included_paths())]
-    return _Plan(bases=bases, doc=doc, sources=sources)
+        Raises :class:`CodegenError` if there is no base class or if
+        multiple conflicting base classes are found.
+        """
+        if not self.base_classes:
+            raise CodegenError(
+                'No base class found. Include a base-class provider '
+                '(e.g. nodl://nodl_common_interfaces/node) in your NoDL document.'
+            )
+        if len(self.base_classes) > 1:
+            classes = ', '.join(b.class_ for b in self.base_classes if b.class_ is not None)
+            raise CodegenError(
+                f'Multiple conflicting base class providers found: {classes}. '
+                'A generated node can only inherit from one base class.'
+            )
+        self._base_class = self.base_classes[0]
 
 
 def _validate_target_name(target_name: str) -> None:
@@ -88,32 +87,6 @@ def _validate_target_name(target_name: str) -> None:
     """
     if not target_name or not _IDENTIFIER_RE.match(target_name):
         raise ValueError(f'target_name must be a valid C++ identifier, got {target_name!r}')
-
-
-def _find_base_class_config(base_classes: list[CodegenCpp]) -> tuple[str, str]:
-    """Find the single base-class config.
-
-    Ensures exactly one of *base_classes* exists.
-
-    Returns ``(class, header)`` — the C++ class name and its header.
-
-    Raises :class:`CodegenError` if there is no base class or if
-    multiple conflicting base classes are found.
-    """
-    if not base_classes:
-        raise CodegenError(
-            'No base class found. Include a base-class provider '
-            '(e.g. nodl://nodl_common_interfaces/node) in your NoDL document.'
-        )
-    if len(base_classes) > 1:
-        classes = ', '.join(b.class_ for b in base_classes if b.class_ is not None)
-        raise CodegenError(
-            f'Multiple conflicting base class providers found: {classes}. '
-            'A generated node can only inherit from one base class.'
-        )
-    assert base_classes[0].class_ is not None
-    assert base_classes[0].header is not None
-    return base_classes[0].class_, base_classes[0].header
 
 
 @dataclass
@@ -141,17 +114,16 @@ def cmake_deps(source: Path, target_name: str, *, include_prefix: str | None = N
     _validate_target_name(target_name)
     validate_include_prefix(include_prefix)
 
-    plan = _plan(source)
-    doc = plan.doc
-
-    _find_base_class_config(plan.bases)  # validates single base class
+    planner = CppPlanner()
+    planned = plan(source, CODEGEN_CPP_SCHEMA, planner)
+    doc = planned.doc
 
     has_parameters = bool(doc.parameters)
 
     return CmakeDepsResult(
-        sources=plan.sources,
+        sources=planned.sources,
         ros_deps=ros_deps(
-            plan.bases,
+            planner.base_class,
             doc.publishers or [],
             doc.subscriptions or [],
             doc.service_servers or [],
@@ -179,18 +151,20 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
     _validate_target_name(target_name)
     validate_include_prefix(include_prefix)
 
-    plan = _plan(source)
-    doc = plan.doc
-
-    base_class, base_header = _find_base_class_config(plan.bases)
+    planner = CppPlanner()
+    planned = plan(source, CODEGEN_CPP_SCHEMA, planner)
+    doc = planned.doc
+    base = planner.base_class
+    assert base.class_ is not None
+    assert base.header is not None
 
     has_parameters = bool(doc.parameters)
 
     generated_files = []
     generated_files += render_templates(
         target_name,
-        base_class,
-        base_header,
+        base.class_,
+        base.header,
         doc.publishers or [],
         doc.subscriptions or [],
         doc.service_servers or [],

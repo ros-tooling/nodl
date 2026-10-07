@@ -249,9 +249,11 @@ Entity names are sanitised for use as C++ identifiers: leading `~/` or `/` is st
 
 ## Base class and includes
 
-The generator does not hardcode what class to inherit from.
-Instead, it walks the NoDL document's include tree to find the base class,
-and to decide which documents it generates code for and which already have an implementation.
+When generating a node, the generator walks the NoDL document tree to find a `BASE_CLASS` role document.
+The metadata there informs which base class (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`, or a custom class) this node implementation inherits from.
+
+Included documents' roles inform the generator what entities need to be generated, and which do not.
+For example, the base class already provides its interface, so those endpoints should not be created by the generator.
 
 ### The `codegen.cpp` metadata
 

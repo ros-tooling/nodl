@@ -80,7 +80,6 @@ function(nodl_generate_py target nodl_file)
       "${_nodl_generator_py_package_dir}/cli.py"
       "${_nodl_generator_py_package_dir}/generator.py"
       "${_nodl_generator_py_package_dir}/models.py"
-      "${_nodl_generator_py_package_dir}/schema.py"
       "${_nodl_generator_py_package_dir}/schemas/codegen_python.schema.yaml"
       "${_nodl_generator_py_package_dir}/templates/node.py.jinja2"
     COMMENT "nodl_generate_py: generating ${target} from ${nodl_file}"

@@ -37,7 +37,7 @@ def _package_from_type(ros_type: str) -> str:
 
 
 def ros_deps(
-    bases: list[CodegenCpp],
+    base: CodegenCpp,
     publishers: list[TopicEndpoint],
     subscriptions: list[TopicEndpoint],
     service_servers: list[ServiceEndpoint],
@@ -49,7 +49,7 @@ def ros_deps(
 
     Sources:
 
-    - Every base class contributes the package of its ``header``
+    - The base class contributes the package of its ``header``
       (part before first ``/``).
     - Every generated entity contributes its message/service/action package
       (part before first ``/`` of its ``type``).
@@ -58,9 +58,8 @@ def ros_deps(
     """
     pkgs: set[str] = set()
 
-    for base in bases:
-        if base.header is not None:
-            pkgs.add(_package_from_header(base.header))
+    if base.header is not None:
+        pkgs.add(_package_from_header(base.header))
 
     all_entities: list[TopicEndpoint | ServiceEndpoint | ActionEndpoint] = [
         *publishers,
