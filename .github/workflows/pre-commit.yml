@@ -23,7 +23,7 @@ jobs:
       - uses: pre-commit/action@v3.0.1
 
   pr-title:
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
