@@ -38,6 +38,13 @@ definitions:
           C++ header to ``#include`` for the base class
           (e.g. ``rclcpp/rclcpp.hpp``).
         type: string
+      publisher_type:
+        description: |
+          Fully-qualified C++ publisher class template that the base class's ``create_publisher`` returns,
+          declared by ``header`` (e.g. ``rclcpp_lifecycle::LifecyclePublisher``).
+        type: string
+        pattern: ^[A-Za-z_][A-Za-z0-9_:]*$
+        default: rclcpp::Publisher
 
   codegen_no_generate:
     description: |

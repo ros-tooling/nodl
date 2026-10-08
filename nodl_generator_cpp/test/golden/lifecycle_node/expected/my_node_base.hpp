@@ -17,7 +17,7 @@ public:
 protected:
 
   // --- Publishers ---
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_status_;
+  rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr pub_status_;
 
   // --- Subscription callbacks ---
   virtual void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr msg) = 0;

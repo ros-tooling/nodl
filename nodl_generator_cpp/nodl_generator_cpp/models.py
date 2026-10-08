@@ -32,6 +32,10 @@ class CodegenBaseClass(BaseModel):
         ...,
         description='C++ header to ``#include`` for the base class\n(e.g. ``rclcpp/rclcpp.hpp``).\n',
     )
+    publisher_type: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_:]*$')] = Field(
+        'rclcpp::Publisher',
+        description="Fully-qualified C++ publisher class template that the base class's ``create_publisher`` returns,\ndeclared by ``header`` (e.g. ``rclcpp_lifecycle::LifecyclePublisher``).\n",
+    )
 
 
 class CodegenNoGenerate(BaseModel):
