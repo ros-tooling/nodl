@@ -73,8 +73,8 @@ def test_json_source_file_installed_as_yaml():
 
 def test_source_file_installed_under_override_package():
     # PACKAGE override redirects the source-file install to share/<override>/nodl/.
-    # The copy is named after the resource (custom_exe), not the source file (alt_pkg_node.nodl.yaml).
-    assert (_share('custom_pkg') / 'nodl' / 'custom_exe.nodl.yaml').is_file()
+    # The copy is named after the resource, not the source file (alt_pkg_node.nodl.yaml).
+    assert (_share('custom_pkg') / 'nodl' / 'custom_resource.nodl.yaml').is_file()
 
 
 def test_share_copies_are_named_after_the_resource_not_the_source_stem():
