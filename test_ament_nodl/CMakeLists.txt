@@ -14,7 +14,7 @@ ament_nodl_register(composed_node FILE test/fixtures/composed_node.nodl.yaml)
 ament_nodl_register(basic_node FILE test/fixtures/basic_node.nodl.yaml)
 
 # Explicit PACKAGE override. The resource key and install destination both pick it up.
-ament_nodl_register(custom_exe
+ament_nodl_register(custom_resource
   FILE test/fixtures/alt_pkg_node.nodl.yaml
   PACKAGE custom_pkg)
 

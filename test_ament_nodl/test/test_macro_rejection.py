@@ -18,14 +18,17 @@ from pathlib import Path
 
 import pytest
 
-_INNER_CMAKELISTS = textwrap.dedent("""
-    cmake_minimum_required(VERSION 3.22)
-    project(rejection_fixture)
-    find_package(ament_cmake REQUIRED)
-    find_package(ament_nodl REQUIRED)
-    ament_nodl_register(bad_exe FILE bad.nodl.yaml)
-    ament_package()
-""")
+
+def inner_cmakelists(body: str) -> str:
+    return textwrap.dedent(f"""
+        cmake_minimum_required(VERSION 3.22)
+        project(rejection_fixture)
+        find_package(ament_cmake REQUIRED)
+        find_package(ament_nodl REQUIRED)
+        {body}
+        ament_package()
+    """)
+
 
 _INNER_PACKAGE_XML = textwrap.dedent("""<?xml version="1.0"?>
     <package format="3">
@@ -57,7 +60,7 @@ _UNREGISTERED_INCLUDE_CMAKELISTS = textwrap.dedent("""
     project(unregistered_include_fixture)
     find_package(ament_cmake REQUIRED)
     find_package(ament_nodl REQUIRED)
-    ament_nodl_register(root_exe FILE root.nodl.yaml)
+    ament_nodl_register(root_resource FILE root.nodl.yaml)
     ament_package()
 """)
 
@@ -89,7 +92,7 @@ _LEAF_NODL = 'nodl_version: 2\n'
 def inner_pkg(tmp_path: Path) -> Path:
     pkg = tmp_path / 'rejection_fixture'
     pkg.mkdir()
-    (pkg / 'CMakeLists.txt').write_text(_INNER_CMAKELISTS)
+    (pkg / 'CMakeLists.txt').write_text(inner_cmakelists('ament_nodl_register(bad_resource FILE bad.nodl.yaml)'))
     (pkg / 'package.xml').write_text(_INNER_PACKAGE_XML)
     (pkg / 'bad.nodl.yaml').write_text(_INVALID_NODL)
     return pkg
@@ -152,7 +155,7 @@ def test_macro_rejects_unregistered_local_include(unregistered_include_pkg: Path
 
     assert configure.returncode != 0
     message = _unwrapped(configure.stderr)
-    assert 'unregistered_include_fixture__root_exe includes a local:// reference that is not registered' in message
+    assert 'unregistered_include_fixture__root_resource includes a local:// reference that is not registered' in message
     assert 'local reference local://leaf.nodl.yaml was not registered to rewrite' in message
     assert 'Register the included file with ament_nodl_register(<name> FILE <path>) in the same package' in message
 
@@ -179,9 +182,9 @@ def test_macro_rechecks_includes_when_a_registered_document_changes(unregistered
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
 def test_macro_rejects_duplicate_resource_name(inner_pkg: Path):
     (inner_pkg / 'CMakeLists.txt').write_text(
-        _INNER_CMAKELISTS.replace(
-            'ament_nodl_register(bad_exe FILE bad.nodl.yaml)',
-            'ament_nodl_register(dup_resource FILE first.nodl.yaml)\n    ament_nodl_register(dup_resource FILE second.nodl.yaml)',
+        inner_cmakelists(
+            'ament_nodl_register(dup_resource FILE first.nodl.yaml)\n'
+            'ament_nodl_register(dup_resource FILE second.nodl.yaml)'
         )
     )
     (inner_pkg / 'first.nodl.yaml').write_text(_LEAF_NODL)
@@ -197,9 +200,9 @@ def test_macro_rejects_duplicate_resource_name(inner_pkg: Path):
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
 def test_macro_rejects_same_file_under_two_names(inner_pkg: Path):
     (inner_pkg / 'CMakeLists.txt').write_text(
-        _INNER_CMAKELISTS.replace(
-            'ament_nodl_register(bad_exe FILE bad.nodl.yaml)',
-            'ament_nodl_register(first_resource FILE leaf.nodl.yaml)\n    ament_nodl_register(second_resource FILE leaf.nodl.yaml)',
+        inner_cmakelists(
+            'ament_nodl_register(first_resource FILE leaf.nodl.yaml)\n'
+            'ament_nodl_register(second_resource FILE leaf.nodl.yaml)'
         )
     )
     (inner_pkg / 'leaf.nodl.yaml').write_text(_LEAF_NODL)
@@ -213,9 +216,9 @@ def test_macro_rejects_same_file_under_two_names(inner_pkg: Path):
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
 def test_macro_rejects_same_file_spelled_through_a_symlink(inner_pkg: Path):
     (inner_pkg / 'CMakeLists.txt').write_text(
-        _INNER_CMAKELISTS.replace(
-            'ament_nodl_register(bad_exe FILE bad.nodl.yaml)',
-            'ament_nodl_register(first_resource FILE leaf.nodl.yaml)\n    ament_nodl_register(second_resource FILE link.nodl.yaml)',
+        inner_cmakelists(
+            'ament_nodl_register(first_resource FILE leaf.nodl.yaml)\n'
+            'ament_nodl_register(second_resource FILE link.nodl.yaml)'
         )
     )
     (inner_pkg / 'leaf.nodl.yaml').write_text(_LEAF_NODL)

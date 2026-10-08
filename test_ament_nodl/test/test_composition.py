@@ -50,16 +50,16 @@ def test_included_qos_survives_the_round_trip(tmp_path):
 
 
 def test_include_follows_the_package_override_in_the_resource_key(tmp_path):
-    # custom_exe is registered with PACKAGE custom_pkg, so the URI must name custom_pkg.
+    # custom_resource is registered with PACKAGE custom_pkg, so the URI must name custom_pkg.
     # It declares no entities, so this asserts only that the lookup found it.
     source = tmp_path / 'custom_pkg.nodl.yaml'
-    source.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://custom_pkg/custom_exe\n')
+    source.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://custom_pkg/custom_resource\n')
     doc = load_nodl(source)
     assert doc.include is None
 
     # The same name under this package is a different key, and nothing registered it.
     missing = tmp_path / 'missing.nodl.yaml'
-    missing.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/custom_exe\n')
+    missing.write_text('nodl_version: 2\ninclude:\n  - ref: nodl://test_ament_nodl/custom_resource\n')
     with pytest.raises(ResolutionError):
         load_nodl(missing)
 
