@@ -51,8 +51,10 @@ if(BUILD_TESTING)
     ENV BUILD_DIR=${CMAKE_BINARY_DIR}
   )
 
+  # Each Python fixture document is registered with the ament index under its target name.
+  # The pub_sub fixture overrides it with RESOURCE_NAME, and the services fixture passes NO_INDEX.
   function(add_python_fixture fixture target)
-    nodl_generate_py(${target} ${fixture}/py/node.nodl.yaml)
+    nodl_generate_py(${target} ${fixture}/py/node.nodl.yaml ${ARGN})
     set(pythonpath "${CMAKE_CURRENT_BINARY_DIR}/nodl_generated/${target}")
     string(APPEND pythonpath ":${CMAKE_CURRENT_SOURCE_DIR}/${fixture}/py")
     ament_add_pytest_test(
@@ -62,8 +64,8 @@ if(BUILD_TESTING)
   endfunction()
 
   add_python_fixture(minimal minimal_node_base)
-  add_python_fixture(pub_sub pubsub_node_base)
-  add_python_fixture(services services_node_base)
+  add_python_fixture(pub_sub pubsub_node_base RESOURCE_NAME pubsub_node)
+  add_python_fixture(services services_node_base NO_INDEX)
   add_python_fixture(actions actions_node_base)
   add_python_fixture(parameters parameters_node_base)
   add_python_fixture(kitchen_sink kitchen_sink_node_base)

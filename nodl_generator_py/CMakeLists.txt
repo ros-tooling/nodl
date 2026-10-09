@@ -25,6 +25,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_generator test/test_generator.py)
   ament_add_pytest_test(test_schema test/test_schema.py)
   ament_add_pytest_test(test_doc_tree test/test_doc_tree.py)
+  ament_add_pytest_test(test_cmake_function_args test/test_cmake_function_args.py)
 endif()
 
 ament_package(

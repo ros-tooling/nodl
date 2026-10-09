@@ -18,7 +18,8 @@ install(TARGETS talker_cpp
 
 find_package(nodl_generator_py REQUIRED)
 
-nodl_generate_py(talker_py_base nodl/talker.nodl.yaml)
+# The contract is already registered as talker.
+nodl_generate_py(talker_py_base nodl/talker.nodl.yaml NO_INDEX)
 
 install(PROGRAMS python/talker.py
   DESTINATION lib/${PROJECT_NAME}
