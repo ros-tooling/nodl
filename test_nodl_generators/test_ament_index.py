@@ -49,7 +49,7 @@ def test_fixtures_are_registered_under_their_target_names_or_overrides():
 def test_no_index_fixtures_are_not_registered():
     registered = _registered_resources()
 
-    assert not [name for name in registered if 'static' in name]
+    assert not [name for name in registered if 'static' in name or '_off_' in name]
     assert 'services_node_base' not in registered
 
 
