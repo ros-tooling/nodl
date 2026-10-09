@@ -32,9 +32,9 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
 
   # Checks which fixtures are installed and exported.
-  # It reads the install manifest, so files left by earlier builds in the install prefix do not matter.
+  # It reads the install manifests in the build directory, so files left by earlier builds in the install prefix do not matter.
   ament_add_pytest_test(test_install_space test_install_space.py
-    ENV INSTALL_MANIFEST=${CMAKE_BINARY_DIR}/install_manifest.txt
+    ENV BUILD_DIR=${CMAKE_BINARY_DIR}
   )
 
   function(add_python_fixture fixture target)

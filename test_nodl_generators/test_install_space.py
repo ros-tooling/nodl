@@ -3,8 +3,10 @@
 
 """Check which generated C++ fixtures are installed and exported.
 
-The checks read the install manifest written by the build that is being tested.
+The checks read the install manifests written by the build that is being tested.
 Files that earlier builds left in the install prefix are therefore ignored.
+A regular install records every file in ``install_manifest.txt``.
+A ``--symlink-install`` records its symlinked files in ``symlink_install_manifest.txt`` and only the libraries in ``install_manifest.txt``.
 """
 
 import fnmatch
@@ -16,9 +18,15 @@ from ament_index_python.packages import get_package_prefix
 
 PACKAGE = 'test_nodl_generators'
 PREFIX = Path(get_package_prefix(PACKAGE))
-MANIFEST = Path(os.environ['INSTALL_MANIFEST'])
+BUILD_DIR = Path(os.environ['BUILD_DIR'])
+MANIFESTS = [BUILD_DIR / 'install_manifest.txt', BUILD_DIR / 'symlink_install_manifest.txt']
 # Installed files relative to the install prefix, for example ``lib/libtest_nodl_generators_x.so``.
-INSTALLED = sorted(Path(line).relative_to(PREFIX).as_posix() for line in MANIFEST.read_text().splitlines())
+INSTALLED = sorted(
+    Path(line).relative_to(PREFIX).as_posix()
+    for manifest in MANIFESTS
+    if manifest.exists()
+    for line in manifest.read_text().splitlines()
+)
 HEADER_DIR = f'include/{PACKAGE}/{PACKAGE}'
 CMAKE_DIR = f'share/{PACKAGE}/cmake'
 
