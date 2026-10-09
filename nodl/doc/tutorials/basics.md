@@ -76,8 +76,14 @@ Add the contract and C++ generator to the package's `CMakeLists.txt`:
 :end-at: DESTINATION lib/${PROJECT_NAME})
 ```
 
-`ament_nodl_register()` validates the public contract and registers it in the ament index.
+`ament_nodl_register()` validates the public contract and registers it in the ament index as `talker`.
 `nodl_generate_cpp()` generates the C++ base class in a library target and rebuilds it when the contract changes.
+Its input is a composition document that adds the base class to the contract through `local://talker.nodl.yaml`.
+`nodl_generate_cpp()` also registers that document, under the name given by `RESOURCE_NAME`.
+Without `RESOURCE_NAME`, it registers under the target name.
+The index then holds two documents, the shared contract `talker` and the full C++ node description `talker_cpp`.
+The contract must be registered in the same package, because the composition document includes it with `local://`.
+Pass `NO_INDEX` instead to skip registering the composition document.
 
 Build and source the package:
 
@@ -100,7 +106,8 @@ find_package(ament_nodl REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
 ament_nodl_register(talker FILE nodl/talker.nodl.yaml)
-nodl_generate_py(talker_py_base nodl/talker.nodl.yaml)
+# The contract is already registered as talker.
+nodl_generate_py(talker_py_base nodl/talker.nodl.yaml NO_INDEX)
 
 install(PROGRAMS python/talker.py
   DESTINATION lib/${PROJECT_NAME}
@@ -112,6 +119,9 @@ colcon build --packages-select nodl_tutorial_basics
 source install/setup.bash
 ```
 
+`ament_nodl_register()` registers the contract in the ament index as `talker`.
+`nodl_generate_py()` would register its input document too.
+Here that document is the contract, which is already registered, so the call passes `NO_INDEX`.
 The generated Python base exposes the declared publisher as `pub_chatter`.
 The `_py` segment keeps its CMake target distinct from the C++ target in this combined tutorial.
 

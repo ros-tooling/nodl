@@ -9,4 +9,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 # The macro links the parameter library into generated libraries that have parameters.
 find_package(generate_parameter_library REQUIRED)
 
+# Provides ament_nodl_register, which the macro uses to register the document with the ament index.
+find_package(ament_nodl REQUIRED)
+
 include("${nodl_generator_cpp_DIR}/nodl_generate_cpp.cmake")

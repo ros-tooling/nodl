@@ -39,9 +39,21 @@ def _run_macro(tmp_path: Path, call_args: str, *, in_function: bool = False) -> 
         ('my_base', "target 'my_base' requires exactly one NODL_FILE, got 0"),
         ('my_base STATIC', "target 'my_base' requires exactly one NODL_FILE, got 0"),
         ('my_base EXPORT', "target 'my_base' requires exactly one NODL_FILE, got 0"),
+        ('my_base NO_INDEX', "target 'my_base' requires exactly one NODL_FILE, got 0"),
         ('my_base a.nodl.yaml b.nodl.yaml', "target 'my_base' requires exactly one NODL_FILE, got 2"),
+        ('my_base my.nodl.yaml RESOURCE_NAME', "target 'my_base' has a RESOURCE_NAME with no value"),
+        ('my_base RESOURCE_NAME "" my.nodl.yaml', "target 'my_base' requires exactly one NODL_FILE, got 0"),
     ],
-    ids=['shared-and-static', 'missing-file', 'missing-file-with-type', 'missing-file-with-export', 'two-files'],
+    ids=[
+        'shared-and-static',
+        'missing-file',
+        'missing-file-with-type',
+        'missing-file-with-export',
+        'missing-file-with-no-index',
+        'two-files',
+        'resource-name-without-value',
+        'empty-resource-name-consumes-the-file',
+    ],
 )
 def test_bad_arguments_are_rejected(tmp_path, call_args, expected):
     result = _run_macro(tmp_path, call_args)
@@ -132,3 +144,62 @@ def test_exported_target_is_accepted_in_the_project_directory(tmp_path):
     )
 
     assert 'cannot be created in' not in ' '.join(result.stderr.split())
+
+
+@pytest.mark.parametrize(
+    ('call_args', 'name'),
+    [
+        ('my_base NO_INDEX RESOURCE_NAME my_node my.nodl.yaml', 'my_node'),
+        ('my_base STATIC NO_INDEX RESOURCE_NAME my_node my.nodl.yaml', 'my_node'),
+        ('my_base NO_INDEX RESOURCE_NAME off my.nodl.yaml', 'off'),
+        ('my_base NO_INDEX RESOURCE_NAME 0 my.nodl.yaml', '0'),
+    ],
+    ids=['default', 'static', 'falsy-name-off', 'falsy-name-zero'],
+)
+def test_resource_name_with_no_index_is_rejected(tmp_path, call_args, name):
+    result = _run_macro(tmp_path, call_args)
+
+    stderr = ' '.join(result.stderr.split())
+    assert result.returncode != 0
+    assert f"RESOURCE_NAME '{name}' has no effect" in stderr
+
+
+@pytest.mark.parametrize(
+    'call_args',
+    [
+        'my_base my.nodl.yaml',
+        'my_base SHARED my.nodl.yaml',
+        'my_base STATIC my.nodl.yaml',
+        'my_base EXPORT my.nodl.yaml',
+        'my_base RESOURCE_NAME my_node my.nodl.yaml',
+        'my_base RESOURCE_NAME off my.nodl.yaml',
+        'my_base RESOURCE_NAME 0 my.nodl.yaml',
+        'my_base NO_INDEX my.nodl.yaml',
+        'my_base STATIC RESOURCE_NAME my_node my.nodl.yaml',
+        'my_base STATIC NO_INDEX my.nodl.yaml',
+        'my_base EXPORT RESOURCE_NAME my_node my.nodl.yaml',
+        'my_base STATIC EXPORT NO_INDEX my.nodl.yaml',
+        'my_base my.nodl.yaml RESOURCE_NAME my_node',
+    ],
+    ids=[
+        'default-name',
+        'shared-default-name',
+        'static-default-name',
+        'export-default-name',
+        'resource-name',
+        'resource-name-off',
+        'resource-name-zero',
+        'no-index',
+        'static-resource-name',
+        'static-no-index',
+        'export-resource-name',
+        'static-export-no-index',
+        'file-first',
+    ],
+)
+def test_valid_index_arguments_pass_validation(tmp_path, call_args):
+    result = _run_macro(tmp_path, call_args)
+
+    # The macro goes on to run the generator, which fails for lack of a NoDL file.
+    assert 'has no effect' not in result.stderr
+    assert '--cmake-deps failed' in result.stderr

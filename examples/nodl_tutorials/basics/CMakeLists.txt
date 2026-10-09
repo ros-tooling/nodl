@@ -8,7 +8,7 @@ find_package(ament_nodl REQUIRED)
 find_package(nodl_generator_cpp REQUIRED)
 
 ament_nodl_register(talker FILE nodl/talker.nodl.yaml)
-nodl_generate_cpp(talker_base nodl/talker_codegen.nodl.yaml)
+nodl_generate_cpp(talker_base RESOURCE_NAME talker_cpp nodl/talker_codegen.nodl.yaml)
 
 add_executable(talker_cpp cpp/talker.cpp)
 target_link_libraries(talker_cpp PRIVATE talker_base)
@@ -18,7 +18,8 @@ install(TARGETS talker_cpp
 
 find_package(nodl_generator_py REQUIRED)
 
-nodl_generate_py(talker_py_base nodl/talker.nodl.yaml)
+# The contract is already registered as talker.
+nodl_generate_py(talker_py_base nodl/talker.nodl.yaml NO_INDEX)
 
 install(PROGRAMS python/talker.py
   DESTINATION lib/${PROJECT_NAME}

@@ -15,7 +15,7 @@ For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
 ## CMake integration
 
-The `nodl_generate_py()` CMake function is the primary user-facing API:
+`nodl_generate_py(target nodl_file [NO_INDEX] [RESOURCE_NAME name])` is the primary user-facing API:
 
 ```cmake
 find_package(nodl_generator_py REQUIRED)
@@ -36,6 +36,7 @@ The target name must be a valid Python identifier.
 | Build target | Creates an `ALL` custom target named `echo_node_base`. |
 | Installation | Installs generated Python modules under `<project>.generated`. |
 | Parameters | Delegates parameter-module generation to `generate_parameter_library_py`. |
+| Index registration | Registers the full NoDL document with the ament index under `RESOURCE_NAME`, which defaults to the target name. `NO_INDEX` skips this step. |
 
 The application package must declare `rclpy` and every generated ROS interface package as dependencies.
 It needs `nodl_generator_py` only as a build-tool dependency.
@@ -46,6 +47,39 @@ It needs `nodl_generator_py` only as a build-tool dependency.
 |---|---|
 | `target` | Build target and generated module name. It is PascalCased directly for the class name, while a trailing `_base` is removed from the runtime node name. `echo_node_base` produces `EchoNodeBase`, running as `echo_node`. |
 | `nodl_file` | Absolute path or path relative to the calling `CMakeLists.txt`. |
+| `NO_INDEX` | Optional. Do not register the document with the ament index. Giving `RESOURCE_NAME` together with it is an error. |
+| `RESOURCE_NAME` | Optional. Name to register the document under. The default is `target`. |
+
+### Index registration
+
+`nodl_generate_py()` registers its document with the ament index, so the node's interface is discoverable as `nodl://<package>/<name>`, where the name is the target name unless `RESOURCE_NAME` overrides it.
+The full document is registered as written, including its `codegen` block.
+
+```cmake
+nodl_generate_py(echo_node_base nodl/echo_node.nodl.yaml)
+```
+
+This registers the document as `echo_node_base`.
+Renaming the target renames the registered resource, unless `RESOURCE_NAME` is set.
+Pass `RESOURCE_NAME` to register under a different name:
+
+```cmake
+nodl_generate_py(echo_node_base nodl/echo_node.nodl.yaml RESOURCE_NAME echo_node)
+```
+
+Pass `NO_INDEX` for a document that should not be registered:
+
+```cmake
+nodl_generate_py(echo_node_base nodl/echo_node.nodl.yaml NO_INDEX)
+```
+
+Giving `RESOURCE_NAME` together with `NO_INDEX` is an error, because the name has no effect.
+
+Each resource name and each document file can be registered once per package.
+Two calls that generate from the same document need `NO_INDEX` on all but one of them.
+
+Every `local://` include of the document must be registered in the same package with `ament_nodl_register()`, or configuration fails.
+`find_package(nodl_generator_py)` also makes `ament_nodl_register()` available.
 
 ## Generated files
 

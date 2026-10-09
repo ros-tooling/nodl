@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #
-# nodl_generate_cpp(TARGET [SHARED|STATIC] [EXPORT] NODL_FILE)
+# nodl_generate_cpp(TARGET [SHARED|STATIC] [EXPORT] [NO_INDEX] [RESOURCE_NAME name] NODL_FILE)
 #
 # Generate an rclcpp base-node class from a NoDL document and expose it
 # as a library target that the caller can link against.
@@ -31,6 +31,16 @@
 # A STATIC library linked into several SHARED libraries that are loaded into one process
 # gives each of them its own copy of the class and parameter code.
 #
+# The same call registers the document with the ament index,
+# so the node's interface is discoverable as ``nodl://<project>/<name>``.
+# The name is ``TARGET`` unless ``RESOURCE_NAME`` overrides it.
+# Renaming the target renames the registered resource, unless ``RESOURCE_NAME`` is set.
+# The full document is registered as written, including any ``codegen`` block.
+# Use ``NO_INDEX`` to skip registration.
+# Giving ``RESOURCE_NAME`` together with ``NO_INDEX`` is an error.
+# Each resource name and each document file can be registered once per package.
+# Every ``local://`` include of the document must be registered in this package with ``ament_nodl_register``, or configuration fails.
+#
 # Example::
 #
 #   find_package(nodl_generator_cpp REQUIRED)
@@ -47,6 +57,14 @@
 # Request a static library explicitly::
 #
 #   nodl_generate_cpp(my_node_base STATIC my_node.nodl.yaml)
+#
+# Skip index registration::
+#
+#   nodl_generate_cpp(my_node_base NO_INDEX my_node.nodl.yaml)
+#
+# Register under a name other than the target::
+#
+#   nodl_generate_cpp(my_node_base RESOURCE_NAME my_node my_node.nodl.yaml)
 #
 # Export the library for other packages::
 #
@@ -67,6 +85,10 @@
 # :param EXPORT: Install the headers and export the target to downstream packages.
 #   Without it, a SHARED library is only installed to ``lib`` for use by executables at runtime,
 #   and a STATIC library is not installed at all.
+# :param NO_INDEX: Do not register the document with the ament index.
+# :param RESOURCE_NAME: Name to register the document under.
+#   Defaults to ``TARGET``.  An error together with ``NO_INDEX``.
+# :type RESOURCE_NAME: string
 # :param NODL_FILE: Path to the ``.nodl.yaml`` file, relative to
 #   ``CMAKE_CURRENT_SOURCE_DIR``.
 # :type NODL_FILE: string
@@ -75,7 +97,7 @@
 #
 macro(nodl_generate_cpp TARGET)
   # ── argument parsing ───────────────────────────────────────────────
-  cmake_parse_arguments(_nodl "SHARED;STATIC;EXPORT" "" "" ${ARGN})
+  cmake_parse_arguments(_nodl "SHARED;STATIC;EXPORT;NO_INDEX" "RESOURCE_NAME" "" ${ARGN})
   if(_nodl_SHARED AND _nodl_STATIC)
     message(FATAL_ERROR
       "nodl_generate_cpp: target '${TARGET}' cannot be both SHARED and STATIC")
@@ -85,6 +107,24 @@ macro(nodl_generate_cpp TARGET)
     message(FATAL_ERROR
       "nodl_generate_cpp: target '${TARGET}' requires exactly one NODL_FILE, "
       "got ${_nodl_unparsed_count}: '${_nodl_UNPARSED_ARGUMENTS}'")
+  endif()
+  if(_nodl_KEYWORDS_MISSING_VALUES)
+    message(FATAL_ERROR
+      "nodl_generate_cpp: target '${TARGET}' has a RESOURCE_NAME with no value")
+  endif()
+  # A name such as "off" or "0" is a valid value, so test for presence rather than truthiness.
+  if(DEFINED _nodl_RESOURCE_NAME)
+    set(_nodl_has_resource_name TRUE)
+    set(_nodl_resource_name "${_nodl_RESOURCE_NAME}")
+  else()
+    set(_nodl_has_resource_name FALSE)
+    set(_nodl_resource_name "${TARGET}")
+  endif()
+  if(_nodl_NO_INDEX AND _nodl_has_resource_name)
+    message(FATAL_ERROR
+      "nodl_generate_cpp: target '${TARGET}' is not registered with the ament index because of NO_INDEX, "
+      "so RESOURCE_NAME '${_nodl_RESOURCE_NAME}' has no effect. "
+      "Remove one of them.")
   endif()
   set(_nodl_file_arg "${_nodl_UNPARSED_ARGUMENTS}")
   if(_nodl_STATIC)
@@ -233,6 +273,11 @@ macro(nodl_generate_cpp TARGET)
       list(APPEND _nodl_genparamlib_deps parameter_traits::parameter_traits)
     endif()
     target_link_libraries(${TARGET} PUBLIC ${_nodl_genparamlib_deps})
+  endif()
+
+  # ── ament index registration ───────────────────────────────────────
+  if(NOT _nodl_NO_INDEX)
+    ament_nodl_register(${_nodl_resource_name} FILE "${_nodl_file}")
   endif()
 
   # ── export for downstream packages ─────────────────────────────────

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Verify that the tutorial document is installed and registered unchanged."""
+"""Verify that the tutorial documents are installed and registered."""
 
 from pathlib import Path
 
@@ -23,3 +23,11 @@ def test_registered_document_is_nodl_v2():
     content, _ = get_resource('nodl', f'{PACKAGE}__{DOCUMENT}')
 
     assert 'nodl_version: 2' in content
+
+
+def test_cpp_generator_input_is_registered_with_resolved_includes():
+    content, _ = get_resource('nodl', f'{PACKAGE}__talker_cpp')
+
+    assert f'nodl://{PACKAGE}/{DOCUMENT}' in content
+    assert 'nodl://nodl_common_interfaces/node' in content
+    assert 'local://' not in content
