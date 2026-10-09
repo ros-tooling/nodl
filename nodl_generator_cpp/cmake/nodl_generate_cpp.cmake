@@ -31,14 +31,14 @@
 # A STATIC library linked into several SHARED libraries that are loaded into one process
 # gives each of them its own copy of the class and parameter code.
 #
-# The same call registers the document with the ament index through ``ament_nodl_register``.
-# The full document is registered as written, including any ``codegen`` block,
+# The same call registers the document with the ament index,
 # so the node's interface is discoverable as ``nodl://<project>/<RESOURCE_NAME>``.
+# The full document is registered as written, including any ``codegen`` block.
 # ``RESOURCE_NAME`` is required, because the name is part of the package's public interface.
 # Use ``NO_INDEX`` to skip registration.
-# ``RESOURCE_NAME`` together with ``NO_INDEX`` is an error.
-# Registration follows the rules of ``ament_nodl_register``.
-# Every ``local://`` include of the document must itself be registered in this package, or configuration fails.
+# Giving both is an error.
+# Each resource name and each document file can be registered once per package.
+# Every ``local://`` include of the document must be registered in this package with ``ament_nodl_register``, or configuration fails.
 #
 # Example::
 #
@@ -81,7 +81,7 @@
 #   Without it, a SHARED library is only installed to ``lib`` for use by executables at runtime,
 #   and a STATIC library is not installed at all.
 # :param NO_INDEX: Do not register the document with the ament index.
-# :param RESOURCE_NAME: Name to register the document under, giving the resource key ``<project>__<RESOURCE_NAME>``.
+# :param RESOURCE_NAME: Name to register the document under.
 #   Required unless ``NO_INDEX`` is given, and an error together with it.
 # :type RESOURCE_NAME: string
 # :param NODL_FILE: Path to the ``.nodl.yaml`` file, relative to
