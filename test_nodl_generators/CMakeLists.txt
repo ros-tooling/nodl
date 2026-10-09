@@ -15,15 +15,16 @@ macro(add_cpp_fixture fixture target)
 endmacro()
 
 # The target prefix keeps these distinct from the Python generator fixtures.
-# Each fixture document is registered with the ament index under its own resource name.
-add_cpp_fixture(minimal cpp_minimal_node_base SHARED EXPORT RESOURCE_NAME cpp_minimal_node)
+# Each fixture document is registered with the ament index under its target name.
+# The pub_sub and namespace fixtures override it with RESOURCE_NAME.
+add_cpp_fixture(minimal cpp_minimal_node_base SHARED EXPORT)
 add_cpp_fixture(pub_sub cpp_pub_sub_node_base EXPORT RESOURCE_NAME cpp_pub_sub_node)
-add_cpp_fixture(services cpp_services_node_base EXPORT RESOURCE_NAME cpp_services_node)
-add_cpp_fixture(parameters cpp_params_node_base EXPORT RESOURCE_NAME cpp_params_node)
-add_cpp_fixture(lifecycle cpp_lifecycle_node_base EXPORT RESOURCE_NAME cpp_lifecycle_node)
+add_cpp_fixture(services cpp_services_node_base EXPORT)
+add_cpp_fixture(parameters cpp_params_node_base EXPORT)
+add_cpp_fixture(lifecycle cpp_lifecycle_node_base EXPORT)
 
 # Without EXPORT, a SHARED library is installed for runtime only, with no headers.
-add_cpp_fixture(kitchen_sink cpp_kitchen_sink_node_base RESOURCE_NAME cpp_kitchen_sink_node)
+add_cpp_fixture(kitchen_sink cpp_kitchen_sink_node_base)
 add_cpp_fixture(namespace cpp_namespace_node_base RESOURCE_NAME cpp_namespace_node)
 
 # The STATIC fixtures reuse the minimal document, which is already registered, and a document file can be registered only once per package.

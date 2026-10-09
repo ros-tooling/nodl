@@ -28,14 +28,14 @@ def _registered_resources() -> set[str]:
     return {path.name.removeprefix(f'{PACKAGE}__') for path in installed if path.parent == INDEX_DIR}
 
 
-def test_fixtures_are_registered_under_their_resource_names():
+def test_fixtures_are_registered_under_their_target_names_or_overrides():
     assert _registered_resources() == {
-        'cpp_minimal_node',
+        'cpp_minimal_node_base',
         'cpp_pub_sub_node',
-        'cpp_services_node',
-        'cpp_params_node',
-        'cpp_kitchen_sink_node',
-        'cpp_lifecycle_node',
+        'cpp_services_node_base',
+        'cpp_params_node_base',
+        'cpp_kitchen_sink_node_base',
+        'cpp_lifecycle_node_base',
         'cpp_namespace_node',
     }
 
