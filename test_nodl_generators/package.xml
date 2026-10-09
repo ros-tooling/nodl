@@ -11,19 +11,21 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>nodl_generator_cpp</buildtool_depend>
+  <buildtool_export_depend>nodl_generator_cpp</buildtool_export_depend>
   <buildtool_depend>nodl_generator_py</buildtool_depend>
 
   <build_depend>nodl_common_interfaces</build_depend>
   <depend>example_interfaces</depend>
-  <build_depend>geometry_msgs</build_depend>
+  <depend>geometry_msgs</depend>
   <build_depend>lifecycle_msgs</build_depend>
-  <build_depend>rclcpp</build_depend>
+  <depend>rclcpp</depend>
   <build_depend>rclcpp_action</build_depend>
-  <build_depend>rclcpp_lifecycle</build_depend>
+  <depend>rclcpp_lifecycle</depend>
   <depend>std_msgs</depend>
-  <build_depend>std_srvs</build_depend>
+  <depend>std_srvs</depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_index_python</test_depend>
   <test_depend>python3-pytest</test_depend>
   <test_depend>nodl_common_interfaces</test_depend>
   <test_depend>lifecycle_msgs</test_depend>

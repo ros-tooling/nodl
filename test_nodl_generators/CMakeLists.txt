@@ -7,28 +7,41 @@ find_package(ament_cmake REQUIRED)
 find_package(nodl_generator_cpp REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
-function(add_cpp_fixture fixture target)
+# A macro, because exported targets cannot be created inside a function.
+macro(add_cpp_fixture fixture target)
   nodl_generate_cpp(${target} ${ARGN} ${fixture}/cpp/node.nodl.yaml)
   add_executable(test_cpp_${fixture} ${fixture}/cpp/test_node.cpp)
   target_link_libraries(test_cpp_${fixture} PRIVATE ${target})
-endfunction()
+endmacro()
 
 # The target prefix keeps these distinct from the Python generator fixtures.
-add_cpp_fixture(minimal cpp_minimal_node_base SHARED)
-add_cpp_fixture(pub_sub cpp_pub_sub_node_base)
-add_cpp_fixture(services cpp_services_node_base)
-add_cpp_fixture(parameters cpp_params_node_base)
+add_cpp_fixture(minimal cpp_minimal_node_base SHARED EXPORT)
+add_cpp_fixture(pub_sub cpp_pub_sub_node_base EXPORT)
+add_cpp_fixture(services cpp_services_node_base EXPORT)
+add_cpp_fixture(parameters cpp_params_node_base EXPORT)
+add_cpp_fixture(lifecycle cpp_lifecycle_node_base EXPORT)
+
+# Without EXPORT, a SHARED library is installed for runtime only, with no headers.
 add_cpp_fixture(kitchen_sink cpp_kitchen_sink_node_base)
-add_cpp_fixture(lifecycle cpp_lifecycle_node_base)
 add_cpp_fixture(namespace cpp_namespace_node_base)
 
-# A STATIC base linked into a SHARED library needs position-independent code.
-nodl_generate_cpp(cpp_minimal_static_node_base STATIC minimal/cpp/node.nodl.yaml)
+# A STATIC library is exported like a SHARED one.
+# Linked into a SHARED library, it needs position-independent code.
+nodl_generate_cpp(cpp_minimal_static_node_base STATIC EXPORT minimal/cpp/node.nodl.yaml)
 add_library(cpp_minimal_static_plugin SHARED minimal/cpp/test_static_plugin.cpp)
 target_link_libraries(cpp_minimal_static_plugin PRIVATE cpp_minimal_static_node_base)
 
+# A STATIC library without EXPORT is not installed at all.
+nodl_generate_cpp(cpp_private_static_node_base STATIC minimal/cpp/node.nodl.yaml)
+
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
+
+  # Checks which fixtures are installed and exported.
+  # It reads the install manifests in the build directory, so files left by earlier builds in the install prefix do not matter.
+  ament_add_pytest_test(test_install_space test_install_space.py
+    ENV BUILD_DIR=${CMAKE_BINARY_DIR}
+  )
 
   function(add_python_fixture fixture target)
     nodl_generate_py(${target} ${fixture}/py/node.nodl.yaml)

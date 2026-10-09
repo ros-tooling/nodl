@@ -6,4 +6,7 @@
 # Resolves ${Python3_EXECUTABLE} for the build-time codegen step the macro invokes.
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+# The macro links the parameter library into generated libraries that have parameters.
+find_package(generate_parameter_library REQUIRED)
+
 include("${nodl_generator_cpp_DIR}/nodl_generate_cpp.cmake")

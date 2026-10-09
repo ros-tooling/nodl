@@ -21,6 +21,7 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
     [nodl.schema.yaml](./nodl_schema/nodl_schema/schemas/nodl.schema.yaml): The NoDL schema, key to this whole thing!
 - [ros2nodl/](./ros2nodl/): `ros2cli` extension providing `ros2 nodl ...` commands
 - [test_nodl_generators/](./test_nodl_generators/): End-to-end integration tests for the C++ and Python NoDL generators.
+- [test_nodl_generators_downstream/](./test_nodl_generators_downstream/): Builds against the exported libraries of `test_nodl_generators` from a separate package.
 - [tools/](./tools/): Scripts supporting development and build workflows
 
 ## Developing
