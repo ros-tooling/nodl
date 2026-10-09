@@ -7,8 +7,10 @@
 # Generate an rclcpp base-node class from a NoDL document and expose it
 # as a library target that the caller can link against.
 # The library type follows ``BUILD_SHARED_LIBS``, like ``add_library``.
-# A package that finds ``ament_cmake_ros`` or calls ``ament_add_default_options()``
-# has ``BUILD_SHARED_LIBS`` ON by default, so its libraries are SHARED.
+# ``BUILD_SHARED_LIBS`` is unset unless the package sets it,
+# for example with ``option(BUILD_SHARED_LIBS "Build shared libraries" ON)``,
+# or finds ``ament_cmake_ros``, which enables it.
+# Without it the libraries are STATIC.
 # ``SHARED`` or ``STATIC`` overrides it.
 # Giving both is an error.
 # Both types are built as position-independent code, so a STATIC library

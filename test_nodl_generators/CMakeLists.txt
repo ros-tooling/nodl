@@ -4,8 +4,8 @@ cmake_minimum_required(VERSION 3.22)
 project(test_nodl_generators)
 
 find_package(ament_cmake REQUIRED)
-# Defines the BUILD_SHARED_LIBS option, ON by default, which sets the library type of the fixtures without a type keyword.
-ament_add_default_options()
+# Libraries without a type keyword are SHARED.
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 find_package(nodl_generator_cpp REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
