@@ -6,9 +6,13 @@
 #
 # Generate an rclcpp base-node class from a NoDL document and expose it
 # as a library target that the caller can link against.
-# The library is SHARED by default, or STATIC when requested.
-# Giving both SHARED and STATIC is an error.
-# The library type only chooses how the library is built, and does not follow ``BUILD_SHARED_LIBS``.
+# The library type follows ``BUILD_SHARED_LIBS``, like ``add_library``.
+# ``BUILD_SHARED_LIBS`` is unset unless the package sets it,
+# for example with ``option(BUILD_SHARED_LIBS "Build shared libraries" ON)``,
+# or finds ``ament_cmake_ros``, which enables it.
+# Without it the libraries are STATIC.
+# ``SHARED`` or ``STATIC`` overrides it.
+# Giving both is an error.
 # Both types are built as position-independent code, so a STATIC library
 # can be linked into a SHARED library.
 # SHARED libraries are installed to ``lib`` (``bin`` for DLLs), which is on
@@ -54,7 +58,7 @@
 #
 #   #include "<project>/my_node_base.hpp"
 #
-# Request a static library explicitly::
+# Request a static library regardless of ``BUILD_SHARED_LIBS``::
 #
 #   nodl_generate_cpp(my_node_base STATIC my_node.nodl.yaml)
 #
@@ -80,8 +84,8 @@
 #   ``<node>_base`` target yields a ``<Node>Base`` class.  A single trailing
 #   ``_base`` is stripped to form the runtime node name.
 # :type TARGET: string
-# :param SHARED: Build a SHARED library.  This is the default.
-# :param STATIC: Build a STATIC library.
+# :param SHARED: Build a SHARED library, whatever ``BUILD_SHARED_LIBS`` says.
+# :param STATIC: Build a STATIC library, whatever ``BUILD_SHARED_LIBS`` says.
 # :param EXPORT: Install the headers and export the target to downstream packages.
 #   Without it, a SHARED library is only installed to ``lib`` for use by executables at runtime,
 #   and a STATIC library is not installed at all.
@@ -127,10 +131,12 @@ macro(nodl_generate_cpp TARGET)
       "Remove one of them.")
   endif()
   set(_nodl_file_arg "${_nodl_UNPARSED_ARGUMENTS}")
-  if(_nodl_STATIC)
-    set(_nodl_library_type STATIC)
-  else()
+  # An empty type lets add_library follow BUILD_SHARED_LIBS.
+  set(_nodl_library_type "")
+  if(_nodl_SHARED)
     set(_nodl_library_type SHARED)
+  elseif(_nodl_STATIC)
+    set(_nodl_library_type STATIC)
   endif()
   # The library type does not affect the export.
   set(_nodl_exported ${_nodl_EXPORT})
@@ -209,6 +215,7 @@ macro(nodl_generate_cpp TARGET)
 
   # ── create the library target ──────────────────────────────────────
   add_library(${TARGET} ${_nodl_library_type})
+  get_target_property(_nodl_actual_type ${TARGET} TYPE)
   foreach(_f IN LISTS _generated_paths)
     if(_f MATCHES "\\.cpp$")
       target_sources(${TARGET} PRIVATE "${_f}")
@@ -220,12 +227,12 @@ macro(nodl_generate_cpp TARGET)
   # PIC lets a STATIC library link into a SHARED one.
   set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
   set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}_${TARGET}")
-  if(_nodl_library_type STREQUAL "SHARED")
+  if(_nodl_actual_type STREQUAL "SHARED_LIBRARY")
     # The generated code has no export macros.
     set_target_properties(${TARGET} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
   endif()
   # A STATIC library has no runtime role, so it is only installed when it is exported.
-  if(_nodl_exported OR _nodl_library_type STREQUAL "SHARED")
+  if(_nodl_exported OR _nodl_actual_type STREQUAL "SHARED_LIBRARY")
     set(_nodl_export_args "")
     if(_nodl_exported)
       set(_nodl_export_args

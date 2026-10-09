@@ -102,3 +102,19 @@ def test_static_fixture_without_export_is_not_installed():
     assert not _library(target)
     assert not _headers(target)
     assert not _export_files(target)
+
+
+def test_default_type_follows_build_shared_libs_off():
+    target = 'cpp_off_default_node_base'
+
+    assert not _library(target)
+    assert not _headers(target)
+    assert not _export_files(target)
+
+
+def test_shared_keyword_overrides_build_shared_libs_off():
+    target = 'cpp_off_shared_node_base'
+
+    assert _library(target)
+    assert not _headers(target)
+    assert not _export_files(target)

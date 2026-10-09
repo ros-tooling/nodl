@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 3.22)
 project(test_nodl_generators)
 
 find_package(ament_cmake REQUIRED)
+# Libraries without a type keyword are SHARED.
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 find_package(nodl_generator_cpp REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
@@ -27,7 +29,8 @@ add_cpp_fixture(lifecycle cpp_lifecycle_node_base EXPORT)
 add_cpp_fixture(kitchen_sink cpp_kitchen_sink_node_base)
 add_cpp_fixture(namespace cpp_namespace_node_base RESOURCE_NAME cpp_namespace_node)
 
-# The STATIC fixtures reuse the minimal document, which is already registered, and a document file can be registered only once per package.
+# The STATIC and BUILD_SHARED_LIBS fixtures reuse the minimal document, which is already registered,
+# and a document file can be registered only once per package.
 # A STATIC library is exported like a SHARED one.
 # Linked into a SHARED library, it needs position-independent code.
 nodl_generate_cpp(cpp_minimal_static_node_base STATIC EXPORT NO_INDEX minimal/cpp/node.nodl.yaml)
@@ -36,6 +39,21 @@ target_link_libraries(cpp_minimal_static_plugin PRIVATE cpp_minimal_static_node_
 
 # A STATIC library without EXPORT is not installed at all.
 nodl_generate_cpp(cpp_private_static_node_base STATIC NO_INDEX minimal/cpp/node.nodl.yaml)
+
+# Without a type keyword the library follows BUILD_SHARED_LIBS.
+# With it OFF, the library is STATIC and so is not installed without EXPORT.
+# SHARED overrides it.
+if(DEFINED BUILD_SHARED_LIBS)
+  set(_saved_build_shared_libs "${BUILD_SHARED_LIBS}")
+endif()
+set(BUILD_SHARED_LIBS OFF)
+nodl_generate_cpp(cpp_off_default_node_base NO_INDEX minimal/cpp/node.nodl.yaml)
+nodl_generate_cpp(cpp_off_shared_node_base SHARED NO_INDEX minimal/cpp/node.nodl.yaml)
+if(DEFINED _saved_build_shared_libs)
+  set(BUILD_SHARED_LIBS "${_saved_build_shared_libs}")
+else()
+  unset(BUILD_SHARED_LIBS)
+endif()
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
