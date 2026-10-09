@@ -34,15 +34,15 @@ It handles everything:
 
 | Step | When | What happens |
 |---|---|---|
-| Dependency discovery | Configure time | Runs `--cmake-deps` to determine all NoDL source paths, ROS package dependencies, and the list of files the generator will produce. |
+| Dependency discovery | Configure time | Reads the NoDL document to find its source files, its ROS package dependencies, and the files the generator will produce. |
 | `find_package` | Configure time | Automatically calls `find_package` for every ROS dependency (message, service, action, and base-class packages). |
-| File watching | Configure time | Registers every file in the NoDL include tree as a `CMAKE_CONFIGURE_DEPENDS`, so any change to the root or a transitive include triggers a reconfigure. |
-| Code generation | Build time | Runs the full generator via `add_custom_command`, only when an input file has changed. |
-| Library creation | Build time | Compiles the generated `.cpp` into a SHARED (default) or STATIC library with position-independent code, and adds the output directory to the include path. |
+| Reconfigure on change | Configure time | A change to the NoDL file or any of its includes triggers a reconfigure. |
+| Code generation | Build time | Runs the generator, only when an input file has changed. |
+| Library creation | Build time | Compiles the generated code into a SHARED (default) or STATIC library with position-independent code, and adds the output directory to the include path. |
+| ROS linking | Build time | Links all ROS dependencies of the document. |
+| Parameter code | Build time | When the document has parameters, links the libraries that the generated parameter header needs. |
 | Install | Install time | Installs a SHARED library to `lib` (`bin` for Windows DLLs) so executables find it at runtime. A STATIC library is only installed with `EXPORT`. |
-| Export | Install time | Only with `EXPORT`. Installs the generated headers (including `<target>_parameters.hpp`) to `include/<package>/<package>/` and exports the library as `<package>::TARGET` with `ament_export_targets` and `ament_export_dependencies`. The `.cpp`, the deps file and the parameter YAML are not installed. |
-| ROS linking | Build time | Links all ROS dependencies via `${pkg}_TARGETS`. |
-| Parameter code | Build time | When the document has parameters, links the libraries that the generated parameter header needs (`fmt`, `rsl`, `tcb_span`, etc.). |
+| Export | Install time | Only with `EXPORT`. Installs the generated headers (including `<target>_parameters.hpp`) to `include/<package>/<package>/` and exports the library as `<package>::TARGET`. The generated `.cpp` and the parameter YAML are not installed. |
 
 ### Arguments
 
@@ -50,12 +50,12 @@ It handles everything:
 |---|---|
 | `TARGET` | Name of the library target to create. Used verbatim as the C++ class name (PascalCased) and for all generated filenames, so a `<node>_base` target yields a `<Node>Base` class. A single trailing `_base` is stripped to form the runtime node name (`<node>_base` runs as `<node>`). |
 | `SHARED` / `STATIC` | Optional library type. The default is `SHARED`. The type only chooses how the library is built, and does not affect the export. Installed SHARED libraries go to `lib`, which is on the library path of a sourced workspace, and exported STATIC archives go to `lib` too. The library type does not follow `BUILD_SHARED_LIBS`. The library file is named after `<PROJECT_NAME>_<TARGET>`, for example `lib<PROJECT_NAME>_<TARGET>.so`, to avoid collisions between packages, while the CMake target name stays `TARGET`. A target that already starts with the package name gets it twice, so target `my_pkg_base` in project `my_pkg` produces `libmy_pkg_my_pkg_base.so`. Both are built with position-independent code, so a STATIC library can still be linked into a SHARED library such as an `rclcpp_components` plugin. Giving both is an error. |
-| `EXPORT` | Optional. Install the headers and export the library to other packages, with its export set and exported dependencies. Without it the library is private to the package. A private SHARED library is still installed to `lib`, because executables need it at runtime, but its headers are not installed. A private STATIC library is not installed at all, because an archive has no runtime role. |
+| `EXPORT` | Optional. Install the headers and export the library to other packages. Without it the library is private to the package. A private SHARED library is still installed to `lib`, because executables need it at runtime, but its headers are not installed. A private STATIC library is not installed at all, because an archive has no runtime role. |
 | `NODL_FILE` | Path to the `.nodl.yaml` file, relative to `CMAKE_CURRENT_SOURCE_DIR`. |
 
-(using-a-generated-base)=
+(using-a-generated-target)=
 
-### Using a generated base from another package
+### Using a generated library target from another package
 
 A library is private to its package unless you pass `EXPORT`, which works for both library types:
 
@@ -63,25 +63,23 @@ A library is private to its package unless you pass `EXPORT`, which works for bo
 nodl_generate_cpp(my_node_base EXPORT nodl/my_node.nodl.yaml)
 ```
 
-A downstream package can then subclass the generated base class.
-It adds the exporting package as a dependency in `package.xml`, then links the exported target:
+Downstream packages can then use the target.
+They add the exporting package as a dependency in `package.xml`, then link the exported target:
 
 ```cmake
 find_package(my_package REQUIRED)
 
-add_library(my_plugin SHARED src/my_plugin.cpp)
-target_link_libraries(my_plugin PRIVATE my_package::my_node_base)
+add_library(downstream_library SHARED src/downstream_library.cpp)
+target_link_libraries(downstream_library PRIVATE my_package::my_node_base)
 ```
 
 ```cpp
 #include "my_package/my_node_base.hpp"
 ```
 
-The exported target carries its dependencies, so `find_package(my_package)` also finds `rclcpp`, the message packages, and `nodl_generator_cpp` with everything that parameterized libraries link.
-The include path is the same in the build tree and the install space.
+The exported target automatically carries its ROS dependencies such as `rclcpp` and messages.
 
-The exporting package declares `nodl_generator_cpp` as a `<buildtool_export_depend>`, so its dependents get it at build time.
-It also declares the ROS dependencies of its documents as `<depend>` (or `<build_export_depend>`):
+The exporting package declares `nodl_generator_cpp` as a `<buildtool_export_depend>`, and the ROS dependencies of its documents as `<depend>` (or `<build_export_depend>`):
 
 ```xml
 <buildtool_export_depend>nodl_generator_cpp</buildtool_export_depend>
@@ -89,16 +87,13 @@ It also declares the ROS dependencies of its documents as `<depend>` (or `<build
 <depend>std_msgs</depend>
 ```
 
-`nodl_generated/<target>/<target>_deps.cmake` in the build directory lists them as `<target>_ROS_DEPS`.
 A missing `<depend>` does not break workspace builds, but it breaks rosdep and binary installs.
 
-The export is registered with `ament_export_targets` and `ament_export_dependencies`.
-With `EXPORT`, call `nodl_generate_cpp()` before `ament_package()` and in the same `CMakeLists.txt` as `ament_package()`, not inside a function or subdirectory, because the export would be lost.
-The macro raises an error otherwise, so turn a wrapper function into a macro.
-Each target gets its own export set named `export_<TARGET>`, so a package can generate several libraries.
-One namespace applies to all export sets of a package, and the last `ament_export_targets` call wins.
-A call of your own with a custom `NAMESPACE` therefore also changes the names of the generated targets.
-A STATIC base linked into several SHARED libraries that are loaded into one process gives each of them its own copy of the class and parameter code.
+With `EXPORT`, call `nodl_generate_cpp()` before `ament_package()` in the same `CMakeLists.txt` as `ament_package()`, not inside a function or subdirectory.
+Doing so will raise an error, so turn a wrapper function into a macro.
+A package can export several libraries, and each is available as `<package>::<TARGET>`.
+If the package calls `ament_export_targets()` itself with a custom `NAMESPACE`, that namespace also applies to the generated targets.
+A STATIC library linked into several SHARED libraries that are loaded into one process gives each of them its own copy of the class and parameter code.
 The `test_nodl_generators_downstream` package in the repository is a tested example of this workflow.
 
 ### Including the generated header
@@ -124,8 +119,7 @@ Subsequent builds skip generation entirely until a source file changes.
 ### Cross-distro compatibility
 
 The macro works across all supported ROS distributions.
-It uses `${pkg}_TARGETS` for linking and handles distro-specific target name changes for the parameter code dependencies
-(`tl_expected::tl_expected` on Humble/Jazzy vs `tl::expected` on Lyrical+, `parameter_traits` present on Humble/Jazzy but removed on Lyrical+).
+It handles the differences in dependency target names between distributions, so the same `CMakeLists.txt` works on all of them.
 
 ## Prerequisites
 
@@ -150,8 +144,8 @@ Without a prefix, the headers are written to the output directory itself.
 |---|---|---|
 | `<prefix>/<target>.hpp` | Yes | Abstract base class header. |
 | `<target>.cpp` | Yes | Constructor implementation that creates all handles. It includes `<prefix>/<target>.hpp`. |
-| `<target>_parameters.yaml` | If parameters | `generate_parameter_library` YAML, converted from NoDL parameters. |
-| `<prefix>/<target>_parameters.hpp` | If parameters | `generate_parameter_library` C++ header, generated from the YAML above. Its exact contents are produced by `generate_parameter_library` and vary with the installed dependency version, so golden tests assert only that it is generated (existence-only), while byte-comparing the `<target>_parameters.yaml` input we own. |
+| `<target>_parameters.yaml` | If parameters | Parameter YAML, converted from NoDL parameters and used as the input of the parameter header generator. |
+| `<prefix>/<target>_parameters.hpp` | If parameters | C++ parameter header, generated from the YAML above. Its exact contents are produced by the parameter header generator and vary with the installed dependency version, so golden tests assert only that it is generated (existence-only), while byte-comparing the `<target>_parameters.yaml` input we own. |
 
 When using the CMake macro, a `<target>_deps.cmake` file is also written at configure time,
 containing the NoDL source paths, ROS package dependencies, and generated file list (with the prefixed header paths).
@@ -460,12 +454,12 @@ Every generated node must inherit from a concrete base.
 
 ## Parameters
 
-NoDL parameters are compatible with [`generate_parameter_library`](https://github.com/PickNikRobotics/generate_parameter_library)
-by design — the NoDL parameter schema is a formalization of genparamlib's implicit schema.
+The C++ parameter structs are generated with [`generate_parameter_library`](https://github.com/PickNikRobotics/generate_parameter_library), which is bundled with `nodl_generator_cpp`.
+The NoDL parameter schema is a formalization of its implicit schema, so NoDL parameters convert to it directly.
 
-The generator converts NoDL parameters to a genparamlib YAML file, then delegates to genparamlib to produce the
+The generator converts NoDL parameters to a YAML file in that format, then delegates to the library to produce the
 C++ parameter header.
-Dotted NoDL names remain flat in the source document, while the intermediate YAML is nested as required by genparamlib.
+Dotted NoDL names remain flat in the source document, while the intermediate YAML is nested as that format requires.
 For example, `colour.r` is available as `params_.colour.r` and retains `colour.r` as its ROS parameter name.
 No `declare_parameter()` calls appear in the generated templates.
 
@@ -478,7 +472,7 @@ protected:
 ```
 
 Parameters declared by providers and their includes (e.g. `use_sim_time` from `rclcpp::Node`) are not generated,
-and do not appear in the genparamlib YAML or the generated header.
+and do not appear in the intermediate YAML or the generated header.
 
 ## CLI reference
 

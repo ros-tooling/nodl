@@ -77,7 +77,7 @@ Add the contract and C++ generator to the package's `CMakeLists.txt`:
 ```
 
 `ament_nodl_register()` validates the public contract and registers it in the ament index.
-`nodl_generate_cpp()` generates the C++ base and rebuilds it when the contract changes.
+`nodl_generate_cpp()` generates the C++ base class in a library target and rebuilds it when the contract changes.
 
 Build and source the package:
 
@@ -88,8 +88,8 @@ source install/setup.bash
 
 The generated C++ base exposes the declared publisher as `pub_chatter_`.
 The generated header is included as `nodl_tutorial_basics/talker_base.hpp`.
-The generated library is private to the package.
-To let other packages subclass the base, pass `EXPORT` as described in {ref}`using-a-generated-base`.
+The generated library target is private to the package.
+To let other packages use it, pass `EXPORT` as described in {ref}`using-a-generated-target`.
 
 :::
 

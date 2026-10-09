@@ -22,12 +22,13 @@
 # so target ``my_pkg_base`` in project ``my_pkg`` produces ``libmy_pkg_my_pkg_base.so``.
 #
 # A library is private to the package unless ``EXPORT`` is given.
-# ``EXPORT`` applies to both types, and installs the headers and exports the library as an ament CMake target.
+# ``EXPORT`` applies to both types, and installs the headers so that other packages can use the library.
 # Downstream packages may then call ``find_package(<project>)``, link ``<project>::<TARGET>``, and ``#include <project>/<target>.hpp``.
 # An exported library must be created before ``ament_package()``, in the same CMakeLists.txt, not inside a function or subdirectory.
-# The caller declares ``nodl_generator_cpp`` as a ``<buildtool_export_depend>``,
+# Doing so raises an error.
+# The exporting package declares ``nodl_generator_cpp`` as a ``<buildtool_export_depend>``,
 # and the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``.
-# A STATIC base linked into several SHARED libraries that are loaded into one process
+# A STATIC library linked into several SHARED libraries that are loaded into one process
 # gives each of them its own copy of the class and parameter code.
 #
 # Example::
@@ -54,7 +55,7 @@
 # A downstream package links the exported target::
 #
 #   find_package(my_pkg REQUIRED)
-#   target_link_libraries(my_plugin PRIVATE my_pkg::my_node_base)
+#   target_link_libraries(downstream_library PRIVATE my_pkg::my_node_base)
 #
 # :param TARGET: Name of the library target to create.  Used verbatim as
 #   the C++ class name (PascalCased) and for the generated filenames, so a
@@ -93,10 +94,10 @@ macro(nodl_generate_cpp TARGET)
   endif()
   # The library type does not affect the export.
   set(_nodl_exported ${_nodl_EXPORT})
-  # ament_export_* record their state in variables of the calling scope,
-  # so a call inside a function or subdirectory would silently drop the export.
-  # Script mode has no project, so PROJECT_SOURCE_DIR is empty there.
   if(_nodl_exported)
+    # ament_export_* records state in variables of the calling scope,
+    # so calling in function or subdirectory would silently lose the export.
+    # Script mode has no project, so PROJECT_SOURCE_DIR is empty there.
     if(DEFINED CMAKE_CURRENT_FUNCTION)
       message(FATAL_ERROR
         "nodl_generate_cpp: target '${TARGET}' is exported, so it cannot be created inside function '${CMAKE_CURRENT_FUNCTION}'. "

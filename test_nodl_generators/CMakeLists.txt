@@ -25,13 +25,13 @@ add_cpp_fixture(lifecycle cpp_lifecycle_node_base EXPORT)
 add_cpp_fixture(kitchen_sink cpp_kitchen_sink_node_base)
 add_cpp_fixture(namespace cpp_namespace_node_base)
 
-# A STATIC base is exported like a SHARED one.
+# A STATIC library is exported like a SHARED one.
 # Linked into a SHARED library, it needs position-independent code.
 nodl_generate_cpp(cpp_minimal_static_node_base STATIC EXPORT minimal/cpp/node.nodl.yaml)
 add_library(cpp_minimal_static_plugin SHARED minimal/cpp/test_static_plugin.cpp)
 target_link_libraries(cpp_minimal_static_plugin PRIVATE cpp_minimal_static_node_base)
 
-# A STATIC base without EXPORT is not installed at all.
+# A STATIC library without EXPORT is not installed at all.
 nodl_generate_cpp(cpp_private_static_node_base STATIC minimal/cpp/node.nodl.yaml)
 
 if(BUILD_TESTING)
