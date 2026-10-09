@@ -76,8 +76,13 @@ Add the contract and C++ generator to the package's `CMakeLists.txt`:
 :end-at: DESTINATION lib/${PROJECT_NAME})
 ```
 
-`ament_nodl_register()` validates the public contract and registers it in the ament index.
+`ament_nodl_register()` validates the public contract and registers it in the ament index as `talker`.
 `nodl_generate_cpp()` generates the C++ base class in a library target and rebuilds it when the contract changes.
+Its input is a composition document that adds the base class to the contract through `local://talker.nodl.yaml`.
+`nodl_generate_cpp()` also registers that document, under the name given by `RESOURCE_NAME`.
+The index then holds two documents, the shared contract `talker` and the full C++ node description `talker_cpp`.
+The contract must be registered in the same package as the composition document that includes it.
+Pass `NO_INDEX` instead of `RESOURCE_NAME` to skip registering the composition document.
 
 Build and source the package:
 

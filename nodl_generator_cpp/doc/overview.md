@@ -20,7 +20,7 @@ Three lines in your `CMakeLists.txt` are the entire integration surface:
 ```cmake
 find_package(nodl_generator_cpp REQUIRED)
 
-nodl_generate_cpp(my_node_base nodl/my_node.nodl.yaml)
+nodl_generate_cpp(my_node_base RESOURCE_NAME my_node nodl/my_node.nodl.yaml)
 
 add_executable(my_node src/my_node.cpp)
 target_link_libraries(my_node PRIVATE my_node_base)
@@ -28,8 +28,8 @@ target_link_libraries(my_node PRIVATE my_node_base)
 
 ### What the macro does
 
-`nodl_generate_cpp(TARGET [SHARED|STATIC] [EXPORT] NODL_FILE)` creates a library target named `TARGET` that you link against.
-The library is SHARED unless you pass `STATIC`, as in `nodl_generate_cpp(my_node_base STATIC nodl/my_node.nodl.yaml)`.
+`nodl_generate_cpp(TARGET [SHARED|STATIC] [EXPORT] [NO_INDEX] [RESOURCE_NAME name] NODL_FILE)` creates a library target named `TARGET` that you link against.
+The library is SHARED unless you pass `STATIC`, as in `nodl_generate_cpp(my_node_base STATIC RESOURCE_NAME my_node nodl/my_node.nodl.yaml)`.
 It handles everything:
 
 | Step | When | What happens |
@@ -41,6 +41,7 @@ It handles everything:
 | Library creation | Build time | Compiles the generated code into a SHARED (default) or STATIC library with position-independent code, and adds the output directory to the include path. |
 | ROS linking | Build time | Links all ROS dependencies of the document. |
 | Parameter code | Build time | When the document has parameters, links the libraries that the generated parameter header needs. |
+| Index registration | Configure time | Registers the document with the ament index, unless you pass `NO_INDEX`. |
 | Install | Install time | Installs a SHARED library to `lib` (`bin` for Windows DLLs) so executables find it at runtime. A STATIC library is only installed with `EXPORT`. |
 | Export | Install time | Only with `EXPORT`. Installs the generated headers (including `<target>_parameters.hpp`) to `include/<package>/<package>/` and exports the library as `<package>::TARGET`. The generated `.cpp` and the parameter YAML are not installed. |
 
@@ -51,7 +52,37 @@ It handles everything:
 | `TARGET` | Name of the library target to create. Used verbatim as the C++ class name (PascalCased) and for all generated filenames, so a `<node>_base` target yields a `<Node>Base` class. A single trailing `_base` is stripped to form the runtime node name (`<node>_base` runs as `<node>`). |
 | `SHARED` / `STATIC` | Optional library type. The default is `SHARED`. The type only chooses how the library is built, and does not affect the export. Installed SHARED libraries go to `lib`, which is on the library path of a sourced workspace, and exported STATIC archives go to `lib` too. The library type does not follow `BUILD_SHARED_LIBS`. The library file is named after `<PROJECT_NAME>_<TARGET>`, for example `lib<PROJECT_NAME>_<TARGET>.so`, to avoid collisions between packages, while the CMake target name stays `TARGET`. A target that already starts with the package name gets it twice, so target `my_pkg_base` in project `my_pkg` produces `libmy_pkg_my_pkg_base.so`. Both are built with position-independent code, so a STATIC library can still be linked into a SHARED library such as an `rclcpp_components` plugin. Giving both is an error. |
 | `EXPORT` | Optional. Install the headers and export the library to other packages. Without it the library is private to the package. A private SHARED library is still installed to `lib`, because executables need it at runtime, but its headers are not installed. A private STATIC library is not installed at all, because an archive has no runtime role. |
+| `NO_INDEX` | Optional. Do not register the document with the ament index. Giving `RESOURCE_NAME` together with it is an error. |
+| `RESOURCE_NAME` | Name to register the document under, giving the resource key `<package>__<RESOURCE_NAME>`. Required unless `NO_INDEX` is given, with no default. |
 | `NODL_FILE` | Path to the `.nodl.yaml` file, relative to `CMAKE_CURRENT_SOURCE_DIR`. |
+
+### Index registration
+
+`nodl_generate_cpp()` registers its document with the ament index, so the node's interface is discoverable through `nodl://<package>/<RESOURCE_NAME>`.
+The full document is registered as written, including its `codegen` block.
+
+```cmake
+nodl_generate_cpp(my_node_base RESOURCE_NAME my_node nodl/my_node.nodl.yaml)
+```
+
+The resource name is part of the package's public interface, so `RESOURCE_NAME` has no default.
+Omitting it is a configure-time error that suggests `RESOURCE_NAME <name>` or `NO_INDEX`.
+Pass `NO_INDEX` for a document that should not be discoverable:
+
+```cmake
+nodl_generate_cpp(my_node_base NO_INDEX nodl/my_node.nodl.yaml)
+```
+
+Giving `RESOURCE_NAME` together with `NO_INDEX` is an error, because the name has no effect.
+Registration does not depend on the library type or on `EXPORT`.
+
+`nodl_generator_cpp` depends on `ament_nodl`, and `find_package(nodl_generator_cpp)` also finds `ament_nodl`.
+Registration follows the rules of `ament_nodl_register`.
+Every `local://` include of the document must itself be registered in the same package or configuration fails.
+Each resource name and each document file can be registered once per package.
+A package that already registers its public contract with `ament_nodl_register`, and generates from a composition document that includes it with `local://`, registers both under different names.
+The basics tutorial does this, with the contract as `talker` and the generator input as `talker_cpp`.
+Two calls that generate from the same document need `NO_INDEX` on all but one of them.
 
 (using-a-generated-target)=
 
@@ -60,7 +91,7 @@ It handles everything:
 A library is private to its package unless you pass `EXPORT`, which works for both library types:
 
 ```cmake
-nodl_generate_cpp(my_node_base EXPORT nodl/my_node.nodl.yaml)
+nodl_generate_cpp(my_node_base EXPORT RESOURCE_NAME my_node nodl/my_node.nodl.yaml)
 ```
 
 Downstream packages can then use the target.
@@ -186,7 +217,7 @@ project(my_package)
 find_package(ament_cmake REQUIRED)
 find_package(nodl_generator_cpp REQUIRED)
 
-nodl_generate_cpp(my_node_base nodl/my_node.nodl.yaml)
+nodl_generate_cpp(my_node_base RESOURCE_NAME my_node nodl/my_node.nodl.yaml)
 
 add_executable(my_node_exe src/my_node.cpp)
 target_link_libraries(my_node_exe PRIVATE my_node_base)
@@ -525,4 +556,4 @@ The `codegen.cpp` sub-object is opaque to `nodl_schema` — its schema and inter
 package.
 `nodl_common_interfaces` registers the shared base-type descriptions (`nodl://nodl_common_interfaces/node`
 and `nodl://nodl_common_interfaces/lifecycle_node`) that the generator's include references resolve against.
-For registering a NoDL document with the ament index, see the `ament_nodl` package.
+The macro registers the document with the ament index through the `ament_nodl` package.
