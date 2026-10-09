@@ -8,9 +8,13 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "test_nodl_generators/cpp_minimal_node_base.hpp"
+#include "test_nodl_generators/cpp_minimal_static_node_base.hpp"
 #include "test_nodl_generators/cpp_params_node_base.hpp"
 
 class MinimalNode : public CppMinimalNodeBase
+{};
+
+class StaticNode : public CppMinimalStaticNodeBase
 {};
 
 class ParamsNode : public CppParamsNodeBase
@@ -54,4 +58,11 @@ TEST_F(DownstreamTest, SubclassOfExportedParameterizedBaseReadsDefaults)
 
   EXPECT_DOUBLE_EQ(node->max_speed(), 1.5);
   EXPECT_EQ(node->robot_name(), "bot");
+}
+
+TEST_F(DownstreamTest, SubclassOfExportedStaticBaseRuns)
+{
+  auto node = std::make_shared<StaticNode>();
+
+  EXPECT_STREQ(node->get_name(), "cpp_minimal_static_node");
 }

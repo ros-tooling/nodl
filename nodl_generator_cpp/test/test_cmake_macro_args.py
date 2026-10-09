@@ -57,10 +57,10 @@ def test_bad_arguments_are_rejected(tmp_path, call_args, expected):
         ('my_base my.nodl.yaml', True),
         ('my_base SHARED my.nodl.yaml', True),
         ('my_base NO_EXPORT my.nodl.yaml', False),
-        ('my_base STATIC my.nodl.yaml', False),
+        ('my_base STATIC my.nodl.yaml', True),
         ('my_base STATIC NO_EXPORT my.nodl.yaml', False),
     ],
-    ids=['default', 'shared', 'no-export', 'static', 'static-no-export'],
+    ids=['default', 'shared', 'shared-no-export', 'static', 'static-no-export'],
 )
 def test_exported_target_is_rejected_inside_a_function(tmp_path, call_args, rejected):
     result = _run_macro(tmp_path, call_args, in_function=True)
@@ -97,9 +97,10 @@ def _configure_project_with_subdirectory(tmp_path: Path, call_args: str) -> subp
         ('my_base my.nodl.yaml', True),
         ('my_base SHARED my.nodl.yaml', True),
         ('my_base NO_EXPORT my.nodl.yaml', False),
-        ('my_base STATIC my.nodl.yaml', False),
+        ('my_base STATIC my.nodl.yaml', True),
+        ('my_base STATIC NO_EXPORT my.nodl.yaml', False),
     ],
-    ids=['default', 'shared', 'no-export', 'static'],
+    ids=['default', 'shared', 'shared-no-export', 'static', 'static-no-export'],
 )
 def test_exported_target_is_rejected_in_a_subdirectory(tmp_path, call_args, rejected):
     result = _configure_project_with_subdirectory(tmp_path, call_args)

@@ -8,11 +8,12 @@
 # as a library target that the caller can link against.
 # The library is SHARED by default, or STATIC when requested.
 # Giving both SHARED and STATIC is an error.
-# The library type does not follow ``BUILD_SHARED_LIBS``.
+# The library type only chooses how the library is built, and does not follow ``BUILD_SHARED_LIBS``.
 # Both types are built as position-independent code, so a STATIC library
 # can be linked into a SHARED library.
 # SHARED libraries are installed to ``lib`` (``bin`` for DLLs), which is on
 # the library path of a sourced workspace.
+# STATIC libraries are installed to ``lib`` as archives when they are exported.
 # The library file is named after ``<PROJECT_NAME>_<TARGET>``,
 # for example ``lib<PROJECT_NAME>_<TARGET>.so``,
 # to avoid collisions between packages in a shared install space.
@@ -20,11 +21,12 @@
 # A target that already starts with the package name gets it twice,
 # so target ``my_pkg_base`` in project ``my_pkg`` produces ``libmy_pkg_my_pkg_base.so``.
 #
-# SHARED libraries are also exported as ament CMake targets by default.
+# Libraries of both types are also exported as ament CMake targets by default.
 # Downstream packages may call ``find_package(<project>)``, link ``<project>::<TARGET>``, and ``#include <project>/<target>.hpp``.
 # This macro must be called before ``ament_package()``, in the same CMakeLists.txt, not inside a function or subdirectory.
-# The caller must declare the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``,
-# STATIC libraries are never exported or installed.
+# The caller must declare the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``.
+# A STATIC base linked into several SHARED libraries that are loaded into one process
+# gives each of them its own copy of the class and parameter code.
 #
 # Example::
 #
@@ -43,7 +45,7 @@
 #
 #   nodl_generate_cpp(my_node_base STATIC my_node.nodl.yaml)
 #
-# Keep a SHARED library private to the package::
+# Keep a library private to the package::
 #
 #   nodl_generate_cpp(my_node_base NO_EXPORT my_node.nodl.yaml)
 #
@@ -57,11 +59,11 @@
 #   ``<node>_base`` target yields a ``<Node>Base`` class.  A single trailing
 #   ``_base`` is stripped to form the runtime node name.
 # :type TARGET: string
-# :param SHARED: Build a SHARED library.  This is the default, installed to ``lib``.
-# :param STATIC: Build a STATIC library.  It is not installed or exported.
+# :param SHARED: Build a SHARED library.  This is the default.
+# :param STATIC: Build a STATIC library.
 # :param NO_EXPORT: Do not install the headers or export the target.
-#   The SHARED library is still installed to ``lib`` for use by executables at runtime.
-#   It has no effect on a STATIC library.
+#   A SHARED library is still installed to ``lib`` for use by executables at runtime.
+#   A STATIC library is not installed at all.
 # :param NODL_FILE: Path to the ``.nodl.yaml`` file, relative to
 #   ``CMAKE_CURRENT_SOURCE_DIR``.
 # :type NODL_FILE: string
@@ -87,10 +89,16 @@ macro(nodl_generate_cpp TARGET)
   else()
     set(_nodl_library_type SHARED)
   endif()
+  # The library type does not affect the export.
+  if(_nodl_NO_EXPORT)
+    set(_nodl_exported FALSE)
+  else()
+    set(_nodl_exported TRUE)
+  endif()
   # ament_export_* record their state in variables of the calling scope,
   # so a call inside a function or subdirectory would silently drop the export.
   # Script mode has no project, so PROJECT_SOURCE_DIR is empty there.
-  if(_nodl_library_type STREQUAL "SHARED" AND NOT _nodl_NO_EXPORT)
+  if(_nodl_exported)
     if(DEFINED CMAKE_CURRENT_FUNCTION)
       message(FATAL_ERROR
         "nodl_generate_cpp: target '${TARGET}' is exported, so it cannot be created inside function '${CMAKE_CURRENT_FUNCTION}'. "
@@ -176,8 +184,11 @@ macro(nodl_generate_cpp TARGET)
   if(_nodl_library_type STREQUAL "SHARED")
     # The generated code has no export macros.
     set_target_properties(${TARGET} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+  endif()
+  # A STATIC library has no runtime role, so it is only installed when it is exported.
+  if(_nodl_exported OR _nodl_library_type STREQUAL "SHARED")
     set(_nodl_export_args "")
-    if(NOT _nodl_NO_EXPORT)
+    if(_nodl_exported)
       set(_nodl_export_args
         EXPORT export_${TARGET}
         INCLUDES DESTINATION include/${PROJECT_NAME})
@@ -226,7 +237,7 @@ macro(nodl_generate_cpp TARGET)
   endif()
 
   # ── export for downstream packages ─────────────────────────────────
-  if(_nodl_library_type STREQUAL "SHARED" AND NOT _nodl_NO_EXPORT)
+  if(_nodl_exported)
     set(_nodl_export_deps ${${TARGET}_ROS_DEPS})
     if(NOT _has_params_idx EQUAL -1)
       # Its config file finds fmt, rsl, tcb_span and the other packages the target links.
@@ -246,7 +257,7 @@ macro(nodl_generate_cpp TARGET)
   endif()
 endmacro()
 
-# Install the generated headers and register the export set of a SHARED target.
+# Install the generated headers and register the export set of a target.
 # HEADERS are relative to OUTPUT_DIR and keep that layout under ``include/${PROJECT_NAME}``.
 # This is a macro because ament_export_* record their state in the calling scope.
 macro(_nodl_cpp_export TARGET)

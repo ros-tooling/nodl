@@ -86,8 +86,16 @@ def test_no_export_fixture_installs_only_the_library():
     assert not _export_files(target)
 
 
-def test_static_fixture_is_not_installed():
+def test_static_fixture_is_exported_as_an_archive():
     target = 'cpp_minimal_static_node_base'
+
+    assert f'lib/lib{PACKAGE}_{target}.a' in INSTALLED
+    assert f'{HEADER_DIR}/{target}.hpp' in INSTALLED
+    assert _export_files(target)
+
+
+def test_static_no_export_fixture_is_not_installed():
+    target = 'cpp_private_static_node_base'
 
     assert not _library(target)
     assert not _headers(target)
