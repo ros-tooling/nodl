@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 3.22)
 project(test_nodl_generators)
 
 find_package(ament_cmake REQUIRED)
+# Defines the BUILD_SHARED_LIBS option, ON by default, which sets the library type of the fixtures without a type keyword.
+ament_add_default_options()
 find_package(nodl_generator_cpp REQUIRED)
 find_package(nodl_generator_py REQUIRED)
 
@@ -36,6 +38,21 @@ target_link_libraries(cpp_minimal_static_plugin PRIVATE cpp_minimal_static_node_
 
 # A STATIC library without EXPORT is not installed at all.
 nodl_generate_cpp(cpp_private_static_node_base STATIC NO_INDEX minimal/cpp/node.nodl.yaml)
+
+# Without a type keyword the library follows BUILD_SHARED_LIBS.
+# With it OFF, the library is STATIC and so is not installed without EXPORT.
+# SHARED overrides it.
+if(DEFINED BUILD_SHARED_LIBS)
+  set(_saved_build_shared_libs "${BUILD_SHARED_LIBS}")
+endif()
+set(BUILD_SHARED_LIBS OFF)
+nodl_generate_cpp(cpp_off_default_node_base minimal/cpp/node.nodl.yaml)
+nodl_generate_cpp(cpp_off_shared_node_base SHARED minimal/cpp/node.nodl.yaml)
+if(DEFINED _saved_build_shared_libs)
+  set(BUILD_SHARED_LIBS "${_saved_build_shared_libs}")
+else()
+  unset(BUILD_SHARED_LIBS)
+endif()
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
