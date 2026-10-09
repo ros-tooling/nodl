@@ -24,7 +24,8 @@
 # Libraries of both types are also exported as ament CMake targets by default.
 # Downstream packages may call ``find_package(<project>)``, link ``<project>::<TARGET>``, and ``#include <project>/<target>.hpp``.
 # This macro must be called before ``ament_package()``, in the same CMakeLists.txt, not inside a function or subdirectory.
-# The caller must declare the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``.
+# The caller declares ``nodl_generator_cpp`` as a ``<buildtool_export_depend>``,
+# and the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``.
 # A STATIC base linked into several SHARED libraries that are loaded into one process
 # gives each of them its own copy of the class and parameter code.
 #
@@ -212,10 +213,10 @@ macro(nodl_generate_cpp TARGET)
   # The generated parameter header (from generate_parameter_library_py)
   # includes fmt, rsl, etc.  Mirror the same link set that
   # generate_parameter_library's own CMake macro uses.
+  # The extras of nodl_generator_cpp have already found the package.
   # Target names changed across distros, so we use if(TARGET) guards.
   list(FIND ${TARGET}_GENERATED_FILES "${TARGET}_parameters.yaml" _has_params_idx)
   if(NOT _has_params_idx EQUAL -1)
-    find_package(generate_parameter_library REQUIRED)
     set(_nodl_genparamlib_deps
       fmt::fmt
       rclcpp::rclcpp
@@ -238,11 +239,8 @@ macro(nodl_generate_cpp TARGET)
 
   # ── export for downstream packages ─────────────────────────────────
   if(_nodl_exported)
-    set(_nodl_export_deps ${${TARGET}_ROS_DEPS})
-    if(NOT _has_params_idx EQUAL -1)
-      # Its config file finds fmt, rsl, tcb_span and the other packages the target links.
-      list(APPEND _nodl_export_deps generate_parameter_library)
-    endif()
+    # Its extras find the parameter library, with the packages that a parameterized target links.
+    set(_nodl_export_deps ${${TARGET}_ROS_DEPS} nodl_generator_cpp)
     list(REMOVE_DUPLICATES _nodl_export_deps)
     set(_nodl_export_headers "")
     foreach(_f IN LISTS ${TARGET}_GENERATED_FILES)

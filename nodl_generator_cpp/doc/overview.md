@@ -6,7 +6,7 @@ in its constructor, and exposes pure-virtual callbacks for inbound endpoints.
 You subclass it and write only business logic.
 
 Generated files are never edited by hand — they are regenerated whenever the `.nodl.yaml` changes.
-This is the same generate-always pattern used by `rosidl_generator_cpp` and `generate_parameter_library`.
+This is the same generate-always pattern used by `rosidl_generator_cpp`.
 
 For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 This package implements the "forward" workflow: a NoDL document is the source of truth that makes a node's interface
@@ -42,7 +42,7 @@ It handles everything:
 | Install | Install time | Installs exported libraries to `lib` (`bin` for Windows DLLs). A SHARED library is installed even with `NO_EXPORT`, a STATIC library is not. |
 | Export | Install time | Installs the generated headers (including `<target>_parameters.hpp`) to `include/<package>/<package>/` and exports the library as `<package>::TARGET` with `ament_export_targets` and `ament_export_dependencies`. The `.cpp`, the deps file and the parameter YAML are not installed. `NO_EXPORT` skips this step. |
 | ROS linking | Build time | Links all ROS dependencies via `${pkg}_TARGETS`. |
-| Parameter library | Build time | When the document has parameters, links `generate_parameter_library` and its transitive dependencies (`fmt`, `rsl`, `tcb_span`, etc.). |
+| Parameter code | Build time | When the document has parameters, links the libraries that the generated parameter header needs (`fmt`, `rsl`, `tcb_span`, etc.). |
 
 ### Arguments
 
@@ -71,10 +71,18 @@ target_link_libraries(my_plugin PRIVATE my_package::my_node_base)
 #include "my_package/my_node_base.hpp"
 ```
 
-The exported target carries its ROS dependencies, so `find_package(my_package)` also finds `rclcpp`, the message packages, and `generate_parameter_library` with its dependencies when the document has parameters.
+The exported target carries its dependencies, so `find_package(my_package)` also finds `rclcpp`, the message packages, and `nodl_generator_cpp` with everything that parameterized libraries link.
 The include path is the same in the build tree and the install space.
 
-The exporting package must declare the ROS dependencies of its documents as `<depend>` (or `<build_export_depend>`), plus `generate_parameter_library` when a document has parameters.
+The exporting package declares `nodl_generator_cpp` as a `<buildtool_export_depend>`, so its dependents get it at build time.
+It also declares the ROS dependencies of its documents as `<depend>` (or `<build_export_depend>`):
+
+```xml
+<buildtool_export_depend>nodl_generator_cpp</buildtool_export_depend>
+<depend>rclcpp</depend>
+<depend>std_msgs</depend>
+```
+
 `nodl_generated/<target>/<target>_deps.cmake` in the build directory lists them as `<target>_ROS_DEPS`.
 A missing `<depend>` does not break workspace builds, but it breaks rosdep and binary installs.
 
@@ -110,7 +118,7 @@ Subsequent builds skip generation entirely until a source file changes.
 ### Cross-distro compatibility
 
 The macro works across all supported ROS distributions.
-It uses `${pkg}_TARGETS` for linking and handles distro-specific target name changes for `generate_parameter_library` dependencies
+It uses `${pkg}_TARGETS` for linking and handles distro-specific target name changes for the parameter code dependencies
 (`tl_expected::tl_expected` on Humble/Jazzy vs `tl::expected` on Lyrical+, `parameter_traits` present on Humble/Jazzy but removed on Lyrical+).
 
 ## Prerequisites
