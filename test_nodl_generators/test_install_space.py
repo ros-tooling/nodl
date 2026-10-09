@@ -58,7 +58,7 @@ def _export_files(target: str) -> list[str]:
         'cpp_params_node_base',
     ],
 )
-def test_default_fixture_is_exported(target):
+def test_export_fixture_is_exported(target):
     assert f'{HEADER_DIR}/{target}.hpp' in INSTALLED
     assert _export_files(target)
     assert _library(target)
@@ -78,9 +78,11 @@ def test_only_headers_are_installed(target):
     assert installed <= {f'{target}.hpp', f'{target}_parameters.hpp'}
 
 
-def test_no_export_fixture_installs_only_the_library():
-    target = 'cpp_kitchen_sink_node_base'
-
+@pytest.mark.parametrize(
+    'target',
+    ['cpp_kitchen_sink_node_base', 'cpp_namespace_node_base'],
+)
+def test_shared_fixture_without_export_installs_only_the_library(target):
     assert _library(target)
     assert not _headers(target)
     assert not _export_files(target)
@@ -94,7 +96,7 @@ def test_static_fixture_is_exported_as_an_archive():
     assert _export_files(target)
 
 
-def test_static_no_export_fixture_is_not_installed():
+def test_static_fixture_without_export_is_not_installed():
     target = 'cpp_private_static_node_base'
 
     assert not _library(target)

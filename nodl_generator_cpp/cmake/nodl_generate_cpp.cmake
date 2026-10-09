@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #
-# nodl_generate_cpp(TARGET [SHARED|STATIC] [NO_EXPORT] NODL_FILE)
+# nodl_generate_cpp(TARGET [SHARED|STATIC] [EXPORT] NODL_FILE)
 #
 # Generate an rclcpp base-node class from a NoDL document and expose it
 # as a library target that the caller can link against.
@@ -13,7 +13,7 @@
 # can be linked into a SHARED library.
 # SHARED libraries are installed to ``lib`` (``bin`` for DLLs), which is on
 # the library path of a sourced workspace.
-# STATIC libraries are installed to ``lib`` as archives when they are exported.
+# STATIC libraries are not installed unless they are exported, because an archive has no runtime role.
 # The library file is named after ``<PROJECT_NAME>_<TARGET>``,
 # for example ``lib<PROJECT_NAME>_<TARGET>.so``,
 # to avoid collisions between packages in a shared install space.
@@ -21,9 +21,10 @@
 # A target that already starts with the package name gets it twice,
 # so target ``my_pkg_base`` in project ``my_pkg`` produces ``libmy_pkg_my_pkg_base.so``.
 #
-# Libraries of both types are also exported as ament CMake targets by default.
-# Downstream packages may call ``find_package(<project>)``, link ``<project>::<TARGET>``, and ``#include <project>/<target>.hpp``.
-# This macro must be called before ``ament_package()``, in the same CMakeLists.txt, not inside a function or subdirectory.
+# A library is private to the package unless ``EXPORT`` is given.
+# ``EXPORT`` applies to both types, and installs the headers and exports the library as an ament CMake target.
+# Downstream packages may then call ``find_package(<project>)``, link ``<project>::<TARGET>``, and ``#include <project>/<target>.hpp``.
+# An exported library must be created before ``ament_package()``, in the same CMakeLists.txt, not inside a function or subdirectory.
 # The caller declares ``nodl_generator_cpp`` as a ``<buildtool_export_depend>``,
 # and the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``.
 # A STATIC base linked into several SHARED libraries that are loaded into one process
@@ -46,9 +47,9 @@
 #
 #   nodl_generate_cpp(my_node_base STATIC my_node.nodl.yaml)
 #
-# Keep a library private to the package::
+# Export the library for other packages::
 #
-#   nodl_generate_cpp(my_node_base NO_EXPORT my_node.nodl.yaml)
+#   nodl_generate_cpp(my_node_base EXPORT my_node.nodl.yaml)
 #
 # A downstream package links the exported target::
 #
@@ -62,9 +63,9 @@
 # :type TARGET: string
 # :param SHARED: Build a SHARED library.  This is the default.
 # :param STATIC: Build a STATIC library.
-# :param NO_EXPORT: Do not install the headers or export the target.
-#   A SHARED library is still installed to ``lib`` for use by executables at runtime.
-#   A STATIC library is not installed at all.
+# :param EXPORT: Install the headers and export the target to downstream packages.
+#   Without it, a SHARED library is only installed to ``lib`` for use by executables at runtime,
+#   and a STATIC library is not installed at all.
 # :param NODL_FILE: Path to the ``.nodl.yaml`` file, relative to
 #   ``CMAKE_CURRENT_SOURCE_DIR``.
 # :type NODL_FILE: string
@@ -73,7 +74,7 @@
 #
 macro(nodl_generate_cpp TARGET)
   # ── argument parsing ───────────────────────────────────────────────
-  cmake_parse_arguments(_nodl "SHARED;STATIC;NO_EXPORT" "" "" ${ARGN})
+  cmake_parse_arguments(_nodl "SHARED;STATIC;EXPORT" "" "" ${ARGN})
   if(_nodl_SHARED AND _nodl_STATIC)
     message(FATAL_ERROR
       "nodl_generate_cpp: target '${TARGET}' cannot be both SHARED and STATIC")
@@ -91,11 +92,7 @@ macro(nodl_generate_cpp TARGET)
     set(_nodl_library_type SHARED)
   endif()
   # The library type does not affect the export.
-  if(_nodl_NO_EXPORT)
-    set(_nodl_exported FALSE)
-  else()
-    set(_nodl_exported TRUE)
-  endif()
+  set(_nodl_exported ${_nodl_EXPORT})
   # ament_export_* record their state in variables of the calling scope,
   # so a call inside a function or subdirectory would silently drop the export.
   # Script mode has no project, so PROJECT_SOURCE_DIR is empty there.
@@ -103,11 +100,11 @@ macro(nodl_generate_cpp TARGET)
     if(DEFINED CMAKE_CURRENT_FUNCTION)
       message(FATAL_ERROR
         "nodl_generate_cpp: target '${TARGET}' is exported, so it cannot be created inside function '${CMAKE_CURRENT_FUNCTION}'. "
-        "Turn the function into a macro or pass NO_EXPORT.")
+        "Turn the function into a macro, or call it from the CMakeLists.txt that calls ament_package().")
     elseif(PROJECT_SOURCE_DIR AND NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
       message(FATAL_ERROR
         "nodl_generate_cpp: target '${TARGET}' is exported, so it cannot be created in subdirectory '${CMAKE_CURRENT_SOURCE_DIR}'. "
-        "Call it from the CMakeLists.txt that calls ament_package() or pass NO_EXPORT.")
+        "Call it from the CMakeLists.txt that calls ament_package().")
     endif()
   endif()
 

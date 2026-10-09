@@ -4,13 +4,14 @@ cmake_minimum_required(VERSION 3.22)
 project(test_nodl_generators_downstream)
 
 find_package(ament_cmake REQUIRED)
-# Resolves the exported targets and, through them, the packages their interfaces link.
+# Resolves the exported targets.
+# The packages their interfaces link are found through the nodl_generator_cpp dependency of test_nodl_generators.
 find_package(test_nodl_generators REQUIRED)
 
-# A target created with NO_EXPORT is not visible downstream, whatever its library type.
-foreach(_private cpp_kitchen_sink_node_base cpp_private_static_node_base)
+# A target created without EXPORT is not visible downstream, whatever its library type.
+foreach(_private cpp_kitchen_sink_node_base cpp_namespace_node_base cpp_private_static_node_base)
   if(TARGET test_nodl_generators::${_private})
-    message(FATAL_ERROR "The NO_EXPORT target ${_private} was exported")
+    message(FATAL_ERROR "The target ${_private} was exported without EXPORT")
   endif()
 endforeach()
 

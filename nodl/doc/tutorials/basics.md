@@ -88,7 +88,8 @@ source install/setup.bash
 
 The generated C++ base exposes the declared publisher as `pub_chatter_`.
 The generated header is included as `nodl_tutorial_basics/talker_base.hpp`.
-The generated base is installed and exported by default, so other packages can subclass it, as described in {ref}`using-a-generated-base`.
+The generated library is private to the package.
+To let other packages subclass the base, pass `EXPORT` as described in {ref}`using-a-generated-base`.
 
 :::
 
