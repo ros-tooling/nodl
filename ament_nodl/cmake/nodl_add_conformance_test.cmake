@@ -22,7 +22,8 @@ endfunction()
 # :type EXECUTABLE: string
 # :param NODL_FILE: Required path to the NoDL file, absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
 # :type NODL_FILE: string
-# :param NODE_NAME: Required name of the node the executable runs.
+# :param NODE_NAME: name of the node the executable runs.
+#   Defaults to ``test_name``, which must then be a valid node name.
 # :type NODE_NAME: string
 # :param PACKAGE: package that provides the executable.
 #   Defaults to ``${PROJECT_NAME}``.
@@ -48,12 +49,18 @@ function(nodl_add_conformance_test test_name)
   if(NOT test_name)
     message(FATAL_ERROR "nodl_add_conformance_test: test name is required")
   endif()
-  foreach(_required EXECUTABLE NODL_FILE NODE_NAME)
+  foreach(_required EXECUTABLE NODL_FILE)
     if(NOT _ARGS_${_required})
       message(FATAL_ERROR "nodl_add_conformance_test: ${_required} is required")
     endif()
   endforeach()
 
+  if(NOT _ARGS_NODE_NAME)
+    if(NOT test_name MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
+      message(FATAL_ERROR "nodl_add_conformance_test: test name '${test_name}' is not a valid node name, pass NODE_NAME")
+    endif()
+    set(_ARGS_NODE_NAME "${test_name}")
+  endif()
   if(NOT _ARGS_PACKAGE)
     set(_ARGS_PACKAGE "${PROJECT_NAME}")
   endif()

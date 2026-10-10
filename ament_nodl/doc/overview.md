@@ -81,7 +81,6 @@ if(BUILD_TESTING)
   nodl_add_conformance_test(my_node_conformance
     EXECUTABLE my_node
     NODL_FILE nodl/my_node.nodl.yaml
-    NODE_NAME my_node
     NODE_NAMESPACE /robot
     TIMEOUT 15
   )
@@ -102,14 +101,14 @@ colcon test-result --verbose
 :`test_name`: Name of the registered launch test. Required.
 :`EXECUTABLE`: Name of the ROS 2 executable to launch. Required.
 :`NODL_FILE`: Path to the expected NoDL document. Absolute, or relative to `CMAKE_CURRENT_SOURCE_DIR`. Required.
-:`NODE_NAME`: Node name passed to the executable and used to construct its fully qualified name. Required.
+:`NODE_NAME`: Node name passed to the executable and used to construct its fully qualified name. Defaults to `test_name`. Pass it when `test_name` is not a valid node name (letters, digits and underscores, not starting with a digit).
 :`PACKAGE`: Package containing the executable. Defaults to `${PROJECT_NAME}`.
 :`NODE_NAMESPACE`: Namespace passed to the executable. Defaults to `/`.
 :`TIMEOUT`: Maximum time in seconds for the conformance check. Defaults to 15 and must be a positive integer.
 
 ### Behavior
 
-The macro rejects a missing file during CMake configuration.
+The macro rejects a missing file, or an invalid default node name, during CMake configuration.
 It generates a launch test in the build tree, launches the target node, and
 calls `ros2nodl.conformance.assert_conforms`.
 
