@@ -11,7 +11,8 @@ from nodl_schema.composition import (
     resolver_registered,
     unregister_resolver,
 )
-from nodl_schema.conformance import Difference, diff
+from nodl_schema.conformance import Difference, DiffReport, diff, diff_report
+from nodl_schema.ignore import IGNORE_KINDS, IgnoreRule
 from nodl_schema.loader import (
     dump_nodl,
     load_nodl,
@@ -29,12 +30,16 @@ register_resolver(LocalResolver())
 
 __all__ = [
     'AmentIndexResolver',
+    'IGNORE_KINDS',
+    'DiffReport',
     'Difference',
+    'IgnoreRule',
     'ResolutionError',
     'Resolver',
     'UnrewrittenReferenceError',
     'dump_nodl',
     'diff',
+    'diff_report',
     'load_nodl',
     'load_nodl_with_doc_tree',
     'load_schema',
