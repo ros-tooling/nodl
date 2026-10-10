@@ -87,6 +87,17 @@ if(BUILD_TESTING)
 endif()
 ```
 
+Nodes with required parameters that have no default need them passed to start:
+
+```cmake
+  nodl_add_conformance_test(my_node_conformance
+    EXECUTABLE my_node
+    NODL_FILE nodl/my_node.nodl.yaml
+    PARAMETERS_FILE config/my_node.yaml
+    PARAMETERS limit:=5 "frame_id:=base link"
+  )
+```
+
 ### Running the test
 
 After building the package, run the conformance test with its other tests:
@@ -105,10 +116,13 @@ colcon test-result --verbose
 :`PACKAGE`: Package containing the executable. Defaults to `${PROJECT_NAME}`.
 :`NODE_NAMESPACE`: Namespace passed to the executable. Defaults to `/`.
 :`TIMEOUT`: Maximum time in seconds for the conformance check. Defaults to 15 and must be a positive integer.
+:`PARAMETERS`: Parameters passed to the node as `name:=value` items, with the same syntax as `ros2 run -p`.
+  Items are applied after `PARAMETERS_FILE` and override the same parameter set there.
+:`PARAMETERS_FILE`: YAML parameter files passed to the node. Each is absolute, or relative to `CMAKE_CURRENT_SOURCE_DIR`.
 
 ### Behavior
 
-The macro rejects a missing file, or an invalid default node name, during CMake configuration.
+The macro rejects a missing `NODL_FILE` or `PARAMETERS_FILE`, a `PARAMETERS` item that is not `name:=value`, and an invalid default node name, during CMake configuration.
 It generates a launch test in the build tree, launches the target node, and
 calls `ros2nodl.conformance.assert_conforms`.
 

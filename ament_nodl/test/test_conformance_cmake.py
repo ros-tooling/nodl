@@ -23,7 +23,7 @@ endfunction()
 """
 
 
-def _configure(tmp_path: Path, invocation: str, *, create_nodl: bool = True):
+def _configure(tmp_path: Path, invocation: str, *, create_nodl: bool = True, parameters_files: tuple[str, ...] = ()):
     prefix = tmp_path / 'prefix'
     package = prefix / 'share' / 'launch_testing_ament_cmake' / 'cmake'
     package.mkdir(parents=True)
@@ -32,6 +32,8 @@ def _configure(tmp_path: Path, invocation: str, *, create_nodl: bool = True):
     source.mkdir()
     if create_nodl:
         (source / "node's interface.nodl.yaml").write_text('nodl_version: 2\n', encoding='utf-8')
+    for name in parameters_files:
+        (source / name).write_text('{}\n', encoding='utf-8')
     cmakelists = textwrap.dedent(f"""
         cmake_minimum_required(VERSION 3.22)
         project(cmake_contract NONE)
@@ -223,3 +225,75 @@ def test_macro_can_be_called_more_than_once(tmp_path):
     registrations = (build / 'registration.txt').read_text(encoding='utf-8').splitlines()
     assert len(registrations) == 2
     assert all('python=/fake/python' in line for line in registrations)
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_passes_parameters_and_files_to_node(tmp_path):
+    absolute = tmp_path / 'source' / 'other.yaml'
+    invocation = textwrap.dedent(f"""
+        nodl_add_conformance_test(contract_test
+          EXECUTABLE fixture_node
+          NODL_FILE "node's interface.nodl.yaml"
+          NODE_NAME fixture
+          PARAMETERS_FILE base.yaml "{absolute.as_posix()}"
+          PARAMETERS
+            limit:=5
+            mode:=1_000
+            [=[path:=it's a\\b/c "quoted"]=]
+            [=[list:=[1, 2]]=]
+            nested.name:=a:=b
+        )
+    """)
+
+    result, source, build = _configure(tmp_path, invocation, parameters_files=('base.yaml', 'other.yaml'))
+
+    assert result.returncode == 0, result.stderr
+    generated = (build / 'nodl_conformance' / 'contract_test.py').read_text(encoding='utf-8')
+    compile(generated, 'contract_test.py', 'exec')
+    namespace: dict = {}
+    for line in generated.splitlines():
+        if line.startswith(('_PARAMETERS_FILES', '_PARAMETERS =')):
+            exec(line, namespace)
+    assert namespace['_PARAMETERS_FILES'] == [str(source / 'base.yaml'), str(absolute)]
+    assert namespace['_PARAMETERS'] == [
+        'limit:=5',
+        'mode:=1_000',
+        'path:=it\'s a\\b/c "quoted"',
+        'list:=[1, 2]',
+        'nested.name:=a:=b',
+    ]
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+@pytest.mark.parametrize('item', ['no_separator', ':=value', 'name=value', 'name:='])
+def test_macro_rejects_invalid_parameter_item(tmp_path, item):
+    invocation = textwrap.dedent(f"""
+        nodl_add_conformance_test(contract_test
+          EXECUTABLE fixture_node
+          NODL_FILE "node's interface.nodl.yaml"
+          NODE_NAME fixture
+          PARAMETERS ok:=1 {item}
+        )
+    """)
+
+    result, _, _ = _configure(tmp_path, invocation)
+
+    assert result.returncode != 0
+    assert f"PARAMETERS item must be name:=value: '{item}'" in ' '.join(result.stderr.split())
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_missing_parameters_file(tmp_path):
+    invocation = textwrap.dedent("""
+        nodl_add_conformance_test(contract_test
+          EXECUTABLE fixture_node
+          NODL_FILE "node's interface.nodl.yaml"
+          NODE_NAME fixture
+          PARAMETERS_FILE missing.yaml
+        )
+    """)
+
+    result, source, _ = _configure(tmp_path, invocation)
+
+    assert result.returncode != 0
+    assert f'PARAMETERS_FILE does not exist: {source / "missing.yaml"}' in ' '.join(result.stderr.split())

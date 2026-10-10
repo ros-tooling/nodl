@@ -34,6 +34,13 @@ endfunction()
 # :param TIMEOUT: positive integer number of seconds to wait for the node.
 #   Defaults to 15.
 # :type TIMEOUT: integer
+# :param PARAMETERS: ``name:=value`` items passed to the node as ``-p`` arguments, for nodes with required parameters that have no default.
+#   Items use the syntax of ``ros2 run -p``, so name and value must be non-empty.
+#   Items are applied after ``PARAMETERS_FILE`` and override the same parameter set there.
+# :type PARAMETERS: list of strings
+# :param PARAMETERS_FILE: YAML parameter files passed to the node as ``--params-file`` arguments.
+#   Each is absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
+# :type PARAMETERS_FILE: list of strings
 #
 # @public
 #
@@ -42,7 +49,7 @@ function(nodl_add_conformance_test test_name)
     _ARGS
     ""
     "PACKAGE;EXECUTABLE;NODL_FILE;NODE_NAME;NODE_NAMESPACE;TIMEOUT"
-    ""
+    "PARAMETERS;PARAMETERS_FILE"
     ${ARGN}
   )
 
@@ -83,6 +90,33 @@ function(nodl_add_conformance_test test_name)
   if(NOT EXISTS "${_nodl_file}")
     message(FATAL_ERROR "nodl_add_conformance_test: NODL_FILE does not exist: ${_nodl_file}")
   endif()
+
+  set(_parameters_files_python "")
+  foreach(_parameters_file IN LISTS _ARGS_PARAMETERS_FILE)
+    get_filename_component(
+      _parameters_file_path
+      "${_parameters_file}"
+      ABSOLUTE
+      BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    if(NOT EXISTS "${_parameters_file_path}")
+      message(FATAL_ERROR "nodl_add_conformance_test: PARAMETERS_FILE does not exist: ${_parameters_file_path}")
+    endif()
+    _nodl_conformance_python_string(_parameters_file_python "${_parameters_file_path}")
+    string(APPEND _parameters_files_python "${_parameters_file_python}, ")
+  endforeach()
+
+  set(_parameters_python "")
+  foreach(_parameter IN LISTS _ARGS_PARAMETERS)
+    string(FIND "${_parameter}" ":=" _separator)
+    string(LENGTH "${_parameter}" _parameter_length)
+    math(EXPR _value_start "${_separator} + 2")
+    if(_separator LESS 1 OR _value_start EQUAL _parameter_length)
+      message(FATAL_ERROR "nodl_add_conformance_test: PARAMETERS item must be name:=value: '${_parameter}'")
+    endif()
+    _nodl_conformance_python_string(_parameter_python "${_parameter}")
+    string(APPEND _parameters_python "${_parameter_python}, ")
+  endforeach()
 
   find_package(launch_testing_ament_cmake REQUIRED)
 
