@@ -16,6 +16,7 @@ _NODE_NAMESPACE = @_node_namespace_python@
 _TIMEOUT = @_ARGS_TIMEOUT@
 _PARAMETERS_FILES = [@_parameters_files_python@]
 _PARAMETERS = [@_parameters_python@]
+_IGNORE = @_ignore_python@
 
 
 def _node_fqn():
@@ -48,4 +49,5 @@ class TestNodlConformance(unittest.TestCase):
             nodl_file=_NODL_FILE,
             node_fqn=_node_fqn(),
             timeout_sec=_TIMEOUT,
+            ignore=_IGNORE,
         )

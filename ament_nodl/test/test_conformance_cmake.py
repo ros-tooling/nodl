@@ -122,6 +122,7 @@ def test_macro_generates_launch_test_and_registration(tmp_path):
     assert "_NODE_NAMESPACE = '/'" in generated
     assert "node\\'s interface.nodl.yaml'" in generated
     assert '_TIMEOUT = 15' in generated
+    assert '_IGNORE = []' in generated
     assert 'from ros2nodl.conformance import assert_conforms' in generated
     assert 'from launch_ros.actions import Node' in generated
     assert 'assert_conforms(' in generated
@@ -297,3 +298,27 @@ def test_macro_rejects_missing_parameters_file(tmp_path):
 
     assert result.returncode != 0
     assert f'PARAMETERS_FILE does not exist: {source / "missing.yaml"}' in ' '.join(result.stderr.split())
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_passes_ignore_rules_to_the_generated_test(tmp_path):
+    invocation = textwrap.dedent("""
+        nodl_add_conformance_test(contract_test
+          EXECUTABLE fixture_node
+          NODL_FILE "node's interface.nodl.yaml"
+          NODE_NAME fixture
+          IGNORE publisher:/topic_statistics "subscription:/it's/*" parameter:qos_overrides.*
+        )
+    """)
+
+    result, _, build = _configure(tmp_path, invocation)
+
+    assert result.returncode == 0, result.stderr
+    generated = (build / 'nodl_conformance' / 'contract_test.py').read_text(encoding='utf-8')
+    namespace: dict = {}
+    for line in generated.splitlines():
+        if line.startswith('_IGNORE = '):
+            exec(line, namespace)
+    assert namespace['_IGNORE'] == ['publisher:/topic_statistics', "subscription:/it's/*", 'parameter:qos_overrides.*']
+    assert 'ignore=_IGNORE' in generated
+    compile(generated, 'contract_test.py', 'exec')

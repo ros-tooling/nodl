@@ -94,6 +94,15 @@ if(BUILD_TESTING)
     PARAMETERS limit:=5 mode:=1_000
   )
 
+  nodl_add_conformance_test(conformance_injected
+    EXECUTABLE conformance_injected_node
+    NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
+    NODE_NAME fixture
+    NODE_NAMESPACE /conformance_injected_macro
+    PARAMETERS limit:=5 mode:=1_000
+    IGNORE publisher:/topic_statistics
+  )
+
   find_package(launch_testing_ament_cmake REQUIRED)
   add_launch_test(test/test_conformance_ignore.py TIMEOUT 60)
 
