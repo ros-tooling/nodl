@@ -14,6 +14,8 @@ _NODL_FILE = @_nodl_file_python@
 _NODE_NAME = @_node_name_python@
 _NODE_NAMESPACE = @_node_namespace_python@
 _TIMEOUT = @_ARGS_TIMEOUT@
+_PARAMETERS_FILES = [@_parameters_files_python@]
+_PARAMETERS = [@_parameters_python@]
 
 
 def _node_fqn():
@@ -27,6 +29,11 @@ _target = Node(
     name=_NODE_NAME,
     namespace=_NODE_NAMESPACE,
     output='screen',
+    ros_arguments=[
+        *(argument for file in _PARAMETERS_FILES for argument in ('--params-file', file)),
+        *(argument for item in _PARAMETERS for argument in ('-p', item)),
+    ]
+    or None,
 )
 
 

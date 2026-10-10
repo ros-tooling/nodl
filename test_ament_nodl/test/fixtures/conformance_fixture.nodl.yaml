@@ -26,3 +26,6 @@ parameters:
   limit:
     type: int
     read_only: true
+  mode:
+    type: string
+    read_only: true

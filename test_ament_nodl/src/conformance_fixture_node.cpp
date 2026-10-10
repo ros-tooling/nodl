@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <memory>
+#include <stdexcept>
+#include <string>
 
 #include "rcl_interfaces/msg/parameter_descriptor.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -24,7 +26,13 @@ public:
 
     rcl_interfaces::msg::ParameterDescriptor descriptor;
     descriptor.read_only = true;
-    declare_parameter<int64_t>("limit", 10, descriptor);
+    declare_parameter<int64_t>("limit", descriptor);
+    declare_parameter<std::string>("mode", descriptor);
+
+    // Only the values the conformance tests intend to supply let the node start.
+    if (5 != get_parameter("limit").as_int() || "1_000" != get_parameter("mode").as_string()) {
+      throw std::invalid_argument("unexpected parameter values");
+    }
   }
 
 private:

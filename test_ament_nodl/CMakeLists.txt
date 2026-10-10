@@ -43,12 +43,35 @@ if(BUILD_TESTING)
       ${std_srvs_TARGETS})
   install(TARGETS conformance_fixture_node DESTINATION lib/${PROJECT_NAME})
 
+  # The fixture node refuses to start unless it is given its required `limit` and `mode` parameters.
+  # rcl reads `1_000` as a string and PyYAML as an integer, so `mode` only starts when items reach the node as `-p` arguments.
   nodl_add_conformance_test(conformance_fixture
     EXECUTABLE conformance_fixture_node
     NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
     NODE_NAME fixture
     NODE_NAMESPACE /conformance
     TIMEOUT 15
+    PARAMETERS limit:=5 mode:=1_000
+  )
+
+  nodl_add_conformance_test(conformance_fixture_parameters_file
+    EXECUTABLE conformance_fixture_node
+    NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
+    NODE_NAME fixture_file
+    NODE_NAMESPACE /conformance
+    TIMEOUT 15
+    PARAMETERS_FILE test/fixtures/conformance_fixture_parameters.yaml
+  )
+
+  # The file sets values the node rejects, so the test passes only if the inline items win.
+  nodl_add_conformance_test(conformance_fixture_parameters_override
+    EXECUTABLE conformance_fixture_node
+    NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
+    NODE_NAME fixture_override
+    NODE_NAMESPACE /conformance
+    TIMEOUT 15
+    PARAMETERS_FILE test/fixtures/conformance_fixture_wrong_parameters.yaml
+    PARAMETERS limit:=5 mode:=1_000
   )
 
   # NODE_NAME defaults to the test name.
@@ -56,6 +79,7 @@ if(BUILD_TESTING)
     EXECUTABLE conformance_fixture_node
     NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
     NODE_NAMESPACE /conformance
+    PARAMETERS limit:=5 mode:=1_000
   )
 
   ament_add_pytest_test(test_register_node test/test_register_node.py)
