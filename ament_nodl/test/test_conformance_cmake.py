@@ -50,12 +50,11 @@ def _configure(tmp_path: Path, invocation: str, *, create_nodl: bool = True):
 
 
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
-@pytest.mark.parametrize('missing', ['EXECUTABLE', 'NODL_FILE', 'NODE_NAME'])
+@pytest.mark.parametrize('missing', ['EXECUTABLE', 'NODL_FILE'])
 def test_macro_rejects_each_missing_required_argument(tmp_path, missing):
     arguments = {
         'EXECUTABLE': 'fixture_node',
         'NODL_FILE': "node's interface.nodl.yaml",
-        'NODE_NAME': 'fixture',
     }
     del arguments[missing]
     invocation = 'nodl_add_conformance_test(contract_test\n'
@@ -117,6 +116,7 @@ def test_macro_generates_launch_test_and_registration(tmp_path):
     assert result.returncode == 0, result.stderr
     generated = (build / 'nodl_conformance' / 'contract_test.py').read_text(encoding='utf-8')
     assert "_PACKAGE = 'cmake_contract'" in generated
+    assert "_NODE_NAME = 'fixture'" in generated
     assert "_NODE_NAMESPACE = '/'" in generated
     assert "node\\'s interface.nodl.yaml'" in generated
     assert '_TIMEOUT = 15' in generated
@@ -149,11 +149,60 @@ def test_macro_accepts_explicit_values_and_absolute_file(tmp_path):
     assert result.returncode == 0, result.stderr
     generated = (build / 'nodl_conformance' / 'contract_test.py').read_text(encoding='utf-8')
     assert "_PACKAGE = 'explicit_package'" in generated
+    assert "_NODE_NAME = 'fixture'" in generated
     assert "_NODE_NAMESPACE = '/robot'" in generated
     assert '_TIMEOUT = 40' in generated
     registration = (build / 'registration.txt').read_text(encoding='utf-8')
     assert 'TARGET;contract_test' in registration
     assert 'TIMEOUT;50' in registration
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_defaults_node_name_to_test_name(tmp_path):
+    invocation = textwrap.dedent("""
+        nodl_add_conformance_test(contract_test
+          EXECUTABLE fixture_node
+          NODL_FILE "node's interface.nodl.yaml"
+        )
+    """)
+
+    result, _, build = _configure(tmp_path, invocation)
+
+    assert result.returncode == 0, result.stderr
+    generated = (build / 'nodl_conformance' / 'contract_test.py').read_text(encoding='utf-8')
+    assert "_NODE_NAME = 'contract_test'" in generated
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_rejects_invalid_default_node_name(tmp_path):
+    invocation = textwrap.dedent("""
+        nodl_add_conformance_test(contract-test
+          EXECUTABLE fixture_node
+          NODL_FILE "node's interface.nodl.yaml"
+        )
+    """)
+
+    result, _, _ = _configure(tmp_path, invocation)
+
+    assert result.returncode != 0
+    assert "test name 'contract-test' is not a valid node name, pass NODE_NAME" in ' '.join(result.stderr.split())
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_accepts_explicit_node_name_for_invalid_test_name(tmp_path):
+    invocation = textwrap.dedent("""
+        nodl_add_conformance_test(contract-test
+          EXECUTABLE fixture_node
+          NODL_FILE "node's interface.nodl.yaml"
+          NODE_NAME fixture
+        )
+    """)
+
+    result, _, build = _configure(tmp_path, invocation)
+
+    assert result.returncode == 0, result.stderr
+    generated = (build / 'nodl_conformance' / 'contract-test.py').read_text(encoding='utf-8')
+    assert "_NODE_NAME = 'fixture'" in generated
 
 
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')

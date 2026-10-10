@@ -51,6 +51,13 @@ if(BUILD_TESTING)
     TIMEOUT 15
   )
 
+  # NODE_NAME defaults to the test name.
+  nodl_add_conformance_test(conformance_fixture_default_name
+    EXECUTABLE conformance_fixture_node
+    NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
+    NODE_NAMESPACE /conformance
+  )
+
   ament_add_pytest_test(test_register_node test/test_register_node.py)
   ament_add_pytest_test(test_macro_rejection test/test_macro_rejection.py)
   ament_add_pytest_test(test_superbuild test/test_superbuild.py)
