@@ -4,10 +4,21 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from nodl_schema import Difference, DiffReport, IgnoreRule, diff_report, load_nodl
+
+IGNORE_ENVIRONMENT_VARIABLE = 'NODL_CONFORMANCE_IGNORE'
+
+
+def ignore_from_environment(environ: Mapping[str, str]) -> list[str]:
+    """Return the whitespace-separated ignore rules in ``NODL_CONFORMANCE_IGNORE``.
+
+    For the command line and generated tests to apply an environment-wide default.
+    The checks in this module take their rules as arguments only.
+    """
+    return environ.get(IGNORE_ENVIRONMENT_VARIABLE, '').split()
 
 
 def _load_document(nodl_file: str):

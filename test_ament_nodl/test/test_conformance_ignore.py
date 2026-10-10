@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A node with an endpoint its document does not declare, checked with and without ignore rules."""
 
+import os
 import subprocess
 import unittest
 from pathlib import Path
@@ -30,12 +31,13 @@ def generate_test_description():
     return LaunchDescription([node, ReadyToTest()])
 
 
-def _conform_cli(*extra):
+def _conform_cli(*extra, env=None):
     return subprocess.run(
         ['ros2', 'nodl', 'conform', _NODE_FQN, '--file', _NODL_FILE, *extra],
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
 
 
@@ -64,4 +66,10 @@ class TestConformanceIgnore(unittest.TestCase):
 
         assert result.returncode == 0, result.stderr
         assert f'{_NODE_FQN}: conforms' in result.stdout
+        assert "ignored [extra] publishers '/topic_statistics'" in result.stdout
+
+    def test_cli_applies_the_environment_default(self):
+        result = _conform_cli(env={**os.environ, 'NODL_CONFORMANCE_IGNORE': _IGNORE})
+
+        assert result.returncode == 0, result.stderr
         assert "ignored [extra] publishers '/topic_statistics'" in result.stdout

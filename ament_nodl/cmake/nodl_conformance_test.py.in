@@ -1,12 +1,13 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import unittest
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch_testing.actions import ReadyToTest
-from ros2nodl.conformance import assert_conforms
+from ros2nodl.conformance import assert_conforms, ignore_from_environment
 
 _PACKAGE = @_package_python@
 _EXECUTABLE = @_executable_python@
@@ -49,5 +50,5 @@ class TestNodlConformance(unittest.TestCase):
             nodl_file=_NODL_FILE,
             node_fqn=_node_fqn(),
             timeout_sec=_TIMEOUT,
-            ignore=_IGNORE,
+            ignore=[*_IGNORE, *ignore_from_environment(os.environ)],
         )

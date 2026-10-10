@@ -320,5 +320,5 @@ def test_macro_passes_ignore_rules_to_the_generated_test(tmp_path):
         if line.startswith('_IGNORE = '):
             exec(line, namespace)
     assert namespace['_IGNORE'] == ['publisher:/topic_statistics', "subscription:/it's/*", 'parameter:qos_overrides.*']
-    assert 'ignore=_IGNORE' in generated
+    assert 'ignore=[*_IGNORE, *ignore_from_environment(os.environ)]' in generated
     compile(generated, 'contract_test.py', 'exec')

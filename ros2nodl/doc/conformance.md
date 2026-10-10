@@ -59,6 +59,20 @@ The command lists what the rules left out, after `conforms` on success and after
 The rules belong to the check and not to the document.
 Unverifiable gaps in the description of an ignored endpoint are still reported.
 
+### Environment default
+
+`NODL_CONFORMANCE_IGNORE` holds whitespace-separated rules that apply to every check run through `ros2 nodl conform` or a test from `nodl_add_conformance_test`.
+Use it for environment injection, and set it once next to the `RMW_IMPLEMENTATION_WRAPPER=rmw_stats_shim` that adds the endpoint:
+
+```console
+export RMW_IMPLEMENTATION_WRAPPER=rmw_stats_shim
+export NODL_CONFORMANCE_IGNORE=publisher:/topic_statistics
+```
+
+Rules from the environment come before `--ignore` rules.
+The Python functions never read it.
+Pass `ros2nodl.conformance.ignore_from_environment(os.environ)` as `ignore` to apply it from your own code.
+
 In Python, `assert_conforms` and `check_conformance` take the same rules as `ignore=[...]`.
 `assert_conforms` returns the report, whose `ignored` list holds what the rules left out.
 

@@ -21,6 +21,7 @@ def _args(**overrides):
 
 
 def test_conform_passes_runtime_arguments(monkeypatch, capsys):
+    monkeypatch.delenv('NODL_CONFORMANCE_IGNORE', raising=False)
     calls = []
 
     def assert_conforms(**kwargs):
@@ -41,6 +42,18 @@ def test_conform_passes_runtime_arguments(monkeypatch, capsys):
         }
     ]
     assert capsys.readouterr().out == '/robot/controller: conforms\n'
+
+
+def test_conform_adds_the_environment_ignore_rules_before_the_arguments(monkeypatch):
+    monkeypatch.setenv('NODL_CONFORMANCE_IGNORE', 'publisher:/a  parameter:b.*\n')
+    calls = []
+
+    import ros2nodl.conformance
+
+    monkeypatch.setattr(ros2nodl.conformance, 'assert_conforms', lambda **kwargs: calls.append(kwargs) or DiffReport())
+
+    assert ConformVerb().main(args=_args(ignore=['subscription:/c'])) == 0
+    assert calls[0]['ignore'] == ['publisher:/a', 'parameter:b.*', 'subscription:/c']
 
 
 def test_conform_reports_ignored_entities(monkeypatch, capsys):

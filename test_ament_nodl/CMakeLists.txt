@@ -103,6 +103,17 @@ if(BUILD_TESTING)
     IGNORE publisher:/topic_statistics
   )
 
+  # No IGNORE argument, so this passes only through the environment default.
+  nodl_add_conformance_test(conformance_injected_environment
+    EXECUTABLE conformance_injected_node
+    NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
+    NODE_NAME fixture
+    NODE_NAMESPACE /conformance_injected_environment
+    PARAMETERS limit:=5 mode:=1_000
+  )
+  set_property(TEST conformance_injected_environment APPEND PROPERTY
+    ENVIRONMENT "NODL_CONFORMANCE_IGNORE=publisher:/topic_statistics")
+
   find_package(launch_testing_ament_cmake REQUIRED)
   add_launch_test(test/test_conformance_ignore.py TIMEOUT 60)
 

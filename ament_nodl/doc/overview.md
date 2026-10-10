@@ -127,6 +127,7 @@ nodl_add_conformance_test(my_node_conformance
 
 A rule is `KIND:NAME` or `KIND:NAME:TYPE`, where `NAME` and `TYPE` are globs.
 It only drops endpoints that the document does not declare.
+Rules in the `NODL_CONFORMANCE_IGNORE` environment variable apply to every conformance test when it runs, so a project can set the rules for environment-injected endpoints once.
 See the `ros2nodl` conform guide for the full rule syntax.
 
 ### Running the test

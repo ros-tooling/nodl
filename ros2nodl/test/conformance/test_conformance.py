@@ -16,7 +16,12 @@ from nodl_schema.models import (
     TopicEndpoint,
 )
 from ros2nodl import conformance
-from ros2nodl.conformance import assert_conforms, check_conformance, conformance_report
+from ros2nodl.conformance import (
+    assert_conforms,
+    check_conformance,
+    conformance_report,
+    ignore_from_environment,
+)
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 
@@ -367,3 +372,24 @@ def test_assert_conforms_names_ignored_entities_when_it_fails(monkeypatch):
 
     assert "[extra] publishers '/other'" in str(error.value)
     assert "ignored [extra] publishers '/topic_statistics'" in str(error.value)
+
+
+def test_ignore_from_environment_splits_on_whitespace():
+    assert ignore_from_environment({'NODL_CONFORMANCE_IGNORE': 'publisher:/a\n  parameter:b.*'}) == [
+        'publisher:/a',
+        'parameter:b.*',
+    ]
+
+
+def test_ignore_from_environment_is_empty_when_unset_or_blank():
+    assert ignore_from_environment({}) == []
+    assert ignore_from_environment({'NODL_CONFORMANCE_IGNORE': '  '}) == []
+
+
+def test_environment_rules_are_not_read_by_the_core(monkeypatch):
+    monkeypatch.setenv('NODL_CONFORMANCE_IGNORE', 'publisher:/topic_statistics')
+    _patch_describe(monkeypatch, _extra_publisher_result())
+
+    differences = check_conformance(nodl_file=str(FIXTURES / 'minimal.nodl.yaml'), node_fqn='/fixture')
+
+    assert [d.name for d in differences] == ['/topic_statistics']
