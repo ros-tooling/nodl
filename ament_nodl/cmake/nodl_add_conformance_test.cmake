@@ -14,7 +14,7 @@ endfunction()
 #
 # Register a launch test that compares one executable with one NoDL document.
 #
-# Finds ``launch_testing_ament_cmake`` if ``add_launch_test`` is not already available.
+# Finds ``launch_testing_ament_cmake`` on every call, because the variables ``add_launch_test`` reads are set in the calling scope.
 #
 # :param test_name: name of the test target to create.
 # :type test_name: string
@@ -77,9 +77,7 @@ function(nodl_add_conformance_test test_name)
     message(FATAL_ERROR "nodl_add_conformance_test: NODL_FILE does not exist: ${_nodl_file}")
   endif()
 
-  if(NOT COMMAND add_launch_test)
-    find_package(launch_testing_ament_cmake REQUIRED)
-  endif()
+  find_package(launch_testing_ament_cmake REQUIRED)
 
   _nodl_conformance_python_string(_package_python "${_ARGS_PACKAGE}")
   _nodl_conformance_python_string(_executable_python "${_ARGS_EXECUTABLE}")

@@ -13,7 +13,21 @@ import pytest
 MACRO = Path(__file__).parents[1] / 'cmake' / 'nodl_add_conformance_test.cmake'
 
 
+# Stands in for launch_testing_ament_cmake, which sets PYTHON_EXECUTABLE in the scope that finds it.
+FAKE_LAUNCH_TESTING = """
+set(PYTHON_EXECUTABLE "/fake/python")
+function(add_launch_test test_file)
+  file(APPEND "${CMAKE_BINARY_DIR}/registration.txt"
+    "${test_file}|python=${PYTHON_EXECUTABLE}|${ARGN}\n")
+endfunction()
+"""
+
+
 def _configure(tmp_path: Path, invocation: str, *, create_nodl: bool = True):
+    prefix = tmp_path / 'prefix'
+    package = prefix / 'share' / 'launch_testing_ament_cmake' / 'cmake'
+    package.mkdir(parents=True)
+    (package / 'launch_testing_ament_cmake-config.cmake').write_text(FAKE_LAUNCH_TESTING, encoding='utf-8')
     source = tmp_path / 'source'
     source.mkdir()
     if create_nodl:
@@ -21,17 +35,13 @@ def _configure(tmp_path: Path, invocation: str, *, create_nodl: bool = True):
     cmakelists = textwrap.dedent(f"""
         cmake_minimum_required(VERSION 3.22)
         project(cmake_contract NONE)
-        function(add_launch_test test_file)
-          file(WRITE "${{CMAKE_BINARY_DIR}}/registration.txt"
-            "${{test_file}}|${{ARGN}}")
-        endfunction()
         include("{MACRO.as_posix()}")
         {invocation}
     """)
     (source / 'CMakeLists.txt').write_text(cmakelists, encoding='utf-8')
     build = tmp_path / 'build'
     result = subprocess.run(
-        ['cmake', '-S', str(source), '-B', str(build)],
+        ['cmake', '-S', str(source), '-B', str(build), f'-DCMAKE_PREFIX_PATH={prefix}'],
         capture_output=True,
         text=True,
         check=False,
@@ -144,3 +154,23 @@ def test_macro_accepts_explicit_values_and_absolute_file(tmp_path):
     registration = (build / 'registration.txt').read_text(encoding='utf-8')
     assert 'TARGET;contract_test' in registration
     assert 'TIMEOUT;50' in registration
+
+
+@pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')
+def test_macro_can_be_called_more_than_once(tmp_path):
+    invocation = textwrap.dedent("""
+        foreach(name first second)
+          nodl_add_conformance_test(${name}
+            EXECUTABLE fixture_node
+            NODL_FILE "node's interface.nodl.yaml"
+            NODE_NAME ${name}
+          )
+        endforeach()
+    """)
+
+    result, _, build = _configure(tmp_path, invocation)
+
+    assert result.returncode == 0, result.stderr
+    registrations = (build / 'registration.txt').read_text(encoding='utf-8').splitlines()
+    assert len(registrations) == 2
+    assert all('python=/fake/python' in line for line in registrations)
