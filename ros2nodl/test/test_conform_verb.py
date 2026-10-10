@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 from unittest.mock import Mock
 
+from nodl_schema import Difference, DiffReport
 from ros2nodl.verb.conform import ConformVerb
 
 
@@ -13,6 +14,7 @@ def _args(**overrides):
         'node_name': '/robot/controller',
         'file': Path('nodl/controller.nodl.yaml'),
         'timeout': 15.0,
+        'ignore': [],
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -23,20 +25,35 @@ def test_conform_passes_runtime_arguments(monkeypatch, capsys):
 
     def assert_conforms(**kwargs):
         calls.append(kwargs)
+        return DiffReport()
 
     import ros2nodl.conformance
 
     monkeypatch.setattr(ros2nodl.conformance, 'assert_conforms', assert_conforms)
 
-    assert ConformVerb().main(args=_args(timeout=2.5)) == 0
+    assert ConformVerb().main(args=_args(timeout=2.5, ignore=['publisher:/stats'])) == 0
     assert calls == [
         {
             'nodl_file': 'nodl/controller.nodl.yaml',
             'node_fqn': '/robot/controller',
             'timeout_sec': 2.5,
+            'ignore': ['publisher:/stats'],
         }
     ]
     assert capsys.readouterr().out == '/robot/controller: conforms\n'
+
+
+def test_conform_reports_ignored_entities(monkeypatch, capsys):
+    ignored = Difference('extra', 'publishers', '/stats', 'observed undeclared type')
+
+    import ros2nodl.conformance
+
+    monkeypatch.setattr(ros2nodl.conformance, 'assert_conforms', lambda **kwargs: DiffReport(ignored=[ignored]))
+
+    assert ConformVerb().main(args=_args()) == 0
+    assert capsys.readouterr().out == (
+        "/robot/controller: conforms\n  ignored [extra] publishers '/stats': observed undeclared type\n"
+    )
 
 
 def test_conform_reports_all_differences(monkeypatch, capsys):
@@ -78,3 +95,22 @@ def test_conform_arguments_are_required_and_typed():
     assert args.node_name == '/robot/controller'
     assert args.file == Path('node.nodl.yaml')
     assert args.timeout == 3.5
+
+
+def test_conform_ignore_is_repeatable_and_defaults_to_empty():
+    parser = argparse.ArgumentParser()
+    ConformVerb().add_arguments(parser, 'ros2 nodl conform')
+
+    args = parser.parse_args([
+        '/robot/controller',
+        '--file',
+        'node.nodl.yaml',
+        '--ignore',
+        'publisher:/a',
+        '--ignore',
+        'parameter:b.*',
+    ])
+    default = parser.parse_args(['/robot/controller', '--file', 'node.nodl.yaml'])
+
+    assert args.ignore == ['publisher:/a', 'parameter:b.*']
+    assert default.ignore == []

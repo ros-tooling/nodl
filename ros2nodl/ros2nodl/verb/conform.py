@@ -29,18 +29,29 @@ class ConformVerb(VerbExtension):
             default=_DEFAULT_TIMEOUT,
             help='Live discovery timeout in seconds (default: %(default)s).',
         )
+        parser.add_argument(
+            '--ignore',
+            action='append',
+            default=[],
+            metavar='RULE',
+            help='Ignore observed entities that the document does not declare, as KIND:NAME[:TYPE].'
+            ' NAME and TYPE are globs, for example publisher:/topic_statistics. Repeatable.',
+        )
 
     def main(self, *, args) -> int:
-        from ros2nodl.conformance import assert_conforms
+        from ros2nodl.conformance import assert_conforms, format_ignored
 
         try:
-            assert_conforms(
+            report = assert_conforms(
                 nodl_file=str(args.file),
                 node_fqn=args.node_name,
                 timeout_sec=args.timeout,
+                ignore=args.ignore,
             )
         except Exception as exc:
             print(f'ros2 nodl conform: {exc}', file=sys.stderr)
             return 1
         print(f'{args.node_name}: conforms')
+        if report.ignored:
+            print(format_ignored(report))
         return 0

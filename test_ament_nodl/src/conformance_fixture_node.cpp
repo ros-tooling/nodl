@@ -23,6 +23,10 @@ public:
     service_ = create_service<std_srvs::srv::Empty>(
       "reset", [](std_srvs::srv::Empty::Request::SharedPtr, std_srvs::srv::Empty::Response::SharedPtr) {});
     client_ = create_client<std_srvs::srv::Empty>("calibrate");
+#ifdef INJECT_PUBLISHER
+    // Stands in for an endpoint added from outside the node, such as the one rmw_stats_shim creates.
+    injected_publisher_ = create_publisher<std_msgs::msg::String>("/topic_statistics", qos);
+#endif
 
     rcl_interfaces::msg::ParameterDescriptor descriptor;
     descriptor.read_only = true;
@@ -40,6 +44,9 @@ private:
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr service_;
   rclcpp::Client<std_srvs::srv::Empty>::SharedPtr client_;
+#ifdef INJECT_PUBLISHER
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr injected_publisher_;
+#endif
 };
 
 int main(int argc, char ** argv)

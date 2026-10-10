@@ -43,6 +43,18 @@ if(BUILD_TESTING)
       ${std_srvs_TARGETS})
   install(TARGETS conformance_fixture_node DESTINATION lib/${PROJECT_NAME})
 
+  # The same node with one extra publisher that its NoDL document does not declare.
+  add_executable(conformance_injected_node src/conformance_fixture_node.cpp)
+  target_compile_definitions(conformance_injected_node PRIVATE INJECT_PUBLISHER)
+  target_link_libraries(
+    conformance_injected_node
+    PRIVATE
+      rclcpp::rclcpp
+      ${rcl_interfaces_TARGETS}
+      ${std_msgs_TARGETS}
+      ${std_srvs_TARGETS})
+  install(TARGETS conformance_injected_node DESTINATION lib/${PROJECT_NAME})
+
   # The fixture node refuses to start unless it is given its required `limit` and `mode` parameters.
   # rcl reads `1_000` as a string and PyYAML as an integer, so `mode` only starts when items reach the node as `-p` arguments.
   nodl_add_conformance_test(conformance_fixture
@@ -81,6 +93,9 @@ if(BUILD_TESTING)
     NODE_NAMESPACE /conformance
     PARAMETERS limit:=5 mode:=1_000
   )
+
+  find_package(launch_testing_ament_cmake REQUIRED)
+  add_launch_test(test/test_conformance_ignore.py TIMEOUT 60)
 
   ament_add_pytest_test(test_register_node test/test_register_node.py)
   ament_add_pytest_test(test_macro_rejection test/test_macro_rejection.py)

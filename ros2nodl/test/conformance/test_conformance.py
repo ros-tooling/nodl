@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nodl_schema import Difference, Resolver, dump_nodl, resolver_registered
+from nodl_schema import Difference, DiffReport, Resolver, dump_nodl, resolver_registered
 from nodl_schema.models import (
     History,
     NodlDocument,
@@ -16,7 +16,7 @@ from nodl_schema.models import (
     TopicEndpoint,
 )
 from ros2nodl import conformance
-from ros2nodl.conformance import assert_conforms, check_conformance
+from ros2nodl.conformance import assert_conforms, check_conformance, conformance_report
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 
@@ -137,8 +137,8 @@ def test_check_conformance_compares_resolved_includes(monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(
         conformance,
-        'diff',
-        lambda expected, actual, *, node_fqn: calls.append((expected, actual, node_fqn)) or [],
+        'diff_report',
+        lambda expected, actual, *, node_fqn, ignore: calls.append((expected, actual, node_fqn)) or DiffReport(),
     )
 
     with resolver_registered(_Resolver({'test://common': included_path})):
@@ -232,7 +232,7 @@ def test_check_conformance_propagates_describe_failure_without_diff(monkeypatch)
         raise RuntimeError('observation failed')
 
     monkeypatch.setattr(ros2nodl.describe, 'describe_node', describe_node)
-    monkeypatch.setattr(conformance, 'diff', lambda *args, **kwargs: pytest.fail('diff called'))
+    monkeypatch.setattr(conformance, 'diff_report', lambda *args, **kwargs: pytest.fail('diff called'))
 
     with pytest.raises(RuntimeError, match='observation failed'):
         check_conformance(
@@ -254,11 +254,11 @@ def test_check_conformance_converts_gaps_and_passes_only_documents_to_diff(monke
     calls = []
     comparison = Difference('extra', 'publishers', '/extra', 'observed undeclared type')
 
-    def compare(expected, actual, *, node_fqn):
+    def compare(expected, actual, *, node_fqn, ignore):
         calls.append((expected, actual, node_fqn))
-        return [comparison]
+        return DiffReport([comparison])
 
-    monkeypatch.setattr(conformance, 'diff', compare)
+    monkeypatch.setattr(conformance, 'diff_report', compare)
 
     differences = check_conformance(
         nodl_file=str(FIXTURES / 'minimal.nodl.yaml'),
@@ -281,10 +281,89 @@ def test_assert_conforms_aggregates_all_differences(monkeypatch):
         Difference('missing', 'publishers', '/state', 'not observed'),
         Difference('extra', 'subscriptions', '/command', 'not declared'),
     ]
-    monkeypatch.setattr(conformance, 'check_conformance', lambda **kwargs: differences)
+    monkeypatch.setattr(conformance, 'conformance_report', lambda **kwargs: DiffReport(differences))
 
     with pytest.raises(AssertionError) as error:
         assert_conforms(nodl_file='node.nodl.yaml', node_fqn='/fixture')
 
     assert str(differences[0]) in str(error.value)
     assert str(differences[1]) in str(error.value)
+
+
+def _extra_publisher_result():
+    return SimpleNamespace(doc=NodlDocument(publishers=[_topic('/topic_statistics')]), gaps=[])
+
+
+def test_check_conformance_fails_on_an_undeclared_endpoint_without_ignore(monkeypatch):
+    _patch_describe(monkeypatch, _extra_publisher_result())
+
+    differences = check_conformance(nodl_file=str(FIXTURES / 'minimal.nodl.yaml'), node_fqn='/fixture')
+
+    assert [(d.kind, d.name) for d in differences] == [('extra', '/topic_statistics')]
+
+
+def test_check_conformance_ignores_an_undeclared_endpoint(monkeypatch):
+    _patch_describe(monkeypatch, _extra_publisher_result())
+
+    assert (
+        check_conformance(
+            nodl_file=str(FIXTURES / 'minimal.nodl.yaml'),
+            node_fqn='/fixture',
+            ignore=['publisher:/topic_statistics'],
+        )
+        == []
+    )
+
+
+def test_conformance_report_lists_what_was_ignored(monkeypatch):
+    _patch_describe(monkeypatch, _extra_publisher_result())
+
+    report = conformance_report(
+        nodl_file=str(FIXTURES / 'minimal.nodl.yaml'),
+        node_fqn='/fixture',
+        ignore=['publisher:/topic_*'],
+    )
+
+    assert report.differences == []
+    assert [(d.kind, d.name) for d in report.ignored] == [('extra', '/topic_statistics')]
+
+
+def test_check_conformance_rejects_a_malformed_rule_before_describe(monkeypatch):
+    calls = _track_describe_calls(monkeypatch)
+
+    with pytest.raises(ValueError, match='ignore kind'):
+        check_conformance(
+            nodl_file=str(FIXTURES / 'minimal.nodl.yaml'),
+            node_fqn='/fixture',
+            ignore=['nonsense:/topic'],
+        )
+
+    assert calls == []
+
+
+def test_assert_conforms_returns_the_ignored_entities(monkeypatch):
+    _patch_describe(monkeypatch, _extra_publisher_result())
+
+    report = assert_conforms(
+        nodl_file=str(FIXTURES / 'minimal.nodl.yaml'),
+        node_fqn='/fixture',
+        ignore=['publisher:/topic_statistics'],
+    )
+
+    assert [d.name for d in report.ignored] == ['/topic_statistics']
+
+
+def test_assert_conforms_names_ignored_entities_when_it_fails(monkeypatch):
+    result = _extra_publisher_result()
+    result.doc.publishers.append(_topic('/other'))
+    _patch_describe(monkeypatch, result)
+
+    with pytest.raises(AssertionError) as error:
+        assert_conforms(
+            nodl_file=str(FIXTURES / 'minimal.nodl.yaml'),
+            node_fqn='/fixture',
+            ignore=['publisher:/topic_statistics'],
+        )
+
+    assert "[extra] publishers '/other'" in str(error.value)
+    assert "ignored [extra] publishers '/topic_statistics'" in str(error.value)
