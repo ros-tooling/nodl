@@ -26,7 +26,8 @@ Check a running node against an explicit NoDL document.
 ros2 nodl conform /robot/my_node --file nodl/my_node.nodl.yaml
 ```
 
-See the [Conform guide](conformance.md) for composition, diagnostics, and exit behavior.
+Add `--ignore KIND:NAME` to leave out endpoints that the environment injects, or that a partly migrated node contributes and its document does not declare yet.
+See the [Conform guide](conformance.md) for composition, ignore rules, diagnostics, and exit behavior.
 
 ### `ros2 nodl diff`
 

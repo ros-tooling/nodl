@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """``ros2 nodl conform`` -- check a running node against a NoDL document."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -29,18 +30,30 @@ class ConformVerb(VerbExtension):
             default=_DEFAULT_TIMEOUT,
             help='Live discovery timeout in seconds (default: %(default)s).',
         )
+        parser.add_argument(
+            '--ignore',
+            action='append',
+            default=[],
+            metavar='RULE',
+            help='Ignore observed entities that the document does not declare, as KIND:NAME[:TYPE].'
+            ' NAME and TYPE are globs, for example publisher:/topic_statistics. Repeatable.'
+            ' Rules in NODL_CONFORMANCE_IGNORE apply as well.',
+        )
 
     def main(self, *, args) -> int:
-        from ros2nodl.conformance import assert_conforms
+        from ros2nodl.conformance import assert_conforms, format_ignored, ignore_from_environment
 
         try:
-            assert_conforms(
+            report = assert_conforms(
                 nodl_file=str(args.file),
                 node_fqn=args.node_name,
                 timeout_sec=args.timeout,
+                ignore=[*ignore_from_environment(os.environ), *args.ignore],
             )
         except Exception as exc:
             print(f'ros2 nodl conform: {exc}', file=sys.stderr)
             return 1
         print(f'{args.node_name}: conforms')
+        if report.ignored:
+            print(format_ignored(report))
         return 0

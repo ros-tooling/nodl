@@ -149,4 +149,30 @@ Supported kinds are `missing`, `extra`, `type_mismatch`, `qos_mismatch`, `proper
 | Read-only | A declared `read_only` value must match. An unknown actual value is `unverifiable`. |
 | Ignored fields | Description, default value, additional constraints, validation rules, and the actual current value do not affect the result. |
 
+### Ignoring extra entities
+
+`diff` and `diff_report` take an `ignore` list of rules that leave selected entities of the actual document out of the comparison.
+
+```python
+from nodl_schema import diff_report
+
+report = diff_report(
+    expected,
+    actual,
+    node_fqn='/robot/my_node',
+    ignore=['publisher:/debug/*'],
+)
+report.differences  # what fails the comparison
+report.ignored  # the `extra` differences that rules left out
+```
+
+A rule is an `IgnoreRule`, or its text form `KIND:NAME` or `KIND:NAME:TYPE`.
+`KIND` is `publisher`, `subscription`, `service_server`, `service_client`, `action_server`, `action_client`, or `parameter`.
+`NAME` is a glob over the fully qualified entity name, so `*` also matches `/`, and relative names in the actual document are resolved first.
+A parameter rule matches the parameter name.
+`TYPE` is an optional glob over the full type, such as `std_msgs/msg/String`, and does not apply to parameters.
+
+A rule only removes `extra` differences.
+An entity that the expected document declares is compared in full, and a declared entity that is not observed is still `missing`.
+
 `ros2nodl` loads and composes an expected document, describes a live node, and calls this API through `ros2 nodl conform`.

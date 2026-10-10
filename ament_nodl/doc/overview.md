@@ -98,6 +98,38 @@ Nodes with required parameters that have no default need them passed to start:
   )
 ```
 
+### Ignoring endpoints
+
+The check fails on any endpoint that the document does not declare.
+Declaring every endpoint in the document is the goal.
+Ignore rules cover two cases:
+
+- **Environment injection.**
+  The runtime environment adds an endpoint to every node, which no node document can declare.
+  Specifically, `rmw_stats_shim` adds a `/topic_statistics` publisher at the RMW layer, and no other such case is known.
+  Set these rules once in `NODL_CONFORMANCE_IGNORE`, next to the environment that injects the endpoint.
+- **Partial adoption.**
+  A node's helpers, mixins or plugins contribute endpoints that NoDL does not model yet.
+  Document the node's own interface and ignore the known contributed endpoints, so the test passes during adoption.
+  This is an on-ramp and not a destination, because the contributed endpoints stay unverified until they are declared.
+  Pass these rules with `IGNORE`, because they are specific to one node.
+
+Keep rules as narrow as possible, with exact names rather than broad globs where practical.
+`IGNORE` lists rules that leave observed endpoints out of the comparison:
+
+```cmake
+nodl_add_conformance_test(my_node_conformance
+  EXECUTABLE my_node
+  NODL_FILE nodl/my_node.nodl.yaml
+  IGNORE publisher:/topic_statistics
+)
+```
+
+A rule is `KIND:NAME` or `KIND:NAME:TYPE`, where `NAME` and `TYPE` are globs.
+It only drops endpoints that the document does not declare.
+Rules in the `NODL_CONFORMANCE_IGNORE` environment variable apply to every conformance test when it runs, so a project can set the rules for environment-injected endpoints once.
+See the `ros2nodl` conform guide for the full rule syntax.
+
 ### Running the test
 
 After building the package, run the conformance test with its other tests:
@@ -119,6 +151,7 @@ colcon test-result --verbose
 :`PARAMETERS`: Parameters passed to the node as `name:=value` items, with the same syntax as `ros2 run -p`.
   Items are applied after `PARAMETERS_FILE` and override the same parameter set there.
 :`PARAMETERS_FILE`: YAML parameter files passed to the node. Each is absolute, or relative to `CMAKE_CURRENT_SOURCE_DIR`.
+:`IGNORE`: Zero or more ignore rules, passed to `assert_conforms` as `ignore`.
 
 ### Behavior
 

@@ -4,12 +4,14 @@
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
+from nodl_schema.ignore import IgnoreRule, coerce_rules
 from nodl_schema.models import NodlDocument, ParameterDefinition, QosProfile
 from nodl_schema.parameters import parse_parameter_type
 
@@ -45,6 +47,14 @@ class Difference:
 
     def __str__(self) -> str:
         return f'[{self.kind}] {self.section} {self.name!r}: {self.detail}'
+
+
+@dataclass(frozen=True)
+class DiffReport:
+    """Differences between two documents, and the extra entities that ignore rules left out."""
+
+    differences: list[Difference] = dataclasses.field(default_factory=list)
+    ignored: list[Difference] = dataclasses.field(default_factory=list)
 
 
 def _value(value):
@@ -179,16 +189,26 @@ def _endpoint_differences(
     section: str,
     node_fqn: str,
     compare_properties: Callable[[object, object, str, str], list[Difference]],
-) -> list[Difference]:
+    ignore: list[IgnoreRule],
+) -> DiffReport:
     expected_groups = _identity_groups(expected, section, node_fqn)
     actual_groups = _identity_groups(actual, section, node_fqn)
     differences = []
+    ignored = []
 
     for name in sorted(set(expected_groups) | set(actual_groups)):
         expected_types = expected_groups.get(name, {})
         actual_types = actual_groups.get(name, {})
         missing_types = sorted(set(expected_types) - set(actual_types))
         extra_types = sorted(set(actual_types) - set(expected_types))
+        ignored_types = [
+            type_name for type_name in extra_types if any(rule.matches(section, name, type_name) for rule in ignore)
+        ]
+        extra_types = [type_name for type_name in extra_types if type_name not in ignored_types]
+        ignored.extend(
+            _difference('extra', section, name, f'observed undeclared type {type_name!r}')
+            for type_name in ignored_types
+        )
 
         if len(missing_types) == 1 and len(extra_types) == 1:
             differences.append(
@@ -211,7 +231,7 @@ def _endpoint_differences(
 
         for type_name in sorted(set(expected_types) & set(actual_types)):
             differences.extend(compare_properties(expected_types[type_name], actual_types[type_name], section, name))
-    return differences
+    return DiffReport(differences, ignored)
 
 
 def _topic_properties(expected, actual, section: str, name: str) -> list[Difference]:
@@ -232,14 +252,20 @@ def _no_properties(expected, actual, section: str, name: str) -> list[Difference
 def _parameter_differences(
     expected: dict[str, ParameterDefinition],
     actual: dict[str, ParameterDefinition],
-) -> list[Difference]:
+    ignore: list[IgnoreRule],
+) -> DiffReport:
     differences = []
+    ignored = []
     for name in sorted(set(expected) | set(actual)):
         if name not in actual:
             differences.append(_difference('missing', 'parameters', name, 'declared parameter was not observed'))
             continue
         if name not in expected:
-            differences.append(_difference('extra', 'parameters', name, 'observed undeclared parameter'))
+            extra = _difference('extra', 'parameters', name, 'observed undeclared parameter')
+            if any(rule.matches('parameters', name) for rule in ignore):
+                ignored.append(extra)
+            else:
+                differences.append(extra)
             continue
 
         expected_parameter = expected[name]
@@ -283,7 +309,7 @@ def _parameter_differences(
                         f'read_only: expected {expected_read_only}, got {actual_read_only}',
                     )
                 )
-    return differences
+    return DiffReport(differences, ignored)
 
 
 def _sort_key(difference: Difference) -> tuple:
@@ -295,42 +321,77 @@ def _sort_key(difference: Difference) -> tuple:
     )
 
 
-def diff(expected: NodlDocument, actual: NodlDocument, *, node_fqn: str) -> list[Difference]:
-    """Return stable semantic differences between declared and observed NoDL documents."""
+def diff_report(
+    expected: NodlDocument,
+    actual: NodlDocument,
+    *,
+    node_fqn: str,
+    ignore: Iterable[IgnoreRule | str] = (),
+) -> DiffReport:
+    """Return the semantic differences between declared and observed NoDL documents.
+
+    An ignore rule drops an observed entity that the expected document does not declare.
+    The dropped ``extra`` differences are reported in ``ignored``.
+    Entities that the expected document declares are compared in full, whether or not a rule selects them.
+    """
     if not isinstance(expected, NodlDocument) or not isinstance(actual, NodlDocument):
         raise TypeError('expected and actual must be NodlDocument objects')
     _validate_node_fqn(node_fqn)
+    rules = [
+        replace(rule, type=_normalize_type(rule.type, rule.section)) if rule.type is not None else rule
+        for rule in coerce_rules(ignore)
+    ]
 
-    differences = []
+    reports = []
     for section in ('publishers', 'subscriptions'):
-        differences.extend(
+        reports.append(
             _endpoint_differences(
                 getattr(expected, section) or [],
                 getattr(actual, section) or [],
                 section,
                 node_fqn,
                 _topic_properties,
+                rules,
             )
         )
     for section in ('service_servers', 'service_clients'):
-        differences.extend(
+        reports.append(
             _endpoint_differences(
                 getattr(expected, section) or [],
                 getattr(actual, section) or [],
                 section,
                 node_fqn,
                 _service_properties,
+                rules,
             )
         )
     for section in ('action_servers', 'action_clients'):
-        differences.extend(
+        reports.append(
             _endpoint_differences(
                 getattr(expected, section) or [],
                 getattr(actual, section) or [],
                 section,
                 node_fqn,
                 _no_properties,
+                rules,
             )
         )
-    differences.extend(_parameter_differences(expected.parameters or {}, actual.parameters or {}))
-    return sorted(differences, key=_sort_key)
+    reports.append(_parameter_differences(expected.parameters or {}, actual.parameters or {}, rules))
+    return DiffReport(
+        sorted((d for report in reports for d in report.differences), key=_sort_key),
+        sorted((d for report in reports for d in report.ignored), key=_sort_key),
+    )
+
+
+def diff(
+    expected: NodlDocument,
+    actual: NodlDocument,
+    *,
+    node_fqn: str,
+    ignore: Iterable[IgnoreRule | str] = (),
+) -> list[Difference]:
+    """Return stable semantic differences between declared and observed NoDL documents.
+
+    See :func:`diff_report` for the effect of ``ignore``.
+    """
+    return diff_report(expected, actual, node_fqn=node_fqn, ignore=ignore).differences

@@ -41,6 +41,10 @@ endfunction()
 # :param PARAMETERS_FILE: YAML parameter files passed to the node as ``--params-file`` arguments.
 #   Each is absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
 # :type PARAMETERS_FILE: list of strings
+# :param IGNORE: ignore rules, each ``KIND:NAME[:TYPE]``, such as ``publisher:/topic_statistics``.
+#   Observed entities that a rule selects and the document does not declare are left out of the comparison.
+#   See ``ros2nodl`` ``conform`` for the rule syntax.
+# :type IGNORE: list of strings
 #
 # @public
 #
@@ -49,7 +53,7 @@ function(nodl_add_conformance_test test_name)
     _ARGS
     ""
     "PACKAGE;EXECUTABLE;NODL_FILE;NODE_NAME;NODE_NAMESPACE;TIMEOUT"
-    "PARAMETERS;PARAMETERS_FILE"
+    "PARAMETERS;PARAMETERS_FILE;IGNORE"
     ${ARGN}
   )
 
@@ -125,6 +129,13 @@ function(nodl_add_conformance_test test_name)
   _nodl_conformance_python_string(_nodl_file_python "${_nodl_file}")
   _nodl_conformance_python_string(_node_name_python "${_ARGS_NODE_NAME}")
   _nodl_conformance_python_string(_node_namespace_python "${_ARGS_NODE_NAMESPACE}")
+
+  set(_ignore_python "")
+  foreach(_rule IN LISTS _ARGS_IGNORE)
+    _nodl_conformance_python_string(_rule_python "${_rule}")
+    string(APPEND _ignore_python "${_rule_python}, ")
+  endforeach()
+  set(_ignore_python "[${_ignore_python}]")
 
   set(_generated_dir "${CMAKE_CURRENT_BINARY_DIR}/nodl_conformance")
   file(MAKE_DIRECTORY "${_generated_dir}")
