@@ -26,6 +26,8 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
 
 ## Developing
 
+See [RELEASING.md](./RELEASING.md) for versioning, tag releases, and the future Bloom release example.
+
 ### Setup
 
 1. Clone the repo and install pre-commit hooks:

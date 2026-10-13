@@ -6,7 +6,7 @@ package_name = 'nodl_generator_common'
 
 setup(
     name=package_name,
-    version='2.0.2',
+    version='2.0.3',  # x-release-please-version
     packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
