@@ -32,6 +32,9 @@ if(BUILD_TESTING)
   nodl_add_conformance_test(talker_py_conformance
     EXECUTABLE talker
     NODL_FILE nodl/talker.nodl.yaml)
+  # Fast DDS on Humble and Jazzy does not expose history/depth over discovery.
+  set_property(TEST talker_cpp_conformance talker_py_conformance APPEND PROPERTY
+    ENVIRONMENT "RMW_IMPLEMENTATION=rmw_cyclonedds_cpp")
 
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(tutorial_registration_tests test/test_registration.py)

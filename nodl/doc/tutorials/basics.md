@@ -241,6 +241,18 @@ The test launches `talker` as `/talker_py_conformance` and compares it with the 
 
 **Build and run the tests**
 
+Use Cyclone DDS for these two tests so the conformance check can observe the contract's QoS history and depth.
+Fast DDS on Humble and Jazzy does not expose these fields over discovery.
+Add this setting after registering both tests, inside `if(BUILD_TESTING)`:
+
+```{literalinclude} ../../../examples/nodl_tutorials/basics/CMakeLists.txt
+:language: cmake
+:start-at:   set_property(TEST talker_cpp_conformance talker_py_conformance APPEND PROPERTY
+:end-at:     ENVIRONMENT "RMW_IMPLEMENTATION=rmw_cyclonedds_cpp")
+```
+
+The tutorial package already declares `rmw_cyclonedds_cpp` as a test dependency.
+
 Stop manually launched tutorial nodes, then run these commands:
 
 ```bash
