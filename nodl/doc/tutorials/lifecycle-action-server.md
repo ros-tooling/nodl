@@ -33,8 +33,8 @@ Choose one package: C++ or Python.
 Each has its own complete `CMakeLists.txt` and builds independently using the shared `fibonacci.nodl.yaml`.
 Its generator call both creates the base and registers the contract as the package's `fibonacci` resource.
 
-::::{tabs}
-:::{group-tab} C++
+:::::{tabs}
+::::{group-tab} C++
 
 **`cpp/CMakeLists.txt`** — the C++ build path, with its NoDL additions highlighted:
 
@@ -57,8 +57,8 @@ callbacks.
 
 :::
 
-:::
-:::{group-tab} Python
+::::
+::::{group-tab} Python
 
 **`python/CMakeLists.txt`** — the Python build path, with its NoDL additions highlighted:
 
@@ -80,8 +80,8 @@ This generates a lifecycle node with `on_fibonacci_goal`, `on_fibonacci_cancel`,
 
 :::
 
-:::
 ::::
+:::::
 
 ## 3. Implement behavior and lifecycle policy
 
