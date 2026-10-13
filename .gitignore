@@ -5,6 +5,7 @@ __pycache__/
 /build/
 /install/
 /log/
+/tools/editor/node_modules/
 # Local, untracked Python reference of nodl_observe (the committed package is C++).
 /nodl_observe_py/
 /.clang-format

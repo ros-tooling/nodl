@@ -8,7 +8,7 @@ setup(
     name=package_name,
     version='2.0.3',
     packages=[package_name],
-    package_data={package_name: ['schemas/*.yaml']},
+    package_data={package_name: ['schemas/*.yaml', 'schemas/*.json']},
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
@@ -17,6 +17,8 @@ setup(
             [
                 'nodl_schema/schemas/nodl.schema.yaml',
                 'nodl_schema/schemas/parameter.schema.yaml',
+                'nodl_schema/schemas/nodl.schema.json',
+                'nodl_schema/schemas/parameter.schema.json',
             ],
         ),
     ],

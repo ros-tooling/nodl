@@ -13,6 +13,14 @@ repos:
 
   - repo: local
     hooks:
+      - id: export-editor-schemas
+        name: Export editor JSON schemas from canonical YAML
+        entry: python tools/editor/export_schemas.py --output nodl_schema/nodl_schema/schemas nodl_schema/nodl_schema/schemas/nodl.schema.yaml nodl_schema/nodl_schema/schemas/parameter.schema.yaml
+        language: python
+        additional_dependencies: [PyYAML]
+        files: ^(nodl_schema/nodl_schema/schemas/.*\.(yaml|json)|tools/editor/export_schemas\.py)$
+        pass_filenames: false
+
       - id: generate-nodl-models
         name: Regenerate nodl_schema models from JSON schema
         entry: python tools/generate_models.py

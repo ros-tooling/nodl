@@ -1,0 +1,8 @@
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/ros-tooling/nodl/main/nodl_schema/nodl_schema/schemas/nodl.schema.json": [
+      "**/*.nodl.yaml",
+      "**/*.nodl.yml"
+    ]
+  }
+}

@@ -16,6 +16,7 @@ Home <self>
 why-nodl
 concepts
 schema
+editor
 documenting
 CMake API <_generated/cmake/index>
 roadmap

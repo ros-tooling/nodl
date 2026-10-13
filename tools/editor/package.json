@@ -1,0 +1,10 @@
+{
+  "name": "nodl-editor-tests",
+  "private": true,
+  "scripts": {
+    "test": "node schema.test.cjs"
+  },
+  "devDependencies": {
+    "yaml-language-server": "1.25.0"
+  }
+}

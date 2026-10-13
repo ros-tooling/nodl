@@ -1,0 +1,278 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "nodl.schema.json",
+  "title": "NoDL Node Definition",
+  "description": "NoDL (Node Definition Language) v2 schema.\n\nDescribes the public ROS interface of a single ROS 2 node:\nparameters, publishers, subscriptions, service servers/clients,\nand action servers/clients. Field names align with ``rcl_interfaces``\nand ``rosgraph_msgs`` (``Topic``, ``Service``, ``Action``) so a NoDL document\nmaps cleanly onto runtime introspection types.\n\nNode identity (name, package, namespace) is established by the\nenclosing package and the file's location within it, not declared\ninside the document.\n",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "nodl_version"
+  ],
+  "properties": {
+    "nodl_version": {
+      "description": "NoDL schema major version this document targets.",
+      "const": 2
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what this node does."
+    },
+    "codegen": {
+      "type": "object",
+      "description": "Opaque metadata for code generation tools, keyed by target language or tool\n(e.g. ``cpp``, ``python``). Each value is an object whose contents are\ntool-defined. The NoDL schema does not constrain them.\n",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "include": {
+      "type": "array",
+      "description": "Other NoDL documents whose interface entities are merged into this one.\nEach reference is resolved - recursively, following all references until done.\nCircular inclusion is an error.\nAn entity-name collision (for example two publishers named ``/status``) is an error.\n",
+      "items": {
+        "$ref": "#/definitions/reference"
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "description": "ROS parameters declared by this node, keyed by parameter name.\nParameter shape is borrowed from ``generate_parameter_library``\n(see ``parameter.schema.yaml``).\n",
+      "additionalProperties": {
+        "$ref": "parameter.schema.json#/definitions/parameter_definition"
+      }
+    },
+    "publishers": {
+      "type": "array",
+      "description": "Topic publishers exposed by this node.",
+      "items": {
+        "$ref": "#/definitions/topic_endpoint"
+      }
+    },
+    "subscriptions": {
+      "type": "array",
+      "description": "Topic subscriptions consumed by this node.",
+      "items": {
+        "$ref": "#/definitions/topic_endpoint"
+      }
+    },
+    "service_servers": {
+      "type": "array",
+      "description": "Service servers exposed by this node.",
+      "items": {
+        "$ref": "#/definitions/service_endpoint"
+      }
+    },
+    "service_clients": {
+      "type": "array",
+      "description": "Service clients used by this node.",
+      "items": {
+        "$ref": "#/definitions/service_endpoint"
+      }
+    },
+    "action_servers": {
+      "type": "array",
+      "description": "Action servers exposed by this node.",
+      "items": {
+        "$ref": "#/definitions/action_endpoint"
+      }
+    },
+    "action_clients": {
+      "type": "array",
+      "description": "Action clients used by this node.",
+      "items": {
+        "$ref": "#/definitions/action_endpoint"
+      }
+    }
+  },
+  "definitions": {
+    "reference": {
+      "type": "object",
+      "description": "A reference to another NoDL document.",
+      "additionalProperties": false,
+      "required": [
+        "ref"
+      ],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Reference to a NoDL document, as a ``<scheme>://<body>`` URI.\nDynamically egistered resolvers handle these URIs, so the schema does not restrict them.\nThese resolver schemes are built in:\n``nodl://<package>/<name>`` fetches from the ament index.\n``local://<relative path to file>`` is another document in the same package, as a relative path.\n",
+          "pattern": "^[a-z][a-z0-9+.-]*://[^\\s/][^\\s]*$",
+          "examples": [
+            "nodl://sensor_common/imu_driver"
+          ]
+        }
+      }
+    },
+    "rosName": {
+      "type": "string",
+      "description": "Name of a ROS graph resource (Node, Topic, Service, Action).\nAccepts the standard name forms -- absolute (``/foo/bar``),\nrelative (``foo/bar``), and private (``~/foo``). Must start with ``/``,\n``~``, or a letter; may contain letters, digits, ``_``, ``/``; and must\nend with a letter, digit, or ``_`` (not a slash).\nSee https://design.ros2.org/articles/topic_and_service_names.html\nfor more information on names.\n",
+      "pattern": "^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$"
+    },
+    "rosType": {
+      "type": "string",
+      "description": "ROS interface type, format ``package/(msg|srv|action)?/TypeName``.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies ``msg``).\n",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$",
+      "examples": [
+        "std_msgs/msg/String",
+        "std_msgs/String",
+        "geometry_msgs/msg/Twist",
+        "std_srvs/srv/Trigger",
+        "lifecycle_msgs/srv/ChangeState",
+        "example_interfaces/action/Fibonacci",
+        "nav2_msgs/action/NavigateToPose"
+      ]
+    },
+    "qosProfile": {
+      "type": "object",
+      "description": "QoS profile settings. Mirrors ``rcl_interfaces/QoSProfile`` field\nset and naming, but uses string enums in place of ``RMW`` integer\ncodes for readability and signed-int nanoseconds in place of\n``builtin_interfaces/Duration`` for ergonomics -- codegen converts\nthe int to a ``Duration``. ``UNKNOWN`` values from the ``RMW`` spec are\nexcluded; they are only meaningful for runtime observation.\n",
+      "additionalProperties": false,
+      "required": [
+        "history",
+        "reliability"
+      ],
+      "properties": {
+        "history": {
+          "description": "History policy.",
+          "enum": [
+            "KEEP_LAST",
+            "KEEP_ALL",
+            "SYSTEM_DEFAULT"
+          ]
+        },
+        "depth": {
+          "description": "Queue depth. Required when ``history`` is ``KEEP_LAST``.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "reliability": {
+          "description": "Reliability policy.",
+          "enum": [
+            "RELIABLE",
+            "BEST_EFFORT",
+            "SYSTEM_DEFAULT",
+            "BEST_AVAILABLE"
+          ]
+        },
+        "durability": {
+          "description": "Durability policy.",
+          "enum": [
+            "TRANSIENT_LOCAL",
+            "VOLATILE",
+            "SYSTEM_DEFAULT",
+            "BEST_AVAILABLE"
+          ]
+        },
+        "deadline_ns": {
+          "description": "Deadline between successive messages, in nanoseconds.\nZero means no deadline is enforced. Stored as a signed\n64-bit integer (~292 years range).\n",
+          "type": "integer",
+          "minimum": 0
+        },
+        "lifespan_ns": {
+          "description": "Maximum age of a message before it is dropped, in\nnanoseconds. Zero means messages never expire.\n",
+          "type": "integer",
+          "minimum": 0
+        },
+        "liveliness": {
+          "description": "Liveliness policy.",
+          "enum": [
+            "AUTOMATIC",
+            "MANUAL_BY_TOPIC",
+            "SYSTEM_DEFAULT",
+            "BEST_AVAILABLE"
+          ]
+        },
+        "liveliness_lease_duration_ns": {
+          "description": "Maximum time between liveliness assertions before the\npublisher is considered not alive, in nanoseconds. Zero\nmeans the lease never expires.\n",
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "history": {
+                "const": "KEEP_LAST"
+              }
+            },
+            "required": [
+              "history"
+            ]
+          },
+          "then": {
+            "required": [
+              "depth"
+            ]
+          }
+        }
+      ]
+    },
+    "topic_endpoint": {
+      "type": "object",
+      "description": "Topic endpoint -- same shape for publishers and subscriptions;\ndirection is implied by which top-level array contains it.\n",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "qos"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/rosName",
+          "description": "Topic name."
+        },
+        "type": {
+          "$ref": "#/definitions/rosType"
+        },
+        "qos": {
+          "$ref": "#/definitions/qosProfile"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "service_endpoint": {
+      "type": "object",
+      "description": "Service endpoint -- same shape for servers and clients;\ndirection is implied by which top-level array contains it.\nA single qos profile applies; ``create_service`` accepts only one\nQoS input and applies it to both the request and response\nsides at runtime.\n",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/rosName",
+          "description": "Service name."
+        },
+        "type": {
+          "$ref": "#/definitions/rosType"
+        },
+        "qos": {
+          "$ref": "#/definitions/qosProfile"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "action_endpoint": {
+      "type": "object",
+      "description": "Action endpoint -- same shape for servers and clients;\ndirection is implied by which top-level array contains it.\nThe underlying decomposition into goal/result/cancel services\nand feedback/status topics (per ``rcl_interfaces/Action``) is not\nmodelled here; it is an implementation concern.\n",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/rosName",
+          "description": "Action name."
+        },
+        "type": {
+          "$ref": "#/definitions/rosType"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

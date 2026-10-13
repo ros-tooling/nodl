@@ -2,6 +2,8 @@
 
 The following reference is generated from {repo}`nodl_schema/nodl_schema/schemas/nodl.schema.yaml`, which is the canonical source.
 
+For completion, hover documentation, and inline validation while authoring NoDL files, see {doc}`editor`.
+
 ## Schema Version
 
 The NoDL schema is [JSON Schema Draft 7](https://json-schema.org/draft-07).
