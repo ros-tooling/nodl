@@ -188,7 +188,8 @@ Entities supplied by either kind of provider and all of its transitive includes 
 A `BASE_CLASS` included by a `NO_GENERATE` provider is hidden from the generator.
 At most one Python base provider may be visible.
 Documents without a visible Python base provider keep the implicit `rclpy.node.Node` base.
-The root being generated should not carry `codegen.python` metadata; roles describe included provider documents.
+The generator rejects `BASE_CLASS` and `NO_GENERATE` on the root document; these roles describe included providers.
+Move provider metadata to an included document and omit `codegen.python` on the root.
 
 Use the standard lifecycle provider like this:
 
