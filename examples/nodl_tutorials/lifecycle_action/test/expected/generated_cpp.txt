@@ -34,7 +34,7 @@ private:
 
 // fibonacci_action_server_cpp_base.cpp
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
-#include "nodl_tutorial_lifecycle_action/fibonacci_action_server_cpp_base.hpp"
+#include "nodl_tutorial_lifecycle_action_cpp/fibonacci_action_server_cpp_base.hpp"
 
 FibonacciActionServerCppBase::FibonacciActionServerCppBase(const rclcpp::NodeOptions & options)
 : rclcpp_lifecycle::LifecycleNode("fibonacci_action_server_cpp", options)

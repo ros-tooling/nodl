@@ -1,0 +1,38 @@
+<!-- SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 210" role="img" aria-labelledby="title description">
+  <title id="title">Lifecycle transitions and Fibonacci goal admission</title>
+  <desc id="description">Configure moves from unconfigured to inactive. Activate moves from inactive to active. Deactivate returns to inactive, and cleanup returns to unconfigured. Only active accepts new goals. These are the transitions exercised in this tutorial.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="900" height="210" rx="12" fill="#ffffff"/>
+  <g font-family="sans-serif" text-anchor="middle" fill="#0f172a">
+    <text x="450" y="30" font-size="16">Transitions exercised by this tutorial</text>
+    <rect x="25" y="65" width="225" height="100" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+    <rect x="337" y="65" width="225" height="100" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+    <rect x="650" y="65" width="225" height="100" rx="10" fill="#dcfce7" stroke="#15803d"/>
+    <g font-size="20" font-weight="bold">
+      <text x="137" y="105">Unconfigured</text>
+      <text x="450" y="105">Inactive</text>
+      <text x="762" y="105">Active</text>
+    </g>
+    <g font-size="16">
+      <text x="137" y="135">Reject new goals</text>
+      <text x="450" y="135">Reject new goals</text>
+      <text x="762" y="135">Accept new goals</text>
+      <text x="293" y="75">configure</text>
+      <text x="606" y="75">activate</text>
+      <text x="293" y="166">cleanup</text>
+      <text x="606" y="166">deactivate</text>
+    </g>
+  </g>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M 250 90 H 337"/>
+    <path d="M 562 90 H 650"/>
+    <path d="M 337 140 H 250"/>
+    <path d="M 650 140 H 562"/>
+  </g>
+</svg>

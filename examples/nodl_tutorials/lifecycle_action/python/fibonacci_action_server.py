@@ -7,7 +7,7 @@ import time
 
 import rclpy
 from example_interfaces.action import Fibonacci
-from nodl_tutorial_lifecycle_action.generated.fibonacci_action_server_py_base import (
+from nodl_tutorial_lifecycle_action_py.generated.fibonacci_action_server_py_base import (
     FibonacciActionServerPyBase,
 )
 from rclpy.action import CancelResponse, GoalResponse
@@ -31,7 +31,7 @@ class FibonacciActionServer(FibonacciActionServerPyBase):
 
     def on_fibonacci_goal(self, goal_request):
         self.get_logger().info(f'Received goal request with order {goal_request.order}')
-        if not self._active or goal_request.order > 9000:
+        if not self._active or not 0 <= goal_request.order <= 46:
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
 

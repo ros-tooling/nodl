@@ -1,25 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Verify the one public contract and both generated lifecycle bases."""
+"""Verify each independent package's contract and generated lifecycle base."""
 
+import importlib
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from ament_index_python.resources import get_resource, get_resources
-from nodl_tutorial_lifecycle_action.generated.fibonacci_action_server_py_base import (
-    FibonacciActionServerPyBase,
-)
 from rclpy.lifecycle import LifecycleNode
 
-PACKAGE = 'nodl_tutorial_lifecycle_action'
+PACKAGE = Path.cwd().name
+LANGUAGE = PACKAGE.removeprefix('nodl_tutorial_lifecycle_action_')
 EXPECTED = Path(__file__).parent / 'expected'
+TARGET = f'fibonacci_action_server_{LANGUAGE}_base'
+GENERATED = Path.cwd() / 'nodl_generated' / TARGET
 
 
 def test_only_public_contract_is_registered():
     resources = get_resources('nodl')
 
-    assert f'{PACKAGE}__fibonacci' in resources
-    assert f'{PACKAGE}__fibonacci_codegen' not in resources
+    assert {name for name in resources if name.startswith(f'{PACKAGE}__')} == {f'{PACKAGE}__fibonacci'}
 
 
 def test_registered_contract_matches_installed_source():
@@ -30,23 +30,26 @@ def test_registered_contract_matches_installed_source():
     assert installed.read_text() == content
 
 
-def test_python_base_uses_lifecycle_provider():
-    assert issubclass(FibonacciActionServerPyBase, LifecycleNode)
-    assert hasattr(FibonacciActionServerPyBase, 'execute_fibonacci')
+def test_base_uses_lifecycle_provider():
+    if LANGUAGE == 'cpp':
+        header = (GENERATED / PACKAGE / f'{TARGET}.hpp').read_text()
+        assert 'public rclcpp_lifecycle::LifecycleNode' in header
+    else:
+        module = importlib.import_module(f'{PACKAGE}.generated.{TARGET}')
+        assert issubclass(module.FibonacciActionServerPyBase, LifecycleNode)
+        assert hasattr(module.FibonacciActionServerPyBase, 'execute_fibonacci')
 
 
-def test_documented_generated_bases_match_build():
-    generated = Path.cwd() / 'nodl_generated'
-    cpp = generated / 'fibonacci_action_server_cpp_base'
-    actual_cpp = (
-        '// fibonacci_action_server_cpp_base.hpp\n'
-        + (cpp / 'fibonacci_action_server_cpp_base.hpp').read_text()
-        + '\n// fibonacci_action_server_cpp_base.cpp\n'
-        + (cpp / 'fibonacci_action_server_cpp_base.cpp').read_text()
-    )
-    python = (
-        generated / 'fibonacci_action_server_py_base' / PACKAGE / 'generated' / 'fibonacci_action_server_py_base.py'
-    )
-
-    assert actual_cpp.strip() == (EXPECTED / 'generated_cpp.txt').read_text().strip()
-    assert python.read_text().strip() == (EXPECTED / 'generated_python.txt').read_text().strip()
+def test_documented_generated_base_matches_build():
+    if LANGUAGE == 'cpp':
+        actual = (
+            f'// {TARGET}.hpp\n'
+            + (GENERATED / PACKAGE / f'{TARGET}.hpp').read_text()
+            + f'\n// {TARGET}.cpp\n'
+            + (GENERATED / f'{TARGET}.cpp').read_text()
+        )
+        expected = EXPECTED / 'generated_cpp.txt'
+    else:
+        actual = (GENERATED / PACKAGE / 'generated' / f'{TARGET}.py').read_text()
+        expected = EXPECTED / 'generated_python.txt'
+    assert actual.strip() == expected.read_text().strip()

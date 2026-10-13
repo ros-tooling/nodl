@@ -8,7 +8,7 @@
 #include <thread>
 
 #include "example_interfaces/action/fibonacci.hpp"
-#include "nodl_tutorial_lifecycle_action/fibonacci_action_server_cpp_base.hpp"
+#include "nodl_tutorial_lifecycle_action_cpp/fibonacci_action_server_cpp_base.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
@@ -40,7 +40,7 @@ protected:
   {
     (void)uuid;
     RCLCPP_INFO(get_logger(), "Received goal request with order %d", goal->order);
-    if (!active_.load() || goal->order > 9000) {
+    if (!active_.load() || goal->order < 0 || goal->order > 46) {
       return rclcpp_action::GoalResponse::REJECT;
     }
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;

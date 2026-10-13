@@ -18,11 +18,9 @@ from rclpy.action import ActionClient
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 
-PACKAGE = 'nodl_tutorial_lifecycle_action'
-LIFECYCLE_SERVERS = (
-    ('fibonacci_action_server_cpp', '/fibonacci_action_server_cpp'),
-    ('fibonacci_action_server_py', '/fibonacci_action_server_py'),
-)
+PACKAGE = Path.cwd().name
+LANGUAGE = PACKAGE.removeprefix('nodl_tutorial_lifecycle_action_')
+LIFECYCLE_SERVERS = ((f'fibonacci_action_server_{LANGUAGE}', '/fibonacci_action_server'),)
 
 
 @pytest.fixture(autouse=True)
@@ -37,13 +35,13 @@ def _executable(name):
 
 
 def _conformance_document():
-    return Path(get_package_share_directory(PACKAGE)) / 'nodl' / 'fibonacci_codegen.nodl.yaml'
+    return Path(get_package_share_directory(PACKAGE)) / 'nodl' / 'fibonacci.nodl.yaml'
 
 
 @contextmanager
 def _running_server(executable):
     server = subprocess.Popen(
-        [_executable(executable)],
+        [_executable(executable), '--ros-args', '-r', '__node:=fibonacci_action_server'],
         env=os.environ.copy(),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -130,7 +128,10 @@ def test_lifecycle_action_server(executable, node_name):
             assert not _send_goal(executor, client, 5).accepted
 
             _set_transition(node_name, 'configure', 'inactive')
+            assert not _send_goal(executor, client, 5).accepted
             _set_transition(node_name, 'activate', 'active')
+            assert not _send_goal(executor, client, -1).accepted
+            assert not _send_goal(executor, client, 47).accepted
 
             feedback_sequences = []
             goal = _send_goal(
@@ -146,7 +147,7 @@ def test_lifecycle_action_server(executable, node_name):
             assert list(result_future.result().result.sequence) == [0, 1, 1, 2, 3, 5]
             assert feedback_sequences
 
-            cancel_goal = _send_goal(executor, client, 100)
+            cancel_goal = _send_goal(executor, client, 40)
             assert cancel_goal.accepted
             time.sleep(0.2)
             cancel_future = cancel_goal.cancel_goal_async()

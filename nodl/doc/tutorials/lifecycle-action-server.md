@@ -2,7 +2,7 @@
 
 Define a Fibonacci action once, generate a lifecycle base for either language, then add the application behavior.
 
-> **Shared contract → Generation document → Generated base → Lifecycle subclass → Conform**
+> **Shared contract → Generated base → Lifecycle subclass → Conform**
 
 Choose C++ or Python in any language tab.
 The browser remembers the selection for the other grouped tabs on this page.
@@ -22,41 +22,26 @@ Begin with the language-neutral public interface:
 ```
 
 Only this file is public and registered.
+The shared lifecycle provider supplies both languages' base-class metadata and lifecycle interfaces.
 It deliberately leaves the algorithm, feedback, cancellation, and inactive-state policy to the application.
 The relative `fibonacci` name follows the upstream examples and remains namespace- and remap-friendly.
 In the root namespace it appears as `/fibonacci` on the ROS graph.
 
 ## 2. Register the contract and generate a base
 
-Register the public contract once:
-
-```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/CMakeLists.txt
-:language: cmake
-:start-at: ament_nodl_register(fibonacci
-:end-at: ament_nodl_register(fibonacci
-```
-
-Add the shared lifecycle provider in one private generation document:
-
-```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/nodl/fibonacci_codegen.nodl.yaml
-:language: yaml
-```
-
-The lifecycle provider contains both C++ and Python generation metadata, so both generators consume this same file.
-The public contract remains independent of either client library.
-
-Generate the selected base:
-
-Use `NO_INDEX` for both generator calls to keep the generation document private.
-Only the public Fibonacci contract is registered above.
+Choose one package: C++ or Python.
+Each has its own complete `CMakeLists.txt` and builds independently using the shared `fibonacci.nodl.yaml`.
+Its generator call both creates the base and registers the contract as the package's `fibonacci` resource.
 
 ::::{tabs}
 :::{group-tab} C++
 
-```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/CMakeLists.txt
+**`cpp/CMakeLists.txt`** — the C++ build path, with its NoDL additions highlighted:
+
+```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/cpp/CMakeLists.txt
 :language: cmake
-:start-at: nodl_generate_cpp(
-:end-at: target_link_libraries(fibonacci_action_server_cpp PRIVATE fibonacci_action_server_cpp_base)
+:linenos:
+:emphasize-lines: 7-8,10-13,16
 ```
 
 This generates a lifecycle node with `on_fibonacci_goal`, `on_fibonacci_cancel`, and `on_fibonacci_accepted`
@@ -75,10 +60,12 @@ callbacks.
 :::
 :::{group-tab} Python
 
-```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/CMakeLists.txt
+**`python/CMakeLists.txt`** — the Python build path, with its NoDL additions highlighted:
+
+```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/python/CMakeLists.txt
 :language: cmake
-:start-at: nodl_generate_py(
-:end-at: RENAME fibonacci_action_server_py)
+:linenos:
+:emphasize-lines: 7-8,10-13
 ```
 
 This generates a lifecycle node with `on_fibonacci_goal`, `on_fibonacci_cancel`, and `execute_fibonacci` callbacks.
@@ -98,7 +85,10 @@ This generates a lifecycle node with `on_fibonacci_goal`, `on_fibonacci_cancel`,
 
 ## 3. Implement behavior and lifecycle policy
 
-Build the subclass in three small pieces.
+Each complete server fits in one short source file:
+{download}`C++ source <../../../examples/nodl_tutorials/lifecycle_action/cpp/fibonacci_action_server.cpp>` or
+{download}`Python source <../../../examples/nodl_tutorials/lifecycle_action/python/fibonacci_action_server.py>`.
+The excerpts below explain its three responsibilities, with line numbers matching the source.
 
 ### Gate goals with lifecycle state
 
@@ -109,7 +99,14 @@ Start inactive, open the gate only after activation succeeds, and close it befor
 
 ```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/cpp/fibonacci_action_server.cpp
 :language: cpp
-:lines: 25-36,87
+:lines: 87
+:lineno-match:
+```
+
+```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/cpp/fibonacci_action_server.cpp
+:language: cpp
+:lines: 25-36
+:lineno-match:
 ```
 
 :::
@@ -118,6 +115,7 @@ Start inactive, open the gate only after activation succeeds, and close it befor
 ```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/python/fibonacci_action_server.py
 :language: python
 :lines: 19-30
+:lineno-match:
 ```
 
 :::
@@ -125,7 +123,8 @@ Start inactive, open the gate only after activation succeeds, and close it befor
 
 ### Decide whether to accept a goal or cancellation
 
-Reject a goal while inactive and accept cancellation requests:
+Reject a goal while inactive and accept cancellation requests.
+Limit the order to 0–46 so the sequence fits the action's 32-bit integers:
 
 ::::{tabs}
 :::{group-tab} C++
@@ -134,6 +133,7 @@ Reject a goal while inactive and accept cancellation requests:
 :language: cpp
 :start-at: rclcpp_action::GoalResponse on_fibonacci_goal(
 :end-before: void on_fibonacci_accepted
+:lineno-match:
 ```
 
 :::
@@ -143,6 +143,7 @@ Reject a goal while inactive and accept cancellation requests:
 :language: python
 :start-at: def on_fibonacci_goal
 :end-before: def execute_fibonacci
+:lineno-match:
 ```
 
 :::
@@ -159,6 +160,7 @@ Calculate the sequence, publish feedback, observe cancellation, and return the r
 :language: cpp
 :start-at: void on_fibonacci_accepted
 :end-before: std::atomic_bool active_
+:lineno-match:
 ```
 
 :::
@@ -168,6 +170,7 @@ Calculate the sequence, publish feedback, observe cancellation, and return the r
 :language: python
 :start-at: def execute_fibonacci
 :end-before: def main
+:lineno-match:
 ```
 
 :::
@@ -175,38 +178,17 @@ Calculate the sequence, publish feedback, observe cancellation, and return the r
 
 The calculation, feedback, result, cancellation decision, and lifecycle gate all stay in the subclasses.
 
-::::{tabs}
-:::{group-tab} C++
-
-:::{note}
-:collapsible: closed
-:title: Complete C++ implementation
-
-```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/cpp/fibonacci_action_server.cpp
-:language: cpp
-```
-
-:::
-
-:::
-:::{group-tab} Python
-
-:::{note}
-:collapsible: closed
-:title: Complete Python implementation
-
-```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/python/fibonacci_action_server.py
-:language: python
-```
-
-:::
-
-:::
-::::
-
 ## 4. Understand the lifecycle boundary
 
-The ownership split is precise:
+The [standard ROS 2 lifecycle](https://design.ros2.org/articles/node_lifecycle.html) separates setup from operation.
+A node starts **unconfigured**; `configure` prepares its resources and leaves it **inactive**.
+`activate` enables application work, `deactivate` returns it to inactive, and `cleanup` releases resources and returns
+it to unconfigured.
+The application decides what each transition means for its own interfaces.
+
+![Configure moves from unconfigured to inactive; activate enables new goals. Deactivate closes the goal gate, and cleanup returns to unconfigured.](img/lifecycle-action-states.svg)
+
+For this server, that standard lifecycle and the application policy divide as follows:
 
 | Generated base/provider supplies | Handwritten subclass supplies |
 | --- | --- |
@@ -222,45 +204,40 @@ Cleanup needs no extra policy callback because it is reached from the already-in
 
 ## 5. Run the lifecycle and action
 
-Build and source the package:
-
-```bash
-colcon build --packages-select nodl_tutorial_lifecycle_action
-source install/setup.bash
-```
-
-Start one implementation:
+Build and run the selected package.
+Run one implementation at a time.
+Both commands use the standard `__node` remap to give it the same node name, `/fibonacci_action_server`:
 
 ::::{tabs}
 :::{group-tab} C++
 
 ```bash
-ros2 run nodl_tutorial_lifecycle_action fibonacci_action_server_cpp
+colcon build --packages-up-to nodl_tutorial_lifecycle_action_cpp
+source install/setup.bash
+ros2 run nodl_tutorial_lifecycle_action_cpp fibonacci_action_server_cpp \
+  --ros-args -r __node:=fibonacci_action_server
 ```
-
-The node name is `/fibonacci_action_server_cpp`.
 
 :::
 :::{group-tab} Python
 
 ```bash
-ros2 run nodl_tutorial_lifecycle_action fibonacci_action_server_py
+colcon build --packages-up-to nodl_tutorial_lifecycle_action_py
+source install/setup.bash
+ros2 run nodl_tutorial_lifecycle_action_py fibonacci_action_server_py \
+  --ros-args -r __node:=fibonacci_action_server
 ```
-
-The node name is `/fibonacci_action_server_py`.
 
 :::
 ::::
 
-In a second terminal, set `NODE` to the selected name and exercise the lifecycle:
+In a second terminal, exercise the lifecycle with the same commands for either language:
 
 ```bash
 source install/setup.bash
-NODE=/fibonacci_action_server_cpp  # use /fibonacci_action_server_py for Python
-
-ros2 lifecycle get "$NODE"
-ros2 lifecycle set "$NODE" configure
-ros2 lifecycle set "$NODE" activate
+ros2 lifecycle get /fibonacci_action_server
+ros2 lifecycle set /fibonacci_action_server configure
+ros2 lifecycle set /fibonacci_action_server activate
 ```
 
 Send a goal while active and display feedback:
@@ -272,39 +249,24 @@ ros2 action send_goal --feedback /fibonacci example_interfaces/action/Fibonacci 
 Then close the active gate and return to the unconfigured state:
 
 ```bash
-ros2 lifecycle set "$NODE" deactivate
-ros2 lifecycle set "$NODE" cleanup
+ros2 lifecycle set /fibonacci_action_server deactivate
+ros2 lifecycle set /fibonacci_action_server cleanup
 ```
 
 A goal sent before activation or after deactivation is rejected by the subclass policy.
 The fixture tests also cancel an in-progress goal and verify its canceled result.
 
-Finally, compare the running server with its generation document in any lifecycle state.
-The document resolves the public action contract plus the shared provider's observable lifecycle endpoints:
-
-::::{tabs}
-:::{group-tab} C++
+Finally, compare the running server with the same contract in any lifecycle state.
+It describes the action and the shared provider's observable lifecycle endpoints:
 
 ```bash
-ros2 nodl conform "$NODE" \
-  --file examples/nodl_tutorials/lifecycle_action/nodl/fibonacci_codegen.nodl.yaml
+ros2 nodl conform /fibonacci_action_server \
+  --file examples/nodl_tutorials/lifecycle_action/nodl/fibonacci.nodl.yaml
 ```
 
-The result is `/fibonacci_action_server_cpp: conforms`.
-
-:::
-:::{group-tab} Python
-
-```bash
-ros2 nodl conform "$NODE" \
-  --file examples/nodl_tutorials/lifecycle_action/nodl/fibonacci_codegen.nodl.yaml
-```
-
-The result is `/fibonacci_action_server_py: conforms`.
-
-:::
-::::
+The result is `/fibonacci_action_server: conforms`.
 
 The CI fixture uses only lifecycle services and an action client.
+It forces the same node name with `--ros-args -r __node:=fibonacci_action_server` and tests each executable in turn.
 It tests registration, generated inheritance, transitions, inactive rejection, feedback, results, cancellation, and
 conformance without RViz, Gazebo, or Nav2.
