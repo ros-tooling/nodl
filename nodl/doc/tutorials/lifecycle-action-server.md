@@ -40,8 +40,9 @@ Its generator call both creates the base and registers the contract as the packa
 
 ```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/cpp/CMakeLists.txt
 :language: cmake
-:linenos:
-:emphasize-lines: 7-8,10-13,16
+:lines: 4-19
+:lineno-match:
+:emphasize-lines: 4-5,7-10,13
 ```
 
 This generates a lifecycle node with `on_fibonacci_goal`, `on_fibonacci_cancel`, and `on_fibonacci_accepted`
@@ -64,8 +65,9 @@ callbacks.
 
 ```{literalinclude} ../../../examples/nodl_tutorials/lifecycle_action/python/CMakeLists.txt
 :language: cmake
-:linenos:
-:emphasize-lines: 7-8,10-13
+:lines: 4-17
+:lineno-match:
+:emphasize-lines: 4-5,7-10
 ```
 
 This generates a lifecycle node with `on_fibonacci_goal`, `on_fibonacci_cancel`, and `execute_fibonacci` callbacks.
