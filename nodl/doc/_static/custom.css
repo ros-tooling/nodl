@@ -32,3 +32,8 @@
   background: var(--md-default-bg-color);
   color: var(--md-default-fg-color);
 }
+
+/* Keep collapsible notes at the surrounding text size. */
+.md-typeset details.admonition {
+  font-size: inherit;
+}
