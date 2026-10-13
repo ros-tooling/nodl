@@ -183,7 +183,12 @@ class PythonPlanner(CodegenPlanner[CodegenPython]):
         self.base_class: CodegenPython = _DEFAULT_BASE
 
     def root(self, config: Optional[CodegenPython]) -> None:
-        pass
+        if config is not None:
+            raise CodegenError(
+                f'The root document has codegen.python role {config.role.value}, '
+                'which describes an included provider, not the node being generated. '
+                'Move the provider metadata to an included document and omit codegen.python on the root.'
+            )
 
     def visit(self, included: IncludedDocument, config: Optional[CodegenPython]) -> Walk:
         if config is None:
