@@ -23,6 +23,7 @@
 
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_index_python</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
   <test_depend>python3-pytest</test_depend>
   <test_depend>rmw_cyclonedds_cpp</test_depend>
   <test_depend>ros2cli</test_depend>
