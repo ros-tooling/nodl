@@ -18,5 +18,5 @@ lifecycle-action-server
 - [**Test the Dummy robot for conformance**](dummy-robot.md)
   Compare an unmodified ROS 2 node with contracts that change its topic, type, or reliability.
 
-- [**Tutorial 4: build a lifecycle action server in C++ and Python**](lifecycle-action-server.md)
+- [**Build a lifecycle action server in C++ and Python**](lifecycle-action-server.md)
   Generate two lifecycle bases from one public Fibonacci action contract, then test application-owned gating.

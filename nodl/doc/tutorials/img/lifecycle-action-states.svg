@@ -28,6 +28,14 @@
       <path d="M 0 0 L 10 5 L 0 10 Z" fill="var(--line)"/>
     </marker>
   </defs>
+  <!-- Keep labels readable even when the embedded SVG and page use different themes. -->
+  <g fill="var(--node)">
+    <rect x="295" y="10" width="310" height="28" rx="5"/>
+    <rect x="252" y="55" width="82" height="26" rx="5"/>
+    <rect x="565" y="55" width="82" height="26" rx="5"/>
+    <rect x="252" y="147" width="82" height="26" rx="5"/>
+    <rect x="565" y="147" width="82" height="26" rx="5"/>
+  </g>
   <g font-family="sans-serif" text-anchor="middle" fill="var(--text)">
     <text x="450" y="30" font-size="16">Transitions exercised by this tutorial</text>
     <rect x="25" y="65" width="225" height="100" rx="10" fill="var(--node)" stroke="var(--border)"/>

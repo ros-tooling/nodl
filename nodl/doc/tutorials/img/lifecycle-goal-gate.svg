@@ -1,0 +1,21 @@
+<!-- SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 190" role="img" aria-labelledby="title description">
+  <title id="title">Handwritten lifecycle gate</title>
+  <desc id="description">The constructor or __init__ starts the gate closed. Successful on_activate opens it. on_deactivate closes it before calling the base.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#64748b"/></marker>
+  </defs>
+  <g stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"><path d="M 280 80 H 320"/><path d="M 580 80 H 620"/></g>
+  <g stroke="#64748b" fill="#f1f5f9">
+    <rect x="20" y="25" width="260" height="140" rx="10"/>
+    <rect x="320" y="25" width="260" height="140" rx="10" fill="#dcfce7"/>
+    <rect x="620" y="25" width="260" height="140" rx="10"/>
+  </g>
+  <g stroke="#64748b"><path d="M 20 75 H 280"/><path d="M 320 75 H 580"/><path d="M 620 75 H 880"/></g>
+  <g font-family="sans-serif" text-anchor="middle" fill="#0f172a">
+    <g font-family="monospace" font-size="16" font-weight="bold"><text x="150" y="56">constructor / __init__</text><text x="450" y="56">on_activate</text><text x="750" y="56">on_deactivate</text></g>
+    <g font-size="17"><text x="150" y="104">Start with gate closed</text><text x="450" y="104">After base activation succeeds:</text><text x="750" y="104">Before calling the base:</text><text x="450" y="125">Open the gate</text><text x="750" y="125">Close the gate</text></g>
+    <g font-size="15"><text x="150" y="142">active = false</text><text x="450" y="142">active = true</text><text x="750" y="142">active = false</text></g>
+  </g>
+</svg>

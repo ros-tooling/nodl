@@ -1,4 +1,4 @@
-# Tutorial 4: build a lifecycle action server in C++ and Python
+# Build a lifecycle action server in C++ and Python
 
 Define a Fibonacci action once, generate a lifecycle base for either language, then add the application behavior.
 
@@ -90,11 +90,18 @@ This generates a lifecycle node with `on_fibonacci_goal`, `on_fibonacci_cancel`,
 Each complete server fits in one short source file:
 {download}`C++ source <../../../examples/nodl_tutorials/lifecycle_action/cpp/fibonacci_action_server.cpp>` or
 {download}`Python source <../../../examples/nodl_tutorials/lifecycle_action/python/fibonacci_action_server.py>`.
-The excerpts below explain its three responsibilities, with line numbers matching the source.
+The diagrams show its three responsibilities.
+Expand each implementation to see excerpts with line numbers matching the source.
 
 ### Gate goals with lifecycle state
 
 Start inactive, open the gate only after activation succeeds, and close it before deactivation:
+
+![The goal gate starts closed, opens after activation succeeds, and closes before deactivation.](img/lifecycle-goal-gate.svg)
+
+:::::{note}
+:collapsible: closed
+:title: Implementation — lifecycle gate
 
 ::::{tabs}
 :::{group-tab} C++
@@ -122,11 +129,20 @@ Start inactive, open the gate only after activation succeeds, and close it befor
 
 :::
 ::::
+:::::
 
 ### Decide whether to accept a goal or cancellation
 
 Reject a goal while inactive and accept cancellation requests.
-Limit the order to 0–46 so the sequence fits the action's 32-bit integers:
+A Fibonacci goal has an integer field named `order`.
+For example, `{order: 5}` produces `[0, 1, 1, 2, 3, 5]`.
+Accept values from 0 to 46 so the sequence fits the action's 32-bit integers:
+
+![A new goal is accepted only when the gate is open and its order is between 0 and 46; otherwise it is rejected.](img/lifecycle-goal-admission.svg)
+
+:::::{note}
+:collapsible: closed
+:title: Implementation — goal and cancellation handlers
 
 ::::{tabs}
 :::{group-tab} C++
@@ -150,10 +166,24 @@ Limit the order to 0–46 so the sequence fits the action's 32-bit integers:
 
 :::
 ::::
+:::::
 
 ### Execute the accepted goal
 
 Calculate the sequence, publish feedback, observe cancellation, and return the result:
+
+In C++, `on_fibonacci_accepted` starts the `execute` worker and returns; the worker continues independently.
+In Python, the executor calls `execute_fibonacci` for the accepted goal.
+A client can request cancellation while the goal runs.
+`on_fibonacci_cancel` accepts the request; execution observes it at its next cancellation check.
+
+![C++ starts execution on a worker thread; Python uses its execution callback. Client cancellation is accepted separately and observed during the loop. Success or cancellation ends only the goal; the node stays running.](img/lifecycle-goal-execution.svg)
+
+Deactivation closes admission; it does not stop an accepted goal.
+
+:::::{note}
+:collapsible: closed
+:title: Implementation — execution and feedback
 
 ::::{tabs}
 :::{group-tab} C++
@@ -177,6 +207,7 @@ Calculate the sequence, publish feedback, observe cancellation, and return the r
 
 :::
 ::::
+:::::
 
 The calculation, feedback, result, cancellation decision, and lifecycle gate all stay in the subclasses.
 
@@ -231,8 +262,22 @@ In a second terminal, use the same commands for either language:
 source install/setup.bash
 ros2 lifecycle get /fibonacci_action_server
 ros2 lifecycle set /fibonacci_action_server configure
+ros2 action send_goal --feedback /fibonacci example_interfaces/action/Fibonacci "{order: 5}"
+```
+
+The node is now inactive, so the goal is rejected.
+The action server is discoverable, but the handwritten lifecycle gate prevents execution.
+Activate the node and send the same goal again:
+
+```bash
 ros2 lifecycle set /fibonacci_action_server activate
 ros2 action send_goal --feedback /fibonacci example_interfaces/action/Fibonacci "{order: 5}"
+```
+
+This time the goal is accepted, feedback is published, and the goal succeeds with:
+
+```text
+sequence: [0, 1, 1, 2, 3, 5]
 ```
 
 ### Deactivate, clean up, and check conformance
