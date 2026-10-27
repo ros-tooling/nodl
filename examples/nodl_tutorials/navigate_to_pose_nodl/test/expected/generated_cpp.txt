@@ -1,4 +1,4 @@
-// navigate_to_pose_client_base.hpp
+// navigate_to_pose_nodl/navigate_to_pose_client_base.hpp
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #pragma once
 
@@ -23,7 +23,7 @@ protected:
 
 // navigate_to_pose_client_base.cpp
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
-#include "navigate_to_pose_client_base.hpp"
+#include "navigate_to_pose_nodl/navigate_to_pose_client_base.hpp"
 
 NavigateToPoseClientBase::NavigateToPoseClientBase(const rclcpp::NodeOptions & options)
 : rclcpp::Node("navigate_to_pose_client", options)

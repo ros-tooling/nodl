@@ -40,8 +40,8 @@ def test_documented_generated_wiring_matches_build():
     generated = Path.cwd() / 'nodl_generated'
     cpp = generated / 'navigate_to_pose_client_base'
     actual_cpp = (
-        '// navigate_to_pose_client_base.hpp\n'
-        + (cpp / 'navigate_to_pose_client_base.hpp').read_text()
+        '// navigate_to_pose_nodl/navigate_to_pose_client_base.hpp\n'
+        + (cpp / PACKAGE / 'navigate_to_pose_client_base.hpp').read_text()
         + '\n// navigate_to_pose_client_base.cpp\n'
         + (cpp / 'navigate_to_pose_client_base.cpp').read_text()
     )

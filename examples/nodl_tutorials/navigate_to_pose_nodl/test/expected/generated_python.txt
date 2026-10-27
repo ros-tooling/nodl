@@ -7,7 +7,7 @@ from rclpy.node import Node
 class NavigateToPoseClientPyBase(Node):
     """Generated NoDL base node."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__('navigate_to_pose_client_py', **kwargs)
         self.action_cli_navigate_to_pose = rclpy.action.ActionClient(
             self,
