@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "navigate_to_pose_client_base.hpp"  // NOLINT(build/include_subdir)
+#include "navigate_to_pose_nodl/navigate_to_pose_client_base.hpp"
 #include "navigation.hpp"  // NOLINT(build/include_subdir)
 #include "rclcpp/rclcpp.hpp"
 

@@ -11,8 +11,7 @@ After:  NoDL-backed goal client  ── NavigateToPose ──> unchanged Nav2
 This demonstrates incremental NoDL adoption: NoDL-backed and conventional nodes can coexist across an ordinary ROS
 interface.
 
-Choose C++ or Python in any language tab.
-The browser remembers that choice for the other grouped tabs on this page.
+> **Launch → Migrate one client → Conform**
 
 ## 1. Start with working Nav2
 
@@ -34,7 +33,7 @@ Leave Nav2 running for the rest of the tutorial.
 ## 2. Migrate one client
 
 The migration boundary is a small node that sends one `NavigateToPose` goal.
-These are the files involved:
+These are the main files in the migrated package:
 
 ::::{tabs}
 :::{group-tab} C++
@@ -42,12 +41,10 @@ These are the files involved:
 ```text
 navigate_to_pose_nodl/
 ├── nodl/
-│   ├── navigate_to_pose_client.nodl.yaml
-│   └── navigate_to_pose_client_codegen.nodl.yaml
+│   └── navigate_to_pose_client.nodl.yaml
 ├── CMakeLists.txt
 ├── package.xml
 └── src/
-    ├── navigate_to_pose_client.cpp
     ├── navigate_to_pose_client_nodl.cpp
     ├── navigation.cpp
     └── navigation.hpp
@@ -59,12 +56,12 @@ navigate_to_pose_nodl/
 
 ```text
 navigate_to_pose_nodl/
-├── nodl/navigate_to_pose_client.nodl.yaml
+├── nodl/
+│   └── navigate_to_pose_client.nodl.yaml
 ├── CMakeLists.txt
 ├── package.xml
 └── navigate_to_pose_nodl/
     ├── __init__.py
-    ├── navigate_to_pose_client.py
     ├── navigate_to_pose_client_nodl.py
     └── navigation.py
 ```
@@ -85,13 +82,10 @@ Declare the action boundary once for both languages:
 
 The contract says nothing about Nav2's planner, controller, lifecycle nodes, costmaps, or behavior tree.
 Those conventional components remain behind the `NavigateToPose` interface.
-For C++ generation, `navigate_to_pose_client_codegen.nodl.yaml` composes this public contract with
-`nodl://rclcpp/node`.
-Conformance continues to use the public contract shown above.
 
 ### `CMakeLists.txt`
 
-Register the contract, generate the selected language's base, and build the `_nodl` executable.
+Register the contract, generate the selected language's client base, and install the `_nodl` executable.
 The highlighted lines are the NoDL-specific additions to the package's actual `CMakeLists.txt`:
 
 ::::{tabs}
@@ -99,9 +93,12 @@ The highlighted lines are the NoDL-specific additions to the package's actual `C
 
 ```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/CMakeLists.txt
 :language: cmake
-:lines: 6,8-21
-:emphasize-lines: 4,7,13
+:lines: 6,8-9,11-23
+:emphasize-lines: 2-3,5,7,13
 ```
+
+The C++ generation input adds the standard node base from `nodl://nodl_common_interfaces/node` to the public contract.
+The generated header is included as `navigate_to_pose_nodl/navigate_to_pose_client_base.hpp`.
 
 :::
 
@@ -109,9 +106,11 @@ The highlighted lines are the NoDL-specific additions to the package's actual `C
 
 ```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/CMakeLists.txt
 :language: cmake
-:lines: 6-10,23-30
-:emphasize-lines: 5,7
+:lines: 6-8,10-13,24-31
+:emphasize-lines: 2-4,6,8
 ```
+
+`NO_INDEX` avoids registering the same public contract a second time, as in the Basics tutorial.
 
 :::
 ::::
@@ -199,10 +198,12 @@ colcon build --packages-up-to navigate_to_pose_nodl
 source install/setup.bash
 ```
 
-### Verify interactively
+### Run and check conformance
 
 Leave the conventional Nav2 launch running.
-Run either NoDL-backed client toward a goal that takes several seconds, then check its interface from another terminal:
+Source `install/setup.bash` in each new terminal.
+Run the selected client, then compare its observed interface with the contract while the robot is moving.
+The example uses goal coordinates `(-2.0, -0.5)`; choose a reachable point for your map that takes several seconds to reach.
 
 ::::{tabs}
 :::{group-tab} C++
@@ -244,7 +245,7 @@ The robot should reach the selected goal.
 Its navigation proves that the mixed system still works; conformance proves that the migrated client exposes its
 declared ROS interface.
 
-### Verify automatically
+### Run automated checks
 
 The same interface checks run without the simulator in CI:
 
@@ -255,13 +256,11 @@ colcon test-result --verbose
 
 The conformance tests start each NoDL-backed client without coordinates, which keeps its interface available without
 sending a goal.
-The remaining fixture checks cover contract registration, the documented generated code, and both Python clients.
+The package registers these tests in its `CMakeLists.txt`:
 
-:::{seealso}
-**Next: compose a Nav2 server contract.**
+- `tutorial_tests` checks contract registration, the conventional and NoDL-backed Python clients, and the documented
+  generated C++ and Python code;
+- `navigate_to_pose_client_nodl_conformance_cpp` checks the generated C++ client against the client contract; and
+- `navigate_to_pose_client_nodl_conformance_py` checks the generated Python client against the same contract.
 
-This tutorial uses `include` only to supply the C++ client's `rclcpp::Node` base.
-Tutorial 4 will use a Nav2 server to combine framework-owned lifecycle interfaces with server-owned navigation
-interfaces.
-Server migration needs upstream build and inheritance integration, so it belongs in a separate tutorial.
-:::
+The conventional C++ client is also compiled during testing so its documented before example cannot drift.
