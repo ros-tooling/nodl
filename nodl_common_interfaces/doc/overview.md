@@ -26,7 +26,7 @@ This covers registering a hand-written document that includes them with `ament_n
 <test_depend>nodl_common_interfaces</test_depend>
 ```
 
-`nodl_generator_cpp` and `nodl_generator_py` depend on `nodl_common_interfaces`, so a package that generates code does not declare it.
+`nodl_generator_cpp` and `nodl_generator_py` depend on `nodl_common_interfaces`, so a package that generates code does not have to explicitly declare it.
 
 Tooling that resolves an installed document at runtime, such as `ros2 nodl` verbs on a registered document that includes these, needs `nodl_common_interfaces` installed, since a package that generates code does not depend on it at runtime.
 
