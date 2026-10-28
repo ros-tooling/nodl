@@ -17,6 +17,7 @@
         "nodl_generator_cpp/package.xml",
         "nodl_generator_py/package.xml",
         "nodl_observe/package.xml",
+        "nodl_runtime_py/package.xml",
         "nodl_schema/package.xml",
         "ros2nodl/package.xml",
         "test_ament_nodl/package.xml",

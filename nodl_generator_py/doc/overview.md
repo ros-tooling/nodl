@@ -50,6 +50,8 @@ and every generated ROS interface package as a dependency:
 `nodl_generate_py()` fails at configure time without the `nodl_runtime_py` dependency,
 since the generated code would fail when it runs.
 
+`nodl_generator_py` depends on `nodl_common_interfaces`, so a package that generates code does not have to explicitly declare it.
+
 ### Arguments
 
 | Argument | Description |
