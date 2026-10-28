@@ -69,6 +69,9 @@ if(BUILD_TESTING)
     ENV BUILD_DIR=${CMAKE_BINARY_DIR}
   )
 
+  # Checks that nodl_generate_py requires the nodl_runtime_py dependency.
+  ament_add_pytest_test(test_runtime_dependency test_runtime_dependency.py)
+
   # Each Python fixture document is registered with the ament index under its target name.
   # The pub_sub fixture overrides it with RESOURCE_NAME, and the services fixture passes NO_INDEX.
   function(add_python_fixture fixture target)
