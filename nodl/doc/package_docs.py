@@ -28,6 +28,7 @@ PACKAGES = [
     'nodl_generator_common',
     'nodl_generator_cpp',
     'nodl_generator_py',
+    'nodl_runtime_py',
     'nodl_docgen',
 ]
 
