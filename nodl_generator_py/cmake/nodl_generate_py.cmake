@@ -77,6 +77,7 @@ function(nodl_generate_py target nodl_file)
   set(package_init "${gen_dir}/__init__.py")
   set(params_py "${gen_dir}/${target}_parameters.py")
   set(params_yaml "${gen_dir}/${target}_parameters.yaml")
+  set(params_validators_py "${gen_dir}/${target}_parameter_validators.py")
   set(deps_file "${gen_root}/${target}_deps.cmake")
 
   # Make build-time Python dependencies importable by the generator.
@@ -112,7 +113,7 @@ function(nodl_generate_py target nodl_file)
 
   add_custom_command(
     OUTPUT "${py_out}" "${package_init}"
-    BYPRODUCTS "${params_py}" "${params_yaml}"
+    BYPRODUCTS "${params_py}" "${params_yaml}" "${params_validators_py}"
     COMMAND ${CMAKE_COMMAND} -E env
       "PYTHONPATH=${full_pythonpath}"
       "${Python3_EXECUTABLE}"

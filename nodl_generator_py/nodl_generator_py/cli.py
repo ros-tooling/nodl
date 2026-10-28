@@ -8,6 +8,35 @@ from pathlib import Path
 
 from nodl_generator_py.generator import format_cmake_deps, generate_python
 
+VALIDATORS_IMPORT = 'from generate_parameter_library_py.python_validators import ParameterValidators'
+
+
+def write_parameters_module(output_dir: Path, target_name: str, parameters_yaml: str) -> None:
+    """Write the parameter module with a private copy of the validators it uses.
+
+    ``generate_parameter_library_py`` emits a module that imports its validators at runtime.
+    Installing a copy beside the module keeps the generated code free of build-time packages,
+    so a package that generates nodes needs ``nodl_generator_py`` only as a build tool.
+    """
+    from generate_parameter_library_py import python_validators
+    from generate_parameter_library_py.generate_python_module import run
+
+    parameters_input = output_dir / f'{target_name}_parameters.yaml'
+    parameters_input.write_text(parameters_yaml, encoding='utf-8')
+    parameters_module = output_dir / f'{target_name}_parameters.py'
+    run(str(parameters_module), str(parameters_input), validation_module='')
+
+    validators = f'{target_name}_parameter_validators'
+    code = parameters_module.read_text(encoding='utf-8')
+    if VALIDATORS_IMPORT not in code:
+        raise RuntimeError(f'{parameters_module} does not import the validators as expected: {VALIDATORS_IMPORT!r}')
+    parameters_module.write_text(
+        code.replace(VALIDATORS_IMPORT, f'from .{validators} import ParameterValidators'), encoding='utf-8'
+    )
+    (output_dir / f'{validators}.py').write_text(
+        Path(python_validators.__file__).read_text(encoding='utf-8'), encoding='utf-8'
+    )
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description='Generate an rclpy base class from a NoDL document.')
@@ -32,15 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         output = args.output_dir / f'{args.target_name}.py'
         output.write_text(generation.module, encoding='utf-8')
         if generation.parameters_yaml is not None:
-            from generate_parameter_library_py.generate_python_module import run
-
-            parameters_input = args.output_dir / f'{args.target_name}_parameters.yaml'
-            parameters_input.write_text(generation.parameters_yaml, encoding='utf-8')
-            run(
-                str(args.output_dir / f'{args.target_name}_parameters.py'),
-                str(parameters_input),
-                validation_module='',
-            )
+            write_parameters_module(args.output_dir, args.target_name, generation.parameters_yaml)
     except Exception as exc:
         print(f'{args.nodl_file}: {exc}', file=sys.stderr)
         return 1

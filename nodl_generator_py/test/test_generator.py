@@ -217,7 +217,12 @@ def test_cli_writes_generated_module(tmp_path):
     assert (tmp_path / 'interfaces_node_base.py').is_file()
     parameters_module = tmp_path / 'interfaces_node_base_parameters.py'
     assert parameters_module.is_file()
-    ast.parse(parameters_module.read_text(encoding='utf-8'))
+    parameters_code = parameters_module.read_text(encoding='utf-8')
+    ast.parse(parameters_code)
+    assert 'generate_parameter_library_py' not in parameters_code
+    assert 'from .interfaces_node_base_parameter_validators import ParameterValidators' in parameters_code
+    validators_module = tmp_path / 'interfaces_node_base_parameter_validators.py'
+    assert 'class ParameterValidators' in validators_module.read_text(encoding='utf-8')
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
     assert (tmp_path / 'interfaces_node_base.py').read_text(encoding='utf-8') == _render_python(
         doc,

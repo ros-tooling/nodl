@@ -8,8 +8,7 @@ Generated files are replaced whenever the `.nodl.yaml` input changes.
 Handwritten application code remains separate from generated code.
 
 NoDL and `nodl_generator_py` are build-time dependencies.
-The installed generated module imports only normal ROS interfaces, `rclpy`, and the generated parameter module,
-which imports `generate_parameter_library_py`.
+The installed generated module imports only normal ROS interfaces, `rclpy`, and the generated parameter module.
 A deployed application therefore does not require NoDL or `nodl_generator_py`.
 
 For what a NoDL document declares, see {external+nodl:doc}`concepts`.
@@ -40,8 +39,7 @@ The target name must be a valid Python identifier.
 | Index registration | Registers the full NoDL document with the ament index under `RESOURCE_NAME`, which defaults to the target name. `NO_INDEX` skips this step. |
 
 The application package must declare `rclpy` and every generated ROS interface package as dependencies.
-It needs `nodl_generator_py` only as a build-tool dependency,
-which exports `generate_parameter_library_py`, so the package does not declare it.
+It needs `nodl_generator_py` only as a build-tool dependency.
 
 ### Arguments
 
@@ -92,6 +90,7 @@ The generator produces these files in `<project>/generated`:
 | `__init__.py` | Always | Marks the generated package. |
 | `<target>.py` | Always | Generated `rclpy` base class. |
 | `<target>_parameters.py` | With parameters | Typed parameter listener and values. |
+| `<target>_parameter_validators.py` | With parameters | The `generate_parameter_library_py` validators the parameter module uses, so it imports nothing from build-time packages. |
 
 When parameters are present, the build also creates an intermediate
 `<target>_parameters.yaml` file for `generate_parameter_library_py`.
