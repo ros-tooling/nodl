@@ -17,10 +17,17 @@ Each generator reads only its own metadata while sharing the same interface cont
 
 ## Usage
 
-Any package that references a document registered by this package should list `nodl_common_interfaces` as a dependency:
+The documents are resolved only while building and testing, never by a running node.
+A package that references them without a generator in its build declares `nodl_common_interfaces` with `<build_depend>`, `<test_depend>`, or both, not `<depend>`.
+This covers registering a hand-written document that includes them with `ament_nodl_register`, and conformance tests that load one:
 
 ```xml
-<depend>nodl_common_interfaces</depend>
+<build_depend>nodl_common_interfaces</build_depend>
+<test_depend>nodl_common_interfaces</test_depend>
 ```
+
+`nodl_generator_cpp` and `nodl_generator_py` depend on `nodl_common_interfaces`, so a package that generates code does not declare it.
+
+Tooling that resolves an installed document at runtime, such as `ros2 nodl` verbs on a registered document that includes these, needs `nodl_common_interfaces` installed, since a package that generates code does not depend on it at runtime.
 
 The NoDL documents are registered at install time via `ament_nodl_register`, so they must be built before any package whose NoDL references them.

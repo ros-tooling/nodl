@@ -17,6 +17,7 @@
   <depend>generate_parameter_library_py</depend>
   <depend>python3-jinja2</depend>
   <depend>python3-yaml</depend>
+  <exec_depend>nodl_common_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>

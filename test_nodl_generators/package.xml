@@ -14,7 +14,6 @@
   <buildtool_export_depend>nodl_generator_cpp</buildtool_export_depend>
   <buildtool_depend>nodl_generator_py</buildtool_depend>
 
-  <build_depend>nodl_common_interfaces</build_depend>
   <depend>example_interfaces</depend>
   <depend>geometry_msgs</depend>
   <build_depend>lifecycle_msgs</build_depend>
@@ -29,7 +28,6 @@
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_index_python</test_depend>
   <test_depend>python3-pytest</test_depend>
-  <test_depend>nodl_common_interfaces</test_depend>
   <test_depend>lifecycle_msgs</test_depend>
   <test_depend>rclpy</test_depend>
 

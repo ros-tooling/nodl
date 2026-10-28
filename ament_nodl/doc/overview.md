@@ -28,6 +28,7 @@ ament_nodl_register(my_node
 
 A `nodl://<package>/<name>` reference resolves through the ament index, which holds what is *installed*.
 Validation runs before this package is installed, so a referenced package must already be built and be a dependency of this one.
+`nodl_generator_cpp` and `nodl_generator_py` depend on `nodl_common_interfaces`, so a package that generates code does not declare it.
 
 ### Local includes
 
