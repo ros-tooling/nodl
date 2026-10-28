@@ -26,6 +26,8 @@ Find complete documentation at https://nodl.readthedocs.io/en/latest/
 
 ## Developing
 
+See [RELEASING.md](./RELEASING.md) for versioning and tag releases.
+
 ### Setup
 
 1. Clone the repo and install pre-commit hooks:

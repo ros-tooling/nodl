@@ -1,0 +1,48 @@
+---
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  versions:
+    name: Release versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - run: python3 -m unittest discover -s tools/tests -p 'test_release_versions.py' -q
+      - run: python3 tools/check_release_versions.py .
+
+  release-please:
+    name: Prepare release PR / tag
+    needs: versions
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # Defaults to GITHUB_TOKEN: generated PRs/tags do not trigger CI.
+          # For automatic CI, add RELEASE_PLEASE_TOKEN and uncomment below.
+          # PAT owner needs repo write access; fine-grained permissions:
+          # Contents, Issues, Pull requests: write; classic scope: public_repo.
+          # Authorize organization SSO if required.
+          # token: ${{ secrets.RELEASE_PLEASE_TOKEN }}

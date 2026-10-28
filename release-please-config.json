@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "bfc32a6b8fe07de67130184ccd1e426c482cb726",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "nodl",
+      "include-component-in-tag": false,
+      "include-v-in-tag": false,
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        "ament_nodl/package.xml",
+        "nodl/package.xml",
+        "nodl_common_interfaces/package.xml",
+        "nodl_docgen/package.xml",
+        "nodl_generator_common/package.xml",
+        "nodl_generator_cpp/package.xml",
+        "nodl_generator_py/package.xml",
+        "nodl_observe/package.xml",
+        "nodl_schema/package.xml",
+        "ros2nodl/package.xml",
+        "test_ament_nodl/package.xml",
+        "test_nodl_generators/package.xml",
+        "test_nodl_generators_downstream/package.xml",
+        "examples/nodl_tutorials/basics/package.xml",
+        "examples/nodl_tutorials/dummy_robot/package.xml"
+      ]
+    }
+  }
+}
