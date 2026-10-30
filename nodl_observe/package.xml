@@ -3,7 +3,7 @@
 <package format="3">
   <name>nodl_observe</name>
   <version>2.0.3</version>
-  <description>Observe a running ROS node and produce its runtime description as a rosgraph_msgs/Node message.</description>
+  <description>Observe a running ROS 2 node and produce its runtime description as a rosgraph_msgs/Node message.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="sylukewicent@gmail.com">Luke Sy</author>

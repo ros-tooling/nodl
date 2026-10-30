@@ -3,7 +3,7 @@
 <package format="3">
   <name>ros2nodl</name>
   <version>2.0.3</version>
-  <description>ros2cli command entrypoint for NoDL.</description>
+  <description>ros2cli extension providing the ros2 nodl commands for working with NoDL documents.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="hello@alistairenglish.com">Alistair English</author>

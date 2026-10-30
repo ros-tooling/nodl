@@ -127,8 +127,10 @@ suppress_warnings = ['myst.domains']
 
 
 def setup(app):
-    """Prepare the schema reference before the JSON domain reads the schemas, and stage per-package docs and CMake API."""
+    """Prepare the schema reference before the JSON domain reads the schemas, and stage per-package docs and CMake API, and register the package description directive and role."""
     schema_reference.mirror_schemas_for_docs()
     schema_reference.patch_object_value_type()
     package_docs.mirror_package_docs()
     cmake_api_docs.generate_cmake_api_docs()
+    app.add_directive('package-list', package_docs.PackageList)
+    app.add_role('package-description', package_docs.package_description_role)

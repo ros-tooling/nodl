@@ -3,7 +3,7 @@
 <package format="3">
   <name>nodl_docgen</name>
   <version>2.0.3</version>
-  <description>Documentation generation and Sphinx rendering of ROS 2 Node Definition Language (NoDL) documents.</description>
+  <description>Sphinx extension that renders NoDL documents into documentation pages at build time.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="emerson@polymathrobotics.com">Emerson Knapp</author>
