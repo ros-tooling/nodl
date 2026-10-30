@@ -1,0 +1,11 @@
+---
+nodl_version: 2
+include:
+  - ref: local://status_mixin.nodl.yaml
+subscriptions:
+  - name: /composed_in
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE

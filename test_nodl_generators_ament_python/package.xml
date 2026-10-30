@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>test_nodl_generators_ament_python</name>
+  <version>2.0.3</version>
+  <description>End-to-end tests for generating NoDL base classes in an ament_python package.</description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>nodl_generator_py</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+
+  <exec_depend>nodl_runtime_py</exec_depend>
+
+  <test_depend>ament_index_python</test_depend>
+  <test_depend>lifecycle_msgs</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

@@ -19,7 +19,7 @@ Outside the packages:
 - [design/](./design/): Design documents for NoDL features
 - [examples/](./examples/): Example packages that the tutorials build on
 - [nodl/doc/](./nodl/doc/): Documentation source for the ReadTheDocs page
-- [test_ament_nodl/](./test_ament_nodl/), [test_nodl_generators/](./test_nodl_generators/) and [test_nodl_generators_downstream/](./test_nodl_generators_downstream/): Integration tests for the CMake macros and the code generators
+- [test_ament_nodl/](./test_ament_nodl/), [test_nodl_generators/](./test_nodl_generators/), [test_nodl_generators_ament_python/](./test_nodl_generators_ament_python/) and [test_nodl_generators_downstream/](./test_nodl_generators_downstream/): Integration tests for the CMake macros and the code generators
 - [tools/](./tools/): Scripts supporting development and build workflows
 
 ## Developing

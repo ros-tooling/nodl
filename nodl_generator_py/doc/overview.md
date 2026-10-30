@@ -3,7 +3,7 @@
 `nodl_generator_py` generates an `rclpy` base class from a NoDL document.
 The generated class creates the declared ROS interfaces.
 Application code subclasses it and implements only the node behavior.
-`nodl_add_py_executable()` then generates an executable that runs that class, so `ros2 run` starts it.
+`nodl_add_py_executable()`, or a `setup.cfg` section in an `ament_python` package, then generates an executable that runs that class, so `ros2 run` starts it.
 
 Generated files are replaced whenever the `.nodl.yaml` input changes.
 Handwritten application code remains separate from generated code.
@@ -182,6 +182,129 @@ nodl_add_py_executable(echo_node echo_robot.echo_node:EchoNode
 | `target` | `module:Class` import reference to the node class. |
 | `EXECUTOR` | Optional. `module:Class` import reference to the executor class. The default is `rclpy.executors:SingleThreadedExecutor`. |
 
+## ament_python integration
+
+An `ament_python` package cannot call `nodl_generate_py()`, so it declares the same generation in `setup.cfg`.
+`nodl_generator_py` extends setuptools, so `setup.py` needs no change.
+The extension does nothing for a package whose `setup.cfg` has none of these sections.
+
+The `echo_robot_py` package generates a node base class from a NoDL document, subclasses it, and runs the subclass.
+It is built, tested and run by the tests of the `test_nodl_generators_ament_python` package.
+
+The NoDL document declares a parameter, a publisher, and a subscription:
+
+```{literalinclude} examples/echo_robot_py/nodl/echo_node.nodl.yaml
+:language: yaml
+:caption: nodl/echo_node.nodl.yaml
+```
+
+The handwritten subclass keeps the behavior:
+
+```{literalinclude} examples/echo_robot_py/echo_robot_py/echo_node.py
+:language: python
+:start-at: from std_msgs
+:caption: echo_robot_py/echo_node.py
+```
+
+`setup.cfg` generates the base class and installs an executable for the subclass:
+
+```{literalinclude} examples/echo_robot_py/setup.cfg
+:language: ini
+:end-before: "[tool:pytest]"
+:caption: setup.cfg
+```
+
+For a package named `echo_robot_py`, this generates `echo_robot_py.generated.echo_node_base.EchoNodeBase`,
+registers the document with the ament index as `echo_node_base`,
+and installs an `echo_node` executable that runs the handwritten `EchoNode` subclass.
+The package is built by `colcon build`, with or without `--symlink-install`, by `setup.py build` and `setup.py install`, and by `pip install --no-build-isolation`.
+An isolated build environment does not have `nodl_generator_py`, so `pip` builds the package with the sections ignored and without an error.
+An editable `pip install` is an error.
+`colcon build --symlink-install` needs setuptools older than 80, since colcon does.
+
+The package declares `nodl_generator_py` as a build tool and `nodl_runtime_py` as a runtime dependency, as for CMake:
+
+```{literalinclude} examples/echo_robot_py/package.xml
+:language: xml
+:caption: package.xml
+:start-at: <buildtool_depend>
+:end-at: </exec_depend>
+```
+
+The build fails without the `nodl_runtime_py` dependency, with the same message as `nodl_generate_py()`.
+The package's name in `package.xml` is the Python package that gets the `generated` subpackage, so it must be listed in `packages` in `setup.py` and must not have a `generated` subpackage of its own.
+
+### Generating a document
+
+Each `[nodl_generate_py.<target>]` section has the arguments of `nodl_generate_py()`, and `<target>` is its `target`.
+
+| Option | Description |
+|---|---|
+| `nodl_file` | Required. Path to the document, relative to `setup.cfg`. |
+| `resource_name` | Optional. Name to register the document under. The default is the target. An error together with `no_index`. |
+| `no_index` | Optional. `true` does not register the document with the ament index. |
+
+Registration behaves as described under "Index registration" for CMake.
+The registered document and its copy under `share/<package>/nodl` have `local://` includes rewritten to `nodl://<package>/<name>`.
+Every `local://` include of a registered document must itself be registered in the package with its own section, or the build fails.
+The documents are read from the source directory when the package is built, so a source distribution has to include them, for example with a `MANIFEST.in`.
+
+### Installing an executable
+
+Each `[nodl_add_py_executable.<executable>]` section installs a script named `<executable>` next to the package's other scripts.
+It is the script that `nodl_add_py_executable()` generates, which "Running a node class" describes.
+A script of the same name from `console_scripts` or `scripts` is an error.
+
+| Option | Description |
+|---|---|
+| `target` | Required. `module:Class` reference to the node class, usually a subclass of a generated base. |
+| `executor` | Optional. `module:Class` reference to the executor class, for example `rclpy.executors:MultiThreadedExecutor`. The default is `rclpy.executors:SingleThreadedExecutor`. |
+
+An `ament_python` package installs its scripts under `lib/<package>` for `ros2 run` with the `[develop]` and `[install]` settings in the example.
+
+### What is generated and where
+
+| Output | Location |
+|---|---|
+| Generated modules | `<package>.generated`, a subpackage of the installed package. |
+| Index registration | `share/ament_index/resource_index/nodl/<package>__<name>`, and `share/<package>/nodl/<name>.nodl.yaml`. |
+| Executables | `lib/<package>/<executable>`, or wherever `install_scripts` points. |
+
+Everything is generated into `nodl_generated` in the build base, and never into the source tree.
+colcon builds outside the source tree.
+For `setup.py build` and for `pybuild`, the build base is `build` in the package directory unless `--build-base` says otherwise,
+so a read-only source tree needs `--build-base` somewhere else.
+A build generates it all again, and removes the modules of a document that was removed from `setup.cfg`.
+As with CMake, files that an earlier install put in the install space stay there.
+
+With `colcon build --symlink-install`, edits to the package's files take effect without a build.
+A file or directory added to the top level of the package needs another build.
+
+### Testing
+
+A test that runs `python -m pytest` in the package directory imports the package from the source tree, which has no `generated` subpackage.
+A `conftest.py` that removes the source directory from `sys.path` makes it import the built package instead.
+`testpaths` keeps pytest from collecting the package directory, which would import the source package again.
+The `test` directory must not have an `__init__.py`.
+With one, pytest puts the package directory back on `sys.path` for every test module, which undoes the `conftest.py`.
+A package in a `src` directory, with `package_dir={'': 'src'}` in `setup.py`, does not need the `conftest.py`,
+since `src` is not the directory that `python -m pytest` adds to the path.
+It still needs `testpaths`, and it can have a `test/__init__.py`.
+
+```{literalinclude} examples/echo_robot_py/test/conftest.py
+:language: python
+:start-at: import sys
+:caption: test/conftest.py
+```
+
+```{literalinclude} examples/echo_robot_py/setup.cfg
+:language: ini
+:start-at: "[tool:pytest]"
+:caption: setup.cfg
+```
+
+The tests of `test_nodl_generators_ament_python` run the example's tests with and without this `conftest.py`.
+
 ## Generated class API
 
 Entity names become Python identifiers by removing leading and trailing `/` characters
@@ -267,7 +390,7 @@ self.params_ = self.param_listener_.get_params()
 
 ## CLI reference
 
-The CMake function calls the generator internally.
+The CMake function and the `ament_python` extension call the generator internally.
 The same generator can be run directly for scripting or debugging:
 
 ```bash
@@ -284,7 +407,7 @@ python -m nodl_generator_py \
 | `--target-name` | Generated module name. It must be a valid Python identifier. It becomes the class name directly; a trailing `_base` is removed from the runtime node name. |
 | `--cmake-deps` | Write `<target>_deps.cmake` with the complete transitive NoDL source list, then exit. Intended for build integration. |
 
-The executable generator has its own entry point, which `nodl_add_py_executable()` calls:
+The executable generator has its own entry point, which `nodl_add_py_executable()` and the `ament_python` extension call:
 
 ```bash
 python -m nodl_generator_py.executable echo_robot.echo_node:EchoNode \
