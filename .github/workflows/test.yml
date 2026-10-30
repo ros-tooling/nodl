@@ -27,7 +27,8 @@ jobs:
             source:
               - '**'
               - '!**.md'
-              - '!**/doc/**'
+              - '!**/doc/**/*.md'
+              - '!**/doc/conf.py'
 
   build_and_test:
     needs: changes
