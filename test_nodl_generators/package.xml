@@ -26,10 +26,12 @@
   <exec_depend>nodl_runtime_py</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_cmake_ros</test_depend>
   <test_depend>ament_index_python</test_depend>
   <test_depend>python3-pytest</test_depend>
   <test_depend>lifecycle_msgs</test_depend>
   <test_depend>rclpy</test_depend>
+  <test_depend>ros2pkg</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

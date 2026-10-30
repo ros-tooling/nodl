@@ -3,6 +3,7 @@
 `nodl_generator_py` generates an `rclpy` base class from a NoDL document.
 The generated class creates the declared ROS interfaces.
 Application code subclasses it and implements only the node behavior.
+`nodl_add_py_executable()` then generates an executable that runs that class, so `ros2 run` starts it.
 
 Generated files are replaced whenever the `.nodl.yaml` input changes.
 Handwritten application code remains separate from generated code.
@@ -15,7 +16,7 @@ For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
 ## CMake integration
 
-`nodl_generate_py(target nodl_file [NO_INDEX] [RESOURCE_NAME name])` is the primary user-facing API:
+`nodl_generate_py(target nodl_file [NO_INDEX] [RESOURCE_NAME name])` is the primary user-facing API for generating base classes:
 
 ```cmake
 find_package(nodl_generator_py REQUIRED)
@@ -23,8 +24,8 @@ find_package(nodl_generator_py REQUIRED)
 nodl_generate_py(echo_node_base nodl/echo_node.nodl.yaml)
 ```
 
-For a project named `my_robot`, this generates and installs
-`my_robot.generated.echo_node_base.EchoNodeBase`.
+For a project named `echo_robot`, this generates and installs
+`echo_robot.generated.echo_node_base.EchoNodeBase`.
 The target name must be a valid Python identifier.
 
 ### What the function does
@@ -108,60 +109,78 @@ The intermediate YAML file is not installed.
 
 ## Example
 
-Given this NoDL document:
+The `echo_robot` package generates a node base class from a NoDL document, subclasses it, and runs the subclass.
+It is built and run by the tests of the `test_nodl_generators` package.
 
-```yaml
-nodl_version: 2
+The NoDL document declares a parameter, a publisher, and a subscription:
 
-parameters:
-  greeting:
-    type: string
-    default_value: hello
-
-publishers:
-  - name: echo_out
-    type: std_msgs/msg/String
-    qos:
-      history: KEEP_LAST
-      depth: 10
-      reliability: RELIABLE
-
-subscriptions:
-  - name: echo_in
-    type: std_msgs/msg/String
-    qos:
-      history: KEEP_LAST
-      depth: 10
-      reliability: RELIABLE
+```{literalinclude} examples/echo_robot/nodl/echo_node.nodl.yaml
+:language: yaml
+:caption: nodl/echo_node.nodl.yaml
 ```
 
-Add the generator to the package's `CMakeLists.txt`:
+The handwritten subclass keeps the behavior:
 
-```cmake
-find_package(ament_cmake REQUIRED)
-find_package(nodl_generator_py REQUIRED)
-
-nodl_generate_py(echo_node_base nodl/echo_node.nodl.yaml)
-
-ament_package()
-```
-
-Keep behavior in a handwritten subclass:
-
-```python
-from my_robot.generated.echo_node_base import EchoNodeBase
-from std_msgs.msg import String
-
-
-class EchoNode(EchoNodeBase):
-    def on_echo_in(self, msg):
-        self.pub_echo_out.publish(
-            String(data=f'{self.params_.greeting}: {msg.data}')
-        )
+```{literalinclude} examples/echo_robot/echo_robot/echo_node.py
+:language: python
+:start-at: from std_msgs
+:caption: echo_robot/echo_node.py
 ```
 
 The generated base constructs the publisher, subscription, and parameter listener.
 The subclass supplies the subscription callback and application behavior.
+
+The package generates the base class, installs the handwritten module, and adds an executable for the subclass:
+
+```{literalinclude} examples/echo_robot/CMakeLists.txt
+:language: cmake
+:start-at: cmake_minimum_required
+:caption: CMakeLists.txt
+```
+
+The package declares the generator as a build tool, `nodl_runtime_py` as a runtime dependency, and each ROS interface package it uses:
+
+```{literalinclude} examples/echo_robot/package.xml
+:language: xml
+:start-at: <buildtool_depend>ament_cmake</buildtool_depend>
+:end-at: <exec_depend>nodl_runtime_py</exec_depend>
+:caption: package.xml
+```
+
+After building and sourcing the workspace, `ros2 run echo_robot echo_node` starts the node.
+
+## Running a node class
+
+`nodl_add_py_executable(executable target [EXECUTOR ref])` generates an executable that runs a node class, as in the example above.
+The executable is a short script that imports the class and calls `nodl_runtime_py.run_node` on it.
+`run_node` constructs the node, configures and activates it if it is a lifecycle node, and spins it until SIGINT or SIGTERM.
+The script is generated at build time and installed to `lib/<project>`, where `ros2 run <project> <executable>` finds it.
+A conformance test can launch it with `nodl_add_conformance_test(... EXECUTABLE <executable>)`.
+
+The class can be any rclpy node class, whether or not it derives from a generated base.
+
+The `target` is a `module:Class` import reference.
+The module must be importable from the installed package, for example because the package installs it with `ament_python_install_package()`.
+A malformed reference fails the build.
+
+The package must declare `nodl_runtime_py` as a runtime dependency, as for `nodl_generate_py()`, or configuration fails.
+The generated script imports it when it runs.
+
+### Choosing the executor
+
+Pass `EXECUTOR` to spin the node with an executor other than the default `SingleThreadedExecutor`.
+It is a `module:Class` import reference to a class that takes no arguments:
+
+```cmake
+nodl_add_py_executable(echo_node echo_robot.echo_node:EchoNode
+  EXECUTOR rclpy.executors:MultiThreadedExecutor)
+```
+
+| Argument | Description |
+|---|---|
+| `executable` | Name of the installed executable. The build target is `nodl_py_executable_<executable>`. |
+| `target` | `module:Class` import reference to the node class. |
+| `EXECUTOR` | Optional. `module:Class` import reference to the executor class. The default is `rclpy.executors:SingleThreadedExecutor`. |
 
 ## Generated class API
 
@@ -254,7 +273,7 @@ The same generator can be run directly for scripting or debugging:
 ```bash
 python -m nodl_generator_py \
   --nodl-file nodl/echo_node.nodl.yaml \
-  --output-dir generated/my_robot/generated \
+  --output-dir generated/echo_robot/generated \
   --target-name echo_node_base
 ```
 
@@ -264,6 +283,20 @@ python -m nodl_generator_py \
 | `--output-dir` | Directory for generated files. It is created when absent. |
 | `--target-name` | Generated module name. It must be a valid Python identifier. It becomes the class name directly; a trailing `_base` is removed from the runtime node name. |
 | `--cmake-deps` | Write `<target>_deps.cmake` with the complete transitive NoDL source list, then exit. Intended for build integration. |
+
+The executable generator has its own entry point, which `nodl_add_py_executable()` calls:
+
+```bash
+python -m nodl_generator_py.executable echo_robot.echo_node:EchoNode \
+  --executor rclpy.executors:MultiThreadedExecutor \
+  --output build/echo_node
+```
+
+| Argument | Description |
+|---|---|
+| `TARGET` | `module:Class` import reference to the node class. |
+| `--executor` | Optional `module:Class` import reference to the executor class. |
+| `--output` | Write an executable file with mode 0755 instead of printing the script. |
 
 ## Current scope
 

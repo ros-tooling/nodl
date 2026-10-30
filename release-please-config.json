@@ -16,6 +16,7 @@
         "nodl_generator_common/package.xml",
         "nodl_generator_cpp/package.xml",
         "nodl_generator_py/package.xml",
+        "nodl_generator_py/doc/examples/echo_robot/package.xml",
         "nodl_observe/package.xml",
         "nodl_runtime_py/package.xml",
         "nodl_schema/package.xml",
