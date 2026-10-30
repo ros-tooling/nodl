@@ -21,6 +21,9 @@ ament_nodl_register(custom_resource
 # Non-yaml frontend. Make sure the macro is extension-agnostic.
 ament_nodl_register(json_node FILE test/fixtures/json_node.nodl.json)
 
+# Registered so the Python conformance test can resolve it from the installed package.
+ament_nodl_register(conformance_fixture FILE test/fixtures/conformance_fixture.nodl.yaml)
+
 # Registration from a subdirectory.
 # The root document registered here includes it, so rewriting must see registrations from every directory.
 ament_nodl_register(root_includes_subdir_node FILE test/fixtures/root_includes_subdir_node.nodl.yaml)
@@ -116,6 +119,13 @@ if(BUILD_TESTING)
 
   find_package(launch_testing_ament_cmake REQUIRED)
   add_launch_test(test/test_conformance_ignore.py TIMEOUT 60)
+
+  # The documented example of ament_nodl.testing.conformance_test lives in the ament_nodl docs, so it stays tested.
+  ament_add_pytest_test(test_conformance_pytest
+    "${CMAKE_CURRENT_SOURCE_DIR}/../ament_nodl/doc/examples/test_conformance.py"
+    TIMEOUT 60)
+  ament_add_pytest_test(test_conformance_pytest_ignore test/test_conformance_pytest_ignore.py TIMEOUT 60)
+  ament_add_pytest_test(test_conformance_pytest_mismatch test/test_conformance_pytest_mismatch.py TIMEOUT 60)
 
   ament_add_pytest_test(test_register_node test/test_register_node.py)
   ament_add_pytest_test(test_macro_rejection test/test_macro_rejection.py)

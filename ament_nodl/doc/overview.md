@@ -2,6 +2,7 @@
 
 `ament_nodl` provides CMake integration for registering NoDL documents
 and checking a live node against one during `colcon test`.
+Packages that do not build with CMake, such as `ament_python` packages, add the same check with a Python helper.
 
 For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
@@ -156,11 +157,74 @@ colcon test-result --verbose
 ### Behavior
 
 The macro rejects a missing `NODL_FILE` or `PARAMETERS_FILE`, a `PARAMETERS` item that is not `name:=value`, and an invalid default node name, during CMake configuration.
-It generates a launch test in the build tree, launches the target node, and
-calls `ros2nodl.conformance.assert_conforms`.
+It generates a launch test in the build tree that calls {ref}`conformance_test <ament-nodl-python-packages>`, which launches the target node and calls `ros2nodl.conformance.assert_conforms`.
 
 See the macro source at
 {repo}`ament_nodl/cmake/nodl_add_conformance_test.cmake`.
+A package that cannot call CMake gets the same test from {ref}`conformance_test <ament-nodl-python-packages>`.
+
+(ament-nodl-python-packages)=
+
+## Python packages
+
+An `ament_python` package cannot call `nodl_add_conformance_test`, so a test module calls `ament_nodl.testing.conformance_test` instead.
+It starts the executable and checks the running node against the document, with the same options and defaults as the macro.
+The macro generates its test from the same function.
+
+Add the test dependency to `package.xml`:
+
+```xml
+<test_depend>ament_nodl</test_depend>
+```
+
+`colcon` runs `pytest` for an `ament_python` package only if the package declares it where `colcon` looks, such as `extras_require={'test': ['pytest']}` in `setup.py`.
+Without it, `colcon test` skips the test.
+
+Create a test module, such as `test/test_conformance.py`, that assigns the two names `launch_testing` looks for:
+
+```{literalinclude} examples/test_conformance.py
+:language: python
+:start-at: from ament_nodl.testing
+```
+
+The example runs against the fixture node of `test_ament_nodl`.
+In your package, `package` and `executable` name the executable that your `setup.cfg` or `setup.py` installs.
+`pytest` runs it with the package's other tests, such as `colcon test --packages-select my_package`, and `launch_testing`'s `launch_test` command runs it as well.
+
+The `nodl` argument names the document, in one of two forms, as the `nodl-node` directive of `nodl_docgen` takes its argument.
+A **path** is absolute, and is usually built from the test file, such as `nodl=Path(__file__).parent / 'nodl' / 'my_node.nodl.yaml'`.
+A **reference** is a `nodl://<package>/<name>` string, which `nodl_schema`'s registered resolvers resolve through the ament index.
+The document must be installed before the test runs, and it can come from a different package than the executable.
+
+The call checks its arguments, the files they name and the reference when the module is imported.
+A mistake raises there, and `pytest` reports a collection error that interrupts that package's whole test session, not only this test.
+
+### Differences from the macro
+
+The macro names a node after the test, and the Python helper names it after the executable.
+Pass `node_name` when the executable is not a valid node name.
+Paths must be absolute, because a test module has no source directory like `CMAKE_CURRENT_SOURCE_DIR` to resolve against.
+`package` is required, because there is no `PROJECT_NAME`.
+
+### Arguments
+
+All arguments are keywords.
+
+:`package`: Package containing the executable. Required.
+:`executable`: Name of the ROS 2 executable to launch. Required.
+:`nodl`: The expected NoDL document, as an absolute path or a `nodl://<package>/<name>` reference. Required.
+:`node_name`: Node name passed to the executable and used to construct its fully qualified name. Defaults to `executable`.
+:`node_namespace`: Namespace passed to the executable. Defaults to `/`.
+:`timeout`: Maximum time in seconds for the conformance check, a positive integer. Defaults to 15.
+:`parameters`: List of `name:=value` items passed to the node as `-p` arguments, applied after `parameters_files`.
+:`parameters_files`: List of absolute paths of YAML parameter files passed to the node.
+:`ignore`: List of ignore rules, as for `IGNORE` of the macro.
+  Rules in `NODL_CONFORMANCE_IGNORE` apply as well, after these.
+
+The function returns `(generate_test_description, TestNodlConformance)`, both named after the module that calls it.
+`generate_test_description` carries the `launch_test` marker, without which `pytest` runs the test case and launches nothing.
+
+See the module source at {repo}`ament_nodl/ament_nodl/testing.py`.
 
 ## Consuming registered documents
 

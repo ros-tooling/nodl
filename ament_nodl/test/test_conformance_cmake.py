@@ -123,9 +123,8 @@ def test_macro_generates_launch_test_and_registration(tmp_path):
     assert "node\\'s interface.nodl.yaml'" in generated
     assert '_TIMEOUT = 15' in generated
     assert '_IGNORE = []' in generated
-    assert 'from ros2nodl.conformance import assert_conforms' in generated
-    assert 'from launch_ros.actions import Node' in generated
-    assert 'assert_conforms(' in generated
+    assert 'from ament_nodl.testing import conformance_test' in generated
+    assert 'generate_test_description, TestNodlConformance = conformance_test(' in generated
     compile(generated, 'contract_test.py', 'exec')
     registration = (build / 'registration.txt').read_text(encoding='utf-8')
     assert str(source / "node's interface.nodl.yaml") not in registration
@@ -320,5 +319,5 @@ def test_macro_passes_ignore_rules_to_the_generated_test(tmp_path):
         if line.startswith('_IGNORE = '):
             exec(line, namespace)
     assert namespace['_IGNORE'] == ['publisher:/topic_statistics', "subscription:/it's/*", 'parameter:qos_overrides.*']
-    assert 'ignore=[*_IGNORE, *ignore_from_environment(os.environ)]' in generated
+    assert 'ignore=_IGNORE,' in generated
     compile(generated, 'contract_test.py', 'exec')

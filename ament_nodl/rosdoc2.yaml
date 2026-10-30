@@ -3,7 +3,7 @@ version: 1
 
 ---
 settings:
-    # CMake-macro package: no Python modules and no C/C++ API to extract, so skip apidoc and doxygen.
+    # The CMake macros have no API to extract, and the one Python module is documented in overview.md, so skip apidoc and doxygen.
     never_run_sphinx_apidoc: true
     generate_package_index: true
 
