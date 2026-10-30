@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
 
+include("${CMAKE_CURRENT_LIST_DIR}/nodl_py_common.cmake")
+
 #
 # nodl_generate_py(target nodl_file [NO_INDEX] [RESOURCE_NAME name])
 #
@@ -46,6 +48,8 @@
 # @public
 #
 function(nodl_generate_py target nodl_file)
+  _nodl_py_require_runtime_dependency(nodl_generate_py "generated code")
+
   cmake_parse_arguments(_nodl "NO_INDEX" "RESOURCE_NAME" "" ${ARGN})
   if(_nodl_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR
@@ -82,22 +86,13 @@ function(nodl_generate_py target nodl_file)
   set(params_yaml "${gen_dir}/${target}_parameters.yaml")
   set(deps_file "${gen_root}/${target}_deps.cmake")
 
-  # Make build-time Python dependencies importable by the generator.
-  if(DEFINED ENV{PYTHONPATH})
-    set(full_pythonpath
-      "${_nodl_generator_py_extra_pythonpath}:$ENV{PYTHONPATH}")
-  else()
-    set(full_pythonpath "${_nodl_generator_py_extra_pythonpath}")
-  endif()
+  _nodl_py_generator_command(generator_command nodl_generator_py)
 
   # Resolve the include tree during configuration so both configure and build
   # dependencies cover every transitive NoDL input.
   file(MAKE_DIRECTORY "${gen_root}")
   execute_process(
-    COMMAND ${CMAKE_COMMAND} -E env
-      "PYTHONPATH=${full_pythonpath}"
-      "${Python3_EXECUTABLE}"
-      -m nodl_generator_py
+    COMMAND ${generator_command}
       --nodl-file "${nodl_file_abs}"
       --output-dir "${gen_root}"
       --target-name "${target}"
@@ -116,10 +111,7 @@ function(nodl_generate_py target nodl_file)
   add_custom_command(
     OUTPUT "${py_out}" "${package_init}"
     BYPRODUCTS "${params_py}" "${params_yaml}"
-    COMMAND ${CMAKE_COMMAND} -E env
-      "PYTHONPATH=${full_pythonpath}"
-      "${Python3_EXECUTABLE}"
-      -m nodl_generator_py
+    COMMAND ${generator_command}
       --nodl-file "${nodl_file_abs}"
       --output-dir "${gen_dir}"
       --target-name "${target}"
@@ -147,16 +139,5 @@ function(nodl_generate_py target nodl_file)
 
   if(NOT _nodl_NO_INDEX)
     ament_nodl_register(${_nodl_resource_name} FILE "${nodl_file_abs}")
-  endif()
-
-  # Generated code imports the packages nodl_runtime_py provides, so a package without it fails at runtime.
-  if(NOT DEFINED _AMENT_PACKAGE_NAME)
-    ament_package_xml()
-  endif()
-  if(NOT "nodl_runtime_py" IN_LIST ${PROJECT_NAME}_EXEC_DEPENDS)
-    message(FATAL_ERROR
-      "nodl_generate_py: package '${PROJECT_NAME}' must declare a runtime dependency on nodl_runtime_py, "
-      "which generated code needs when it runs. "
-      "Add <exec_depend>nodl_runtime_py</exec_depend> to its package.xml.")
   endif()
 endfunction()

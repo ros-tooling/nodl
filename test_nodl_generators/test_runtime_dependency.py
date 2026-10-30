@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Check that ``nodl_generate_py`` requires the calling package to declare ``nodl_runtime_py``.
+"""Check that ``nodl_generate_py`` and ``nodl_add_py_executable`` require the calling package to declare ``nodl_runtime_py``.
 
 Configures a small inner package with and without the dependency.
 """
@@ -17,9 +17,18 @@ CMAKELISTS = textwrap.dedent("""
     project(runtime_dependency_fixture)
     find_package(ament_cmake REQUIRED)
     find_package(nodl_generator_py REQUIRED)
-    nodl_generate_py(fixture_node_base node.nodl.yaml)
+    {call}
     ament_package()
 """)
+
+CALLS = pytest.mark.parametrize(
+    'call',
+    [
+        'nodl_generate_py(fixture_node_base node.nodl.yaml)',
+        'nodl_add_py_executable(fixture_node fixture_pkg:FixtureNode)',
+    ],
+    ids=['nodl_generate_py', 'nodl_add_py_executable'],
+)
 
 PACKAGE_XML = textwrap.dedent("""\
     <?xml version="1.0"?>
@@ -39,10 +48,10 @@ PACKAGE_XML = textwrap.dedent("""\
 """)
 
 
-def _configure(tmp_path: Path, runtime_depend: str) -> subprocess.CompletedProcess:
+def _configure(tmp_path: Path, call: str, runtime_depend: str) -> subprocess.CompletedProcess:
     package = tmp_path / 'runtime_dependency_fixture'
     package.mkdir()
-    (package / 'CMakeLists.txt').write_text(CMAKELISTS)
+    (package / 'CMakeLists.txt').write_text(CMAKELISTS.format(call=call))
     (package / 'package.xml').write_text(PACKAGE_XML.format(runtime_depend=runtime_depend))
     (package / 'node.nodl.yaml').write_text('nodl_version: 2\n')
     return subprocess.run(
@@ -54,21 +63,27 @@ def _configure(tmp_path: Path, runtime_depend: str) -> subprocess.CompletedProce
     )
 
 
+@CALLS
 @pytest.mark.parametrize(
     'runtime_depend',
     ['<exec_depend>nodl_runtime_py</exec_depend>', '<depend>nodl_runtime_py</depend>'],
     ids=['exec-depend', 'depend'],
 )
-def test_declared_runtime_dependency_configures(tmp_path, runtime_depend):
-    result = _configure(tmp_path, runtime_depend)
+def test_declared_runtime_dependency_configures(tmp_path, call, runtime_depend):
+    result = _configure(tmp_path, call, runtime_depend)
 
     assert result.returncode == 0, result.stderr
 
 
-def test_missing_runtime_dependency_is_rejected(tmp_path):
-    result = _configure(tmp_path, '')
+@CALLS
+def test_missing_runtime_dependency_is_rejected(tmp_path, call):
+    function = call.partition('(')[0]
+    result = _configure(tmp_path, call, '')
 
     assert result.returncode != 0
     message = ' '.join(result.stderr.split())
-    assert "package 'runtime_dependency_fixture' must declare a runtime dependency on nodl_runtime_py" in message
+    assert (
+        f"{function}: package 'runtime_dependency_fixture' must declare a runtime dependency on nodl_runtime_py"
+        in message
+    )
     assert 'Add <exec_depend>nodl_runtime_py</exec_depend> to its package.xml.' in message
