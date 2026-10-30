@@ -28,6 +28,7 @@ ros2 nodl conform /robot/my_node --file nodl/my_node.nodl.yaml
 
 Add `--ignore KIND:NAME` to leave out endpoints that the environment injects, or that a partly migrated node contributes and its document does not declare yet.
 See the [Conform guide](conformance.md) for composition, ignore rules, diagnostics, and exit behavior.
+The same guide covers `ros2nodl.testing.conformance_test`, which runs the check as a test.
 
 ### `ros2 nodl diff`
 
