@@ -16,7 +16,10 @@ install(
 )
 
 install(
-  FILES cmake/nodl_generate_py.cmake
+  FILES
+    cmake/nodl_generate_py.cmake
+    cmake/nodl_add_py_executable.cmake
+    cmake/nodl_py_common.cmake
   DESTINATION share/${PROJECT_NAME}/cmake
 )
 
@@ -26,6 +29,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_schema test/test_schema.py)
   ament_add_pytest_test(test_doc_tree test/test_doc_tree.py)
   ament_add_pytest_test(test_cmake_function_args test/test_cmake_function_args.py)
+  ament_add_pytest_test(test_executable test/test_executable.py)
 endif()
 
 ament_package(

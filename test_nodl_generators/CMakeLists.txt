@@ -57,6 +57,7 @@ endif()
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
+  find_package(ament_cmake_ros REQUIRED)
 
   # These tests read the install manifests in the build directory, so files left by earlier builds in the install prefix do not matter.
   # Checks which fixtures are installed and exported.
@@ -91,6 +92,32 @@ if(BUILD_TESTING)
   add_python_fixture(parameters parameters_node_base)
   add_python_fixture(kitchen_sink kitchen_sink_node_base)
   add_python_fixture(lifecycle lifecycle_node_base)
+
+  # Executables run installed copies of the fixture node classes, since the executable imports them from the install space.
+  # The lifecycle one is spun with a different executor, and another uses an executor that records its use.
+  install(
+    FILES minimal/py/node_impl.py
+    DESTINATION "${PYTHON_INSTALL_DIR}/${PROJECT_NAME}"
+    RENAME minimal_node_impl.py
+  )
+  install(
+    FILES lifecycle/py/node_impl.py
+    DESTINATION "${PYTHON_INSTALL_DIR}/${PROJECT_NAME}"
+    RENAME lifecycle_node_impl.py
+  )
+  install(
+    FILES executables/recording_executor.py
+    DESTINATION "${PYTHON_INSTALL_DIR}/${PROJECT_NAME}"
+  )
+  nodl_add_py_executable(py_minimal_node ${PROJECT_NAME}.minimal_node_impl:MinimalNode)
+  nodl_add_py_executable(py_lifecycle_node ${PROJECT_NAME}.lifecycle_node_impl:GeneratedLifecycleNode
+    EXECUTOR rclpy.executors:MultiThreadedExecutor)
+  nodl_add_py_executable(py_recording_node ${PROJECT_NAME}.minimal_node_impl:MinimalNode
+    EXECUTOR ${PROJECT_NAME}.recording_executor:RecordingExecutor)
+  ament_add_ros_isolated_pytest_test(test_py_executables test_py_executables.py)
+
+  # The package in the nodl_generator_py documentation, configured, built and run as an installed package.
+  ament_add_ros_isolated_pytest_test(test_documented_example test_documented_example.py TIMEOUT 180)
 endif()
 
 ament_package()
