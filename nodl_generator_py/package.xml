@@ -3,7 +3,7 @@
 <package format="3">
   <name>nodl_generator_py</name>
   <version>2.0.3</version>
-  <description>Generate an rclpy base class from a NoDL document at build time.</description>
+  <description>Generate rclpy nodes from NoDL documents.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author>Luke Sy</author>
