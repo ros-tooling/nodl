@@ -3,11 +3,7 @@
 <package format="3">
   <name>nodl_common_interfaces</name>
   <version>2.0.3</version>
-  <description>
-    Language-independent NoDL interface descriptions for the standard ROS 2 node base types.
-
-    Each description provides C++ and Python code-generation metadata through one shared ament-index resource.
-  </description>
+  <description>Language-independent NoDL descriptions for the standard ROS 2 node and lifecycle-node base types, with C++ and Python code-generation metadata.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="hello@alistairenglish.com">Alistair English</author>

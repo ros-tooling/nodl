@@ -3,7 +3,7 @@
 <package format="3">
   <name>nodl_generator_cpp</name>
   <version>2.0.3</version>
-  <description>Generate an rclcpp base-node class from a NoDL document.</description>
+  <description>Generate rclcpp nodes from NoDL documents.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="hello@alistairenglish.com">Alistair English</author>

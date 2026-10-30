@@ -49,6 +49,7 @@ CI for this build is in `.github/workflows/rosdoc2.yml`
 The top-level `nodl/doc` Sphinx project builds every project-level page plus every package's `overview` in one site.
 It does not re-author anything: at build time `nodl/doc/package_docs.py` copies each `<pkg>/doc/` tree into `nodl/doc/_generated/packages/<pkg>/` (gitignored), skipping the per-package `conf.py`.
 `conf.py`'s `setup()` calls that staging step alongside the existing schema mirror, and `index.md` lists the staged `overview` pages in a "Packages" toctree.
+The "Packages" bullet list on that page is rendered by the `package-list` directive in `package_docs.py`, from each package's `package.xml` `<description>`.
 Copying whole subtrees keeps each package's internal relative links valid inside the combined site.
 
 CI for this build is in `.github/workflows/docs.yml`
