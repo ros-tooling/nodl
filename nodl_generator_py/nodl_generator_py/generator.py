@@ -277,6 +277,23 @@ def generate_python(source: Path, target_name: str) -> PythonGeneration:
     )
 
 
+def write_generation(generation: PythonGeneration, output_dir: Path, target_name: str) -> Path:
+    """Write the generated module, and its parameter module when it has parameters, into ``output_dir``.
+
+    :return: Path of the generated module.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output = output_dir / f'{target_name}.py'
+    output.write_text(generation.module, encoding='utf-8')
+    if generation.parameters_yaml is not None:
+        from generate_parameter_library_py.generate_python_module import run
+
+        parameters_input = output_dir / f'{target_name}_parameters.yaml'
+        parameters_input.write_text(generation.parameters_yaml, encoding='utf-8')
+        run(str(output_dir / f'{target_name}_parameters.py'), str(parameters_input), validation_module='')
+    return output
+
+
 def format_cmake_deps(target_name: str, sources: list[Path]) -> str:
     """Render the transitive NoDL source list consumed by CMake."""
     lines = [

@@ -30,6 +30,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_doc_tree test/test_doc_tree.py)
   ament_add_pytest_test(test_cmake_function_args test/test_cmake_function_args.py)
   ament_add_pytest_test(test_executable test/test_executable.py)
+  ament_add_pytest_test(test_setuptools_plugin test/test_setuptools_plugin.py TIMEOUT 600)
 endif()
 
 ament_package(

@@ -15,6 +15,7 @@
   <depend>nodl_schema</depend>
   <depend>nodl_generator_common</depend>
   <depend>generate_parameter_library_py</depend>
+  <depend>python3-catkin-pkg-modules</depend>
   <depend>python3-jinja2</depend>
   <depend>python3-yaml</depend>
   <exec_depend>nodl_common_interfaces</exec_depend>

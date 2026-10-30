@@ -1,0 +1,20 @@
+---
+nodl_version: 2
+parameters:
+  greeting:
+    type: string
+    default_value: hello
+publishers:
+  - name: /echo_out
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+subscriptions:
+  - name: /echo_in
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE

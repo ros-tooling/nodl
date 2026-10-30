@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>echo_robot_py</name>
+  <version>2.0.3</version>
+  <description>Example package that generates an rclpy base class in an ament_python package and runs its subclass.</description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>nodl_generator_py</buildtool_depend>
+
+  <depend>std_msgs</depend>
+
+  <exec_depend>nodl_runtime_py</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
