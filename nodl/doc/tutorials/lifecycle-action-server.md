@@ -95,7 +95,7 @@ Expand each implementation to see excerpts with line numbers matching the source
 
 ### Gate goals with lifecycle state
 
-Start inactive, open the gate only after activation succeeds, and close it before deactivation:
+Start with the gate closed, open it only after activation succeeds, and close it before deactivation:
 
 ![The goal gate starts closed, opens after activation succeeds, and closes before deactivation.](img/lifecycle-goal-gate.svg)
 
@@ -223,6 +223,22 @@ The calculation, feedback, result, cancellation decision, and lifecycle gate all
 
 New goals are accepted only while active.
 Deactivation rejects new goals; accepted goals continue until completion or cancellation.
+
+:::{note}
+:collapsible: closed
+:title: Scope of this example
+
+The node starts unconfigured, with the goal gate closed.
+Configure and cleanup use the base's default callbacks; this example does not reload parameters or manage application resources during those transitions.
+It does not implement custom error recovery.
+
+Inactive goal rejection happens in the action callback, not by suspending DDS reads.
+This example does not demonstrate subscription queue behavior or lifecycle-dependent QoS.
+Callback groups govern callback scheduling within a node; they are separate from this node-wide lifecycle policy.
+
+These are the example's choices, not a recommendation that every production node use the same policy.
+
+:::
 
 ## 5. Run the lifecycle and action
 
