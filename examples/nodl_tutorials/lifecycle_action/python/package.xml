@@ -16,6 +16,8 @@
   <depend>lifecycle_msgs</depend>
   <depend>rclpy</depend>
 
+  <exec_depend>nodl_runtime_py</exec_depend>
+
   <test_depend>action_msgs</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_index_python</test_depend>
