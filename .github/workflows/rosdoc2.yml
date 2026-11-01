@@ -41,6 +41,7 @@ jobs:
           - nodl_generator_cpp
           - nodl_generator_py
           - nodl_observe
+          - nodl_runtime_py
           - nodl_schema
           - ros2nodl
     container:

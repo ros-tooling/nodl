@@ -196,3 +196,15 @@ publishers:
 
     assert 'from rclpy.lifecycle import LifecycleNode' in result.module
     assert 'my_pkg' not in result.module
+
+
+@pytest.mark.parametrize('role', ['BASE_CLASS', 'NO_GENERATE'])
+def test_root_python_provider_metadata_is_rejected(tmp_path, role):
+    root = tmp_path / 'root.nodl.yaml'
+    if role == 'BASE_CLASS':
+        _provider(root, entities=False)
+    else:
+        _no_generate(root)
+
+    with pytest.raises(CodegenError, match=f'root document has codegen.python role {role}'):
+        generate_python(root, 'example_node_base')

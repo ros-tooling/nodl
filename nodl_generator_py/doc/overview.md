@@ -8,8 +8,8 @@ Generated files are replaced whenever the `.nodl.yaml` input changes.
 Handwritten application code remains separate from generated code.
 
 NoDL and `nodl_generator_py` are build-time dependencies.
-The installed generated module imports only normal ROS interfaces, `rclpy`, and the generated parameter module.
-A deployed application therefore does not require NoDL or `nodl_generator_py`.
+The installed generated module imports ROS interfaces, the generated parameter module, and the packages that `nodl_runtime_py` provides.
+A deployed application therefore needs `nodl_runtime_py`, but not `nodl_generator_py`.
 
 For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 
@@ -31,6 +31,7 @@ The target name must be a valid Python identifier.
 
 | Step | What happens |
 |---|---|
+| Runtime dependency | Checks that the package declares `nodl_runtime_py` as a runtime dependency. |
 | Code generation | Creates the base module during the package build. |
 | Build tracking | Regenerates when the root or any transitive NoDL input, generator, schema, or template changes. |
 | Build target | Creates an `ALL` custom target named `echo_node_base`. |
@@ -38,8 +39,18 @@ The target name must be a valid Python identifier.
 | Parameters | Delegates parameter-module generation to `generate_parameter_library_py`. |
 | Index registration | Registers the full NoDL document with the ament index under `RESOURCE_NAME`, which defaults to the target name. `NO_INDEX` skips this step. |
 
-The application package must declare `rclpy` and every generated ROS interface package as dependencies.
-It needs `nodl_generator_py` only as a build-tool dependency.
+The application package declares `nodl_generator_py` as a build tool, `nodl_runtime_py` as a runtime dependency,
+and every generated ROS interface package as a dependency:
+
+```xml
+<buildtool_depend>nodl_generator_py</buildtool_depend>
+<exec_depend>nodl_runtime_py</exec_depend>
+```
+
+`nodl_generate_py()` fails at configure time without the `nodl_runtime_py` dependency,
+since the generated code would fail when it runs.
+
+`nodl_generator_py` depends on `nodl_common_interfaces`, so a package that generates code does not have to explicitly declare it.
 
 ### Arguments
 
@@ -188,7 +199,8 @@ Entities supplied by either kind of provider and all of its transitive includes 
 A `BASE_CLASS` included by a `NO_GENERATE` provider is hidden from the generator.
 At most one Python base provider may be visible.
 Documents without a visible Python base provider keep the implicit `rclpy.node.Node` base.
-The root being generated should not carry `codegen.python` metadata; roles describe included provider documents.
+The generator rejects `BASE_CLASS` and `NO_GENERATE` on the root document; these roles describe included providers.
+Move provider metadata to an included document and omit `codegen.python` on the root.
 
 Use the standard lifecycle provider like this:
 

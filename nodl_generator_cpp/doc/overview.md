@@ -165,11 +165,7 @@ The generator requires that a nodl document includes exactly one spec with a cod
 The `nodl_common_interfaces` package provides shared NoDL descriptions for the standard node and lifecycle-node base types.
 Their `codegen.cpp` metadata selects `rclcpp::Node` or `rclcpp_lifecycle::LifecycleNode` as the `BASE_CLASS`.
 They are registered as `nodl://nodl_common_interfaces/node` and `nodl://nodl_common_interfaces/lifecycle_node`.
-Add the package as a dependency:
-
-```xml
-<depend>nodl_common_interfaces</depend>
-```
+`nodl_generator_cpp` depends on `nodl_common_interfaces`, so a package that generates code does not have to explicitly declare it.
 
 ## Generated files
 

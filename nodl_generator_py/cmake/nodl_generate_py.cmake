@@ -6,6 +6,9 @@
 #
 # Generate an rclpy base-node class from a NoDL file and install it under ``<project>.generated``.
 #
+# The calling package must declare ``<exec_depend>nodl_runtime_py</exec_depend>``,
+# which provides what the generated code imports at runtime.
+#
 # Unlike the C++ generator there is nothing to compile, so this creates a build-time custom target rather than a library.
 #
 # The same call registers the document with the ament index,
@@ -144,5 +147,16 @@ function(nodl_generate_py target nodl_file)
 
   if(NOT _nodl_NO_INDEX)
     ament_nodl_register(${_nodl_resource_name} FILE "${nodl_file_abs}")
+  endif()
+
+  # Generated code imports the packages nodl_runtime_py provides, so a package without it fails at runtime.
+  if(NOT DEFINED _AMENT_PACKAGE_NAME)
+    ament_package_xml()
+  endif()
+  if(NOT "nodl_runtime_py" IN_LIST ${PROJECT_NAME}_EXEC_DEPENDS)
+    message(FATAL_ERROR
+      "nodl_generate_py: package '${PROJECT_NAME}' must declare a runtime dependency on nodl_runtime_py, "
+      "which generated code needs when it runs. "
+      "Add <exec_depend>nodl_runtime_py</exec_depend> to its package.xml.")
   endif()
 endfunction()
