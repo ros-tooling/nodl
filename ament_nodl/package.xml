@@ -3,7 +3,7 @@
 <package format="3">
   <name>ament_nodl</name>
   <version>2.0.3</version>
-  <description>CMake integration for NoDL features, such as ament index registration and test target creation.</description>
+  <description>CMake integration for registering NoDL documents with the ament index and checking live-node conformance with colcon test.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
   <author email="me@emersonknapp.com">Emerson Knapp</author>

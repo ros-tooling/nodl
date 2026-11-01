@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>test_nodl_generators</name>
-  <version>0.1.0</version>
+  <version>2.0.3</version>
   <description>End-to-end tests for NoDL generators and generated nodes.</description>
   <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
   <license>Apache-2.0</license>
@@ -14,7 +14,6 @@
   <buildtool_export_depend>nodl_generator_cpp</buildtool_export_depend>
   <buildtool_depend>nodl_generator_py</buildtool_depend>
 
-  <build_depend>nodl_common_interfaces</build_depend>
   <depend>example_interfaces</depend>
   <depend>geometry_msgs</depend>
   <build_depend>lifecycle_msgs</build_depend>
@@ -24,10 +23,11 @@
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
 
+  <exec_depend>nodl_runtime_py</exec_depend>
+
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_index_python</test_depend>
   <test_depend>python3-pytest</test_depend>
-  <test_depend>nodl_common_interfaces</test_depend>
   <test_depend>lifecycle_msgs</test_depend>
   <test_depend>rclpy</test_depend>
 

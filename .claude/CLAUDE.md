@@ -36,3 +36,8 @@ Treat tutorial commands and code as tested product interfaces.
 Back runnable examples and intentional failure cases with executable fixtures.
 Reuse tested source in documentation where practical.
 Prefer existing project patterns over new abstractions unless the new abstraction enables a concrete reuse case.
+
+# Package descriptions
+
+A package's `package.xml` `<description>` is the one place to write its description.
+The docs package list is generated from it at build time, and the README links to that list rather than repeating it.
