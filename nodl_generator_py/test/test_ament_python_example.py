@@ -45,11 +45,26 @@ def _generated_files(root: Path) -> set[Path]:
     return {path for path in root.rglob('echo_robot_py/generated/*.py')}
 
 
-def _assert_installed_and_recorded(root: Path, record: Path, strip: Path | None = None):
-    installed = _generated_files(root)
-    assert GENERATED_FILES == {path.name for path in installed}
+def _registered_files(root: Path, resource: str = 'echo_node_base') -> set[Path]:
+    """Return the ament index entry and the share copy of a registered document under ``root``."""
+    return {
+        *root.rglob(f'share/ament_index/resource_index/nodl/echo_robot_py__{resource}'),
+        *root.rglob(f'share/echo_robot_py/nodl/{resource}.nodl.yaml'),
+    }
+
+
+def _assert_recorded(installed: set[Path], record: Path, strip: Path | None = None):
     recorded = {Path(line) for line in record.read_text().splitlines()}
     assert {Path('/') / path.relative_to(strip or '/') for path in installed} <= recorded
+
+
+def _assert_installed_and_recorded(root: Path, record: Path, strip: Path | None = None, data_root: Path | None = None):
+    installed = _generated_files(root)
+    assert GENERATED_FILES == {path.name for path in installed}
+    registered = _registered_files(data_root or root)
+    assert 2 == len(registered)
+    assert 1 == len({path.read_text() for path in registered})
+    _assert_recorded({*installed, *registered}, record, strip)
 
 
 @pytest.fixture(scope='module')
@@ -91,7 +106,7 @@ def colcon_install(tmp_path_factory):
 def test_colcon_install_installs_and_records_the_generated_modules(colcon_install):
     _, layout, root = colcon_install
 
-    _assert_installed_and_recorded(layout['lib'], root / 'install.log')
+    _assert_installed_and_recorded(layout['lib'], root / 'install.log', data_root=layout['data'])
 
 
 def test_build_then_install_skip_build_installs_and_records_the_generated_modules(tmp_path):
@@ -147,7 +162,9 @@ def test_rebuild_drops_the_modules_of_a_removed_document(tmp_path):
     original = setup_py.read_text()
     declaration = "nodl_generate_py('echo_node_base', 'nodl/echo_node.nodl.yaml')"
     setup_py.write_text(
-        original.replace(declaration, f"{declaration}, nodl_generate_py('other_base', 'nodl/echo_node.nodl.yaml')")
+        original.replace(
+            declaration, f"{declaration}, nodl_generate_py('other_base', 'nodl/echo_node.nodl.yaml', no_index=True)"
+        )
     )
     generated = tmp_path / 'build' / 'lib' / 'echo_robot_py' / 'generated'
     assert 0 == _setup(source, 'build', '--build-base', tmp_path / 'build').returncode
@@ -161,9 +178,18 @@ def test_rebuild_drops_the_modules_of_a_removed_document(tmp_path):
     assert not (generated / 'other_base.py').exists()
 
 
-def test_document_with_a_local_include_generates_and_imports_after_install(tmp_path):
-    source = _copy_example(tmp_path / 'src')
-    root = tmp_path / 'root'
+ECHO_DECLARATION = "nodl_generate_py('echo_node_base', 'nodl/echo_node.nodl.yaml')"
+STATUS_DECLARATION = "nodl_generate_py('status_base', 'nodl/status.nodl.yaml')"
+
+
+def _declare(source: Path, *declarations: str) -> None:
+    """Replace the declaration of the echo document in the setup.py of a copy of the example."""
+    setup_py = source / 'setup.py'
+    setup_py.write_text(setup_py.read_text().replace(ECHO_DECLARATION, ', '.join(declarations)))
+
+
+def _include_status(source: Path) -> None:
+    """Make the echo document include the ``status`` document by a ``local://`` reference."""
     (source / 'nodl' / 'status.nodl.yaml').write_text(
         'nodl_version: 2\npublishers:\n  - name: status\n    type: std_msgs/msg/String\n'
         '    qos:\n      history: KEEP_LAST\n      depth: 10\n      reliability: RELIABLE\n'
@@ -173,6 +199,13 @@ def test_document_with_a_local_include_generates_and_imports_after_install(tmp_p
         document.read_text().replace('parameters:', 'include:\n  - ref: local://status.nodl.yaml\n\nparameters:')
     )
 
+
+def test_document_with_a_local_include_generates_imports_and_registers_after_install(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    root = tmp_path / 'root'
+    _include_status(source)
+    _declare(source, ECHO_DECLARATION, STATUS_DECLARATION)
+
     result = _setup(source, 'build', 'install', '--root', root, '--record', tmp_path / 'install.log')
 
     assert 0 == result.returncode, result.stderr
@@ -181,6 +214,79 @@ def test_document_with_a_local_include_generates_and_imports_after_install(tmp_p
     lib = module.parents[2]
     imported = _run([sys.executable, '-c', 'import echo_robot_py.echo_node'], env=_with_package({'lib': lib}))
     assert 0 == imported.returncode, imported.stderr
+    registered = _registered_files(root)
+    assert 2 == len(registered)
+    for path in registered:
+        assert 'ref: nodl://echo_robot_py/status_base' in path.read_text()
+        assert 'local://' not in path.read_text()
+    _assert_recorded({*registered, *_registered_files(root, 'status_base')}, tmp_path / 'install.log', strip=root)
+
+
+def test_unregistered_local_include_fails_the_install(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    _include_status(source)
+    _declare(source, ECHO_DECLARATION, "nodl_generate_py('status_base', 'nodl/status.nodl.yaml', no_index=True)")
+
+    result = _setup(source, 'install', '--root', tmp_path / 'root')
+
+    assert 0 != result.returncode
+    error = ' '.join(result.stderr.split())
+    assert (
+        'error: nodl_generator_py: echo_robot_py__echo_node_base includes a local:// reference that is not registered'
+        in error
+    )
+    assert 'Register the included file with nodl_generate_py() in the same package' in error
+    assert 'Traceback' not in result.stderr
+
+
+def test_resource_name_registers_the_document_under_that_name(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    _declare(source, "nodl_generate_py('echo_node_base', 'nodl/echo_node.nodl.yaml', resource_name='echo')")
+    root = tmp_path / 'root'
+
+    result = _setup(source, 'install', '--root', root)
+
+    assert 0 == result.returncode, result.stderr
+    assert 2 == len(_registered_files(root, 'echo'))
+    assert not _registered_files(root, 'echo_node_base')
+    assert GENERATED_FILES == {path.name for path in _generated_files(root)}
+
+
+def test_no_index_installs_the_modules_without_registering_the_document(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    _declare(source, "nodl_generate_py('echo_node_base', 'nodl/echo_node.nodl.yaml', no_index=True)")
+    root = tmp_path / 'root'
+
+    result = _setup(source, 'install', '--root', root)
+
+    assert 0 == result.returncode, result.stderr
+    assert not _registered_files(root)
+    assert not list(root.rglob('nodl'))
+    assert GENERATED_FILES == {path.name for path in _generated_files(root)}
+
+
+def test_registering_without_data_files_fails_the_build(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    setup_py = source / 'setup.py'
+    text = setup_py.read_text()
+    start, end = text.index('    data_files=['), text.index('    entry_points')
+    setup_py.write_text(text[:start] + text[end:])
+
+    result = _setup(source, 'build', '--build-base', tmp_path / 'build')
+
+    assert 0 != result.returncode
+    assert 'error: nodl_generator_py: registering documents needs setup() to list data_files' in result.stderr
+    assert 'Traceback' not in result.stderr
+
+
+def test_file_registered_under_two_names_fails(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    _declare(source, ECHO_DECLARATION, "nodl_generate_py('other_base', 'nodl/echo_node.nodl.yaml')")
+
+    result = _setup(source, 'build', '--build-base', tmp_path / 'build')
+
+    assert 0 != result.returncode
+    assert "nodl_generator_py: targets 'echo_node_base' and 'other_base' both register" in result.stderr
 
 
 def test_invalid_document_fails_the_build_naming_its_file(tmp_path):
