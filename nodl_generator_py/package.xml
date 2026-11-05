@@ -15,13 +15,16 @@
   <depend>nodl_schema</depend>
   <depend>nodl_generator_common</depend>
   <depend>generate_parameter_library_py</depend>
+  <depend>python3-catkin-pkg-modules</depend>
   <depend>python3-jinja2</depend>
   <depend>python3-yaml</depend>
   <exec_depend>nodl_common_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>nodl_runtime_py</test_depend>
   <test_depend>python3-pytest</test_depend>
+  <test_depend>std_msgs</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -1,0 +1,323 @@
+# SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+# SPDX-License-Identifier: Apache-2.0
+"""Build, install, test and run the ``echo_robot_py`` package from the ``nodl_generator_py`` documentation.
+
+The documentation includes the package's files, so this checks what it shows.
+Each test builds a copy, so nothing is written next to the documentation.
+"""
+
+import importlib.util
+import os
+import shutil
+import signal
+import stat
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+EXAMPLE_DIR = Path(__file__).resolve().parents[1] / 'doc' / 'examples' / 'echo_robot_py'
+GENERATED_FILES = {'__init__.py', 'echo_node_base.py', 'echo_node_base_parameters.py'}
+STARTUP_TIMEOUT_S = 30.0
+EXIT_TIMEOUT_S = 15.0
+
+
+def _run(command, **kwargs) -> subprocess.CompletedProcess:
+    return subprocess.run(command, capture_output=True, text=True, check=False, **kwargs)
+
+
+def _setup(source: Path, *arguments) -> subprocess.CompletedProcess:
+    return _run([sys.executable, 'setup.py', *arguments], cwd=source)
+
+
+def _copy_example(destination: Path) -> Path:
+    shutil.copytree(EXAMPLE_DIR, destination)
+    return destination
+
+
+def _generated_files(root: Path) -> set[Path]:
+    """Return the generated modules under ``root``, wherever the install layout put the package."""
+    return {path for path in root.rglob('echo_robot_py/generated/*.py')}
+
+
+def _assert_installed_and_recorded(root: Path, record: Path, strip: Path | None = None):
+    installed = _generated_files(root)
+    assert GENERATED_FILES == {path.name for path in installed}
+    recorded = {Path(line) for line in record.read_text().splitlines()}
+    assert {Path('/') / path.relative_to(strip or '/') for path in installed} <= recorded
+
+
+@pytest.fixture(scope='module')
+def colcon_install(tmp_path_factory):
+    """Install a read-only copy of the example as colcon does, and return its source directory and the install layout."""
+    root = tmp_path_factory.mktemp('colcon')
+    source = _copy_example(root / 'src')
+    (root / 'egg').mkdir()
+    layout = {name: root / 'install' / name for name in ('lib', 'scripts', 'data')}
+    for path in [*source.rglob('*'), source]:
+        path.chmod(path.stat().st_mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+    try:
+        result = _setup(
+            source,
+            'egg_info',
+            '--egg-base',
+            root / 'egg',
+            'build',
+            '--build-base',
+            root / 'build',
+            'install',
+            '--install-lib',
+            layout['lib'],
+            '--install-scripts',
+            layout['scripts'],
+            '--install-data',
+            layout['data'],
+            '--single-version-externally-managed',
+            '--record',
+            root / 'install.log',
+        )
+        assert 0 == result.returncode, result.stderr
+        yield source, layout, root
+    finally:
+        for path in [source, *source.rglob('*')]:
+            path.chmod(path.stat().st_mode | stat.S_IWUSR)
+
+
+def test_colcon_install_installs_and_records_the_generated_modules(colcon_install):
+    _, layout, root = colcon_install
+
+    _assert_installed_and_recorded(layout['lib'], root / 'install.log')
+
+
+def test_build_then_install_skip_build_installs_and_records_the_generated_modules(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    root = tmp_path / 'root'
+
+    assert 0 == _setup(source, 'build').returncode
+    result = _setup(source, 'install', '--skip-build', '--root', root, '--record', tmp_path / 'install.log')
+
+    assert 0 == result.returncode, result.stderr
+    _assert_installed_and_recorded(root, tmp_path / 'install.log', strip=root)
+
+
+def test_debian_layout_installs_and_records_the_generated_modules(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    root = tmp_path / 'root'
+    if 'install-layout' not in _setup(source, 'install', '--help').stdout:
+        pytest.skip('this setuptools has no Debian install layout')
+
+    result = _setup(source, 'install', '--install-layout', 'deb', '--root', root, '--record', tmp_path / 'install.log')
+
+    assert 0 == result.returncode, result.stderr
+    _assert_installed_and_recorded(root, tmp_path / 'install.log', strip=root)
+
+
+def test_example_does_not_write_to_the_source_tree(colcon_install):
+    source, _, _ = colcon_install
+
+    assert not list(source.rglob('generated'))
+    assert not list(source.rglob('*_parameters.*'))
+
+
+def test_rebuild_regenerates_the_modules_of_an_edited_document(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    generated = tmp_path / 'build' / 'lib' / 'echo_robot_py' / 'generated'
+    assert 0 == _setup(source, 'build', '--build-base', tmp_path / 'build').returncode
+    assert (generated / 'echo_node_base_parameters.py').exists()
+
+    document = source / 'nodl' / 'echo_node.nodl.yaml'
+    document.write_text(
+        document.read_text().replace('parameters:\n  greeting:\n    type: string\n    default_value: hello\n', '')
+    )
+    result = _setup(source, 'build', '--build-base', tmp_path / 'build')
+
+    assert 0 == result.returncode, result.stderr
+    assert (generated / 'echo_node_base.py').exists()
+    assert not (generated / 'echo_node_base_parameters.py').exists()
+
+
+def test_rebuild_drops_the_modules_of_a_removed_document(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    setup_py = source / 'setup.py'
+    original = setup_py.read_text()
+    declaration = "nodl_generate_py('echo_node_base', 'nodl/echo_node.nodl.yaml')"
+    setup_py.write_text(
+        original.replace(declaration, f"{declaration}, nodl_generate_py('other_base', 'nodl/echo_node.nodl.yaml')")
+    )
+    generated = tmp_path / 'build' / 'lib' / 'echo_robot_py' / 'generated'
+    assert 0 == _setup(source, 'build', '--build-base', tmp_path / 'build').returncode
+    assert (generated / 'other_base.py').exists()
+
+    setup_py.write_text(original)
+    result = _setup(source, 'build', '--build-base', tmp_path / 'build')
+
+    assert 0 == result.returncode, result.stderr
+    assert (generated / 'echo_node_base.py').exists()
+    assert not (generated / 'other_base.py').exists()
+
+
+def test_document_with_a_local_include_generates_and_imports_after_install(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    root = tmp_path / 'root'
+    (source / 'nodl' / 'status.nodl.yaml').write_text(
+        'nodl_version: 2\npublishers:\n  - name: status\n    type: std_msgs/msg/String\n'
+        '    qos:\n      history: KEEP_LAST\n      depth: 10\n      reliability: RELIABLE\n'
+    )
+    document = source / 'nodl' / 'echo_node.nodl.yaml'
+    document.write_text(
+        document.read_text().replace('parameters:', 'include:\n  - ref: local://status.nodl.yaml\n\nparameters:')
+    )
+
+    result = _setup(source, 'build', 'install', '--root', root, '--record', tmp_path / 'install.log')
+
+    assert 0 == result.returncode, result.stderr
+    (module,) = root.rglob('echo_robot_py/generated/echo_node_base.py')
+    assert 'pub_status' in module.read_text()
+    lib = module.parents[2]
+    imported = _run([sys.executable, '-c', 'import echo_robot_py.echo_node'], env=_with_package({'lib': lib}))
+    assert 0 == imported.returncode, imported.stderr
+
+
+def test_invalid_document_fails_the_build_naming_its_file(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    (source / 'nodl' / 'echo_node.nodl.yaml').write_text('nodl_version: 2\npublishers: not-a-list\n')
+
+    result = _setup(source, 'build', '--build-base', tmp_path / 'build')
+
+    assert 0 != result.returncode
+    assert 'error: nodl_generator_py: nodl/echo_node.nodl.yaml:' in result.stderr
+    assert 'Traceback' not in result.stderr
+
+
+def _develop_target(tmp_path: Path) -> tuple[Path, dict[str, str]]:
+    target = tmp_path / 'develop'
+    target.mkdir()
+    environment = {
+        **os.environ,
+        'PYTHONPATH': os.pathsep.join(filter(None, [str(target), os.environ.get('PYTHONPATH')])),
+    }
+    return target, environment
+
+
+def test_develop_fails_with_a_clear_error(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    target, environment = _develop_target(tmp_path)
+
+    result = _run(
+        [sys.executable, 'setup.py', 'develop', '--install-dir', target, '--script-dir', target],
+        cwd=source,
+        env=environment,
+    )
+
+    assert 0 != result.returncode
+    assert 'error: nodl_generator_py: editable installs' in result.stderr
+    assert 'Build without --symlink-install' in result.stderr
+    assert not list(source.rglob('generated'))
+
+
+def test_develop_uninstall_is_not_refused(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    target, environment = _develop_target(tmp_path)
+
+    result = _run(
+        [sys.executable, 'setup.py', 'develop', '--uninstall', '--install-dir', target, '--script-dir', target],
+        cwd=source,
+        env=environment,
+    )
+
+    assert 'nodl_generator_py' not in result.stderr
+
+
+@pytest.mark.skipif(importlib.util.find_spec('setuptools.command.editable_wheel') is None, reason='no editable_wheel')
+def test_editable_wheel_fails_with_a_clear_error(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+
+    result = _setup(source, 'editable_wheel', '--dist-dir', tmp_path / 'dist')
+
+    assert 0 != result.returncode
+    assert 'error: nodl_generator_py: editable installs' in result.stderr
+    assert not list(source.rglob('generated'))
+
+
+def test_package_build_py_still_runs(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    root = tmp_path / 'root'
+    setup_py = source / 'setup.py'
+    text = setup_py.read_text()
+    text = text.replace(
+        'from setuptools import find_packages, setup\n',
+        'from setuptools import find_packages, setup\n'
+        'from setuptools.command.build_py import build_py\n\n\n'
+        'class MyBuildPy(build_py):\n'
+        '    def run(self):\n'
+        "        Path('my_build_py_ran').touch()\n"
+        '        super().run()\n\n',
+    )
+    text = text.replace(
+        "'nodl/echo_node.nodl.yaml'))", "'nodl/echo_node.nodl.yaml'), cmdclass={'build_py': MyBuildPy})"
+    )
+    setup_py.write_text(text)
+
+    result = _setup(source, 'build', 'install', '--root', root, '--record', tmp_path / 'install.log')
+
+    assert 0 == result.returncode, result.stderr
+    assert (source / 'my_build_py_ran').exists()
+    _assert_installed_and_recorded(root, tmp_path / 'install.log', strip=root)
+
+
+def _with_package(layout) -> dict[str, str]:
+    return {
+        **os.environ,
+        'PYTHONPATH': os.pathsep.join(filter(None, [str(layout['lib']), os.environ.get('PYTHONPATH')])),
+    }
+
+
+def test_example_tests_pass_against_the_installed_package(colcon_install):
+    source, layout, _ = colcon_install
+
+    result = _run([sys.executable, '-m', 'pytest', '-p', 'no:cacheprovider'], cwd=source, env=_with_package(layout))
+
+    assert 0 == result.returncode, result.stdout
+
+
+@pytest.fixture
+def harness(monkeypatch):
+    # Other packages' tests run at the same time, and some use the same topic names.
+    monkeypatch.setenv('ROS_DOMAIN_ID', str(os.getpid() % 100 + 100))
+    rclpy.init()
+    node = Node('echo_robot_py_harness')
+    try:
+        yield node
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+def test_installed_executable_echoes_with_the_declared_parameter(colcon_install, harness):
+    _, layout, _ = colcon_install
+    received = []
+    harness.create_subscription(String, 'echo_out', lambda msg: received.append(msg.data), 10)
+    publisher = harness.create_publisher(String, 'echo_in', 10)
+
+    process = subprocess.Popen([layout['scripts'] / 'echo_node'], env=_with_package(layout))
+    try:
+        deadline = time.monotonic() + STARTUP_TIMEOUT_S
+        while not received:
+            assert process.poll() is None, f'echo_node exited with {process.returncode}'
+            assert time.monotonic() < deadline, 'no echo received'
+            publisher.publish(String(data='hi'))
+            rclpy.spin_once(harness, timeout_sec=0.2)
+
+        assert 'hello: hi' == received[0]
+
+        process.send_signal(signal.SIGINT)
+        assert 0 == process.wait(timeout=EXIT_TIMEOUT_S)
+    finally:
+        if process.poll() is None:
+            process.kill()
+        process.wait()
