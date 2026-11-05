@@ -7,6 +7,7 @@ These tutorials use real ROS 2 projects to show how NoDL can describe, specify, 
 
 basics
 dummy-robot
+nav2-migration
 ```
 
 ## Available tutorials
@@ -16,3 +17,6 @@ dummy-robot
 
 - [**Test the Dummy robot for conformance**](dummy-robot.md)
   Compare an unmodified ROS 2 node with contracts that change its topic, type, or reliability.
+
+- [**Nav2: migrate one client, keep the system**](nav2-migration.md)
+  Replace one navigation client while every Nav2 server remains conventional and unchanged.

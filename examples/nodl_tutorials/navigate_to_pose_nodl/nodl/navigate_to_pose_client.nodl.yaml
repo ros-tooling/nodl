@@ -1,0 +1,6 @@
+---
+nodl_version: 2
+description: Client boundary used to send one navigation goal into a conventional Nav2 system.
+action_clients:
+  - name: navigate_to_pose
+    type: nav2_msgs/action/NavigateToPose
