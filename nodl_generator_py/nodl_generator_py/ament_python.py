@@ -16,7 +16,10 @@ A package opts in from its ``setup.py``:
 ``build_py`` generates the modules into the build base, never into the source tree, and builds them as the package's ``generated`` subpackage.
 Every command that builds or installs a package runs ``build_py``, so those commands need no wrapper.
 ``install_data`` installs the documents, registered with the ament index as ``ament_nodl_register()`` registers them in CMake.
-``develop`` and ``editable_wheel`` fail with an error, because they cannot import modules that are not in the source tree.
+``develop`` is what ``colcon build --symlink-install`` runs in the build space, where the package directory is a symlink to the source package.
+It generates the modules into the build base and replaces that symlink with a directory that links to the source package and to the generated modules.
+colcon installs the documents there with its ``symlink_data`` command, which is wrapped as ``install_data`` is.
+``develop`` outside such a build space and ``editable_wheel`` fail with an error, because they cannot import modules that are not in the source tree.
 """
 
 from __future__ import annotations
@@ -25,7 +28,9 @@ import keyword
 import os
 import shutil
 from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass
+from importlib.metadata import entry_points
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -124,11 +129,19 @@ def _check_runtime_dependency(package_xml: Path) -> None:
         )
 
 
-def _check_package(package: str, packages: Iterable[str], package_dir: Mapping[str, str]) -> None:
+def _source_dir(package: str, package_dir: Mapping[str, str]) -> Path:
+    """Return the directory of ``package`` as ``setup()`` maps it, relative to the directory of ``setup.py``."""
+    return Path(package_dir.get(package, os.path.join(package_dir.get('', ''), package)))
+
+
+def _check_package(
+    package: str, packages: Iterable[str], package_dir: Mapping[str, str], project: Path = Path()
+) -> None:
     """Check that ``package`` can get a ``generated`` subpackage.
 
     :param packages: The packages that ``setup()`` lists.
     :param package_dir: The ``package_dir`` of ``setup()``, mapping a package to its directory.
+    :param project: The directory of ``setup.py``, where the package directory is looked for.
     :raises SetupError: When ``package`` is not listed, or already has a ``generated`` subpackage.
     """
     packages = list(packages)
@@ -136,15 +149,18 @@ def _check_package(package: str, packages: Iterable[str], package_dir: Mapping[s
         raise _setup_error(
             f"generated modules install as '{package}.generated', but setup() does not list the package '{package}'"
         )
-    source = Path(package_dir.get(package, os.path.join(package_dir.get('', ''), package)))
-    if f'{package}.generated' in packages or (source / 'generated').exists():
+    if f'{package}.generated' in packages or (project / _source_dir(package, package_dir) / 'generated').exists():
         raise _setup_error(
             f"the package '{package}' already has a 'generated' subpackage, "
             'but nodl_generator_py installs generated code as that subpackage. Rename it.'
         )
 
 
-def _generate_modules(documents: tuple[Document, ...], generated_dir: Path) -> None:
+def _generated_dir(build_base: str | Path, package: str) -> Path:
+    return Path(build_base) / 'nodl_generated' / package / 'generated'
+
+
+def _generate_modules(documents: tuple[Document, ...], generated_dir: Path, project: Path = Path()) -> None:
     import yaml
     from jsonschema import ValidationError
 
@@ -156,7 +172,7 @@ def _generate_modules(documents: tuple[Document, ...], generated_dir: Path) -> N
     generated_dir.mkdir(parents=True)
     (generated_dir / '__init__.py').touch()
     for document in documents:
-        source = Path(document.nodl_file)
+        source = project / document.nodl_file
         try:
             # The resolver of local:// includes needs an absolute path.
             write_generation(generate_python(source.resolve(), document.target), generated_dir, document.target)
@@ -165,7 +181,7 @@ def _generate_modules(documents: tuple[Document, ...], generated_dir: Path) -> N
 
 
 def _register_documents(
-    documents: tuple[Document, ...], package: str, staging_dir: Path
+    documents: tuple[Document, ...], package: str, staging_dir: Path, project: Path = Path()
 ) -> list[tuple[str, list[str]]]:
     """Stage the documents as ``ament_nodl_register()`` installs them, and return them as ``data_files``.
 
@@ -178,7 +194,7 @@ def _register_documents(
     registered = [document for document in documents if not document.no_index]
     if not registered:
         return []
-    paths = {document.target: Path(document.nodl_file).resolve() for document in registered}
+    paths = {document.target: (project / document.nodl_file).resolve() for document in registered}
     rewrites = {f'local://{paths[document.target]}': f'nodl://{package}/{document.resource}' for document in registered}
 
     shutil.rmtree(staging_dir, ignore_errors=True)
@@ -205,18 +221,37 @@ def _register_documents(
     ]
 
 
+def _generate_package(
+    documents: tuple[Document, ...],
+    project: Path,
+    build_base: str,
+    package: str,
+    packages: Iterable[str],
+    package_dir: Mapping[str, str],
+) -> None:
+    """Check that ``package`` in ``project`` can get the generated modules, and generate them into ``build_base``."""
+    _check_runtime_dependency(project / 'package.xml')
+    _check_package(package, packages, package_dir, project)
+    _generate_modules(documents, _generated_dir(build_base, package), project)
+
+
+def _check_data_files(documents: tuple[Document, ...], distribution) -> None:
+    if any(not document.no_index for document in documents) and not distribution.has_data_files():
+        raise _setup_error(
+            'registering documents needs setup() to list data_files, such as the package resource marker, '
+            'because without data_files setuptools does not run install_data and the documents would not install'
+        )
+
+
 class _GenerateBuildPy:
     """Mixin for ``build_py`` that builds the documents as the ``generated`` subpackage of the package in ``package.xml``."""
 
     _nodl_documents: tuple[Document, ...]
     _nodl_declared = False
 
-    def _generated_dir(self, package: str) -> Path:
-        return Path(self.get_finalized_command('build').build_base) / 'nodl_generated' / package / 'generated'
-
     def _relative_generated_dir(self, package: str) -> str:
         # setuptools rejects an absolute package directory.
-        return os.path.relpath(self._generated_dir(package))
+        return os.path.relpath(_generated_dir(self.get_finalized_command('build').build_base, package))
 
     def _declare_generated(self, package: str) -> None:
         if self._nodl_declared:
@@ -226,17 +261,13 @@ class _GenerateBuildPy:
         self._nodl_declared = True
 
     def run(self):
-        _check_runtime_dependency(Path('package.xml'))
         package = _read_package_name(Path('package.xml'))
         # get_outputs may have declared the generated package already, which is not one of the package's own.
         own = [name for name in self.packages or [] if not (self._nodl_declared and name == f'{package}.generated')]
-        _check_package(package, own, self.package_dir)
-        if any(not document.no_index for document in self._nodl_documents) and not self.distribution.has_data_files():
-            raise _setup_error(
-                'registering documents needs setup() to list data_files, such as the package resource marker, '
-                'because without data_files setuptools does not run install_data and the documents would not install'
-            )
-        _generate_modules(self._nodl_documents, self._generated_dir(package))
+        _check_data_files(self._nodl_documents, self.distribution)
+        _generate_package(
+            self._nodl_documents, Path(), self.get_finalized_command('build').build_base, package, own, self.package_dir
+        )
         # An earlier build leaves the modules of documents that are no longer declared, which an install would copy.
         shutil.rmtree(Path(self.build_lib) / package / 'generated', ignore_errors=True)
         self._declare_generated(package)
@@ -246,37 +277,103 @@ class _GenerateBuildPy:
         # `install --skip-build` does not run build_py, but records what an earlier build left in the build space.
         if not self._nodl_declared:
             package = _read_package_name(Path('package.xml'))
-            if self._generated_dir(package).is_dir():
+            if _generated_dir(self.get_finalized_command('build').build_base, package).is_dir():
                 self._declare_generated(package)
         return super().get_outputs(include_bytecode)
 
 
+def _project_dir(distribution) -> Path:
+    """Return the directory of ``setup.py``, where ``package.xml`` and the documents are.
+
+    In the build space of a symlink install, ``setup.py`` is a symlink to the source tree, and the documents are only there.
+    """
+    return Path(distribution.script_name).resolve().parent
+
+
 class _RegisterInstallData:
-    """Mixin for ``install_data`` that installs the registered documents next to the package's own data files."""
+    """Mixin for ``install_data`` and colcon's ``symlink_data`` that installs the registered documents next to the package's own data files."""
 
     _nodl_documents: tuple[Document, ...]
 
     def run(self):
-        package = _read_package_name(Path('package.xml'))
+        project = _project_dir(self.distribution)
+        package = _read_package_name(project / 'package.xml')
         staging_dir = Path(self.get_finalized_command('build').build_base) / 'nodl_generated' / package / 'nodl'
-        registered = _register_documents(self._nodl_documents, package, staging_dir)
+        registered = _register_documents(self._nodl_documents, package, staging_dir, project)
         self.data_files = [*(self.data_files or []), *registered]
         super().run()
 
 
-class _RefuseSymlinkInstall:
-    """Mixin for ``develop`` and ``editable_wheel``, which cannot import the generated modules yet.
+def _is_overlay(package_dir: Path) -> bool:
+    """Return whether ``package_dir`` is a directory of links to the source package and to ``generated``, as an earlier overlay made it."""
+    return (
+        package_dir.is_dir()
+        and not package_dir.is_symlink()
+        and (package_dir / 'generated').is_symlink()
+        and all(entry.is_symlink() for entry in package_dir.iterdir())
+    )
 
-    ``develop --uninstall`` still runs, so an earlier develop install can be removed.
+
+def _overlay_package_dir(package_dir: Path, source: Path, generated_dir: Path) -> None:
+    """Replace ``package_dir`` with a directory that links to the entries of ``source`` and to ``generated``.
+
+    ``package_dir`` is a symlink to ``source`` in the build space of ``colcon build --symlink-install``, or an earlier overlay.
+    That build space is on ``PYTHONPATH``, and Python finds ``<package>.generated`` through the directory that ``<package>`` was imported from.
+    The generated modules can only be found there by adding them to a directory that is not the source tree.
+    """
+    if package_dir.is_symlink():
+        package_dir.unlink()
+    else:
+        shutil.rmtree(package_dir)
+    package_dir.mkdir()
+    for entry in source.iterdir():
+        if entry.name != '__pycache__':
+            (package_dir / entry.name).symlink_to(entry)
+    (package_dir / 'generated').symlink_to(generated_dir.resolve())
+
+
+class _GenerateDevelop:
+    """Mixin for ``develop`` that makes the generated modules importable from a colcon symlink build space.
+
+    ``develop --uninstall``, which colcon runs to undo a symlink install, generates nothing.
     """
 
+    _nodl_documents: tuple[Document, ...]
+
     def run(self):
-        if getattr(self, 'uninstall', False):
-            # Removing an earlier develop install generates nothing.
-            return super().run()
+        if not self.uninstall:
+            self._generate()
+        super().run()
+
+    def _generate(self) -> None:
+        project = _project_dir(self.distribution)
+        package = _read_package_name(project / 'package.xml')
+        package_dir = self.distribution.package_dir or {}
+        source = project / _source_dir(package, package_dir)
+        # colcon links a package with its own package_dir entry as <package>, and any other under the '' entry.
+        import_dir = Path(package) if package in package_dir else Path(package_dir.get('', '')) / package
+        if Path().resolve() == project or not (import_dir.is_symlink() or _is_overlay(import_dir)):
+            raise _setup_error(
+                'setup.py develop needs to run in the build space of colcon build --symlink-install, '
+                f'where {import_dir} is a symlink to the source package, '
+                'because the generated modules cannot be written to the source tree. '
+                'Build with colcon, with or without --symlink-install.'
+            )
+        _check_data_files(self._nodl_documents, self.distribution)
+        build_base = self.get_finalized_command('build').build_base
+        # An earlier overlay is in the build space, where setup.py found its generated subpackage.
+        own = [name for name in self.distribution.packages or [] if name != f'{package}.generated']
+        _generate_package(self._nodl_documents, project, build_base, package, own, package_dir)
+        _overlay_package_dir(import_dir, source.resolve(), _generated_dir(build_base, package))
+
+
+class _RefuseEditableWheel:
+    """Mixin for ``editable_wheel``, which cannot import the generated modules."""
+
+    def run(self):
         raise _setup_error(
-            'editable installs, including colcon build --symlink-install, are not supported yet. '
-            'Build without --symlink-install.'
+            'editable installs with pip are not supported. '
+            'Install the package, or build with colcon build --symlink-install, which needs setuptools older than 80.'
         )
 
 
@@ -332,14 +429,20 @@ def nodl_cmdclass(*documents: Document, cmdclass: Mapping[str, type] | None = No
     wrapped = {
         'build_py': (setuptools.command.build_py.build_py, _GenerateBuildPy, {'_nodl_documents': documents}),
         'install_data': (install_data, _RegisterInstallData, {'_nodl_documents': documents}),
-        'develop': (setuptools.command.develop.develop, _RefuseSymlinkInstall, {}),
     }
+    # From setuptools 80, develop only runs pip install -e, which fails through editable_wheel.
+    if any(option[0].rstrip('=') == 'uninstall' for option in setuptools.command.develop.develop.user_options):
+        wrapped['develop'] = (setuptools.command.develop.develop, _GenerateDevelop, {'_nodl_documents': documents})
     try:
         from setuptools.command.editable_wheel import editable_wheel
 
-        wrapped['editable_wheel'] = (editable_wheel, _RefuseSymlinkInstall, {})
+        wrapped['editable_wheel'] = (editable_wheel, _RefuseEditableWheel, {})
     except ImportError:
         pass
+    # colcon's data command for a symlink install is not one of the setuptools commands, it is found by its entry point.
+    for entry in entry_points(group='distutils.commands', name='symlink_data'):
+        with suppress(ImportError):
+            wrapped['symlink_data'] = (entry.load(), _RegisterInstallData, {'_nodl_documents': documents})
     for name, (default, mixin, attributes) in wrapped.items():
         commands[name] = _wrap(commands.get(name, default), mixin, **attributes)
     return commands
