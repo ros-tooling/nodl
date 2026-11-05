@@ -1,0 +1,56 @@
+// fibonacci_action_server_cpp_base.hpp
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#pragma once
+
+#include <memory>
+
+#include <example_interfaces/action/fibonacci.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
+
+class FibonacciActionServerCppBase : public rclcpp_lifecycle::LifecycleNode
+{
+public:
+  explicit FibonacciActionServerCppBase(const rclcpp::NodeOptions & options = rclcpp::NodeOptions{});
+
+  virtual ~FibonacciActionServerCppBase() = default;
+
+protected:
+
+  // --- Action server callbacks ---
+  virtual rclcpp_action::GoalResponse on_fibonacci_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const example_interfaces::action::Fibonacci::Goal> goal) = 0;
+  virtual rclcpp_action::CancelResponse on_fibonacci_cancel(std::shared_ptr<rclcpp_action::ServerGoalHandle<example_interfaces::action::Fibonacci>> goal_handle) = 0;
+  /// @brief Called when a goal is accepted.  Do not block in this callback;
+  /// doing so prevents cancel requests from being processed.  Detach a thread
+  /// for long-running work, e.g.:
+  ///   std::thread{[goal_handle]() { /* execute */ }}.detach();
+  virtual void on_fibonacci_accepted(std::shared_ptr<rclcpp_action::ServerGoalHandle<example_interfaces::action::Fibonacci>> goal_handle) = 0;
+
+private:
+
+  // --- Action servers ---
+  rclcpp_action::Server<example_interfaces::action::Fibonacci>::SharedPtr action_srv_fibonacci_;
+};
+
+// fibonacci_action_server_cpp_base.cpp
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#include "nodl_tutorial_lifecycle_action_cpp/fibonacci_action_server_cpp_base.hpp"
+
+FibonacciActionServerCppBase::FibonacciActionServerCppBase(const rclcpp::NodeOptions & options)
+: rclcpp_lifecycle::LifecycleNode("fibonacci_action_server_cpp", options)
+{
+
+  // Create action servers
+  action_srv_fibonacci_ = rclcpp_action::create_server<example_interfaces::action::Fibonacci>(
+    this,
+    "fibonacci",
+    [this](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const example_interfaces::action::Fibonacci::Goal> goal) {
+      return this->on_fibonacci_goal(uuid, goal);
+    },
+    [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<example_interfaces::action::Fibonacci>> goal_handle) {
+      return this->on_fibonacci_cancel(goal_handle);
+    },
+    [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<example_interfaces::action::Fibonacci>> goal_handle) {
+      this->on_fibonacci_accepted(goal_handle);
+    });
+}
