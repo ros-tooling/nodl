@@ -163,6 +163,98 @@ class EchoNode(EchoNodeBase):
 The generated base constructs the publisher, subscription, and parameter listener.
 The subclass supplies the subscription callback and application behavior.
 
+## ament_python integration
+
+An `ament_python` package cannot call the CMake function, so it opts in from `setup.py`.
+`nodl_generate_py()` declares a document, and `nodl_cmdclass()` returns the `cmdclass` that generates the declared documents when the package builds.
+
+```{literalinclude} examples/echo_robot_py/setup.py
+:language: python
+:start-at: import xml
+:caption: setup.py
+```
+
+For a package named `echo_robot_py`, this generates and installs `echo_robot_py.generated.echo_node_base.EchoNodeBase`.
+The generated files are the ones listed under "Generated files".
+The `echo_robot_py` example package uses the NoDL document of the example above.
+
+| Argument | Description |
+|---|---|
+| `target` | Generated module name, as for the CMake function. It must be a valid Python identifier and unique within the package. |
+| `nodl_file` | Path to the document, relative to the directory the build runs in, which is the package directory. |
+
+`nodl_cmdclass(*documents, cmdclass=None)` takes one or more documents.
+A package that has its own command classes passes them as `cmdclass={'build_py': MyBuildPy}`, and they are extended in place of the setuptools defaults.
+
+The package declares `nodl_generator_py` as a build tool, which `setup.py` imports, and `nodl_runtime_py` as a runtime dependency, as for CMake:
+
+```{literalinclude} examples/echo_robot_py/package.xml
+:language: xml
+:caption: package.xml
+:start-at: <buildtool_depend>
+:end-at: </exec_depend>
+```
+
+The build fails without the `nodl_runtime_py` dependency, with the same message as `nodl_generate_py()`.
+The package's name in `package.xml` is the Python package that gets the `generated` subpackage.
+It must be listed in `packages` in `setup.py` and must not have a `generated` subpackage of its own.
+Errors are reported as `error: nodl_generator_py: ...`, and one in a document names its file.
+
+The modules are generated into the build directory, never into the source tree, and installed as `<package>.generated`.
+Each build generates them again, and drops the modules of a document that was removed from `setup.py`.
+
+### Running a node class
+
+A generated module is a library, so the package writes the entry point itself.
+`main()` runs the node class with `nodl_runtime_py.run_node`, which spins it until SIGINT or SIGTERM and returns the exit code.
+A `console_scripts` entry calls it as `sys.exit(main())`.
+
+```{literalinclude} examples/echo_robot_py/echo_robot_py/echo_node.py
+:language: python
+:start-at: from nodl_runtime_py
+:caption: echo_robot_py/echo_node.py
+```
+
+```{literalinclude} examples/echo_robot_py/setup.py
+:language: python
+:start-at: entry_points
+:end-at: entry_points
+:caption: setup.py
+```
+
+`ros2 run` finds executables in `lib/<package>`, so `setup.cfg` installs the script there:
+
+```{literalinclude} examples/echo_robot_py/setup.cfg
+:language: ini
+:end-before: "[tool:pytest]"
+:caption: setup.cfg
+```
+
+After building and sourcing the workspace, `ros2 run echo_robot_py echo_node` starts the node.
+The `test_ament_python_example` test of `nodl_generator_py` builds, tests and runs the example package.
+
+### Testing
+
+Tests that run from the package directory would import the source package, which has no `generated` subpackage.
+Copy the example's `conftest.py`, which makes them import the built package instead, and its `testpaths` setting, which keeps pytest from collecting the source package.
+
+```{literalinclude} examples/echo_robot_py/test/conftest.py
+:language: python
+:start-at: import sys
+:caption: test/conftest.py
+```
+
+```{literalinclude} examples/echo_robot_py/setup.cfg
+:language: ini
+:start-at: "[tool:pytest]"
+:caption: setup.cfg
+```
+
+### Limitations
+
+Documents are not registered with the ament index yet.
+`colcon build --symlink-install` and editable installs are not supported yet, and fail with an error.
+
 ## Generated class API
 
 Entity names become Python identifiers by removing leading and trailing `/` characters
@@ -248,7 +340,7 @@ self.params_ = self.param_listener_.get_params()
 
 ## CLI reference
 
-The CMake function calls the generator internally.
+The CMake function and the `ament_python` build call the generator internally.
 The same generator can be run directly for scripting or debugging:
 
 ```bash
