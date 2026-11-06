@@ -12,8 +12,10 @@ from pathlib import Path
 import pytest
 import setuptools.command.build_py
 import setuptools.command.develop
+from marks import SETUPTOOLS_MAJOR, needs_setuptools_lt_80
 from setuptools.errors import SetupError
 
+import nodl_generator_py.ament_python
 from nodl_generator_py.ament_python import (
     Document,
     _check_package,
@@ -131,7 +133,57 @@ def test_cmdclass_wraps_the_setuptools_commands_by_default():
 
     assert issubclass(commands['build_py'], setuptools.command.build_py.build_py)
     assert issubclass(commands['install_data'], install_data)
+
+
+@needs_setuptools_lt_80
+def test_cmdclass_wraps_develop():
+    commands = nodl_cmdclass(nodl_generate_py('echo_base', 'echo.nodl.yaml'))
+
     assert issubclass(commands['develop'], setuptools.command.develop.develop)
+
+
+@pytest.mark.skipif(SETUPTOOLS_MAJOR < 80, reason='before setuptools 80, develop has its own options')
+def test_cmdclass_leaves_the_develop_stub_alone():
+    commands = nodl_cmdclass(nodl_generate_py('echo_base', 'echo.nodl.yaml'))
+
+    assert 'develop' not in commands
+
+
+class _EntryPoint:
+    def __init__(self, load):
+        self.load = load
+
+
+class _SymlinkData(install_data):
+    pass
+
+
+def _entry_points(monkeypatch, *entries):
+    monkeypatch.setattr(nodl_generator_py.ament_python, 'entry_points', lambda **_: list(entries))
+
+
+def test_cmdclass_wraps_the_symlink_data_command_of_colcon_when_it_is_installed(monkeypatch):
+    _entry_points(monkeypatch, _EntryPoint(lambda: _SymlinkData))
+
+    commands = nodl_cmdclass(nodl_generate_py('echo_base', 'echo.nodl.yaml'))
+
+    assert issubclass(commands['symlink_data'], _SymlinkData)
+    assert _SymlinkData is not commands['symlink_data']
+
+
+def test_cmdclass_has_no_symlink_data_command_without_colcon(monkeypatch):
+    _entry_points(monkeypatch)
+
+    assert 'symlink_data' not in nodl_cmdclass(nodl_generate_py('echo_base', 'echo.nodl.yaml'))
+
+
+def test_cmdclass_has_no_symlink_data_command_when_colcon_cannot_be_imported(monkeypatch):
+    def load():
+        raise ImportError
+
+    _entry_points(monkeypatch, _EntryPoint(load))
+
+    assert 'symlink_data' not in nodl_cmdclass(nodl_generate_py('echo_base', 'echo.nodl.yaml'))
 
 
 def test_cmdclass_wraps_the_commands_it_is_given_and_keeps_the_others():

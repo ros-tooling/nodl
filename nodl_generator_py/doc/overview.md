@@ -269,7 +269,12 @@ Copy the example's `conftest.py`, which makes them import the built package inst
 
 ### Limitations
 
-`colcon build --symlink-install` and editable installs are not supported yet, and fail with an error.
+`colcon build --symlink-install` generates into the build space, never into the source tree.
+Edits to existing files of the package take effect without a rebuild.
+A changed document, or a new top-level file or directory in the package, needs a rebuild.
+`--symlink-install` needs a setuptools older than 80, as colcon does.
+Editable installs with pip are not supported.
+The index and share files of a document that is removed from `setup.py` stay in the install space until it is cleaned, as for any colcon data file.
 
 ## Generated class API
 
