@@ -61,6 +61,8 @@ since the generated code would fail when it runs.
 | `NO_INDEX` | Optional. Do not register the document with the ament index. Giving `RESOURCE_NAME` together with it is an error. |
 | `RESOURCE_NAME` | Optional. Name to register the document under. The default is `target`. |
 
+(index-registration)=
+
 ### Index registration
 
 `nodl_generate_py()` registers its document with the ament index, so the node's interface is discoverable as `nodl://<package>/<name>`, where the name is the target name unless `RESOURCE_NAME` overrides it.
@@ -182,6 +184,10 @@ The `echo_robot_py` example package uses the NoDL document of the example above.
 |---|---|
 | `target` | Generated module name, as for the CMake function. It must be a valid Python identifier and unique within the package. |
 | `nodl_file` | Path to the document, relative to the directory the build runs in, which is the package directory. |
+| `no_index` | Optional keyword. Do not register the document with the ament index. Giving `resource_name` together with it is an error. |
+| `resource_name` | Optional keyword. Name to register the document under. The default is `target`. |
+
+`nodl_generate_py('echo_node_base', 'nodl/echo_node.nodl.yaml', resource_name='echo_node')` registers the document as `nodl://echo_robot_py/echo_node`.
 
 `nodl_cmdclass(*documents, cmdclass=None)` takes one or more documents.
 A package that has its own command classes passes them as `cmdclass={'build_py': MyBuildPy}`, and they are extended in place of the setuptools defaults.
@@ -202,6 +208,17 @@ Errors are reported as `error: nodl_generator_py: ...`, and one in a document na
 
 The modules are generated into the build directory, never into the source tree, and installed as `<package>.generated`.
 Each build generates them again, and drops the modules of a document that was removed from `setup.py`.
+
+### Registering documents
+
+Documents are registered with the ament index as for CMake, see [Index registration](#index-registration) above.
+The installed files are the same, `share/ament_index/resource_index/nodl/<package>__<name>` and `share/<package>/nodl/<name>.nodl.yaml`.
+They install as data files, so the build fails when documents are registered and `setup()` lists no `data_files`.
+The package's resource marker is one.
+A `local://` include of a registered document is rewritten to `nodl://<package>/<name>`.
+The included file must be registered in the same package as well, or installing the package fails.
+Each resource name and each document file can be registered once per package, and `nodl_cmdclass()` fails otherwise.
+Declare a second module for the same file with `no_index=True`.
 
 ### Running a node class
 
@@ -252,7 +269,6 @@ Copy the example's `conftest.py`, which makes them import the built package inst
 
 ### Limitations
 
-Documents are not registered with the ament index yet.
 `colcon build --symlink-install` and editable installs are not supported yet, and fail with an error.
 
 ## Generated class API

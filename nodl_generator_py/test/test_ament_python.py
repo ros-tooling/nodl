@@ -6,6 +6,7 @@ The tests of ``test_ament_python_example`` build a package with them.
 """
 
 import shutil
+from distutils.command.install_data import install_data
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,40 @@ def test_target_must_be_an_identifier_and_not_a_keyword(target):
         nodl_generate_py(target, 'echo.nodl.yaml')
 
 
+def test_document_registers_under_its_target_by_default():
+    document = nodl_generate_py('echo_base', 'echo.nodl.yaml')
+
+    assert 'echo_base' == document.resource
+    assert not document.no_index
+
+
+def test_document_registers_under_its_resource_name():
+    document = nodl_generate_py('echo_base', 'echo.nodl.yaml', resource_name='echo')
+
+    assert 'echo' == document.resource
+
+
+def test_resource_name_may_look_false():
+    assert 'off' == nodl_generate_py('echo_base', 'echo.nodl.yaml', resource_name='off').resource
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'message'),
+    [
+        (
+            {'no_index': True, 'resource_name': 'echo'},
+            "target 'echo_base' is not registered with the ament index because of no_index, "
+            "so resource_name 'echo' has no effect. Remove one of them.",
+        ),
+        ({'resource_name': ''}, "target 'echo_base' has a resource_name with no value"),
+        ({'resource_name': 'a/b'}, "target 'echo_base' has a resource_name 'a/b' with a '/'"),
+    ],
+)
+def test_resource_name_is_validated(arguments, message):
+    with pytest.raises(SetupError, match=f'nodl_generator_py: {message}'):
+        nodl_generate_py('echo_base', 'echo.nodl.yaml', **arguments)
+
+
 def test_cmdclass_needs_a_document():
     with pytest.raises(SetupError, match='needs at least one document'):
         nodl_cmdclass()
@@ -62,10 +97,40 @@ def test_cmdclass_rejects_duplicate_targets():
         nodl_cmdclass(*documents)
 
 
+def test_cmdclass_rejects_two_documents_with_the_same_resource_name():
+    documents = [
+        nodl_generate_py('a_base', 'a.nodl.yaml'),
+        nodl_generate_py('b_base', 'b.nodl.yaml', resource_name='a_base'),
+    ]
+
+    with pytest.raises(SetupError, match="targets 'a_base' and 'b_base' both register the resource name 'a_base'"):
+        nodl_cmdclass(*documents)
+
+
+def test_cmdclass_rejects_two_documents_with_the_same_file(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    documents = [nodl_generate_py('a_base', 'a.nodl.yaml'), nodl_generate_py('b_base', './sub/../a.nodl.yaml')]
+
+    with pytest.raises(SetupError, match="targets 'a_base' and 'b_base' both register ./sub/../a.nodl.yaml"):
+        nodl_cmdclass(*documents)
+
+
+def test_cmdclass_accepts_unregistered_documents_that_share_a_name_or_a_file():
+    documents = [
+        nodl_generate_py('a_base', 'a.nodl.yaml'),
+        nodl_generate_py('a', 'a.nodl.yaml', no_index=True),
+        nodl_generate_py('c_base', 'c.nodl.yaml', resource_name='b_base'),
+        nodl_generate_py('b_base', 'a.nodl.yaml', no_index=True),
+    ]
+
+    assert nodl_cmdclass(*documents)
+
+
 def test_cmdclass_wraps_the_setuptools_commands_by_default():
     commands = nodl_cmdclass(nodl_generate_py('echo_base', 'echo.nodl.yaml'))
 
     assert issubclass(commands['build_py'], setuptools.command.build_py.build_py)
+    assert issubclass(commands['install_data'], install_data)
     assert issubclass(commands['develop'], setuptools.command.develop.develop)
 
 
@@ -165,6 +230,7 @@ def test_get_outputs_before_run_does_not_make_the_generated_package_a_conflict(t
         'script_name': 'setup.py',
         'name': 'my_robot',
         'packages': ['my_robot'],
+        'data_files': [('share/my_robot', ['package.xml'])],
         'cmdclass': nodl_cmdclass(nodl_generate_py('echo_base', 'echo.nodl.yaml')),
     })
     build_py = distribution.get_command_obj('build_py')
