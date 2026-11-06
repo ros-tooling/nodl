@@ -4,8 +4,7 @@
 
 import pytest
 import rclpy
-
-from test_nodl_generators.generated.parameters_node_base import ParametersNodeBase
+from nodl_generated.test_nodl_generators.parameters_node_base import ParametersNodeBase
 
 
 @pytest.fixture

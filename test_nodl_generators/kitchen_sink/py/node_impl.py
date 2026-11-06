@@ -3,9 +3,8 @@
 """Concrete implementation of the generated interface base class."""
 
 from example_interfaces.action import Fibonacci
+from nodl_generated.test_nodl_generators.kitchen_sink_node_base import KitchenSinkNodeBase
 from std_msgs.msg import String
-
-from test_nodl_generators.generated.kitchen_sink_node_base import KitchenSinkNodeBase
 
 
 class KitchenSinkNode(KitchenSinkNodeBase):

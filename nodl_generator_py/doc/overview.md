@@ -24,7 +24,7 @@ nodl_generate_py(echo_node_base nodl/echo_node.nodl.yaml)
 ```
 
 For a project named `my_robot`, this generates and installs
-`my_robot.generated.echo_node_base.EchoNodeBase`.
+`nodl_generated.my_robot.echo_node_base.EchoNodeBase`.
 The target name must be a valid Python identifier.
 
 ### What the function does
@@ -35,7 +35,7 @@ The target name must be a valid Python identifier.
 | Code generation | Creates the base module during the package build. |
 | Build tracking | Regenerates when the root or any transitive NoDL input, generator, schema, or template changes. |
 | Build target | Creates an `ALL` custom target named `echo_node_base`. |
-| Installation | Installs generated Python modules under `<project>.generated`. |
+| Installation | Installs generated Python modules as `nodl_generated.<project>`. |
 | Parameters | Delegates parameter-module generation to `generate_parameter_library_py`. |
 | Index registration | Registers the full NoDL document with the ament index under `RESOURCE_NAME`, which defaults to the target name. `NO_INDEX` skips this step. |
 
@@ -96,7 +96,11 @@ Every `local://` include of the document must be registered in the same package 
 
 ## Generated files
 
-The generator produces these files in `<project>/generated`:
+Generated modules install as `nodl_generated.<package>.<target>`, for both CMake and `ament_python`.
+`nodl_generated` is a namespace shared by every package, so the modules of many packages import together, and a package's own Python package keeps its name.
+Tests and application code import the installed modules without any setup.
+
+The generator produces these files in `nodl_generated/<package>`:
 
 | File | When | Contents |
 |---|---|---|
@@ -151,7 +155,7 @@ ament_package()
 Keep behavior in a handwritten subclass:
 
 ```python
-from my_robot.generated.echo_node_base import EchoNodeBase
+from nodl_generated.my_robot.echo_node_base import EchoNodeBase
 from std_msgs.msg import String
 
 
@@ -176,7 +180,7 @@ An `ament_python` package cannot call the CMake function, so it opts in from `se
 :caption: setup.py
 ```
 
-For a package named `echo_robot_py`, this generates and installs `echo_robot_py.generated.echo_node_base.EchoNodeBase`.
+For a package named `echo_robot_py`, this generates and installs `nodl_generated.echo_robot_py.echo_node_base.EchoNodeBase`.
 The generated files are the ones listed under "Generated files".
 The `echo_robot_py` example package uses the NoDL document of the example above.
 
@@ -202,11 +206,11 @@ The package declares `nodl_generator_py` as a build tool, which `setup.py` impor
 ```
 
 The build fails without the `nodl_runtime_py` dependency, with the same message as `nodl_generate_py()`.
-The package's name in `package.xml` is the Python package that gets the `generated` subpackage.
-It must be listed in `packages` in `setup.py` and must not have a `generated` subpackage of its own.
+The package's name in `package.xml` names the generated package, `nodl_generated.<package>`.
+`setup()` must list a package or module, because the generated modules install with `build_py`, which setuptools does not run without one, and the build fails otherwise.
 Errors are reported as `error: nodl_generator_py: ...`, and one in a document names its file.
 
-The modules are generated into the build directory, never into the source tree, and installed as `<package>.generated`.
+The modules are generated into the build directory, never into the source tree, and installed as `nodl_generated.<package>`.
 Each build generates them again, and drops the modules of a document that was removed from `setup.py`.
 
 ### Registering documents
@@ -243,38 +247,22 @@ A `console_scripts` entry calls it as `sys.exit(main())`, and so does running th
 
 ```{literalinclude} examples/echo_robot_py/setup.cfg
 :language: ini
-:end-before: "[tool:pytest]"
 :caption: setup.cfg
 ```
 
 After building and sourcing the workspace, `ros2 run echo_robot_py echo_node` starts the node.
 The `test_ament_python_example` test of `nodl_generator_py` builds, tests and runs the example package.
 
-### Testing
-
-Tests that run from the package directory would import the source package, which has no `generated` subpackage.
-Copy the example's `conftest.py`, which makes them import the built package instead, and its `testpaths` setting, which keeps pytest from collecting the source package.
-
-```{literalinclude} examples/echo_robot_py/test/conftest.py
-:language: python
-:start-at: import sys
-:caption: test/conftest.py
-```
-
-```{literalinclude} examples/echo_robot_py/setup.cfg
-:language: ini
-:start-at: "[tool:pytest]"
-:caption: setup.cfg
-```
-
 ### Limitations
 
-`colcon build --symlink-install` generates into the build space, never into the source tree.
+`colcon build --symlink-install` generates into the install space, never into the source tree.
 Edits to existing files of the package take effect without a rebuild.
 A changed document, or a new top-level file or directory in the package, needs a rebuild.
+Outside colcon, `setup.py develop` installs the generated modules into its install directory, as `nodl_generated/<package>`, and `setup.py develop --uninstall` removes them.
 `--symlink-install` needs a setuptools older than 80, as colcon does.
 Editable installs with pip are not supported.
 The index and share files of a document that is removed from `setup.py` stay in the install space until it is cleaned, as for any colcon data file.
+Deleting the build directory but not the install directory likewise leaves the modules of removed documents in place for a symlink install.
 
 ## Generated class API
 
@@ -367,7 +355,7 @@ The same generator can be run directly for scripting or debugging:
 ```bash
 python -m nodl_generator_py \
   --nodl-file nodl/echo_node.nodl.yaml \
-  --output-dir generated/my_robot/generated \
+  --output-dir generated/nodl_generated/my_robot \
   --target-name echo_node_base
 ```
 
