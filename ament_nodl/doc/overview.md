@@ -156,8 +156,9 @@ colcon test-result --verbose
 ### Behavior
 
 The macro rejects a missing `NODL_FILE` or `PARAMETERS_FILE`, a `PARAMETERS` item that is not `name:=value`, and an invalid default node name, during CMake configuration.
-It generates a launch test in the build tree, launches the target node, and
-calls `ros2nodl.conformance.assert_conforms`.
+It generates a launch test in the build tree that calls `ros2nodl.testing.conformance_test`, which launches the target node and checks it against the document.
+A package that does not build with CMake, such as an `ament_python` package, calls that function directly.
+See the {external+nodl:doc}`ros2nodl conformance guide <_generated/packages/ros2nodl/conformance>`.
 
 See the macro source at
 {repo}`ament_nodl/cmake/nodl_add_conformance_test.cmake`.

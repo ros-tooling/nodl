@@ -20,8 +20,12 @@
   <depend>rclpy</depend>
   <depend>rosidl_runtime_py</depend>
   <depend>ament_index_python</depend>
+  <!-- The conformance test helper ros2nodl.testing. -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>launch_testing</exec_depend>
+  <exec_depend>python3-pytest</exec_depend>
 
-  <test_depend>python3-pytest</test_depend>
   <test_depend condition="$ENABLE_PIP_TEST_DEPENDS == 1">python3-pyright-pip</test_depend>
   <test_depend>std_msgs</test_depend>
   <!-- Describe tests exercise generated messages and observe's MCAP fixtures. -->

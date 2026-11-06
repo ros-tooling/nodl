@@ -15,6 +15,7 @@ endfunction()
 # Register a launch test that compares one executable with one NoDL document.
 #
 # Finds ``launch_testing_ament_cmake`` on every call, because the variables ``add_launch_test`` reads are set in the calling scope.
+# The generated test calls ``ros2nodl.testing.conformance_test``, which packages that do not build with CMake use directly.
 #
 # :param test_name: name of the test target to create.
 # :type test_name: string
