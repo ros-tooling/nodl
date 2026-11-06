@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Concrete lifecycle node with the generated default transitions."""
 
-from test_nodl_generators.generated.lifecycle_node_base import LifecycleNodeBase
+from nodl_generated.test_nodl_generators.lifecycle_node_base import LifecycleNodeBase
 
 
 class GeneratedLifecycleNode(LifecycleNodeBase):

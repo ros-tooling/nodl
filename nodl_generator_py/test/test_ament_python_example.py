@@ -38,13 +38,24 @@ def _setup(source: Path, *arguments) -> subprocess.CompletedProcess:
 
 
 def _copy_example(destination: Path) -> Path:
-    shutil.copytree(EXAMPLE_DIR, destination)
+    shutil.copytree(EXAMPLE_DIR, destination, ignore=shutil.ignore_patterns('__pycache__'))
     return destination
 
 
-def _generated_files(root: Path) -> set[Path]:
+def _copy_example_as(destination: Path, name: str) -> Path:
+    """Copy the example as a package of another name."""
+    _copy_example(destination)
+    for path in sorted(destination.rglob('*'), key=lambda path: len(path.parts), reverse=True):
+        if path.is_file():
+            path.write_text(path.read_text().replace('echo_robot_py', name))
+        if 'echo_robot_py' in path.name:
+            path.rename(path.with_name(path.name.replace('echo_robot_py', name)))
+    return destination
+
+
+def _generated_files(root: Path, package: str = 'echo_robot_py') -> set[Path]:
     """Return the generated modules under ``root``, wherever the install layout put the package."""
-    return {path for path in root.rglob('echo_robot_py/generated/*.py')}
+    return {path for path in root.rglob(f'nodl_generated/{package}/*.py')}
 
 
 def _registered_files(root: Path, resource: str = 'echo_node_base') -> set[Path]:
@@ -124,13 +135,16 @@ def _colcon_build(source: Path, root: Path) -> subprocess.CompletedProcess:
 def _symlink_build(root: Path) -> tuple[Path, dict[str, Path]]:
     """Copy the example for ``colcon build --symlink-install``, and return its source directory and layout.
 
-    The layout is where that build puts the importable package, in the build space, the script, and the data files.
+    The layout is where that build puts the importable package in the build space, the generated modules in the install space, the script, and the data files.
     """
+    from colcon_core.python_install_path import get_python_install_path
+
     source = _copy_example(root / 'src')
     # The example is ignored by the colcon build of this repository.
     (source / 'COLCON_IGNORE').unlink()
     layout = {
         'lib': root / 'build' / 'echo_robot_py',
+        'site': get_python_install_path('purelib', {'base': root / 'install' / 'echo_robot_py'}),
         'scripts': root / 'install' / 'echo_robot_py' / 'lib' / 'echo_robot_py',
         'data': root / 'install' / 'echo_robot_py',
     }
@@ -167,6 +181,51 @@ def test_colcon_install_installs_and_records_the_generated_modules(colcon_instal
     _assert_installed_and_recorded(layout['lib'], root / 'install.log', data_root=layout['data'])
 
 
+def test_generated_modules_of_packages_in_different_prefixes_import_together(tmp_path):
+    roots = {}
+    for name in ('echo_robot_py', 'echo_other_py'):
+        source = _copy_example_as(tmp_path / f'src_{name}', name)
+        roots[name] = tmp_path / f'root_{name}'
+        result = _setup(source, 'install', '--root', roots[name])
+        assert 0 == result.returncode, result.stderr
+    libs = {name: next(iter(_generated_files(root, name))).parents[2] for name, root in roots.items()}
+    assert 2 == len(set(libs.values()))
+    code = (
+        'import nodl_generated\n'
+        'import nodl_generated.echo_robot_py.echo_node_base\n'
+        'import nodl_generated.echo_other_py.echo_node_base\n'
+        'assert nodl_generated.__file__ is None\n'
+        'assert 2 == len(nodl_generated.__path__)\n'
+    )
+
+    imported = _run([sys.executable, '-c', code], env=_with_package({'lib': os.pathsep.join(map(str, libs.values()))}))
+
+    assert 0 == imported.returncode, imported.stderr
+
+
+def test_build_without_a_package_or_module_fails(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    setup_py = source / 'setup.py'
+    setup_py.write_text(setup_py.read_text().replace("find_packages(exclude=['test', 'test.*'])", '[]'))
+
+    result = _setup(source, 'build', '--build-base', tmp_path / 'build')
+
+    assert 0 != result.returncode
+    assert 'error: nodl_generator_py: setup() must list a package or module' in result.stderr
+    assert 'Traceback' not in result.stderr
+
+
+def test_package_that_does_not_list_the_package_of_its_name_installs_the_generated_modules(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    (source / 'echo_robot_py').rename(source / 'echo_lib')
+    root = tmp_path / 'root'
+
+    result = _setup(source, 'install', '--root', root, '--record', tmp_path / 'install.log')
+
+    assert 0 == result.returncode, result.stderr
+    _assert_installed_and_recorded(root, tmp_path / 'install.log', strip=root)
+
+
 def test_build_then_install_skip_build_installs_and_records_the_generated_modules(tmp_path):
     source = _copy_example(tmp_path / 'src')
     root = tmp_path / 'root'
@@ -193,13 +252,13 @@ def test_debian_layout_installs_and_records_the_generated_modules(tmp_path):
 def test_example_does_not_write_to_the_source_tree(built):
     source, _ = built
 
-    assert not list(source.rglob('generated'))
+    assert not list(source.rglob('nodl_generated'))
     assert not list(source.rglob('*_parameters.*'))
 
 
 def test_rebuild_regenerates_the_modules_of_an_edited_document(tmp_path):
     source = _copy_example(tmp_path / 'src')
-    generated = tmp_path / 'build' / 'lib' / 'echo_robot_py' / 'generated'
+    generated = tmp_path / 'build' / 'lib' / 'nodl_generated' / 'echo_robot_py'
     assert 0 == _setup(source, 'build', '--build-base', tmp_path / 'build').returncode
     assert (generated / 'echo_node_base_parameters.py').exists()
 
@@ -224,7 +283,7 @@ def test_rebuild_drops_the_modules_of_a_removed_document(tmp_path):
             declaration, f"{declaration}, nodl_generate_py('other_base', 'nodl/echo_node.nodl.yaml', no_index=True)"
         )
     )
-    generated = tmp_path / 'build' / 'lib' / 'echo_robot_py' / 'generated'
+    generated = tmp_path / 'build' / 'lib' / 'nodl_generated' / 'echo_robot_py'
     assert 0 == _setup(source, 'build', '--build-base', tmp_path / 'build').returncode
     assert (generated / 'other_base.py').exists()
 
@@ -267,7 +326,7 @@ def test_document_with_a_local_include_generates_imports_and_registers_after_ins
     result = _setup(source, 'build', 'install', '--root', root, '--record', tmp_path / 'install.log')
 
     assert 0 == result.returncode, result.stderr
-    (module,) = root.rglob('echo_robot_py/generated/echo_node_base.py')
+    (module,) = root.rglob('nodl_generated/echo_robot_py/echo_node_base.py')
     assert 'pub_status' in module.read_text()
     lib = module.parents[2]
     imported = _run([sys.executable, '-c', 'import echo_robot_py.echo_node'], env=_with_package({'lib': lib}))
@@ -368,82 +427,85 @@ def _develop_target(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     return target, environment
 
 
-@needs_setuptools_lt_80
-def test_develop_outside_a_symlink_build_space_fails_with_a_clear_error(tmp_path):
-    source = _copy_example(tmp_path / 'src')
-    target, environment = _develop_target(tmp_path)
-
-    result = _run(
-        [sys.executable, 'setup.py', 'develop', '--install-dir', target, '--script-dir', target],
-        cwd=source,
+def _develop(cwd: Path, target: Path, environment, *arguments) -> subprocess.CompletedProcess:
+    return _run(
+        [sys.executable, 'setup.py', 'develop', *arguments, '--install-dir', target, '--script-dir', target],
+        cwd=cwd,
         env=environment,
     )
 
-    assert 0 != result.returncode
-    assert 'error: nodl_generator_py: setup.py develop needs to run in the build space of colcon build' in result.stderr
-    assert not list(source.rglob('generated'))
-
 
 @needs_setuptools_lt_80
-def test_develop_uninstall_generates_nothing(tmp_path):
+def test_develop_installs_the_generated_modules_in_the_install_directory_not_the_source_tree(tmp_path):
     source = _copy_example(tmp_path / 'src')
     target, environment = _develop_target(tmp_path)
 
-    result = _run(
-        [sys.executable, 'setup.py', 'develop', '--uninstall', '--install-dir', target, '--script-dir', target],
-        cwd=source,
+    for _ in range(2):
+        result = _develop(source, target, environment)
+        assert 0 == result.returncode, result.stderr
+    imported = _run(
+        [sys.executable, '-c', 'import nodl_generated.echo_robot_py.echo_node_base_parameters'],
+        cwd=tmp_path,
         env=environment,
     )
 
-    assert 0 == result.returncode, result.stderr
-    assert not list(source.rglob('generated'))
+    assert 0 == imported.returncode, imported.stderr
+    assert GENERATED_FILES == {path.name for path in _generated_files(target)}
+    assert not (target / 'nodl_generated' / '__init__.py').exists()
+    assert not list(target.rglob('*.yaml'))
+    assert not list(source.rglob('nodl_generated'))
 
 
 @needs_setuptools_lt_80
-def test_develop_in_the_source_tree_keeps_a_symlinked_package(tmp_path):
-    source = _copy_example(tmp_path / 'src')
-    package = source / 'echo_robot_py'
-    elsewhere = tmp_path / 'elsewhere'
-    package.rename(elsewhere)
-    package.symlink_to(elsewhere)
-    target, environment = _develop_target(tmp_path)
-
-    result = _run(
-        [sys.executable, 'setup.py', 'develop', '--install-dir', target, '--script-dir', target],
-        cwd=source,
-        env=environment,
-    )
-
-    assert 0 != result.returncode
-    assert 'develop needs to run in the build space of colcon build' in result.stderr
-    assert package.is_symlink()
-    assert not list(elsewhere.rglob('generated'))
-
-
-@needs_setuptools_lt_80
-def test_develop_twice_in_a_build_space_keeps_the_generated_modules_importable(tmp_path):
+def test_develop_in_a_build_space_with_symlinks_to_the_source_installs_the_generated_modules(tmp_path):
     source = _copy_example(tmp_path / 'src')
     space = tmp_path / 'space'
     space.mkdir()
     for name in ('setup.py', 'setup.cfg', 'package.xml', 'echo_robot_py'):
         (space / name).symlink_to(source / name)
     target, environment = _develop_target(tmp_path)
-    command = [
-        *('setup.py', 'develop', '--editable', '--build-directory', space / 'build', '--no-deps'),
-        *('--install-dir', target, '--script-dir', target),
-    ]
 
-    for _ in range(2):
-        result = _run([sys.executable, *command], cwd=space, env=environment)
-        assert 0 == result.returncode, result.stderr
-    imported = _run(
-        [sys.executable, '-c', 'import echo_robot_py.generated.echo_node_base_parameters'],
-        cwd=space,
-        env=_with_package({'lib': space}),
-    )
+    result = _develop(space, target, environment, '--editable', '--build-directory', space / 'build', '--no-deps')
 
-    assert 0 == imported.returncode, imported.stderr
-    assert not list(source.rglob('generated'))
+    assert 0 == result.returncode, result.stderr
+    assert GENERATED_FILES == {path.name for path in _generated_files(target)}
+    assert not list(source.rglob('nodl_generated'))
+
+
+@needs_setuptools_lt_80
+def test_develop_uninstall_removes_the_generated_modules(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    target, environment = _develop_target(tmp_path)
+    assert 0 == _develop(source, target, environment).returncode
+
+    result = _develop(source, target, environment, '--uninstall')
+
+    assert 0 == result.returncode, result.stderr
+    assert not (target / 'nodl_generated' / 'echo_robot_py').exists()
+
+
+@needs_setuptools_lt_80
+def test_develop_uninstall_leaves_the_generated_modules_of_other_packages(tmp_path):
+    target, environment = _develop_target(tmp_path)
+    for name in ('echo_robot_py', 'echo_other_py'):
+        assert 0 == _develop(_copy_example_as(tmp_path / name, name), target, environment).returncode
+
+    result = _develop(tmp_path / 'echo_robot_py', target, environment, '--uninstall')
+
+    assert 0 == result.returncode, result.stderr
+    assert not _generated_files(target, 'echo_robot_py')
+    assert GENERATED_FILES == {path.name for path in _generated_files(target, 'echo_other_py')}
+
+
+@needs_setuptools_lt_80
+def test_develop_uninstall_without_an_earlier_develop_passes(tmp_path):
+    source = _copy_example(tmp_path / 'src')
+    target, environment = _develop_target(tmp_path)
+
+    result = _develop(source, target, environment, '--uninstall')
+
+    assert 0 == result.returncode, result.stderr
+    assert not list(source.rglob('nodl_generated'))
 
 
 @pytest.mark.skipif(importlib.util.find_spec('setuptools.command.editable_wheel') is None, reason='no editable_wheel')
@@ -454,7 +516,7 @@ def test_editable_wheel_fails_with_a_clear_error(tmp_path):
 
     assert 0 != result.returncode
     assert 'error: nodl_generator_py: editable installs with pip are not supported' in result.stderr
-    assert not list(source.rglob('generated'))
+    assert not list(source.rglob('nodl_generated'))
 
 
 def test_package_build_py_still_runs(tmp_path):
@@ -485,14 +547,23 @@ def test_package_build_py_still_runs(tmp_path):
 
 @needs_colcon
 @needs_setuptools_lt_80
-def test_symlink_install_imports_the_generated_modules_from_the_build_space(colcon_symlink_install):
+def test_symlink_install_imports_the_generated_modules_from_the_install_space(colcon_symlink_install):
     _, layout = colcon_symlink_install
 
     result = _run(
-        [sys.executable, '-c', 'import echo_robot_py.generated.echo_node_base_parameters'], env=_with_package(layout)
+        [sys.executable, '-c', 'import nodl_generated.echo_robot_py.echo_node_base_parameters'],
+        env=_with_package(layout),
     )
 
     assert 0 == result.returncode, result.stderr
+
+
+@needs_colcon
+@needs_setuptools_lt_80
+def test_symlink_install_leaves_no_namespace_portion_in_the_build_space(colcon_symlink_install):
+    _, layout = colcon_symlink_install
+
+    assert not list(layout['lib'].rglob('nodl_generated'))
 
 
 @needs_colcon
@@ -525,13 +596,13 @@ def test_symlink_install_imports_the_generated_modules_from_a_package_in_another
     (source / moved_to).parent.mkdir(exist_ok=True)
     (source / 'echo_robot_py').rename(source / moved_to)
 
-    # A second build runs develop in a build space that has the overlay of the first.
+    # A second build runs develop again in the same build space.
     for _ in range(2):
         result = _colcon_build(source, tmp_path)
         assert 0 == result.returncode, result.stdout + result.stderr
     imported = _run(
-        [sys.executable, '-c', 'import echo_robot_py.generated.echo_node_base_parameters'],
-        env=_with_package({'lib': layout['lib'] / built_in}),
+        [sys.executable, '-c', 'import nodl_generated.echo_robot_py.echo_node_base_parameters'],
+        env=_with_package({**layout, 'lib': layout['lib'] / built_in}),
     )
 
     assert 0 == imported.returncode, imported.stderr
@@ -544,7 +615,7 @@ def test_symlink_install_takes_edits_to_a_package_module_and_regenerates_an_edit
     _include_status(source)
     _declare(source, ECHO_DECLARATION, STATUS_DECLARATION)
     assert 0 == _colcon_build(source, tmp_path).returncode
-    generated = layout['lib'] / 'echo_robot_py' / 'generated'
+    generated = layout['site'] / 'nodl_generated' / 'echo_robot_py'
     assert (generated / 'echo_node_base_parameters.py').exists()
     registered = _registered_files(layout['data'])
     assert 2 == len(registered)
@@ -571,10 +642,9 @@ def test_symlink_install_takes_edits_to_a_package_module_and_regenerates_an_edit
 
 
 def _with_package(layout) -> dict[str, str]:
-    return {
-        **os.environ,
-        'PYTHONPATH': os.pathsep.join(filter(None, [str(layout['lib']), os.environ.get('PYTHONPATH')])),
-    }
+    """Return the environment that puts the package on the path, as colcon does for the build space and the install space."""
+    entries = [str(layout[name]) for name in ('lib', 'site') if name in layout]
+    return {**os.environ, 'PYTHONPATH': os.pathsep.join(filter(None, [*entries, os.environ.get('PYTHONPATH')]))}
 
 
 def test_example_tests_pass_against_the_installed_package(built):

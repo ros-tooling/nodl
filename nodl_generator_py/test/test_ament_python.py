@@ -18,7 +18,6 @@ from setuptools.errors import SetupError
 import nodl_generator_py.ament_python
 from nodl_generator_py.ament_python import (
     Document,
-    _check_package,
     _check_runtime_dependency,
     _read_package_name,
     nodl_cmdclass,
@@ -241,40 +240,11 @@ def test_runtime_dependency_needs_a_readable_package_xml(tmp_path, content):
         _check_runtime_dependency(path)
 
 
-def test_package_must_be_listed():
-    with pytest.raises(SetupError, match="does not list the package 'my_robot'"):
-        _check_package('my_robot', ['other'], {})
-
-
-@pytest.mark.parametrize(
-    ('packages', 'package_dir', 'existing_dir'),
-    [
-        (['my_robot', 'my_robot.generated'], {}, None),
-        (['my_robot'], {}, 'my_robot/generated'),
-        (['my_robot'], {'': 'src'}, 'src/my_robot/generated'),
-    ],
-)
-def test_package_must_not_have_a_generated_subpackage(tmp_path, monkeypatch, packages, package_dir, existing_dir):
-    monkeypatch.chdir(tmp_path)
-    if existing_dir is not None:
-        (tmp_path / existing_dir).mkdir(parents=True)
-
-    with pytest.raises(SetupError, match="already has a 'generated' subpackage"):
-        _check_package('my_robot', packages, package_dir)
-
-
-def test_package_without_a_generated_subpackage_passes(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / 'my_robot').mkdir()
-
-    _check_package('my_robot', ['my_robot'], {})
-
-
-def test_get_outputs_before_run_does_not_make_the_generated_package_a_conflict(tmp_path, monkeypatch):
+def test_get_outputs_before_run_declares_the_generated_package_once(tmp_path, monkeypatch):
     package = tmp_path / 'my_robot'
     package.mkdir()
     (package / '__init__.py').touch()
-    (tmp_path / 'build' / 'nodl_generated' / 'my_robot' / 'generated').mkdir(parents=True)
+    (tmp_path / 'build' / 'nodl_generated' / 'my_robot' / 'py').mkdir(parents=True)
     _package_xml(tmp_path, '<exec_depend>nodl_runtime_py</exec_depend>')
     shutil.copy(Path(__file__).parent / 'fixtures' / 'interfaces_node.nodl.yaml', tmp_path / 'echo.nodl.yaml')
     monkeypatch.chdir(tmp_path)
@@ -291,4 +261,18 @@ def test_get_outputs_before_run_does_not_make_the_generated_package_a_conflict(t
     build_py.get_outputs()
     build_py.run()
 
-    assert ['my_robot', 'my_robot.generated'] == build_py.packages
+    assert ['my_robot', 'nodl_generated.my_robot'] == build_py.packages
+
+
+def test_build_fails_when_setup_lists_no_package_or_module(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    distribution = setuptools.Distribution({
+        'script_name': 'setup.py',
+        'name': 'my_robot',
+        'cmdclass': nodl_cmdclass(nodl_generate_py('echo_base', 'echo.nodl.yaml')),
+    })
+    build = distribution.get_command_obj('build')
+    build.ensure_finalized()
+
+    with pytest.raises(SetupError, match=r'nodl_generator_py: setup\(\) must list a package or module'):
+        build.run()

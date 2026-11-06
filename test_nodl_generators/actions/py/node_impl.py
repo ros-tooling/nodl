@@ -3,9 +3,8 @@
 """Concrete implementation of the generated action base class."""
 
 from example_interfaces.action import Fibonacci
+from nodl_generated.test_nodl_generators.actions_node_base import ActionsNodeBase
 from rclpy.action import GoalResponse
-
-from test_nodl_generators.generated.actions_node_base import ActionsNodeBase
 
 
 class ActionsNode(ActionsNodeBase):

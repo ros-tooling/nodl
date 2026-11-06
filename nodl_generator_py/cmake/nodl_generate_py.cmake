@@ -4,7 +4,7 @@
 #
 # nodl_generate_py(target nodl_file [NO_INDEX] [RESOURCE_NAME name])
 #
-# Generate an rclpy base-node class from a NoDL file and install it under ``<project>.generated``.
+# Generate an rclpy base-node class from a NoDL file and install it as the module ``nodl_generated.<project>.<target>``.
 #
 # The calling package must declare ``<exec_depend>nodl_runtime_py</exec_depend>``,
 # which provides what the generated code imports at runtime.
@@ -74,7 +74,7 @@ function(nodl_generate_py target nodl_file)
     BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
   set(gen_root "${CMAKE_CURRENT_BINARY_DIR}/nodl_generated/${target}")
-  set(gen_dir "${gen_root}/${PROJECT_NAME}/generated")
+  set(gen_dir "${gen_root}/nodl_generated/${PROJECT_NAME}")
 
   set(py_out "${gen_dir}/${target}.py")
   set(package_init "${gen_dir}/__init__.py")
@@ -140,8 +140,8 @@ function(nodl_generate_py target nodl_file)
     COMMENT "Generate ${target} from ${nodl_file}")
 
   install(
-    DIRECTORY "${gen_root}/${PROJECT_NAME}/"
-    DESTINATION "${PYTHON_INSTALL_DIR}/${PROJECT_NAME}"
+    DIRECTORY "${gen_root}/nodl_generated/"
+    DESTINATION "${PYTHON_INSTALL_DIR}/nodl_generated"
     FILES_MATCHING PATTERN "*.py"
   )
 

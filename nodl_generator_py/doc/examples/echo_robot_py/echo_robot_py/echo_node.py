@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 import sys
 
+from nodl_generated.echo_robot_py.echo_node_base import EchoNodeBase
 from std_msgs.msg import String
 
-from echo_robot_py.generated.echo_node_base import EchoNodeBase
 from nodl_runtime_py import run_node
 
 

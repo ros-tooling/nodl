@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Concrete implementation of the generated pub/sub base class."""
 
+from nodl_generated.test_nodl_generators.pubsub_node_base import PubsubNodeBase
 from std_msgs.msg import String
-
-from test_nodl_generators.generated.pubsub_node_base import PubsubNodeBase
 
 
 class PubsubNode(PubsubNodeBase):

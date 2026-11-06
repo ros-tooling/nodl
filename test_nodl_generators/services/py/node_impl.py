@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Concrete implementation of the generated service base class."""
 
-from test_nodl_generators.generated.services_node_base import ServicesNodeBase
+from nodl_generated.test_nodl_generators.services_node_base import ServicesNodeBase
 
 
 class ServicesNode(ServicesNodeBase):

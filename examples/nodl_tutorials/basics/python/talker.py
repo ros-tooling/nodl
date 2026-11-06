@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import rclpy
 from example_interfaces.msg import String
-from nodl_tutorial_basics.generated.talker_py_base import TalkerPyBase
+from nodl_generated.nodl_tutorial_basics.talker_py_base import TalkerPyBase
 
 
 class Talker(TalkerPyBase):
