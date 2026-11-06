@@ -598,13 +598,21 @@ def harness(monkeypatch):
         rclpy.shutdown()
 
 
-def test_installed_executable_echoes_with_the_declared_parameter(built, harness):
+@pytest.mark.parametrize(
+    'command',
+    [
+        lambda layout: [layout['scripts'] / 'echo_node'],
+        lambda layout: [sys.executable, '-m', 'echo_robot_py.echo_node'],
+    ],
+    ids=['console-script', 'module'],
+)
+def test_installed_executable_echoes_with_the_declared_parameter(built, harness, command):
     _, layout = built
     received = []
     harness.create_subscription(String, 'echo_out', lambda msg: received.append(msg.data), 10)
     publisher = harness.create_publisher(String, 'echo_in', 10)
 
-    process = subprocess.Popen([layout['scripts'] / 'echo_node'], env=_with_package(layout))
+    process = subprocess.Popen(command(layout), env=_with_package(layout))
     try:
         deadline = time.monotonic() + STARTUP_TIMEOUT_S
         while not received:

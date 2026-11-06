@@ -224,7 +224,7 @@ Declare a second module for the same file with `no_index=True`.
 
 A generated module is a library, so the package writes the entry point itself.
 `main()` runs the node class with `nodl_runtime_py.run_node`, which spins it until SIGINT or SIGTERM and returns the exit code.
-A `console_scripts` entry calls it as `sys.exit(main())`.
+A `console_scripts` entry calls it as `sys.exit(main())`, and so does running the module directly.
 
 ```{literalinclude} examples/echo_robot_py/echo_robot_py/echo_node.py
 :language: python

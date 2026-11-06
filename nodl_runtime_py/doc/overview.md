@@ -25,7 +25,8 @@ The list may change as generated code changes, so depend on this package rather 
 ## Running a node
 
 `run_node` is the main loop of an executable.
-It constructs the node, spins it, and returns the process exit code, so an executable module ends with `sys.exit(run_node(Greeter))`:
+It constructs the node, spins it, and returns the process exit code.
+An executable module returns it from `main()`, so a `console_scripts` entry point and running the module directly both exit with it:
 
 ```{literalinclude} examples/greeter.py
 :language: python

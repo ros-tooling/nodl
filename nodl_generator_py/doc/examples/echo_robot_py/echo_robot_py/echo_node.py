@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
+import sys
+
 from std_msgs.msg import String
 
 from echo_robot_py.generated.echo_node_base import EchoNodeBase
@@ -13,3 +15,7 @@ class EchoNode(EchoNodeBase):
 
 def main():
     return run_node(EchoNode)
+
+
+if __name__ == '__main__':
+    sys.exit(main())

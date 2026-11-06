@@ -19,5 +19,9 @@ class Greeter(Node):
         self.get_logger().info(f'{self.get_parameter("greeting").value}, world')
 
 
+def main():
+    return run_node(Greeter)
+
+
 if __name__ == '__main__':
-    sys.exit(run_node(Greeter))
+    sys.exit(main())
