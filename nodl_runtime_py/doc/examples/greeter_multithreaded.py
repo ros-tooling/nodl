@@ -9,5 +9,10 @@ from rclpy.executors import MultiThreadedExecutor
 
 from nodl_runtime_py import run_node
 
+
+def main():
+    return run_node(Greeter, executor_class=MultiThreadedExecutor)
+
+
 if __name__ == '__main__':
-    sys.exit(run_node(Greeter, executor_class=MultiThreadedExecutor))
+    sys.exit(main())
