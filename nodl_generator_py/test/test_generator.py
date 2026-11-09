@@ -193,7 +193,40 @@ def test_render_python_activates_only_subscriptions_and_services_of_an_activatio
     assert '            self.on_echo_in,\n' not in generated
 
 
-def test_render_python_leaves_a_non_activation_gated_base_unchanged():
+def test_render_python_wraps_clients_of_a_gated_base():
+    doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
+
+    generated = _render_python(doc, 'interfaces_node_base', _GATED_BASE)
+
+    ast.parse(generated)
+    for expected in (
+        'from nodl_runtime_py.gated import GatedActionClient',
+        'from nodl_runtime_py.gated import GatedClient',
+        "self.cli_delegate_add = GatedClient(\n            self.activation_gate,\n            self.create_client(\n                example_interfaces.srv.AddTwoInts,\n                '/delegate_add',\n                qos_profile=",
+        'self.action_cli_delegate_fibonacci = GatedActionClient(\n            self.activation_gate,\n            rclpy.action.ActionClient(\n                self,\n                example_interfaces.action.Fibonacci,',
+    ):
+        assert expected in generated
+    assert '= self.create_client(' not in generated
+    assert '= rclpy.action.ActionClient(' not in generated
+
+
+def test_render_python_imports_only_the_client_wrappers_it_uses():
+    doc = parse_nodl(
+        """
+nodl_version: 2
+action_clients:
+  - name: /delegate_fibonacci
+    type: example_interfaces/action/Fibonacci
+"""
+    )
+
+    generated = _render_python(doc, 'action_client_node_base', _GATED_BASE)
+
+    assert 'from nodl_runtime_py.gated import GatedActionClient\n' in generated
+    assert 'GatedClient' not in generated
+
+
+def test_render_python_leaves_an_ungated_base_unchanged():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
     generated = _render_python(doc, 'interfaces_node_base')
@@ -202,6 +235,8 @@ def test_render_python_leaves_a_non_activation_gated_base_unchanged():
     assert 'activation_gate' not in generated
     assert '            self.on_echo_in,\n' in generated
     assert 'self.srv_add = self.create_service(' in generated
+    assert 'self.cli_delegate_add = self.create_client(' in generated
+    assert 'self.action_cli_delegate_fibonacci = rclpy.action.ActionClient(' in generated
 
 
 def test_generate_parameter_yaml_preserves_integer_validation_values():

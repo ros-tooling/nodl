@@ -1,14 +1,14 @@
 # nodl_runtime_py
 
 `nodl_runtime_py` provides shared utilities for Python nodes, especially those that `nodl_generator_py` generates.
-It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, helpers that let a lifecycle node block subscription messages and service requests while it is inactive, and `run_node`, a main loop for `rclpy` nodes.
+It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, helpers that gate subscriptions, services and clients on a lifecycle node's activation, and `run_node`, a main loop for `rclpy` nodes.
 
 ## What it provides
 
 | Provides | For |
 |---|---|
 | `nodl_runtime_py.lifecycle.LifecycleNode` | A lifecycle node base class with standard transitions and optional hooks, described below. |
-| `create_active_only_service`, `active_only_subscription_callback` | Let a lifecycle node block subscription messages and service requests while it is inactive, described below. |
+| `create_gated_service`, `gate_subscription_callback`, `GatedClient`, `GatedActionClient` | Subscriptions, services and clients that work only while a lifecycle node is active, described below. |
 | `run_node` | The main loop of an executable, described below. |
 | `rclpy` | Generated base classes derive from `rclpy` node classes and create their entities. |
 | `generate_parameter_library_py` | Generated parameter modules import its parameter validators. |
@@ -127,17 +127,19 @@ This matches the C++ base class, because `rclcpp_lifecycle` managed entities onl
 
 `nodl_runtime_py.lifecycle.LifecycleNode` owns an activation gate, exposed read-only as `activation_gate`.
 The gate is open while the node is active, and during `handle_activate`.
-Two helpers take the gate, not the node, and let one entity block its messages or requests while the gate is closed:
+Helpers and wrappers take the gate, not the node, and make one entity work only while it is open:
 
 | Entity | Helper | While the gate is closed |
 |---|---|---|
-| Subscription | `active_only_subscription_callback` | The message is dropped and the callback is not called. |
-| Service server | `create_active_only_service` | The request is dropped and gets no response, so its client keeps waiting. |
+| Subscription | `gate_subscription_callback` | The message is dropped and the callback is not called. |
+| Service server | `create_gated_service` | The request is dropped and gets no response, so its client keeps waiting. |
+| Service client | `GatedClient` | `call_async` raises `InactiveError`. |
+| Action client | `GatedActionClient` | `send_goal_async` raises `InactiveError`. |
 
-Both accept coroutine function callbacks.
-`create_active_only_service` takes the keyword arguments of `Node.create_service`, such as `qos_profile` or `callback_group`.
-Generated lifecycle nodes use them for every subscription and service server.
-Any node that owns a gate can use them, as in this example of a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` to gate a subscription and a service on activation:
+The subscription and service helpers accept coroutine function callbacks.
+`create_gated_service` takes the keyword arguments of `Node.create_service`, such as `qos_profile` or `callback_group`.
+Generated lifecycle nodes use them for every subscription, service server, service client and action client.
+Any node that owns a gate can use them, as in this example of a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` to gate a subscription, a service and clients on activation:
 
 ```{literalinclude} examples/active_only_node.py
 :language: python
@@ -145,13 +147,23 @@ Any node that owns a gate can use them, as in this example of a hand-written (no
 :end-before: def main
 ```
 
+The client wrappers expose the send method, the wait and ready methods, and a read-only `client` property that returns the wrapped `rclpy` client.
+Waiting for a service or server, readiness checks, and the goal handle of a goal already sent are not gated, nor are the responses to requests already sent.
+Use `client` for anything else, such as `ActionClient.destroy` or `Node.destroy_client`.
+
+The gate opens before `handle_activate`, so that hook can call gated clients.
+A client call in `handle_configure` raises `InactiveError`, so requests that configuration needs, such as fetching settings from another node, belong in `handle_activate`.
+Waiting for the service in `handle_configure` is allowed.
+
 With a multithreaded executor, callbacks can run while `handle_activate` is still executing.
 State that they need must be ready by the end of `handle_configure`.
 
 ### Background
 
-`rclpy` delivers subscription and service callbacks in every lifecycle state, and only publishers follow the lifecycle.
+`rclpy` delivers subscription and service callbacks, and sends client requests, in every lifecycle state, and only publishers follow the lifecycle.
 The gate is a `rclpy.lifecycle.SimpleManagedEntity` registered with `add_managed_entity`, so the standard activation opens it and the standard deactivation closes it, on every path that deactivates publishers.
+
+Clients raise instead of dropping, because a dropped request returns a future that never completes.
 
 `rclpy` always sends the value a service callback returns, and has no way to skip the response.
 `create_active_only_service` therefore replaces `send_response` on the service instance.

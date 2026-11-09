@@ -322,8 +322,9 @@ publishers:
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
 A generated lifecycle node can block subscription messages and service requests while it is inactive, as the `nodl_runtime_py` overview describes.
+Generated service and action clients raise `InactiveError` when sending while the node is inactive.
 The constructor still creates all parameters and entities.
-Clients and actions do not become lifecycle-managed.
+Action servers do not become lifecycle-managed.
 
 The generated class derives the runtime base class, which implements the transition callbacks and activates and deactivates managed publishers on every path.
 The authored class does not define transition callbacks.
@@ -348,6 +349,11 @@ Callbacks that must run in every state need a node that does not use the lifecyc
 
 A `BASE_CLASS` provider enables this with `activation_gated: true` in its `codegen.python` metadata, as `nodl://nodl_common_interfaces/lifecycle_node` does.
 The base must then be a `nodl_runtime_py.lifecycle.LifecycleNode`, and `activation_gated` defaults to `false`.
+
+Sending a service request or an action goal from the constructor, from `handle_configure`, or while the node is inactive raises `InactiveError`.
+Requests that configuration needs, such as fetching settings from another node, belong in `handle_activate`, where the gate is already open.
+A generated client member is a wrapper, not an `rclpy` client, and its `client` property returns the `rclpy` client.
+The `nodl_runtime_py` overview lists what the wrappers expose.
 
 ## Parameters
 
@@ -385,7 +391,7 @@ python -m nodl_generator_py \
 
 This version supports parameters, publishers, subscriptions, services, actions,
 their available QoS settings, include composition, and one included Python base provider.
-Lifecycle management applies to publishers, subscriptions and service servers created for a lifecycle base.
+Lifecycle management applies to publishers, subscriptions, service servers, service clients and action clients created for a lifecycle base.
 
 ## Relationship to other packages
 

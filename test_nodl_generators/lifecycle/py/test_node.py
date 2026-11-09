@@ -6,12 +6,16 @@ import time
 
 import pytest
 import rclpy
+from example_interfaces.action import Fibonacci
 from example_interfaces.srv import AddTwoInts
 from node_impl import GeneratedLifecycleNode
+from rclpy.action import ActionServer
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, LifecyclePublisher, TransitionCallbackReturn
 from rclpy.node import Node
 from std_msgs.msg import String
+
+from nodl_runtime_py import InactiveError
 
 
 @pytest.fixture
@@ -62,6 +66,16 @@ def test_generated_publisher_follows_lifecycle_transitions(ros_context):
         harness.destroy_node()
 
 
+def _add(request, response):
+    response.sum = request.a + request.b
+    return response
+
+
+def _succeed(goal_handle):
+    goal_handle.succeed()
+    return Fibonacci.Result()
+
+
 @pytest.fixture
 def lifecycle_setup(ros_context):
     node = GeneratedLifecycleNode()
@@ -71,6 +85,8 @@ def lifecycle_setup(ros_context):
     executor.add_node(harness)
     command_pub = harness.create_publisher(String, '/lifecycle_command', 10)
     add_client = harness.create_client(AddTwoInts, '/lifecycle_add')
+    harness.create_service(AddTwoInts, '/lifecycle_remote_add', _add)
+    ActionServer(harness, Fibonacci, '/lifecycle_fibonacci', _succeed)
     try:
         yield node, executor, command_pub, add_client
     finally:
@@ -126,3 +142,21 @@ def test_generated_service_responds_only_while_active(lifecycle_setup):
     node.trigger_deactivate()
     inactive_again = _call_add(executor, add_client, 5, 6)
     assert not _spin_until(executor, inactive_again.done, timeout=0.3)
+
+
+def test_generated_clients_send_only_while_the_gate_is_open(lifecycle_setup):
+    node, executor, _, _ = lifecycle_setup
+
+    assert node.trigger_configure() == TransitionCallbackReturn.SUCCESS
+    assert 2 == len(node.configure_errors)
+
+    assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+    service_response, goal_handle = node.activate_futures
+    assert _spin_until(executor, service_response.done)
+    assert 3 == service_response.result().sum
+    assert _spin_until(executor, goal_handle.done)
+    assert goal_handle.result().accepted
+
+    assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS
+    with pytest.raises(InactiveError):
+        node.cli_lifecycle_remote_add.call_async(AddTwoInts.Request(a=1, b=2))

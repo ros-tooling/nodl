@@ -19,3 +19,9 @@ subscriptions:
 service_servers:
   - name: /lifecycle_add
     type: example_interfaces/srv/AddTwoInts
+service_clients:
+  - name: /lifecycle_remote_add
+    type: example_interfaces/srv/AddTwoInts
+action_clients:
+  - name: /lifecycle_fibonacci
+    type: example_interfaces/action/Fibonacci

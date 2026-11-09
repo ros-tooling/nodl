@@ -9,13 +9,15 @@ from pathlib import Path
 
 import pytest
 import rclpy
+from example_interfaces.action import Fibonacci
 from example_interfaces.msg import Int32
 from example_interfaces.srv import AddTwoInts
+from rclpy.action import ActionServer
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.lifecycle import SimpleManagedEntity
 from rclpy.node import Node
 
-from nodl_runtime_py import active_only_subscription_callback, create_active_only_service
+from nodl_runtime_py import InactiveError, create_gated_service, gate_subscription_callback
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'doc' / 'examples'))
 
@@ -33,6 +35,18 @@ class Peer(Node):
         super().__init__('peer')
         self.number_pub = self.create_publisher(Int32, 'number', 10)
         self.add_client = self.create_client(AddTwoInts, 'add')
+        self.remote_add_service = self.create_service(AddTwoInts, 'remote_add', self._on_add)
+        self.fibonacci_server = ActionServer(self, Fibonacci, 'fibonacci', self._execute)
+
+    @staticmethod
+    def _on_add(request, response):
+        response.sum = request.a + request.b
+        return response
+
+    @staticmethod
+    def _execute(goal_handle):
+        goal_handle.succeed()
+        return Fibonacci.Result()
 
 
 class Spinner:
@@ -130,6 +144,55 @@ def test_service_responds_again_after_reactivation(spinner):
     answered = spinner.peer.add_client.call_async(AddTwoInts.Request(a=3, b=4))
     spinner.spin_until(answered.done)
     assert 7 == answered.result().sum
+
+
+def test_service_client_send_raises_while_closed(spinner):
+    spinner.calculator.trigger_configure()
+    with pytest.raises(InactiveError, match='remote_add'):
+        spinner.calculator.remote_add.call_async(AddTwoInts.Request(a=1, b=2))
+
+
+def test_service_client_send_succeeds_while_open(spinner):
+    spinner.activate()
+    spinner.spin_until(spinner.calculator.remote_add.service_is_ready)
+    future = spinner.calculator.remote_add.call_async(AddTwoInts.Request(a=1, b=2))
+    spinner.spin_until(future.done)
+    assert 3 == future.result().sum
+
+
+def test_service_client_response_arrives_after_deactivate(spinner):
+    spinner.activate()
+    spinner.spin_until(spinner.calculator.remote_add.service_is_ready)
+    future = spinner.calculator.remote_add.call_async(AddTwoInts.Request(a=1, b=2))
+    spinner.deactivate()
+    spinner.spin_until(future.done)
+    assert 3 == future.result().sum
+
+
+def test_waiting_for_service_is_not_gated(spinner):
+    spinner.calculator.trigger_configure()
+    spinner.spin_until(spinner.calculator.remote_add.service_is_ready)
+    assert spinner.calculator.remote_add.wait_for_service(0.0)
+
+
+def test_action_client_send_raises_while_closed(spinner):
+    spinner.calculator.trigger_configure()
+    with pytest.raises(InactiveError):
+        spinner.calculator.fibonacci.send_goal_async(Fibonacci.Goal(order=1))
+
+
+def test_action_client_send_succeeds_while_open(spinner):
+    spinner.activate()
+    spinner.spin_until(spinner.calculator.fibonacci.server_is_ready)
+    future = spinner.calculator.fibonacci.send_goal_async(Fibonacci.Goal(order=1))
+    spinner.spin_until(future.done)
+    assert future.result().accepted
+
+
+def test_waiting_for_action_server_is_not_gated(spinner):
+    spinner.calculator.trigger_configure()
+    spinner.spin_until(spinner.calculator.fibonacci.server_is_ready)
+    assert spinner.calculator.fibonacci.wait_for_server(0.0)
 
 
 def test_subscription_wrapper_needs_only_the_gate():
