@@ -7,7 +7,10 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
-/// Publishes a greeting when it activates.
+/// Example of a non-generated node that uses `nodl_runtime_cpp::LifecycleNode`, and publishes a greeting when it activates.
+/**
+ * The endpoint is created by hand to keep the example self-contained, where a generated node creates its own.
+ */
 class Greeter : public nodl_runtime_cpp::LifecycleNode
 {
 public:
