@@ -199,7 +199,7 @@ class ActiveOnlyActionClient:
         return self._client.wait_for_server(timeout_sec)
 
 
-class GatedActionServer(SimpleManagedEntity):
+class ActiveOnlyActionServer(SimpleManagedEntity):
     """An action server that rejects goals while inactive and ends its active goals at deactivation.
 
     The server is a managed entity, so register it with ``add_managed_entity``.
@@ -239,7 +239,7 @@ class GatedActionServer(SimpleManagedEntity):
             action_type,
             action_name,
             execute_callback,
-            goal_callback=self._gate_goal_callback(goal_callback),
+            goal_callback=self._active_only_goal_callback(goal_callback),
             cancel_callback=cancel_callback,
             handle_accepted_callback=self._on_accepted,
             **kwargs,
@@ -260,18 +260,18 @@ class GatedActionServer(SimpleManagedEntity):
             self._end_goal(goal_handle)
         return result
 
-    def _gate_goal_callback(self, callback: Callable[[Any], GoalResponse]) -> Callable[[Any], Any]:
+    def _active_only_goal_callback(self, callback: Callable[[Any], GoalResponse]) -> Callable[[Any], Any]:
         if inspect.iscoroutinefunction(callback):
 
-            async def gated_async(goal_request: Any) -> GoalResponse:
+            async def active_only_async(goal_request: Any) -> GoalResponse:
                 return await callback(goal_request) if self.is_activated else GoalResponse.REJECT
 
-            return gated_async
+            return active_only_async
 
-        def gated(goal_request: Any) -> GoalResponse:
+        def active_only(goal_request: Any) -> GoalResponse:
             return callback(goal_request) if self.is_activated else GoalResponse.REJECT
 
-        return gated
+        return active_only
 
     def _on_accepted(self, goal_handle: ServerGoalHandle) -> None:
         # Recording and executing happen under the lock, so a deactivation that is ending goals only sees executing goals.

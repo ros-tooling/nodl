@@ -8,7 +8,7 @@ It currently provides a lifecycle node base class that manages the state and beh
 | Provides | For |
 |---|---|
 | `nodl_runtime_py.lifecycle.LifecycleNode` | A lifecycle node base class with standard transitions and optional hooks, described below. |
-| `create_active_only_service`, `active_only_subscription_callback`, `ActiveOnlyClient`, `GatedActionServer`, `ActiveOnlyActionClient` | Let a lifecycle node block subscription messages, service requests, and the requests and goals it sends while it is inactive, and reject action goals and end its active ones, described below. |
+| `create_active_only_service`, `active_only_subscription_callback`, `ActiveOnlyClient`, `ActiveOnlyActionServer`, `ActiveOnlyActionClient` | Let a lifecycle node block subscription messages, service requests, and the requests and goals it sends while it is inactive, and reject action goals and end its active ones, described below. |
 | `run_node` | The main loop of an executable, described below. |
 | `rclpy` | Generated base classes derive from `rclpy` node classes and create their entities. |
 | `generate_parameter_library_py` | Generated parameter modules import its parameter validators. |
@@ -134,7 +134,7 @@ Helpers and wrappers take the gate, not the node, and let one entity block its m
 | Subscription | `active_only_subscription_callback` | The message is dropped and the callback is not called. |
 | Service server | `create_active_only_service` | The request is dropped and gets no response, so its client keeps waiting. |
 | Service client | `ActiveOnlyClient` | `call_async` raises `InactiveError`. |
-| Action server | `GatedActionServer` | New goals are rejected, and active goals end at deactivation. |
+| Action server | `ActiveOnlyActionServer` | New goals are rejected, and active goals end at deactivation. |
 | Action client | `ActiveOnlyActionClient` | `send_goal_async` raises `InactiveError`. |
 
 The subscription and service helpers accept coroutine function callbacks.
@@ -162,7 +162,7 @@ State that they need must be ready by the end of `handle_configure`.
 
 ### Action goals at deactivation
 
-Create a `GatedActionServer` in the constructor and register it with `add_managed_entity`.
+Create a `ActiveOnlyActionServer` in the constructor and register it with `add_managed_entity`.
 It takes the arguments of `rclpy.action.ActionServer` except the accepted callback, executes each accepted goal at once, and exposes the wrapped server as the read-only `server`.
 It rejects goals until the node activates.
 At deactivation it first becomes inactive, so no new goal is accepted, then ends every goal it accepted that is still active:
@@ -181,15 +181,15 @@ With a multithreaded executor, a goal accepted during `handle_deactivate` ends r
 `rclpy` sends the result to the client only when the execute callback returns, so an execute callback that keeps working for an ended goal must check `goal_handle.is_active` and return.
 The client receives the status of the ended goal with the result the callback returned.
 A goal that is accepted after the deactivation started, or whose callback raises, gets a default-constructed `Result`.
-The C++ `GatedActionServer` always sends a default-constructed result for an ended goal.
+The C++ `ActiveOnlyActionServer` always sends a default-constructed result for an ended goal.
 
 A blocking execute callback needs a multithreaded executor, or must be an async function.
 `run_node` takes the executor class as `executor_class`, as the example does.
 
-This example shows a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` and `GatedActionServer`, whose goals end when it deactivates.
-Generated nodes with a `gated` base class create their action servers the same way.
+This example shows a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` and `ActiveOnlyActionServer`, whose goals end when it deactivates.
+Generated nodes with a `activation_gated` base class create their action servers the same way.
 
-```{literalinclude} examples/gated_action_node.py
+```{literalinclude} examples/active_only_action_node.py
 :language: python
 :start-at: class Counter
 :end-before: def main

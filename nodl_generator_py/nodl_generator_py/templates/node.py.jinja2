@@ -78,7 +78,7 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
     {% endfor %}
     {% for action in action_servers %}
 {% if activation_gated %}
-        self.{{ action.member_name }} = GatedActionServer(
+        self.{{ action.member_name }} = ActiveOnlyActionServer(
 {% else %}
         self.{{ action.member_name }} = rclpy.action.ActionServer(
 {% endif %}

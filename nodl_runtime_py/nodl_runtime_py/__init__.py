@@ -3,8 +3,8 @@
 
 from nodl_runtime_py.active_only import (
     ActiveOnlyActionClient,
+    ActiveOnlyActionServer,
     ActiveOnlyClient,
-    GatedActionServer,
     InactiveError,
     active_only_subscription_callback,
     create_active_only_service,
@@ -14,7 +14,7 @@ from nodl_runtime_py.run import run_node
 __all__ = [
     'ActiveOnlyActionClient',
     'ActiveOnlyClient',
-    'GatedActionServer',
+    'ActiveOnlyActionServer',
     'InactiveError',
     'create_active_only_service',
     'active_only_subscription_callback',

@@ -8,7 +8,7 @@ import time
 from example_interfaces.action import Fibonacci
 from rclpy.executors import MultiThreadedExecutor
 
-from nodl_runtime_py import GatedActionServer, run_node
+from nodl_runtime_py import ActiveOnlyActionServer, run_node
 from nodl_runtime_py.lifecycle import LifecycleNode
 
 
@@ -16,7 +16,7 @@ class Counter(LifecycleNode):
     def __init__(self):
         super().__init__('counter')
         # The server is created by hand to keep the example self-contained, where a generated node creates its own.
-        self.server = GatedActionServer(self, Fibonacci, 'count', self._execute)
+        self.server = ActiveOnlyActionServer(self, Fibonacci, 'count', self._execute)
         self.add_managed_entity(self.server)
 
     def _execute(self, goal_handle):

@@ -239,7 +239,7 @@ def _render_python(
     if base.activation_gated and service_clients:
         imports.add('from nodl_runtime_py.active_only import ActiveOnlyClient')
     if base.activation_gated and action_servers:
-        imports.add('from nodl_runtime_py.active_only import GatedActionServer')
+        imports.add('from nodl_runtime_py.active_only import ActiveOnlyActionServer')
     if base.activation_gated and action_clients:
         imports.add('from nodl_runtime_py.active_only import ActiveOnlyActionClient')
     if action_servers or action_clients:

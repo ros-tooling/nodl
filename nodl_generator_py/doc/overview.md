@@ -322,7 +322,7 @@ publishers:
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
 A generated lifecycle node can block subscription messages and service requests, and the service requests and action goals it sends, while it is inactive, as the `nodl_runtime_py` overview describes.
-Generated action servers are `nodl_runtime_py.GatedActionServer`s registered with `add_managed_entity`, so they reject goals while the node is not active and end their active goals on deactivation.
+Generated action servers are `nodl_runtime_py.ActiveOnlyActionServer`s registered with `add_managed_entity`, so they reject goals while the node is not active and end their active goals on deactivation.
 The member is a wrapper, not an `rclpy.action.ActionServer`, and its `server` property returns the wrapped server.
 The constructor still creates all parameters and entities.
 

@@ -210,15 +210,15 @@ def test_render_python_wraps_clients_of_an_activation_gated_base():
     assert '= rclpy.action.ActionClient(' not in generated
 
 
-def test_render_python_makes_action_servers_of_a_gated_base_managed_entities():
+def test_render_python_makes_action_servers_of_an_activation_gated_base_managed_entities():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
-    generated = _render_python(doc, 'interfaces_node_base', _GATED_BASE)
+    generated = _render_python(doc, 'interfaces_node_base', _ACTIVATION_GATED_BASE)
 
     ast.parse(generated)
     for expected in (
-        'from nodl_runtime_py.active_only import GatedActionServer',
-        "self.action_srv_fibonacci = GatedActionServer(\n            self,\n            example_interfaces.action.Fibonacci,\n            '/fibonacci',\n            self.execute_fibonacci,\n            goal_callback=self.on_fibonacci_goal,\n            cancel_callback=self.on_fibonacci_cancel,\n        )\n        self.add_managed_entity(self.action_srv_fibonacci)\n",
+        'from nodl_runtime_py.active_only import ActiveOnlyActionServer',
+        "self.action_srv_fibonacci = ActiveOnlyActionServer(\n            self,\n            example_interfaces.action.Fibonacci,\n            '/fibonacci',\n            self.execute_fibonacci,\n            goal_callback=self.on_fibonacci_goal,\n            cancel_callback=self.on_fibonacci_cancel,\n        )\n        self.add_managed_entity(self.action_srv_fibonacci)\n",
         'check ``goal_handle.is_active``',
     ):
         assert expected in generated

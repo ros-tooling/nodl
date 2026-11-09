@@ -17,12 +17,12 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode
 from rclpy.node import Node
 
-from nodl_runtime_py import GatedActionServer
+from nodl_runtime_py import ActiveOnlyActionServer
 from nodl_runtime_py.lifecycle import LifecycleNode as NodlLifecycleNode
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'doc' / 'examples'))
 
-from gated_action_node import Counter  # noqa: E402
+from active_only_action_node import Counter  # noqa: E402
 
 TIMEOUT_S = 10
 
@@ -41,16 +41,16 @@ def wait_until(predicate, timeout_s=TIMEOUT_S):
 
 
 class Fixture:
-    """A gated action server on a plain lifecycle node, and a client on a peer node, spun by one executor."""
+    """An active-only action server on a plain lifecycle node, and a client on a peer node, spun by one executor."""
 
     def __init__(self, node_class=LifecycleNode):
-        self.node = node_class('gated_action_node')
-        self.peer = Node('gated_action_peer')
+        self.node = node_class('active_only_action_node')
+        self.peer = Node('active_only_action_peer')
         self.lock = threading.Lock()
         self.goals = []
         self.author_goals = 0
         self.deactivate_in_goal_callback = False
-        self.server = GatedActionServer(
+        self.server = ActiveOnlyActionServer(
             self.node,
             Fibonacci,
             'fibonacci',
