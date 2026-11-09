@@ -1,13 +1,14 @@
 # nodl_runtime_py
 
 `nodl_runtime_py` provides shared utilities for Python nodes, especially those that `nodl_generator_py` generates.
-It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, and `run_node`, a main loop for `rclpy` nodes.
+It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, helpers that gate subscriptions and services on a lifecycle node's activation, and `run_node`, a main loop for `rclpy` nodes.
 
 ## What it provides
 
 | Provides | For |
 |---|---|
 | `nodl_runtime_py.lifecycle.LifecycleNode` | A lifecycle node base class with standard transitions and optional hooks, described below. |
+| `create_gated_service`, `gate_subscription_callback` | Subscriptions and services that work only while a lifecycle node is active, described below. |
 | `run_node` | The main loop of an executable, described below. |
 | `rclpy` | Generated base classes derive from `rclpy` node classes and create their entities. |
 | `generate_parameter_library_py` | Generated parameter modules import its parameter validators. |
@@ -124,10 +125,19 @@ This matches the C++ base class, because `rclcpp_lifecycle` managed entities onl
 
 ## Gating entities on activation
 
-An `rclpy` lifecycle node delivers subscription and service callbacks in every state.
-`LifecycleNode` owns an activation gate, an `rclpy.lifecycle.SimpleManagedEntity` registered with `add_managed_entity`, exposed read-only as `activation_gate`.
-The standard activation opens it before `handle_activate` runs, and the standard deactivation closes it, on every path that deactivates publishers.
-The helpers take the gate, not the node, so any node that owns a gate can use them:
+`nodl_runtime_py.lifecycle.LifecycleNode` owns an activation gate, exposed read-only as `activation_gate`.
+The gate is open while the node is active, and during `handle_activate`.
+Two helpers take the gate, not the node, and make one entity work only while it is open:
+
+| Entity | Helper | While the gate is closed |
+|---|---|---|
+| Subscription | `gate_subscription_callback` | The message is dropped and the callback is not called. |
+| Service server | `create_gated_service` | The request is dropped and gets no response, so its client keeps waiting. |
+
+Both accept coroutine function callbacks.
+`create_gated_service` takes the keyword arguments of `Node.create_service`, such as `qos_profile` or `callback_group`.
+Generated lifecycle nodes use them for every subscription and service server.
+Any node that owns a gate can use them, as in this example of a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` to gate a subscription and a service on activation:
 
 ```{literalinclude} examples/gated_node.py
 :language: python
@@ -135,17 +145,14 @@ The helpers take the gate, not the node, so any node that owns a gate can use th
 :end-before: def main
 ```
 
-| Entity | Helper | While the gate is closed |
-|---|---|---|
-| Subscription | `gate_subscription_callback` | The message is dropped and the callback is not called. |
-| Service server | `create_gated_service` | The request is dropped and gets no response, so its client keeps waiting. |
+With a multithreaded executor, callbacks can run while `handle_activate` is still executing.
+State that they need must be ready by the end of `handle_configure`.
 
-Both helpers accept coroutine function callbacks.
-`create_gated_service` takes the keyword arguments of `Node.create_service`, such as `qos_profile` or `callback_group`.
+### Background
+
+`rclpy` delivers subscription and service callbacks in every lifecycle state, and only publishers follow the lifecycle.
+The gate is a `rclpy.lifecycle.SimpleManagedEntity` registered with `add_managed_entity`, so the standard activation opens it and the standard deactivation closes it, on every path that deactivates publishers.
 
 `rclpy` always sends the value a service callback returns, and has no way to skip the response.
 `create_gated_service` therefore replaces `send_response` on the service instance.
 This relies on the executor calling `service.send_response`, which the tests check on every supported distribution.
-
-With a multithreaded executor, callbacks can run while `handle_activate` is still executing, because the gate is already open.
-State that they need must be ready by the end of `handle_configure`.

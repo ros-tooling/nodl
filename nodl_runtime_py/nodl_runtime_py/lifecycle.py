@@ -23,6 +23,7 @@ class LifecycleNode(RclpyLifecycleNode):
 
     A subclass that defines an ``on_*`` transition callback raises ``TypeError`` when the class is defined.
     It overrides the matching optional hook instead, each taking the previous state and returning a ``TransitionCallbackReturn``.
+    The node owns an activation gate, see :attr:`activation_gate`.
     See the ``nodl_runtime_py`` overview for the order of the hooks and for an example.
     """
 
@@ -34,7 +35,7 @@ class LifecycleNode(RclpyLifecycleNode):
 
     @property
     def activation_gate(self) -> SimpleManagedEntity:
-        """The activation gate, open while the node is active and during ``handle_activate``."""
+        """The activation gate for :mod:`nodl_runtime_py.gated`, open while the node is active and during ``handle_activate``."""
         return self._activation_gate
 
     def __init_subclass__(cls, **kwargs: Any) -> None:

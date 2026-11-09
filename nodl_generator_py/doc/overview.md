@@ -321,8 +321,7 @@ publishers:
 
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
-Generated subscription and service server callbacks are gated on the node's activation gate, so messages and requests are dropped while the node is not active.
-A dropped service request gets no response.
+Generated subscription and service server callbacks are gated on the node's activation gate, so they run only while the node is active, as the `nodl_runtime_py` overview describes.
 The constructor still creates all parameters and entities.
 Clients and actions do not become lifecycle-managed.
 
@@ -347,8 +346,8 @@ Subscriptions and services of generated lifecycle nodes no longer deliver while 
 A callback that checked whether the node was active no longer needs to.
 Callbacks that must run in every state need a node that does not use the lifecycle base.
 
-The gating comes from `gated: true` in the `codegen.python` metadata of a `BASE_CLASS` provider, which `nodl://nodl_common_interfaces/lifecycle_node` sets.
-It states that the base is a `nodl_runtime_py.lifecycle.LifecycleNode` that exposes `activation_gate`, and it defaults to `false`.
+A `BASE_CLASS` provider enables the gating with `gated: true` in its `codegen.python` metadata, as `nodl://nodl_common_interfaces/lifecycle_node` does.
+The base must then be a `nodl_runtime_py.lifecycle.LifecycleNode`, and `gated` defaults to `false`.
 
 ## Parameters
 

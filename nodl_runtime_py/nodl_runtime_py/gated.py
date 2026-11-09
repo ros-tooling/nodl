@@ -1,11 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Helpers that gate one entity on a lifecycle activation gate.
-
-The gate is an ``rclpy.lifecycle.SimpleManagedEntity`` that the node registers with ``add_managed_entity``.
-The default ``rclpy.lifecycle.LifecycleNode`` activation and deactivation open and close it, together with lifecycle publishers.
-The helpers take the gate, not the node, so they work from any lifecycle node that owns one.
-"""
+"""Helpers that gate a subscription or a service on an activation gate, see the ``nodl_runtime_py`` overview."""
 
 from __future__ import annotations
 
