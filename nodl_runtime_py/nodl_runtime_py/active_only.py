@@ -117,6 +117,11 @@ class GatedClient:
         self._gate = gate
         self._client = client
 
+    @property
+    def client(self) -> Client:
+        """The wrapped client, for anything the wrapper does not expose."""
+        return self._client
+
     def call_async(self, request: Any) -> Future:
         """Send a request and return the future of its response.
 
@@ -157,6 +162,11 @@ class GatedActionClient:
         """
         self._gate = gate
         self._client = client
+
+    @property
+    def client(self) -> ActionClient:
+        """The wrapped client, for anything the wrapper does not expose."""
+        return self._client
 
     def send_goal_async(self, goal: Any, **kwargs: Any) -> Future:
         """Send a goal and return the future of its goal handle.

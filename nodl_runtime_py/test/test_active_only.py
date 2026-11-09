@@ -12,7 +12,8 @@ import rclpy
 from example_interfaces.action import Fibonacci
 from example_interfaces.msg import Int32
 from example_interfaces.srv import AddTwoInts
-from rclpy.action import ActionServer
+from rclpy.action import ActionClient, ActionServer
+from rclpy.client import Client
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.lifecycle import SimpleManagedEntity
 from rclpy.node import Node
@@ -167,6 +168,11 @@ def test_service_client_response_arrives_after_deactivate(spinner):
     spinner.deactivate()
     spinner.spin_until(future.done)
     assert 3 == future.result().sum
+
+
+def test_clients_expose_the_wrapped_client(spinner):
+    assert isinstance(spinner.calculator.remote_add.client, Client)
+    assert isinstance(spinner.calculator.fibonacci.client, ActionClient)
 
 
 def test_waiting_for_service_is_not_gated(spinner):
