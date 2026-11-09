@@ -79,7 +79,7 @@ def _build_template_context(
     if activation_gated and service_clients:
         headers.add('nodl_runtime_cpp/active_only_client.hpp')
     if activation_gated and action_servers:
-        headers.add('nodl_runtime_cpp/gated_action_server.hpp')
+        headers.add('nodl_runtime_cpp/active_only_action_server.hpp')
     if activation_gated and action_clients:
         headers.add('nodl_runtime_cpp/active_only_action_client.hpp')
 

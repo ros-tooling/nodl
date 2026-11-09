@@ -58,7 +58,7 @@ The example is compiled as part of the package tests.
 ### Active-only entities
 
 A lifecycle node has the ability to block subscription messages, service requests and client requests while it is inactive, and to end its action goals when it deactivates.
-`active_only_subscription_callback`, `create_active_only_service`, `ActiveOnlyClient` and `ActiveOnlyActionClient` each put one entity behind the node's activation gate, and `GatedActionServer` is a managed entity of its own.
+`active_only_subscription_callback`, `create_active_only_service`, `ActiveOnlyClient` and `ActiveOnlyActionClient` each put one entity behind the node's activation gate, and `ActiveOnlyActionServer` is a managed entity of its own.
 The entity is still created in the constructor, as usual.
 
 `nodl_runtime_cpp::LifecycleNode` owns the gate, a `nodl_runtime_cpp::Gate`, which is an alias of `rclcpp_lifecycle::SimpleManagedEntity`.
@@ -71,7 +71,7 @@ The helpers take the gate, not the node, so they also work with a gate that a no
 | Subscription | `active_only_subscription_callback` | The message is dropped and the callback is not called. |
 | Service server | `create_active_only_service` | The request is dropped and no response is sent, so the client's request never completes. |
 | Service client | `ActiveOnlyClient` | `async_send_request` throws `InactiveError`. |
-| Action server | `GatedActionServer` | New goals are rejected, and active goals end at deactivation. |
+| Action server | `ActiveOnlyActionServer` | New goals are rejected, and active goals end at deactivation. |
 | Action client | `ActiveOnlyActionClient` | `async_send_goal` throws `InactiveError`. |
 
 A client can send from `handle_activate`, where the gate is already open, and while the node is active.
@@ -90,7 +90,7 @@ A callback that throws propagates out of the executor, and an active-only servic
 
 #### Action goals at deactivation
 
-`GatedActionServer` is its own managed entity, with its own gate, so it is not created from the node's gate.
+`ActiveOnlyActionServer` is its own managed entity, with its own gate, so it is not created from the node's gate.
 Create it in the constructor and register it with `add_managed_entity`, keeping it alive as for a lifecycle publisher.
 It rejects goals until the node activates.
 At deactivation it first becomes inactive, so no new goal is accepted, then ends every goal it accepted that is still active, with a default-constructed result:
@@ -102,7 +102,7 @@ At deactivation it first becomes inactive, so no new goal is accepted, then ends
 | Canceling | `canceled()` |
 | Terminal | skipped |
 
-The Python `GatedActionServer` sends the result that the execute callback returned instead.
+The Python `ActiveOnlyActionServer` sends the result that the execute callback returned instead.
 A goal that reaches a terminal state while it is being ended makes the call throw, and the server skips that goal.
 `handle_deactivate` runs before the standard deactivation, so a hook can finish goals itself, for example by succeeding them with a partial result.
 On shutdown and error the standard deactivation, and so the ending of goals, runs before the hook.

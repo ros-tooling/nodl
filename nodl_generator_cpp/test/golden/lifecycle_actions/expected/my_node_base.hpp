@@ -4,7 +4,7 @@
 #include <memory>
 
 #include <example_interfaces/action/fibonacci.hpp>
-#include <nodl_runtime_cpp/gated_action_server.hpp>
+#include <nodl_runtime_cpp/active_only_action_server.hpp>
 #include <nodl_runtime_cpp/lifecycle_node.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 
@@ -32,5 +32,5 @@ protected:
 private:
 
   // --- Action servers ---
-  nodl_runtime_cpp::GatedActionServer<example_interfaces::action::Fibonacci>::SharedPtr action_srv_fibonacci_;
+  nodl_runtime_cpp::ActiveOnlyActionServer<example_interfaces::action::Fibonacci>::SharedPtr action_srv_fibonacci_;
 };

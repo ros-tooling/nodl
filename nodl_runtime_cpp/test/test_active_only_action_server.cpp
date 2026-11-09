@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "example_interfaces/action/fibonacci.hpp"
-#include "nodl_runtime_cpp/gated_action_server.hpp"
+#include "nodl_runtime_cpp/active_only_action_server.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
@@ -33,16 +33,16 @@ class PlainNode : public rclcpp_lifecycle::LifecycleNode
 {
 public:
   PlainNode()
-  : rclcpp_lifecycle::LifecycleNode("gated_action_node")
+  : rclcpp_lifecycle::LifecycleNode("active_only_action_node")
   {}
 
   using rclcpp_lifecycle::LifecycleNode::add_managed_entity;
 };
 
-/// A gated action server on a plain lifecycle node, and a client on a peer node.
+/// An active-only action server on a plain lifecycle node, and a client on a peer node.
 /// The server records each goal handle it is given and never works on it, so the test decides how goals end.
 /// One executor spins both nodes on a background thread.
-class GatedActionServerTest : public ::testing::Test
+class ActiveOnlyActionServerTest : public ::testing::Test
 {
 protected:
   static void SetUpTestSuite()
@@ -59,7 +59,7 @@ protected:
   {
     node_ = std::make_shared<PlainNode>();
     peer_ = std::make_shared<rclcpp::Node>("peer_node");
-    server_ = std::make_shared<nodl_runtime_cpp::GatedActionServer<Fibonacci>>(
+    server_ = std::make_shared<nodl_runtime_cpp::ActiveOnlyActionServer<Fibonacci>>(
       node_,
       "fibonacci",
       [this](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal> goal) {
@@ -148,7 +148,7 @@ protected:
 
   std::shared_ptr<PlainNode> node_;
   std::shared_ptr<rclcpp::Node> peer_;
-  std::shared_ptr<nodl_runtime_cpp::GatedActionServer<Fibonacci>> server_;
+  std::shared_ptr<nodl_runtime_cpp::ActiveOnlyActionServer<Fibonacci>> server_;
   rclcpp_action::Client<Fibonacci>::SharedPtr client_;
   rclcpp::executors::SingleThreadedExecutor executor_;
   std::thread spinner_;
@@ -162,7 +162,7 @@ constexpr int8_t kSucceeded = static_cast<int8_t>(rclcpp_action::ResultCode::SUC
 constexpr int8_t kAborted = static_cast<int8_t>(rclcpp_action::ResultCode::ABORTED);
 constexpr int8_t kCanceled = static_cast<int8_t>(rclcpp_action::ResultCode::CANCELED);
 
-TEST_F(GatedActionServerTest, RejectsGoalsWhileInactiveAndAcceptsThemWhileActive)
+TEST_F(ActiveOnlyActionServerTest, RejectsGoalsWhileInactiveAndAcceptsThemWhileActive)
 {
   EXPECT_EQ(send(0).server, nullptr);
 
@@ -170,7 +170,7 @@ TEST_F(GatedActionServerTest, RejectsGoalsWhileInactiveAndAcceptsThemWhileActive
   EXPECT_NE(send(0).server, nullptr);
 }
 
-TEST_F(GatedActionServerTest, AbortsAnExecutingGoalOnDeactivate)
+TEST_F(ActiveOnlyActionServerTest, AbortsAnExecutingGoalOnDeactivate)
 {
   activate();
   auto sent = send(0);
@@ -182,7 +182,7 @@ TEST_F(GatedActionServerTest, AbortsAnExecutingGoalOnDeactivate)
   EXPECT_EQ(status_of(sent), kAborted);
 }
 
-TEST_F(GatedActionServerTest, AbortsADeferredGoalOnDeactivate)
+TEST_F(ActiveOnlyActionServerTest, AbortsADeferredGoalOnDeactivate)
 {
   activate();
   auto sent = send(kDefer);
@@ -194,7 +194,7 @@ TEST_F(GatedActionServerTest, AbortsADeferredGoalOnDeactivate)
   EXPECT_EQ(status_of(sent), kAborted);
 }
 
-TEST_F(GatedActionServerTest, CancelsACancelingGoalOnDeactivate)
+TEST_F(ActiveOnlyActionServerTest, CancelsACancelingGoalOnDeactivate)
 {
   activate();
   auto sent = send(0);
@@ -211,7 +211,7 @@ TEST_F(GatedActionServerTest, CancelsACancelingGoalOnDeactivate)
   EXPECT_EQ(status_of(sent), kCanceled);
 }
 
-TEST_F(GatedActionServerTest, LeavesAGoalThatSucceededBeforeDeactivation)
+TEST_F(ActiveOnlyActionServerTest, LeavesAGoalThatSucceededBeforeDeactivation)
 {
   activate();
   auto sent = send(0);
@@ -223,7 +223,7 @@ TEST_F(GatedActionServerTest, LeavesAGoalThatSucceededBeforeDeactivation)
   EXPECT_EQ(status_of(sent), kSucceeded);
 }
 
-TEST_F(GatedActionServerTest, ConcurrentSuccessDoesNotFailTheDeactivation)
+TEST_F(ActiveOnlyActionServerTest, ConcurrentSuccessDoesNotFailTheDeactivation)
 {
   for (int i = 0; i < 20; ++i) {
     activate();
@@ -250,7 +250,7 @@ TEST_F(GatedActionServerTest, ConcurrentSuccessDoesNotFailTheDeactivation)
   }
 }
 
-TEST_F(GatedActionServerTest, EndsAGoalAcceptedAfterDeactivationStarted)
+TEST_F(ActiveOnlyActionServerTest, EndsAGoalAcceptedAfterDeactivationStarted)
 {
   activate();
   // The goal callback runs on the executor thread, so the deactivation finishes before the accepted callback.
@@ -264,7 +264,7 @@ TEST_F(GatedActionServerTest, EndsAGoalAcceptedAfterDeactivationStarted)
   EXPECT_TRUE(handles_.empty());
 }
 
-TEST_F(GatedActionServerTest, AcceptsGoalsAgainAfterReactivation)
+TEST_F(ActiveOnlyActionServerTest, AcceptsGoalsAgainAfterReactivation)
 {
   activate();
   node_->deactivate();

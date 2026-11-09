@@ -6,7 +6,7 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 {
 
   // Create action servers
-  action_srv_fibonacci_ = std::make_shared<nodl_runtime_cpp::GatedActionServer<example_interfaces::action::Fibonacci>>(
+  action_srv_fibonacci_ = std::make_shared<nodl_runtime_cpp::ActiveOnlyActionServer<example_interfaces::action::Fibonacci>>(
     this,
     "fibonacci",
     [this](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const example_interfaces::action::Fibonacci::Goal> goal) {

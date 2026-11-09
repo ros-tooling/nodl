@@ -8,10 +8,10 @@
 #include "example_interfaces/action/fibonacci.hpp"
 #include "example_interfaces/msg/int32.hpp"
 #include "example_interfaces/srv/add_two_ints.hpp"
+#include "nodl_runtime_cpp/active_only_action_server.hpp"
 #include "nodl_runtime_cpp/active_only_client.hpp"
 #include "nodl_runtime_cpp/active_only_service.hpp"
 #include "nodl_runtime_cpp/active_only_subscription.hpp"
-#include "nodl_runtime_cpp/gated_action_server.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -109,7 +109,7 @@ private:
 using Fibonacci = example_interfaces::action::Fibonacci;
 using FibonacciGoalHandle = rclcpp_action::ServerGoalHandle<Fibonacci>;
 
-/// Example of a non-generated node that serves an action with `nodl_runtime_cpp::GatedActionServer`, only while active.
+/// Example of a non-generated node that serves an action with `nodl_runtime_cpp::ActiveOnlyActionServer`, only while active.
 /**
  * Goals end when the node deactivates.
  * The server is created by hand to keep the example self-contained, where a generated node creates its own.
@@ -119,7 +119,7 @@ class Counter : public nodl_runtime_cpp::LifecycleNode
 public:
   Counter()
   : nodl_runtime_cpp::LifecycleNode("counter")
-  , server_(std::make_shared<nodl_runtime_cpp::GatedActionServer<Fibonacci>>(
+  , server_(std::make_shared<nodl_runtime_cpp::ActiveOnlyActionServer<Fibonacci>>(
       this,
       "count",
       [](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal>) {
@@ -145,7 +145,7 @@ public:
   }
 
 private:
-  nodl_runtime_cpp::GatedActionServer<Fibonacci>::SharedPtr server_;
+  nodl_runtime_cpp::ActiveOnlyActionServer<Fibonacci>::SharedPtr server_;
 };
 
 int main(int argc, char ** argv)

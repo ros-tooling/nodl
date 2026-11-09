@@ -45,8 +45,8 @@ if(BUILD_TESTING)
     ${PROJECT_NAME}
     ${example_interfaces_TARGETS})
 
-  ament_add_gtest(test_gated_action_server test/test_gated_action_server.cpp TIMEOUT 60)
-  target_link_libraries(test_gated_action_server
+  ament_add_gtest(test_active_only_action_server test/test_active_only_action_server.cpp TIMEOUT 60)
+  target_link_libraries(test_active_only_action_server
     ${PROJECT_NAME}
     ${example_interfaces_TARGETS})
 

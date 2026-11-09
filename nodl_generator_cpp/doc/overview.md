@@ -414,7 +414,7 @@ It also declares service and action clients as wrappers that only send requests 
 The base class must expose the gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode` does.
 The generated constructor wraps each callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
 The service client members are `nodl_runtime_cpp::ActiveOnlyClient` and each action client as a `nodl_runtime_cpp::ActiveOnlyActionClient`, both held by `SharedPtr` as before.
-Each action server is a `nodl_runtime_cpp::GatedActionServer`, held by `SharedPtr` and registered with `add_managed_entity`.
+Each action server is a `nodl_runtime_cpp::ActiveOnlyActionServer`, held by `SharedPtr` and registered with `add_managed_entity`.
 The endpoints are still created in the constructor.
 Without `activation_gated`, the callbacks are registered unwrapped and the clients are the plain `rclcpp` clients.
 

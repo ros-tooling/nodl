@@ -31,11 +31,11 @@ namespace nodl_runtime_cpp
  * \tparam ActionT Action type.
  */
 template <typename ActionT>
-class GatedActionServer : public rclcpp_lifecycle::SimpleManagedEntity
+class ActiveOnlyActionServer : public rclcpp_lifecycle::SimpleManagedEntity
 {
 public:
   /// Shared pointer to the server, the type of a generated action server member.
-  using SharedPtr = std::shared_ptr<GatedActionServer>;
+  using SharedPtr = std::shared_ptr<ActiveOnlyActionServer>;
   /// Handle of an accepted goal.
   using GoalHandle = rclcpp_action::ServerGoalHandle<ActionT>;
   /// Decides whether a goal is accepted, as for `rclcpp_action::create_server`.
@@ -57,7 +57,7 @@ public:
    * \param[in] group Callback group of the server, or null for the default group.
    */
   template <typename NodeT>
-  GatedActionServer(
+  ActiveOnlyActionServer(
     NodeT node,
     const std::string & name,
     GoalCallback handle_goal,
@@ -88,8 +88,8 @@ public:
       std::move(group));
   }
 
-  GatedActionServer(const GatedActionServer &) = delete;
-  GatedActionServer & operator=(const GatedActionServer &) = delete;
+  ActiveOnlyActionServer(const ActiveOnlyActionServer &) = delete;
+  ActiveOnlyActionServer & operator=(const ActiveOnlyActionServer &) = delete;
 
   /// Become inactive, then end every recorded goal that is still active.
   void on_deactivate() override
