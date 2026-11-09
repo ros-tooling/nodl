@@ -7,7 +7,7 @@ set(my_node_base_NODL_SOURCES
 )
 set(my_node_base_ROS_DEPS
   geometry_msgs
-  rclcpp_lifecycle
+  nodl_runtime_cpp
   std_msgs
 )
 set(my_node_base_GENERATED_FILES

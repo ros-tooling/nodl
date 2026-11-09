@@ -1,0 +1,20 @@
+---
+# Lifecycle base class with a subscription and a service server.
+# The generated callbacks are gated on the base class's activation gate.
+
+nodl_version: 2
+
+include:
+  - ref: test://rclcpp_lifecycle_node
+
+subscriptions:
+  - name: cmd_vel
+    type: geometry_msgs/msg/Twist
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: BEST_EFFORT
+
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger

@@ -338,7 +338,7 @@ A NoDL document can carry a `codegen.cpp` field describing how it takes part in 
 
 | Role | Valid on | Fields | Meaning |
 |---|---|---|---|
-| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
+| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type`, `gated` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
 | `NO_GENERATE` | Included documents | none | The document has an existing implementation but does not provide the generated class's base. |
 | `NODE` | The root document | `namespace` (optional) | The document is the one being generated. |
 
@@ -401,9 +401,18 @@ codegen:
     class: nodl_runtime_cpp::LifecycleNode
     header: nodl_runtime_cpp/lifecycle_node.hpp
     publisher_type: rclcpp_lifecycle::LifecyclePublisher
+    gated: true
 ```
 
 The generated class declares each publisher as `<publisher_type><MessageT>::SharedPtr`.
+
+### Gated base class
+
+`BASE_CLASS` accepts an optional boolean `gated`, which defaults to false.
+It states that the base class is a NoDL runtime lifecycle base that exposes its activation gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode`.
+With `gated`, the generated constructor wraps each subscription and service server callback with `nodl_runtime_cpp::gate_subscription_callback` and `nodl_runtime_cpp::create_gated_service`, which take `gate()`.
+The endpoints are still created in the constructor.
+Without `gated`, the callbacks are registered unwrapped.
 
 ### Lifecycle nodes
 
@@ -412,6 +421,15 @@ That base class implements and seals the transition callbacks (`on_configure`, `
 The authored subclass defines the hook that matches the transition, not a transition callback: `handle_configure`, `handle_activate`, `handle_deactivate`, `handle_cleanup`, `handle_shutdown` or `handle_error`.
 Each takes the previous state and returns a `CallbackReturn`, and defaults to SUCCESS.
 The base class activates and deactivates the generated lifecycle publishers on every path, so a hook never has to.
+It also gates the generated subscriptions and service servers on its activation gate, which opens in the standard activation, before `handle_activate`, and closes in the standard deactivation:
+
+| Endpoint | While the node is not active |
+|---|---|
+| Subscription | The message is dropped and `on_<name>` is not called. |
+| Service server | The request is dropped and `on_<name>` is not called, and no response is sent, so the client's request never completes. |
+
+With a multithreaded executor, these callbacks can run while `handle_activate` is still executing.
+State they need must be ready by the end of `handle_configure`.
 See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
 
 ```cpp
@@ -431,6 +449,10 @@ protected:
 Earlier versions derived `rclcpp_lifecycle::LifecycleNode` directly, and an author's `on_activate` had to call the base class's implementation to activate the publishers.
 An authored class that defines `on_activate` or the other transition callbacks no longer compiles, because the runtime base class seals them with `final`.
 Move the logic into the matching `handle_*` hook, and drop the call to the base class's implementation.
+
+Subscriptions and service servers of a lifecycle node used to deliver in every state.
+They now deliver only while the node is active, so remove any `is_activated()` checks in their callbacks.
+A node that relied on receiving messages or serving requests while unconfigured or inactive must do that work elsewhere.
 
 ### Namespace
 

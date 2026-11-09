@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <type_traits>
 
+#include "geometry_msgs/msg/twist.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include "test_nodl_generators/cpp_lifecycle_node_base.hpp"
 
 namespace
@@ -15,7 +18,7 @@ namespace
 
 using std::chrono_literals::operator""ms;
 
-/// Implements only what the generated base requires, and publishes from `handle_activate`.
+/// Implements only what the generated base requires, publishes from `handle_activate`, and counts its callbacks.
 class TestNode : public CppLifecycleNodeBase
 {
   static_assert(
@@ -43,7 +46,19 @@ protected:
   }
 
   void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr /*msg*/) override
-  {}
+  {
+    ++cmd_vel_count;
+  }
+
+  void on_trigger(
+    std_srvs::srv::Trigger::Request::SharedPtr, std_srvs::srv::Trigger::Response::SharedPtr response) override
+  {
+    response->success = true;
+    response->message = "served";
+  }
+
+public:
+  std::atomic<int> cmd_vel_count{0};
 };
 
 class GeneratedLifecycleNode : public ::testing::Test
@@ -85,9 +100,42 @@ protected:
     }
   }
 
+  /// Waits until the command subscription and the service are matched with the peer.
+  void wait_for_endpoints()
+  {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while ((0 == publisher_->get_subscription_count() || !client_->service_is_ready()) &&
+           std::chrono::steady_clock::now() < deadline)
+    {
+      executor_.spin_some(10ms);
+    }
+  }
+
+  /// Whether the subscription delivers a message published now.
+  bool subscription_delivers()
+  {
+    const auto before = node_->cmd_vel_count.load();
+    publisher_->publish(geometry_msgs::msg::Twist{});
+    const auto deadline = std::chrono::steady_clock::now() + 500ms;
+    while (node_->cmd_vel_count.load() == before && std::chrono::steady_clock::now() < deadline) {
+      executor_.spin_some(10ms);
+    }
+    return node_->cmd_vel_count.load() > before;
+  }
+
+  /// Whether the service answers a request sent now.
+  bool service_responds()
+  {
+    auto future = client_->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>());
+    return rclcpp::FutureReturnCode::SUCCESS == executor_.spin_until_future_complete(future, 500ms);
+  }
+
   std::shared_ptr<TestNode> node_ = std::make_shared<TestNode>();
   std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_ =
+    peer_->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", rclcpp::QoS(1).best_effort());
+  rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr client_ = peer_->create_client<std_srvs::srv::Trigger>("trigger");
   rclcpp::executors::SingleThreadedExecutor executor_;
   int received_ = 0;
 };
@@ -113,6 +161,30 @@ TEST_F(GeneratedLifecycleNode, PublishesOnlyWhileActive)
   node_->publish_status();
   spin_until_received(3, 300ms);
   EXPECT_EQ(received_, 2);
+}
+
+TEST_F(GeneratedLifecycleNode, DeliversSubscriptionsAndServesRequestsOnlyWhileActive)
+{
+  wait_for_endpoints();
+
+  // Unconfigured
+  EXPECT_FALSE(subscription_delivers());
+  EXPECT_FALSE(service_responds());
+
+  // Inactive
+  node_->configure();
+  EXPECT_FALSE(subscription_delivers());
+  EXPECT_FALSE(service_responds());
+
+  // Active
+  node_->activate();
+  EXPECT_TRUE(subscription_delivers());
+  EXPECT_TRUE(service_responds());
+
+  // Inactive again
+  node_->deactivate();
+  EXPECT_FALSE(subscription_delivers());
+  EXPECT_FALSE(service_responds());
 }
 
 }  // namespace

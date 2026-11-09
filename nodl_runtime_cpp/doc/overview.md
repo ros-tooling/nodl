@@ -50,6 +50,37 @@ Generated nodes derive the same class, so an authored subclass of a generated no
 ```{literalinclude} examples/lifecycle_node.cpp
 :language: cpp
 :start-at: /// Example of a non-generated
+:end-before: using AddTwoInts
+```
+
+The example is compiled as part of the package tests.
+
+## Gated entities
+
+A lifecycle node delivers subscription and service callbacks in every state.
+The helpers here gate one entity on the node's activation gate, so it only works while the node is active.
+The entity itself is created in the constructor, as usual.
+
+`nodl_runtime_cpp::LifecycleNode` owns the gate, a `nodl_runtime_cpp::Gate`, which is an alias of `rclcpp_lifecycle::SimpleManagedEntity`.
+It registers the gate with `add_managed_entity`, so the standard activation opens it, before `handle_activate` runs, and the standard deactivation closes it, together with every lifecycle publisher.
+Subclasses read it through the protected `gate()`, which returns a read-only `GatePtr`.
+The helpers take the gate, not the node, so they also work with a gate that a hand-written `rclcpp_lifecycle::LifecycleNode` registers itself.
+
+| Entity | Helper | While the gate is closed |
+|---|---|---|
+| Subscription | `gate_subscription_callback` | The message is dropped and the callback is not called. |
+| Service server | `create_gated_service` | The request is dropped and no response is sent, so the client's request never completes. |
+
+With a multithreaded executor, callbacks can run while `handle_activate` is still executing, because the gate is already open.
+State that they need must be ready by the end of `handle_configure`.
+
+### Gated example
+
+A node that doubles the numbers it receives and adds numbers on request, but only while active:
+
+```{literalinclude} examples/lifecycle_node.cpp
+:language: cpp
+:start-at: using AddTwoInts
 :end-before: int main
 ```
 

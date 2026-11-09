@@ -1,5 +1,5 @@
 ---
-# LifecycleNode base class with publishers and subscriptions.
+# LifecycleNode base class with a publisher, a subscription and a service server.
 
 nodl_version: 2
 
@@ -21,3 +21,7 @@ subscriptions:
       history: KEEP_LAST
       depth: 1
       reliability: BEST_EFFORT
+
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger

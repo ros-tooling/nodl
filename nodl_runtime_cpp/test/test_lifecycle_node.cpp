@@ -39,12 +39,19 @@ public:
   std::vector<std::string> calls;
   /// Whether the publisher was active when each hook was called.
   std::vector<bool> publisher_active_in_hook;
+  /// Whether the gate was open when each hook was called.
+  std::vector<bool> gate_open_in_hook;
   Outcome activate_outcome = Outcome::SUCCESS;
   Outcome deactivate_outcome = Outcome::SUCCESS;
 
   bool publisher_active() const
   {
     return publisher_->is_activated();
+  }
+
+  bool gate_open() const
+  {
+    return gate()->is_activated();
   }
 
   uint8_t state_id()
@@ -88,6 +95,7 @@ private:
   {
     calls.push_back(name);
     publisher_active_in_hook.push_back(publisher_->is_activated());
+    gate_open_in_hook.push_back(gate()->is_activated());
     switch (outcome) {
       case Outcome::FAILURE:
         return CallbackReturn::FAILURE;
@@ -151,6 +159,45 @@ TEST_F(LifecycleNodeTest, PublisherIsActiveDuringActivateAndAfter)
   EXPECT_TRUE(node_->publisher_active());
   // configure, activate
   EXPECT_EQ(node_->publisher_active_in_hook, (std::vector<bool>{false, true}));
+}
+
+TEST_F(LifecycleNodeTest, GateIsOpenDuringActivateAndClosedOtherwise)
+{
+  EXPECT_FALSE(node_->gate_open());
+  node_->configure();
+  EXPECT_FALSE(node_->gate_open());
+
+  node_->activate();
+  EXPECT_TRUE(node_->gate_open());
+
+  node_->deactivate();
+  EXPECT_FALSE(node_->gate_open());
+  // configure, activate, deactivate
+  EXPECT_EQ(node_->gate_open_in_hook, (std::vector<bool>{false, true, true}));
+}
+
+TEST_F(LifecycleNodeTest, GateClosesWhenActivateFails)
+{
+  node_->activate_outcome = Outcome::FAILURE;
+  node_->configure();
+
+  node_->activate();
+
+  EXPECT_FALSE(node_->gate_open());
+  // configure, activate
+  EXPECT_EQ(node_->gate_open_in_hook, (std::vector<bool>{false, true}));
+}
+
+TEST_F(LifecycleNodeTest, GateClosesOnShutdownFromActive)
+{
+  node_->configure();
+  node_->activate();
+
+  node_->shutdown();
+
+  EXPECT_FALSE(node_->gate_open());
+  // configure, activate, shutdown
+  EXPECT_EQ(node_->gate_open_in_hook, (std::vector<bool>{false, true, false}));
 }
 
 TEST_F(LifecycleNodeTest, DeactivateRunsHookBeforePublisherDeactivates)

@@ -45,6 +45,14 @@ definitions:
         type: string
         pattern: ^[A-Za-z_][A-Za-z0-9_:]*$
         default: rclcpp::Publisher
+      gated:
+        description: |
+          Whether the base class is a NoDL runtime lifecycle base that exposes the activation gate
+          as a protected ``gate()`` member (e.g. ``nodl_runtime_cpp::LifecycleNode``).
+          When set, the generated class wraps subscription and service server callbacks,
+          so they run only while the node is active.
+        type: boolean
+        default: false
 
   codegen_no_generate:
     description: |
