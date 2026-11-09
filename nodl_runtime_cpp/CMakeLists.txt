@@ -38,8 +38,8 @@ if(BUILD_TESTING)
     ${lifecycle_msgs_TARGETS}
     ${std_msgs_TARGETS})
 
-  ament_add_gtest(test_gated_entities test/test_gated_entities.cpp TIMEOUT 60)
-  target_link_libraries(test_gated_entities
+  ament_add_gtest(test_active_only_entities test/test_active_only_entities.cpp TIMEOUT 60)
+  target_link_libraries(test_active_only_entities
     ${PROJECT_NAME}
     ${example_interfaces_TARGETS})
 

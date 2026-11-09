@@ -22,7 +22,7 @@ namespace nodl_runtime_cpp
  * \return A callback of the `std::shared_ptr<const MessageT>` form.
  */
 template <typename MessageT>
-std::function<void(std::shared_ptr<const MessageT>)> gate_subscription_callback(
+std::function<void(std::shared_ptr<const MessageT>)> active_only_subscription_callback(
   GatePtr gate, std::function<void(std::shared_ptr<const MessageT>)> callback)
 {
   return [gate = std::move(gate), callback = std::move(callback)](std::shared_ptr<const MessageT> message) {

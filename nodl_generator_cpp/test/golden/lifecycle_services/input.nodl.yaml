@@ -1,6 +1,6 @@
 ---
 # Lifecycle base class with a subscription and a service server.
-# The generated callbacks are gated on the base class's activation gate.
+# The generated callbacks run only while the node is active.
 
 nodl_version: 2
 

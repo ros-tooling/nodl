@@ -6,8 +6,8 @@
 
 #include "example_interfaces/msg/int32.hpp"
 #include "example_interfaces/srv/add_two_ints.hpp"
-#include "nodl_runtime_cpp/gated_service.hpp"
-#include "nodl_runtime_cpp/gated_subscription.hpp"
+#include "nodl_runtime_cpp/active_only_service.hpp"
+#include "nodl_runtime_cpp/active_only_subscription.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
@@ -63,14 +63,14 @@ public:
     subscription_ = create_subscription<Int32>(
       "numbers",
       10,
-      nodl_runtime_cpp::gate_subscription_callback<Int32>(gate(), [this](std::shared_ptr<const Int32> message) {
+      nodl_runtime_cpp::active_only_subscription_callback<Int32>(gate(), [this](std::shared_ptr<const Int32> message) {
         Int32 doubled;
         doubled.data = 2 * message->data;
         publisher_->publish(doubled);
       }));
 
     // A request that arrives while the gate is closed gets no response.
-    service_ = nodl_runtime_cpp::create_gated_service<AddTwoInts>(
+    service_ = nodl_runtime_cpp::create_active_only_service<AddTwoInts>(
       *this,
       gate(),
       "add",

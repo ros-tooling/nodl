@@ -13,7 +13,7 @@ codegen:
     class: nodl_runtime_cpp::LifecycleNode
     header: nodl_runtime_cpp/lifecycle_node.hpp
     publisher_type: rclcpp_lifecycle::LifecyclePublisher
-    gated: true
+    activation_gated: true
 
 include:
   - ref: test://rclcpp_node

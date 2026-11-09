@@ -55,10 +55,10 @@ Generated nodes derive the same class, so an authored subclass of a generated no
 
 The example is compiled as part of the package tests.
 
-### Gated entities
+### Active-only entities
 
 A lifecycle node can deliver subscription messages and serve requests only while it is active.
-`gate_subscription_callback` and `create_gated_service` gate one entity each on the node's activation gate.
+`active_only_subscription_callback` and `create_active_only_service` gate one entity each on the node's activation gate.
 The entity is still created in the constructor, as usual.
 
 `nodl_runtime_cpp::LifecycleNode` owns the gate, a `nodl_runtime_cpp::Gate`, which is an alias of `rclcpp_lifecycle::SimpleManagedEntity`.
@@ -68,18 +68,18 @@ The helpers take the gate, not the node, so they also work with a gate that a no
 
 | Entity | Helper | While the gate is closed |
 |---|---|---|
-| Subscription | `gate_subscription_callback` | The message is dropped and the callback is not called. |
-| Service server | `create_gated_service` | The request is dropped and no response is sent, so the client's request never completes. |
+| Subscription | `active_only_subscription_callback` | The message is dropped and the callback is not called. |
+| Service server | `create_active_only_service` | The request is dropped and no response is sent, so the client's request never completes. |
 
 With a multithreaded executor, callbacks can run while `handle_activate` is still executing, because the gate is already open.
 State that they need must be ready by the end of `handle_configure`.
-A callback that throws propagates out of the executor, and a gated service leaves that request unanswered.
+A callback that throws propagates out of the executor, and an active-only service leaves that request unanswered.
 
-#### Gated example
+#### Active-only example
 
 This example shows a hand-written (non-generated) node using the gate of `nodl_runtime_cpp::LifecycleNode` to gate a subscription and a service server.
 It doubles the numbers it receives and adds numbers on request, but only while active.
-Generated nodes with a `gated` base class wrap their callbacks the same way.
+Generated nodes with an `activation_gated` base class wrap their callbacks the same way.
 
 ```{literalinclude} examples/lifecycle_node.cpp
 :language: cpp
@@ -94,5 +94,5 @@ The example is compiled as part of the package tests.
 `rclcpp_lifecycle::LifecycleNode` activates its lifecycle publishers and other managed entities in its default `on_activate`, and deactivates them in `on_deactivate`.
 A subclass that overrides those callbacks without calling the base class leaves them inactive.
 Sealing the transition callbacks and offering hooks instead makes that standard behavior impossible to skip.
-Gated entities add the same guarantee for subscriptions and services.
+Active-only entities add the same guarantee for subscriptions and services.
 Without a gate, their callbacks run in every lifecycle state, so each callback would have to check the node state itself.

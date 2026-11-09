@@ -16,7 +16,7 @@ namespace nodl_runtime_cpp
  */
 using Gate = rclcpp_lifecycle::SimpleManagedEntity;
 
-/// Read-only shared handle to a gate, held by every gated entity.
+/// Read-only shared handle to a gate, held by every active-only entity.
 using GatePtr = std::shared_ptr<const Gate>;
 
 }  // namespace nodl_runtime_cpp

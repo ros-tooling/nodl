@@ -1,11 +1,11 @@
 {% set has_entities = publishers or subscriptions or service_servers or service_clients or action_servers or action_clients or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
-{% if gated and subscriptions %}
-#include <nodl_runtime_cpp/gated_subscription.hpp>
+{% if activation_gated and subscriptions %}
+#include <nodl_runtime_cpp/active_only_subscription.hpp>
 {% endif %}
-{% if gated and service_servers %}
-#include <nodl_runtime_cpp/gated_service.hpp>
+{% if activation_gated and service_servers %}
+#include <nodl_runtime_cpp/active_only_service.hpp>
 {% endif %}
 
 {% if namespace %}
@@ -31,11 +31,11 @@ namespace {{ namespace }}
 
   // Create subscriptions
 {% for sub in subscriptions %}
-{% if gated %}
+{% if activation_gated %}
   {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
     "{{ sub.name }}",
     {{ sub.qos }},
-    nodl_runtime_cpp::gate_subscription_callback<{{ sub.cpp_type }}>(
+    nodl_runtime_cpp::active_only_subscription_callback<{{ sub.cpp_type }}>(
       this->gate(),
       [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
         this->{{ sub.callback }}(msg);
@@ -54,8 +54,8 @@ namespace {{ namespace }}
 
   // Create service servers
 {% for srv in service_servers %}
-{% if gated %}
-  {{ srv.member }} = nodl_runtime_cpp::create_gated_service<{{ srv.cpp_type }}>(
+{% if activation_gated %}
+  {{ srv.member }} = nodl_runtime_cpp::create_active_only_service<{{ srv.cpp_type }}>(
     *this,
     this->gate(),
     "{{ srv.name }}",

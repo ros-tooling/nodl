@@ -338,7 +338,7 @@ A NoDL document can carry a `codegen.cpp` field describing how it takes part in 
 
 | Role | Valid on | Fields | Meaning |
 |---|---|---|---|
-| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type`, `gated` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
+| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type`, `activation_gated` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
 | `NO_GENERATE` | Included documents | none | The document has an existing implementation but does not provide the generated class's base. |
 | `NODE` | The root document | `namespace` (optional) | The document is the one being generated. |
 
@@ -401,18 +401,18 @@ codegen:
     class: nodl_runtime_cpp::LifecycleNode
     header: nodl_runtime_cpp/lifecycle_node.hpp
     publisher_type: rclcpp_lifecycle::LifecyclePublisher
-    gated: true
+    activation_gated: true
 ```
 
 The generated class declares each publisher as `<publisher_type><MessageT>::SharedPtr`.
 
-### Gated base class
+### The `activation_gated` field
 
-`BASE_CLASS` accepts an optional boolean `gated`, which defaults to false.
+`BASE_CLASS` accepts an optional boolean `activation_gated`, which defaults to false.
 It states that the base class is a NoDL runtime lifecycle base that exposes its activation gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode`.
-With `gated`, the generated constructor wraps each subscription and service server callback with `nodl_runtime_cpp::gate_subscription_callback` and `nodl_runtime_cpp::create_gated_service`, which take `gate()`.
+With `activation_gated`, the generated constructor wraps each subscription and service server callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
 The endpoints are still created in the constructor.
-Without `gated`, the callbacks are registered unwrapped.
+Without `activation_gated`, the callbacks are registered unwrapped.
 
 ### Lifecycle nodes
 

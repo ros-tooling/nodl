@@ -56,7 +56,7 @@ private:
  * \return The service, which the caller keeps alive.
  */
 template <typename ServiceT, typename NodeT, typename... Args>
-typename rclcpp::Service<ServiceT>::SharedPtr create_gated_service(
+typename rclcpp::Service<ServiceT>::SharedPtr create_active_only_service(
   NodeT & node,
   GatePtr gate,
   const std::string & service_name,
