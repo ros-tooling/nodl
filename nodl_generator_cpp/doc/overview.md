@@ -412,7 +412,7 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 If the node is a lifecycle node, it makes the generated base class wrap subscription and service server callbacks behind the activation gate, so they only trigger callbacks when the node is active.
 The base class must expose the gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode` does.
 The generated constructor wraps each callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
-It also declares each service client as a `nodl_runtime_cpp::GatedClient` and each action client as a `nodl_runtime_cpp::GatedActionClient`, both held by `SharedPtr` as before.
+It also declares each service client as a `nodl_runtime_cpp::ActiveOnlyClient` and each action client as a `nodl_runtime_cpp::ActiveOnlyActionClient`, both held by `SharedPtr` as before.
 The endpoints are still created in the constructor.
 Without `activation_gated`, the callbacks are registered unwrapped and the clients are the plain `rclcpp` clients.
 

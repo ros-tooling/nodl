@@ -5,8 +5,8 @@
 
 #include <example_interfaces/srv/add_two_ints.hpp>
 #include <nav2_msgs/action/navigate_to_pose.hpp>
-#include <nodl_runtime_cpp/gated_action_client.hpp>
-#include <nodl_runtime_cpp/gated_client.hpp>
+#include <nodl_runtime_cpp/active_only_action_client.hpp>
+#include <nodl_runtime_cpp/active_only_client.hpp>
 #include <nodl_runtime_cpp/lifecycle_node.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 
@@ -20,8 +20,8 @@ public:
 protected:
 
   // --- Service clients ---
-  nodl_runtime_cpp::GatedClient<example_interfaces::srv::AddTwoInts>::SharedPtr cli_add_;
+  nodl_runtime_cpp::ActiveOnlyClient<example_interfaces::srv::AddTwoInts>::SharedPtr cli_add_;
 
   // --- Action clients ---
-  nodl_runtime_cpp::GatedActionClient<nav2_msgs::action::NavigateToPose>::SharedPtr action_cli_navigate_;
+  nodl_runtime_cpp::ActiveOnlyActionClient<nav2_msgs::action::NavigateToPose>::SharedPtr action_cli_navigate_;
 };

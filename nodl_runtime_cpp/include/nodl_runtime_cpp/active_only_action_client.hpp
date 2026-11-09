@@ -15,20 +15,20 @@ namespace nodl_runtime_cpp
 /// An action client whose `async_send_goal` throws `InactiveError` while the gate is closed.
 /**
  * The other methods forward to the wrapped client, and `client()` returns it.
- * See the `nodl_runtime_cpp` overview for what is gated.
+ * See the `nodl_runtime_cpp` overview for what stays available while the gate is closed.
  *
  * \tparam ActionT Action type.
  */
 template <typename ActionT>
-class GatedActionClient
+class ActiveOnlyActionClient
 {
 public:
   /// Shared pointer to the wrapper, the type of a generated client member.
-  using SharedPtr = std::shared_ptr<GatedActionClient>;
+  using SharedPtr = std::shared_ptr<ActiveOnlyActionClient>;
 
   /// \param[in] gate The activation gate, shared with the node.
   /// \param[in] client The client to guard, usually from `rclcpp_action::create_client`.
-  GatedActionClient(GatePtr gate, typename rclcpp_action::Client<ActionT>::SharedPtr client)
+  ActiveOnlyActionClient(GatePtr gate, typename rclcpp_action::Client<ActionT>::SharedPtr client)
   : gate_(std::move(gate))
   , client_(std::move(client))
   {}
@@ -50,20 +50,20 @@ public:
   }
 
   /// Wait for the action server, as `rclcpp_action::ClientBase::wait_for_action_server`.
-  /// Not gated.
+  /// Always allowed.
   template <typename RepT = int64_t, typename RatioT = std::milli>
   bool wait_for_action_server(std::chrono::duration<RepT, RatioT> timeout = std::chrono::duration<RepT, RatioT>(-1))
   {
     return client_->wait_for_action_server(timeout);
   }
 
-  /// Whether the action server is available. Not gated.
+  /// Whether the action server is available. Always allowed.
   bool action_server_is_ready() const
   {
     return client_->action_server_is_ready();
   }
 
-  /// The guarded client, for cancel and result requests that are not gated.
+  /// The guarded client, for cancel and result requests that are always allowed.
   const typename rclcpp_action::Client<ActionT>::SharedPtr & client() const
   {
     return client_;

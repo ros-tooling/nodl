@@ -56,7 +56,7 @@ public:
 protected:
   CallbackReturn handle_configure(const rclcpp_lifecycle::State &) override
   {
-    // Waiting is not gated, sending is.
+    // Waiting is allowed, sending is not.
     waiting_in_configure_threw = false;
     try {
       cli_add_->wait_for_service(0ms);

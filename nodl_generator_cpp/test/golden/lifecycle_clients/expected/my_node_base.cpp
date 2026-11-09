@@ -6,12 +6,12 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 {
 
   // Create service clients
-  cli_add_ = std::make_shared<nodl_runtime_cpp::GatedClient<example_interfaces::srv::AddTwoInts>>(
+  cli_add_ = std::make_shared<nodl_runtime_cpp::ActiveOnlyClient<example_interfaces::srv::AddTwoInts>>(
     this->gate(),
     this->create_client<example_interfaces::srv::AddTwoInts>("add"));
 
   // Create action clients
-  action_cli_navigate_ = std::make_shared<nodl_runtime_cpp::GatedActionClient<nav2_msgs::action::NavigateToPose>>(
+  action_cli_navigate_ = std::make_shared<nodl_runtime_cpp::ActiveOnlyActionClient<nav2_msgs::action::NavigateToPose>>(
     this->gate(),
     rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(this, "navigate"));
 }

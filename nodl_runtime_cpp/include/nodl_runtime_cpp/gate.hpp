@@ -21,7 +21,7 @@ using Gate = rclcpp_lifecycle::SimpleManagedEntity;
 /// Read-only shared handle to a gate, held by every active-only entity.
 using GatePtr = std::shared_ptr<const Gate>;
 
-/// Thrown by a gated client when a request is sent while the gate is closed.
+/// Thrown by an active-only client when a request is sent while the gate is closed.
 class InactiveError : public std::runtime_error
 {
 public:

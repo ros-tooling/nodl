@@ -11,8 +11,8 @@
 #include "example_interfaces/action/fibonacci.hpp"
 #include "example_interfaces/msg/int32.hpp"
 #include "example_interfaces/srv/add_two_ints.hpp"
-#include "nodl_runtime_cpp/gated_action_client.hpp"
-#include "nodl_runtime_cpp/gated_client.hpp"
+#include "nodl_runtime_cpp/active_only_action_client.hpp"
+#include "nodl_runtime_cpp/active_only_client.hpp"
 #include "nodl_runtime_cpp/active_only_service.hpp"
 #include "nodl_runtime_cpp/active_only_subscription.hpp"
 #include "nodl_runtime_cpp/lifecycle_node.hpp"
@@ -182,13 +182,13 @@ TEST_F(ActiveOnlyEntities, ThrowingServiceCallbackLeavesRequestUnanswered)
   EXPECT_EQ(request.future.wait_for(300ms), std::future_status::timeout);
 }
 
-TEST_F(GatedEntities, ServiceClientSendThrowsWhileClosed)
+TEST_F(ActiveOnlyEntities, ServiceClientSendThrowsWhileClosed)
 {
   auto service = peer_->create_service<AddTwoInts>(
     "add", [](std::shared_ptr<AddTwoInts::Request> request, std::shared_ptr<AddTwoInts::Response> response) {
       response->sum = request->a + request->b;
     });
-  nodl_runtime_cpp::GatedClient<AddTwoInts> client(gate_, node_->create_client<AddTwoInts>("add"));
+  nodl_runtime_cpp::ActiveOnlyClient<AddTwoInts> client(gate_, node_->create_client<AddTwoInts>("add"));
   ASSERT_TRUE(client.wait_for_service(5s));
   auto request = std::make_shared<AddTwoInts::Request>();
   request->a = 4;
@@ -202,26 +202,26 @@ TEST_F(GatedEntities, ServiceClientSendThrowsWhileClosed)
   EXPECT_EQ(sent.future.get()->sum, 9);
 }
 
-TEST_F(GatedEntities, WaitingForServiceIsNotGated)
+TEST_F(ActiveOnlyEntities, WaitingForServiceIsNotRefused)
 {
   auto service = peer_->create_service<AddTwoInts>(
     "add", [](std::shared_ptr<AddTwoInts::Request>, std::shared_ptr<AddTwoInts::Response>) {});
-  nodl_runtime_cpp::GatedClient<AddTwoInts> client(gate_, node_->create_client<AddTwoInts>("add"));
+  nodl_runtime_cpp::ActiveOnlyClient<AddTwoInts> client(gate_, node_->create_client<AddTwoInts>("add"));
 
   EXPECT_TRUE(client.wait_for_service(5s));
   EXPECT_TRUE(client.service_is_ready());
 }
 
-TEST_F(GatedEntities, ClientsExposeTheWrappedClient)
+TEST_F(ActiveOnlyEntities, ClientsExposeTheWrappedClient)
 {
   auto service_client = node_->create_client<AddTwoInts>("add");
   auto action_client = rclcpp_action::create_client<Fibonacci>(node_, "fibonacci");
 
-  EXPECT_EQ(nodl_runtime_cpp::GatedClient<AddTwoInts>(gate_, service_client).client(), service_client);
-  EXPECT_EQ(nodl_runtime_cpp::GatedActionClient<Fibonacci>(gate_, action_client).client(), action_client);
+  EXPECT_EQ(nodl_runtime_cpp::ActiveOnlyClient<AddTwoInts>(gate_, service_client).client(), service_client);
+  EXPECT_EQ(nodl_runtime_cpp::ActiveOnlyActionClient<Fibonacci>(gate_, action_client).client(), action_client);
 }
 
-TEST_F(GatedEntities, ActionClientSendThrowsWhileClosed)
+TEST_F(ActiveOnlyEntities, ActionClientSendThrowsWhileClosed)
 {
   auto server = rclcpp_action::create_server<Fibonacci>(
     peer_,
@@ -233,7 +233,7 @@ TEST_F(GatedEntities, ActionClientSendThrowsWhileClosed)
     [](std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>> goal_handle) {
       goal_handle->succeed(std::make_shared<Fibonacci::Result>());
     });
-  nodl_runtime_cpp::GatedActionClient<Fibonacci> client(
+  nodl_runtime_cpp::ActiveOnlyActionClient<Fibonacci> client(
     gate_, rclcpp_action::create_client<Fibonacci>(node_, "fibonacci"));
   ASSERT_TRUE(client.wait_for_action_server(5s));
   EXPECT_TRUE(client.action_server_is_ready());

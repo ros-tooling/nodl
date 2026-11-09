@@ -6,7 +6,7 @@
 
 #include "example_interfaces/msg/int32.hpp"
 #include "example_interfaces/srv/add_two_ints.hpp"
-#include "nodl_runtime_cpp/gated_client.hpp"
+#include "nodl_runtime_cpp/active_only_client.hpp"
 #include "nodl_runtime_cpp/active_only_service.hpp"
 #include "nodl_runtime_cpp/active_only_subscription.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -81,7 +81,7 @@ public:
 
     // Sending throws nodl_runtime_cpp::InactiveError until the gate is open.
     client_ =
-      std::make_shared<nodl_runtime_cpp::GatedClient<AddTwoInts>>(gate(), create_client<AddTwoInts>("remote_add"));
+      std::make_shared<nodl_runtime_cpp::ActiveOnlyClient<AddTwoInts>>(gate(), create_client<AddTwoInts>("remote_add"));
   }
 
 protected:
@@ -99,7 +99,7 @@ private:
   rclcpp_lifecycle::LifecyclePublisher<Int32>::SharedPtr publisher_;
   rclcpp::Subscription<Int32>::SharedPtr subscription_;
   rclcpp::Service<AddTwoInts>::SharedPtr service_;
-  nodl_runtime_cpp::GatedClient<AddTwoInts>::SharedPtr client_;
+  nodl_runtime_cpp::ActiveOnlyClient<AddTwoInts>::SharedPtr client_;
 };
 
 int main(int argc, char ** argv)

@@ -70,7 +70,7 @@ protected:
   // --- Service clients ---
 {% for cli in service_clients %}
 {% if activation_gated %}
-  nodl_runtime_cpp::GatedClient<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
+  nodl_runtime_cpp::ActiveOnlyClient<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
 {% else %}
   rclcpp::Client<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
 {% endif %}
@@ -81,7 +81,7 @@ protected:
   // --- Action clients ---
 {% for cli in action_clients %}
 {% if activation_gated %}
-  nodl_runtime_cpp::GatedActionClient<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
+  nodl_runtime_cpp::ActiveOnlyActionClient<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
 {% else %}
   rclcpp_action::Client<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
 {% endif %}
