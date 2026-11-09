@@ -17,7 +17,7 @@ from rclpy.task import Future
 
 
 class InactiveError(RuntimeError):
-    """Raised when a request is sent through a gated client while its gate is closed."""
+    """Raised when a request or goal is sent through a gated client while its gate is closed."""
 
 
 class _Dropped:
@@ -102,10 +102,9 @@ def create_active_only_service(
 
 
 class GatedClient:
-    """A service client that raises ``InactiveError`` instead of sending a request while its gate is closed.
+    """A service client whose ``call_async`` raises ``InactiveError`` while its gate is closed.
 
-    Waiting for the service, readiness checks, and responses to requests already sent are not gated.
-    A request that is dropped silently returns a future that never completes, so sending raises instead.
+    The ``client`` property returns the wrapped client, see the ``nodl_runtime_py`` overview.
     """
 
     def __init__(self, gate: SimpleManagedEntity, client: Client) -> None:
@@ -147,11 +146,9 @@ class GatedClient:
 
 
 class GatedActionClient:
-    """An action client that raises ``InactiveError`` instead of sending a goal while its gate is closed.
+    """An action client whose ``send_goal_async`` raises ``InactiveError`` while its gate is closed.
 
-    Waiting for the server, readiness checks, and cancel and result requests of goals already sent are not gated.
-    Those go through the goal handle that ``send_goal_async`` returns.
-    A goal that is dropped silently returns a future that never completes, so sending raises instead.
+    The ``client`` property returns the wrapped client, see the ``nodl_runtime_py`` overview.
     """
 
     def __init__(self, gate: SimpleManagedEntity, client: ActionClient) -> None:

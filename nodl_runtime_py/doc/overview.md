@@ -148,7 +148,8 @@ Any node that owns a gate can use them, as in this example of a hand-written (no
 ```
 
 The client wrappers expose the send method, the wait and ready methods, and a read-only `client` property that returns the wrapped `rclpy` client.
-Waiting for a service or server, readiness checks, and the goal handle of a goal already sent are not gated, nor are the responses to requests already sent.
+Only sending is gated.
+Waiting for a service or server, readiness checks, the goal handle of a goal already sent, and the responses to requests already sent work in any state.
 Use `client` for anything else, such as `ActionClient.destroy` or `Node.destroy_client`.
 
 The gate opens before `handle_activate`, so that hook can call gated clients.
