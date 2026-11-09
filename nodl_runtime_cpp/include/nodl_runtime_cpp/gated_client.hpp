@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 // SPDX-License-Identifier: Apache-2.0
-#ifndef NODL_RUNTIME_CPP__GATED_CLIENT_HPP_
-#define NODL_RUNTIME_CPP__GATED_CLIENT_HPP_
+#pragma once
 
 #include <chrono>
 #include <memory>
@@ -14,12 +13,10 @@
 namespace nodl_runtime_cpp
 {
 
-/// A service client that refuses to send requests while the gate is closed.
+/// A service client whose `async_send_request` throws `InactiveError` while the gate is closed.
 /**
- * Sending throws `InactiveError` rather than dropping the request,
- * because a dropped request would return a future that never completes.
- * Waiting for the service and readiness checks are not gated,
- * and neither are responses to requests sent while the gate was open.
+ * The other methods forward to the wrapped client, and `client()` returns it.
+ * See the `nodl_runtime_cpp` overview for what is gated.
  *
  * \tparam ServiceT Service type.
  */
@@ -77,5 +74,3 @@ private:
 };
 
 }  // namespace nodl_runtime_cpp
-
-#endif  // NODL_RUNTIME_CPP__GATED_CLIENT_HPP_

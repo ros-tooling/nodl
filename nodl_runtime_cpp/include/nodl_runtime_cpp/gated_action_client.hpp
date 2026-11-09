@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 // SPDX-License-Identifier: Apache-2.0
-#ifndef NODL_RUNTIME_CPP__GATED_ACTION_CLIENT_HPP_
-#define NODL_RUNTIME_CPP__GATED_ACTION_CLIENT_HPP_
+#pragma once
 
 #include <chrono>
 #include <memory>
@@ -13,12 +12,10 @@
 namespace nodl_runtime_cpp
 {
 
-/// An action client that refuses to send goals while the gate is closed.
+/// An action client whose `async_send_goal` throws `InactiveError` while the gate is closed.
 /**
- * Sending a goal throws `InactiveError` rather than dropping it,
- * because a dropped goal would return a future that never completes.
- * Waiting for the server and readiness checks are not gated.
- * Cancel and result requests are not gated either, and go through `client()`.
+ * The other methods forward to the wrapped client, and `client()` returns it.
+ * See the `nodl_runtime_cpp` overview for what is gated.
  *
  * \tparam ActionT Action type.
  */
@@ -78,5 +75,3 @@ private:
 };
 
 }  // namespace nodl_runtime_cpp
-
-#endif  // NODL_RUNTIME_CPP__GATED_ACTION_CLIENT_HPP_

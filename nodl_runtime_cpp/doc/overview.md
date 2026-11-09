@@ -73,7 +73,7 @@ The helpers take the gate, not the node, so they also work with a gate that a no
 | Service client | `GatedClient` | `async_send_request` throws `InactiveError`. |
 | Action client | `GatedActionClient` | `async_send_goal` throws `InactiveError`. |
 
-Clients throw instead of dropping, because a dropped request would return a future that never completes.
+A client sends only while the gate is open.
 The gate is already open in `handle_activate`, so that hook can call a client, but `handle_configure` cannot.
 Move requests made at configure time, such as fetching configuration from another node, to `handle_activate`.
 These are not gated:
@@ -109,3 +109,4 @@ A subclass that overrides those callbacks without calling the base class leaves 
 Sealing the transition callbacks and offering hooks instead makes that standard behavior impossible to skip.
 Active-only entities add the same guarantee for subscriptions and services.
 Without a gate, their callbacks run in every lifecycle state, so each callback would have to check the node state itself.
+Clients throw instead of dropping a request that the gate refuses, because a dropped request would return a future that never completes.
