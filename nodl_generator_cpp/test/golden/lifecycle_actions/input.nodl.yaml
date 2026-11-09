@@ -1,0 +1,12 @@
+---
+# Lifecycle base class with an action server.
+# The generated server rejects goals while inactive and ends its goals on deactivation.
+
+nodl_version: 2
+
+include:
+  - ref: test://rclcpp_lifecycle_node
+
+action_servers:
+  - name: fibonacci
+    type: example_interfaces/action/Fibonacci

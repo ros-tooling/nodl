@@ -62,6 +62,11 @@ protected:
   /// doing so prevents cancel requests from being processed.  Detach a thread
   /// for long-running work, e.g.:
   ///   std::thread{[goal_handle]() { /* execute */ }}.detach();
+{% if gated %}
+  /// The node ends active goals when it deactivates, so a worker must check
+  /// goal_handle->is_active() and stop on an ended goal.
+  /// A terminal or feedback call that races the deactivation throws.
+{% endif %}
   virtual void {{ action.callback_prefix }}_accepted(std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) = 0;
 {% endfor %}
 {% endif %}
@@ -109,7 +114,11 @@ private:
 
   // --- Action servers ---
 {% for action in action_servers %}
+{% if gated %}
+  nodl_runtime_cpp::GatedActionServer<{{ action.cpp_type }}>::SharedPtr {{ action.member }};
+{% else %}
   rclcpp_action::Server<{{ action.cpp_type }}>::SharedPtr {{ action.member }};
+{% endif %}
 {% endfor %}
 {% endif %}
 {% endif %}

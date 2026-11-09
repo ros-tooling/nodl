@@ -1,5 +1,5 @@
 ---
-# LifecycleNode base class with a publisher, a subscription, a service server and both client kinds.
+# LifecycleNode base class with a publisher, a subscription, a service server, an action server and both client kinds.
 
 nodl_version: 2
 
@@ -25,6 +25,10 @@ subscriptions:
 service_servers:
   - name: trigger
     type: std_srvs/srv/Trigger
+
+action_servers:
+  - name: count
+    type: example_interfaces/action/Fibonacci
 
 service_clients:
   - name: add

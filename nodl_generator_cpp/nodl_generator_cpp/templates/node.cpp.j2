@@ -88,7 +88,11 @@ namespace {{ namespace }}
 
   // Create action servers
 {% for action in action_servers %}
+{% if gated %}
+  {{ action.member }} = std::make_shared<nodl_runtime_cpp::GatedActionServer<{{ action.cpp_type }}>>(
+{% else %}
   {{ action.member }} = rclcpp_action::create_server<{{ action.cpp_type }}>(
+{% endif %}
     this,
     "{{ action.name }}",
     [this](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const {{ action.cpp_type }}::Goal> goal) {
@@ -100,6 +104,9 @@ namespace {{ namespace }}
     [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
       this->{{ action.callback_prefix }}_accepted(goal_handle);
     });
+{% if gated %}
+  this->add_managed_entity({{ action.member }});
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if action_clients %}

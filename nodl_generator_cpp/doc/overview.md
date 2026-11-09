@@ -414,6 +414,7 @@ It also declares service and action clients as wrappers that only send requests 
 The base class must expose the gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode` does.
 The generated constructor wraps each callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
 The service client members are `nodl_runtime_cpp::ActiveOnlyClient` and each action client as a `nodl_runtime_cpp::ActiveOnlyActionClient`, both held by `SharedPtr` as before.
+Each action server is a `nodl_runtime_cpp::GatedActionServer`, held by `SharedPtr` and registered with `add_managed_entity`.
 The endpoints are still created in the constructor.
 Without `activation_gated`, the callbacks are registered unwrapped and the clients are the plain `rclcpp` clients.
 
@@ -444,6 +445,22 @@ The gate is open in `handle_activate`, so that hook can send requests:
 | Cancel and result requests, through `client()` | Allowed. |
 
 Responses to requests sent while the gate was open still arrive after deactivation.
+
+Action servers reject goals while the node is not active, and end their active goals when it deactivates.
+`handle_deactivate` runs first, so it can finish goals itself, for example by succeeding them with a partial result.
+Whatever is still active afterwards ends with a default-constructed result:
+
+| Goal state | Result |
+|---|---|
+| Accepted and deferred, from `ACCEPT_AND_DEFER` | `ABORTED` |
+| Executing | `ABORTED` |
+| Canceling | `CANCELED` |
+| Succeeded, aborted or canceled already | unchanged |
+
+This also happens on a failed `handle_activate`, and on shutdown and error, where it happens before the hook.
+With a multithreaded executor, a goal accepted during `handle_deactivate` ends right after it.
+A worker that outlives its goal must check `goal_handle->is_active()` and stop, because a terminal or feedback call that races the deactivation throws.
+
 The wrappers expose only the send, wait and ready methods and a read-only `client()` accessor that returns the wrapped client, which serves anything else, such as cancel and result requests or removing a pending request.
 See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
 
@@ -468,6 +485,10 @@ Move the logic into the matching `handle_*` hook, and drop the call to the base 
 Subscriptions and service servers of a lifecycle node used to deliver in every state.
 A lifecycle node can now block subscription messages and service requests while it is inactive, and generated nodes do, so remove any `is_activated()` checks in their callbacks.
 A node that relied on receiving messages or serving requests while unconfigured or inactive must do that work elsewhere.
+
+Action servers of a lifecycle node used to accept goals in every state, and left goals running when the node deactivated.
+They now reject goals while the node is not active, and end active goals on deactivation as above.
+Make worker threads check `goal_handle->is_active()`, and finish goals in `handle_deactivate` where they should not be aborted.
 
 Service and action clients of a lifecycle node used to send in every state.
 Sending from the constructor, `handle_configure` or while inactive now throws `InactiveError`.
