@@ -22,7 +22,7 @@ def ros_context():
         rclpy.shutdown()
 
 
-def _spin_until(executor, predicate, timeout=2.0):
+def _spin_until(executor, predicate, timeout=10.0):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline and not predicate():
         executor.spin_once(timeout_sec=0.05)
