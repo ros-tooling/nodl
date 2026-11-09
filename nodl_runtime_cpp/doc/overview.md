@@ -131,3 +131,4 @@ Sealing the transition callbacks and offering hooks instead makes that standard 
 Active-only entities add the same guarantee for subscriptions and services.
 Without a gate, their callbacks run in every lifecycle state, so each callback would have to check the node state itself.
 Clients throw instead of dropping a request that the gate refuses, because a dropped request would return a future that never completes.
+An action server ends its goals at deactivation, because otherwise they would keep running, and keep their clients waiting, in a node that no longer does any work.

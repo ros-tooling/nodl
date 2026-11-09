@@ -445,6 +445,7 @@ The gate is open in `handle_activate`, so that hook can send requests:
 | Cancel and result requests, through `client()` | Allowed. |
 
 Responses to requests sent while the gate was open still arrive after deactivation.
+The wrappers expose only the send, wait and ready methods and a read-only `client()` accessor that returns the wrapped client, which serves anything else, such as cancel and result requests or removing a pending request.
 
 Action servers reject goals while the node is not active, and end their active goals when it deactivates.
 `handle_deactivate` runs first, so it can finish goals itself, for example by succeeding them with a partial result.
@@ -462,7 +463,6 @@ This also happens on a failed `handle_activate`, and on shutdown and error, wher
 With a multithreaded executor, a goal accepted during `handle_deactivate` ends right after it.
 A worker that outlives its goal must check `goal_handle->is_active()` and stop, because a terminal or feedback call that races the deactivation throws.
 
-The wrappers expose only the send, wait and ready methods and a read-only `client()` accessor that returns the wrapped client, which serves anything else, such as cancel and result requests or removing a pending request.
 See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
 
 ```cpp

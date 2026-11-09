@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 // SPDX-License-Identifier: Apache-2.0
-#ifndef NODL_RUNTIME_CPP__GATED_ACTION_SERVER_HPP_
-#define NODL_RUNTIME_CPP__GATED_ACTION_SERVER_HPP_
+#pragma once
 
 #include <algorithm>
 #include <memory>
@@ -21,24 +20,13 @@ namespace nodl_runtime_cpp
 
 /// An action server that rejects goals while inactive and ends its active goals at deactivation.
 /**
- * The server is its own managed entity.
- * Register it with `add_managed_entity` and keep it alive, as for a `LifecyclePublisher`.
- * It is inactive until the node activates, so every goal sent before then is rejected.
- *
- * At deactivation the server first becomes inactive, so no new goal is accepted,
- * then ends every goal it accepted that is still active, with a default-constructed result:
- *
- * | Goal state | Result |
- * |---|---|
- * | ACCEPTED, from `ACCEPT_AND_DEFER` | `execute()`, then `abort()` |
- * | EXECUTING | `abort()` |
- * | CANCELING | `canceled()` |
- * | terminal | skipped |
- *
- * A goal that reaches a terminal state while it is ended makes the call throw, and the server skips that goal.
- * A call that throws while the goal is still active, such as `execute()` racing the author's own, is retried once.
- * A worker that keeps running for an ended goal must check `goal_handle->is_active()`,
- * because a terminal or feedback call that races the deactivation throws.
+ * The server is a managed entity, so register it with `add_managed_entity` and keep it alive.
+ * It is inactive until the node activates.
+ * `on_deactivate` becomes inactive first, then ends each recorded goal that is still active with a
+ * default-constructed result: `abort()` for executing and deferred goals, `canceled()` for canceling goals.
+ * A call that throws because the goal went terminal is skipped, and one that throws while the goal is still active
+ * is retried once.
+ * See the `nodl_runtime_cpp` overview for the goal state table and what workers must check.
  *
  * \tparam ActionT Action type.
  */
@@ -174,5 +162,3 @@ private:
 };
 
 }  // namespace nodl_runtime_cpp
-
-#endif  // NODL_RUNTIME_CPP__GATED_ACTION_SERVER_HPP_
