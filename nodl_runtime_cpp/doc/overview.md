@@ -24,15 +24,19 @@ Each hook takes the previous state and returns a `CallbackReturn`, and defaults 
 
 | Transition | Order |
 |---|---|
-| configure | hook |
+| configure | hook only, managed entities are not notified |
 | activate | standard activation, then hook, and a result other than SUCCESS runs the standard deactivation and is returned |
 | deactivate | hook, then standard deactivation if the hook returned SUCCESS |
-| cleanup | hook |
+| cleanup | hook only, managed entities are not notified |
 | shutdown | standard deactivation, then hook |
 | error | standard deactivation, then hook |
 
 The standard activation and deactivation are those of `rclcpp_lifecycle::LifecycleNode`, so every lifecycle publisher follows the node state on every path, with no author code.
+Only activation and deactivation reach managed entities, which includes the deactivation that runs on shutdown and error.
+Configure and cleanup run only the hooks, so an entity registered with `add_managed_entity` does not receive them.
+
 A hook that throws is turned into ERROR by `rclcpp_lifecycle`, which runs `on_error`.
+When `handle_error` returns SUCCESS, the node ends unconfigured.
 
 ### Example
 

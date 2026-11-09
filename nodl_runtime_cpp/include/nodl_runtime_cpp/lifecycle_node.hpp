@@ -19,15 +19,17 @@ namespace nodl_runtime_cpp
  *
  * | Transition | Order |
  * |---|---|
- * | configure | `handle_configure` |
+ * | configure | `handle_configure` only |
  * | activate | standard activation, then `handle_activate`, and a non-SUCCESS result runs the standard deactivation |
  * | deactivate | `handle_deactivate`, then the standard deactivation if it returned SUCCESS |
- * | cleanup | `handle_cleanup` |
+ * | cleanup | `handle_cleanup` only |
  * | shutdown | standard deactivation, then `handle_shutdown` |
  * | error | standard deactivation, then `handle_error` |
  *
  * The standard activation and deactivation are those of `rclcpp_lifecycle::LifecycleNode`.
- * A hook that throws is turned into ERROR by `rclcpp_lifecycle`, which runs `on_error`.
+ * Only they reach managed entities, so entities added with `add_managed_entity` do not receive configure or cleanup.
+ * A hook that throws is turned into ERROR by `rclcpp_lifecycle`, which runs `on_error`,
+ * and the node ends unconfigured when `handle_error` returns SUCCESS.
  */
 class LifecycleNode : public rclcpp_lifecycle::LifecycleNode
 {
