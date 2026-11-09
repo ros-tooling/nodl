@@ -1,0 +1,233 @@
+// SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+// SPDX-License-Identifier: Apache-2.0
+#include <gtest/gtest.h>
+
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include "lifecycle_msgs/msg/state.hpp"
+#include "nodl_runtime_cpp/lifecycle_node.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/string.hpp"
+
+namespace
+{
+
+using CallbackReturn = nodl_runtime_cpp::LifecycleNode::CallbackReturn;
+using lifecycle_msgs::msg::State;
+
+/// How one hook ends.
+enum class Outcome
+{
+  SUCCESS,
+  FAILURE,
+  THROW,
+};
+
+/// A hand-written node that holds a lifecycle publisher and records its hook calls.
+class RecordingNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  RecordingNode()
+  : nodl_runtime_cpp::LifecycleNode("recording_node")
+  , publisher_(create_publisher<std_msgs::msg::String>("chatter", 10))
+  {}
+
+  /// The hooks called so far, in order.
+  std::vector<std::string> calls;
+  /// Whether the publisher was active when each hook was called.
+  std::vector<bool> publisher_active_in_hook;
+  Outcome activate_outcome = Outcome::SUCCESS;
+  Outcome deactivate_outcome = Outcome::SUCCESS;
+
+  bool publisher_active() const
+  {
+    return publisher_->is_activated();
+  }
+
+  uint8_t state_id()
+  {
+    return get_current_state().id();
+  }
+
+protected:
+  CallbackReturn handle_configure(const rclcpp_lifecycle::State &) override
+  {
+    return record("configure", Outcome::SUCCESS);
+  }
+
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State &) override
+  {
+    return record("activate", activate_outcome);
+  }
+
+  CallbackReturn handle_deactivate(const rclcpp_lifecycle::State &) override
+  {
+    return record("deactivate", deactivate_outcome);
+  }
+
+  CallbackReturn handle_cleanup(const rclcpp_lifecycle::State &) override
+  {
+    return record("cleanup", Outcome::SUCCESS);
+  }
+
+  CallbackReturn handle_shutdown(const rclcpp_lifecycle::State &) override
+  {
+    return record("shutdown", Outcome::SUCCESS);
+  }
+
+  CallbackReturn handle_error(const rclcpp_lifecycle::State &) override
+  {
+    return record("error", Outcome::SUCCESS);
+  }
+
+private:
+  CallbackReturn record(const std::string & name, Outcome outcome)
+  {
+    calls.push_back(name);
+    publisher_active_in_hook.push_back(publisher_->is_activated());
+    switch (outcome) {
+      case Outcome::FAILURE:
+        return CallbackReturn::FAILURE;
+      case Outcome::THROW:
+        throw std::runtime_error("hook failed");
+      case Outcome::SUCCESS:
+        break;
+    }
+    return CallbackReturn::SUCCESS;
+  }
+
+  rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr publisher_;
+};
+
+class LifecycleNodeTest : public ::testing::Test
+{
+protected:
+  static void SetUpTestSuite()
+  {
+    rclcpp::init(0, nullptr);
+  }
+
+  static void TearDownTestSuite()
+  {
+    rclcpp::shutdown();
+  }
+
+  std::shared_ptr<RecordingNode> node_ = std::make_shared<RecordingNode>();
+};
+
+TEST_F(LifecycleNodeTest, DefaultHooksSucceed)
+{
+  auto node = std::make_shared<nodl_runtime_cpp::LifecycleNode>("plain_node");
+
+  EXPECT_EQ(node->configure().id(), State::PRIMARY_STATE_INACTIVE);
+  EXPECT_EQ(node->activate().id(), State::PRIMARY_STATE_ACTIVE);
+  EXPECT_EQ(node->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+  EXPECT_EQ(node->cleanup().id(), State::PRIMARY_STATE_UNCONFIGURED);
+  EXPECT_EQ(node->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+}
+
+TEST_F(LifecycleNodeTest, EachHookRunsOncePerTransitionInOrder)
+{
+  node_->configure();
+  node_->activate();
+  node_->deactivate();
+  node_->cleanup();
+  node_->shutdown();
+
+  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate", "deactivate", "cleanup", "shutdown"}));
+}
+
+TEST_F(LifecycleNodeTest, PublisherIsActiveDuringActivateAndAfter)
+{
+  node_->configure();
+  EXPECT_FALSE(node_->publisher_active());
+
+  node_->activate();
+
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_ACTIVE);
+  EXPECT_TRUE(node_->publisher_active());
+  // configure, activate
+  EXPECT_EQ(node_->publisher_active_in_hook, (std::vector<bool>{false, true}));
+}
+
+TEST_F(LifecycleNodeTest, DeactivateRunsHookBeforePublisherDeactivates)
+{
+  node_->configure();
+  node_->activate();
+
+  node_->deactivate();
+
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_INACTIVE);
+  EXPECT_FALSE(node_->publisher_active());
+  // configure, activate, deactivate
+  EXPECT_EQ(node_->publisher_active_in_hook, (std::vector<bool>{false, true, true}));
+}
+
+TEST_F(LifecycleNodeTest, FailingActivateLeavesNodeAndPublisherInactive)
+{
+  node_->activate_outcome = Outcome::FAILURE;
+  node_->configure();
+
+  node_->activate();
+
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_INACTIVE);
+  EXPECT_FALSE(node_->publisher_active());
+  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate"}));
+}
+
+TEST_F(LifecycleNodeTest, ThrowingActivateRunsErrorAndLeavesPublisherInactive)
+{
+  node_->activate_outcome = Outcome::THROW;
+  node_->configure();
+
+  node_->activate();
+
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
+  EXPECT_FALSE(node_->publisher_active());
+  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate", "error"}));
+}
+
+TEST_F(LifecycleNodeTest, ShutdownFromActiveDeactivatesPublisherBeforeHook)
+{
+  node_->configure();
+  node_->activate();
+
+  node_->shutdown();
+
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_FINALIZED);
+  EXPECT_FALSE(node_->publisher_active());
+  // configure, activate, shutdown
+  EXPECT_EQ(node_->publisher_active_in_hook, (std::vector<bool>{false, true, false}));
+}
+
+TEST_F(LifecycleNodeTest, ErrorDeactivatesPublisherBeforeHook)
+{
+  node_->deactivate_outcome = Outcome::THROW;
+  node_->configure();
+  node_->activate();
+
+  node_->deactivate();
+
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
+  EXPECT_FALSE(node_->publisher_active());
+  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate", "deactivate", "error"}));
+  // configure, activate, deactivate, error
+  EXPECT_EQ(node_->publisher_active_in_hook, (std::vector<bool>{false, true, true, false}));
+}
+
+TEST_F(LifecycleNodeTest, FailingDeactivateKeepsNodeAndPublisherActive)
+{
+  node_->deactivate_outcome = Outcome::FAILURE;
+  node_->configure();
+  node_->activate();
+
+  node_->deactivate();
+
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_ACTIVE);
+  EXPECT_TRUE(node_->publisher_active());
+}
+
+}  // namespace
