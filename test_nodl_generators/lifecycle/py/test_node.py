@@ -2,15 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """Runtime test for the generated entities of a lifecycle node in each state."""
 
+import threading
 import time
 
 import pytest
 import rclpy
+from action_msgs.msg import GoalStatus
 from example_interfaces.action import Fibonacci
 from example_interfaces.srv import AddTwoInts
 from node_impl import GeneratedLifecycleNode
-from rclpy.action import ActionServer
-from rclpy.executors import SingleThreadedExecutor
+from rclpy.action import ActionClient, ActionServer
+from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, LifecyclePublisher, TransitionCallbackReturn
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -160,3 +162,53 @@ def test_generated_clients_send_only_while_the_gate_is_open(lifecycle_setup):
     assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS
     with pytest.raises(InactiveError):
         node.cli_lifecycle_remote_add.call_async(AddTwoInts.Request(a=1, b=2))
+
+
+def test_generated_action_server_ends_goals_on_deactivate(ros_context):
+    node = GeneratedLifecycleNode()
+    harness = Node('lifecycle_action_harness')
+    client = ActionClient(harness, Fibonacci, '/lifecycle_count')
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
+    executor.add_node(harness)
+    spinner = threading.Thread(target=executor.spin)
+    spinner.start()
+
+    def wait_until(predicate):
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline and not predicate():
+            time.sleep(0.01)
+        return predicate()
+
+    def send(order):
+        future = client.send_goal_async(Fibonacci.Goal(order=order))
+        assert wait_until(future.done)
+        return future.result()
+
+    def status_of(goal_handle):
+        future = goal_handle.get_result_async()
+        assert wait_until(future.done)
+        return future.result().status
+
+    try:
+        assert client.wait_for_server(10.0)
+        assert not send(0).accepted
+
+        assert node.trigger_configure() == TransitionCallbackReturn.SUCCESS
+        assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+        still_active = send(0)
+        succeeded_by_hook = send(1)
+        assert still_active.accepted
+        assert succeeded_by_hook.accepted
+        assert wait_until(lambda: 2 == len(node.count_goals))
+
+        assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS
+
+        assert GoalStatus.STATUS_ABORTED == status_of(still_active)
+        assert GoalStatus.STATUS_SUCCEEDED == status_of(succeeded_by_hook)
+        assert not send(0).accepted
+    finally:
+        executor.shutdown()
+        spinner.join(10.0)
+        node.destroy_node()
+        harness.destroy_node()

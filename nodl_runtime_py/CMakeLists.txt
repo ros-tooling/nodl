@@ -13,6 +13,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_run_node test/test_run_node.py TIMEOUT 120)
   ament_add_pytest_test(test_lifecycle test/test_lifecycle.py TIMEOUT 120)
   ament_add_pytest_test(test_active_only test/test_active_only.py TIMEOUT 120)
+  ament_add_pytest_test(test_gated_action_server test/test_gated_action_server.py TIMEOUT 120)
   ament_add_pytest_test(test_pyright test/test_pyright.py)
 endif()
 

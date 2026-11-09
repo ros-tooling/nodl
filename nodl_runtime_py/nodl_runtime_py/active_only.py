@@ -5,10 +5,19 @@
 from __future__ import annotations
 
 import inspect
+import threading
 from collections.abc import Callable
 from typing import Any
 
 from rclpy.action.client import ActionClient
+from rclpy.action.server import (
+    ActionServer,
+    CancelResponse,
+    GoalResponse,
+    ServerGoalHandle,
+    default_cancel_callback,
+    default_goal_callback,
+)
 from rclpy.client import Client
 from rclpy.lifecycle import SimpleManagedEntity
 from rclpy.node import Node
@@ -188,3 +197,124 @@ class ActiveOnlyActionClient:
         :return: ``True`` if a server is ready, ``False`` on a timeout.
         """
         return self._client.wait_for_server(timeout_sec)
+
+
+class GatedActionServer(SimpleManagedEntity):
+    """An action server that rejects goals while inactive and ends its active goals at deactivation.
+
+    The server is its own managed entity.
+    Register it with ``add_managed_entity``, which the default ``rclpy.lifecycle.LifecycleNode`` transitions then drive.
+    It is inactive until the node activates, so every goal sent before then is rejected.
+
+    At deactivation the server first becomes inactive, so no new goal is accepted,
+    then ends every goal it accepted that is still active:
+
+    ========================  ===================================
+    Goal state                Result
+    ========================  ===================================
+    executing                 ``abort()``
+    canceling                 ``canceled()``
+    terminal                  skipped
+    ========================  ===================================
+
+    A goal that reaches a terminal state while it is ended is skipped.
+    ``rclpy`` sends the result of a goal when its execute callback returns.
+    An execute callback that keeps working for an ended goal must check ``goal_handle.is_active`` and return,
+    and the client then receives the callback's result with the ended status.
+    """
+
+    def __init__(
+        self,
+        node: Node,
+        action_type: Any,
+        action_name: str,
+        execute_callback: Callable[[ServerGoalHandle], Any],
+        *,
+        goal_callback: Callable[[Any], GoalResponse] = default_goal_callback,
+        cancel_callback: Callable[[ServerGoalHandle], CancelResponse] = default_cancel_callback,
+        **kwargs: Any,
+    ) -> None:
+        """Create the action server on ``node``.
+
+        Accepted goals are executed at once, as with the default accepted callback of ``rclpy.action.ActionServer``.
+
+        :param node: The node that owns the action server.
+        :param action_type: The action type.
+        :param action_name: The name of the action.
+        :param execute_callback: Called to execute each accepted goal.
+        :param goal_callback: Called for each goal sent while the server is active.
+        :param cancel_callback: Called for each cancel request.
+        :param kwargs: Passed to ``rclpy.action.ActionServer``, for example ``callback_group`` or ``result_timeout``.
+        """
+        super().__init__()
+        self._action_type = action_type
+        self._lock = threading.Lock()
+        self._goals: dict[bytes, ServerGoalHandle] = {}
+        self._server = ActionServer(
+            node,
+            action_type,
+            action_name,
+            execute_callback,
+            goal_callback=self._gate_goal_callback(goal_callback),
+            cancel_callback=cancel_callback,
+            handle_accepted_callback=self._on_accepted,
+            **kwargs,
+        )
+
+    @property
+    def server(self) -> ActionServer:
+        """The wrapped action server, for anything the wrapper does not expose."""
+        return self._server
+
+    def on_deactivate(self, state: Any) -> Any:
+        """Become inactive, then end every recorded goal that is still active."""
+        result = super().on_deactivate(state)
+        with self._lock:
+            goals = list(self._goals.values())
+            self._goals.clear()
+        for goal_handle in goals:
+            self._end_goal(goal_handle)
+        return result
+
+    def _gate_goal_callback(self, callback: Callable[[Any], GoalResponse]) -> Callable[[Any], Any]:
+        if inspect.iscoroutinefunction(callback):
+
+            async def gated_async(goal_request: Any) -> GoalResponse:
+                return await callback(goal_request) if self.is_activated else GoalResponse.REJECT
+
+            return gated_async
+
+        def gated(goal_request: Any) -> GoalResponse:
+            return callback(goal_request) if self.is_activated else GoalResponse.REJECT
+
+        return gated
+
+    def _on_accepted(self, goal_handle: ServerGoalHandle) -> None:
+        # Recording and executing happen under the lock, so a deactivation that is ending goals only sees executing goals.
+        with self._lock:
+            if self.is_activated:
+                self._goals = {key: goal for key, goal in self._goals.items() if goal.is_active}
+                self._goals[bytes(goal_handle.goal_id.uuid)] = goal_handle
+                goal_handle.execute()
+                return
+        # The server deactivated after it accepted the goal, so the goal ends itself instead of reaching the author.
+        goal_handle.execute(self._end_goal_and_return_result)
+
+    def _end_goal_and_return_result(self, goal_handle: ServerGoalHandle) -> Any:
+        self._end_goal(goal_handle)
+        return self._action_type.Result()
+
+    @staticmethod
+    def _end_goal(goal_handle: ServerGoalHandle) -> None:
+        """End a goal, retrying once when a call fails but the goal is still active."""
+        for _ in range(2):
+            try:
+                if not goal_handle.is_active:
+                    return
+                if goal_handle.is_cancel_requested:
+                    goal_handle.canceled()
+                else:
+                    goal_handle.abort()
+                return
+            except RuntimeError:
+                continue

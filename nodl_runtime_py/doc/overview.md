@@ -134,6 +134,7 @@ Helpers and wrappers take the gate, not the node, and let one entity block its m
 | Subscription | `active_only_subscription_callback` | The message is dropped and the callback is not called. |
 | Service server | `create_active_only_service` | The request is dropped and gets no response, so its client keeps waiting. |
 | Service client | `ActiveOnlyClient` | `call_async` raises `InactiveError`. |
+| Action server | `GatedActionServer` | New goals are rejected, and active goals end at deactivation. |
 | Action client | `ActiveOnlyActionClient` | `send_goal_async` raises `InactiveError`. |
 
 The subscription and service helpers accept coroutine function callbacks.
@@ -169,3 +170,32 @@ Clients raise instead of dropping, because a dropped request returns a future th
 `rclpy` always sends the value a service callback returns, and has no way to skip the response.
 `create_active_only_service` therefore replaces `send_response` on the service instance.
 This relies on the executor calling `service.send_response`, which the tests check on every supported distribution.
+
+### Action goals at deactivation
+
+`GatedActionServer` is its own managed entity, with its own gate, so it is not created from the node's gate.
+Create it in the constructor and register it with `add_managed_entity`.
+It owns an `rclpy.action.ActionServer`, exposed read-only as `server`, and executes each accepted goal at once.
+It rejects goals until the node activates.
+At deactivation it first becomes inactive, so no new goal is accepted, then ends every goal it accepted that is still active:
+
+| Goal state | Result |
+|---|---|
+| Executing | `abort()` |
+| Canceling | `canceled()` |
+| Terminal | skipped |
+
+A goal that reaches a terminal state while it is being ended is skipped.
+`handle_deactivate` runs before the standard deactivation, so a hook can finish goals itself, for example by succeeding them.
+On shutdown and error the standard deactivation, and so the ending of goals, runs before the hook.
+With a multithreaded executor, a goal accepted during `handle_deactivate` ends right after it.
+
+`rclpy` sends the result to the client only when the execute callback returns.
+An execute callback that keeps working for an ended goal must check `goal_handle.is_active` and return.
+The client then receives the status of the ended goal, with the result the callback returned.
+
+```{literalinclude} examples/gated_action_node.py
+:language: python
+:start-at: class Counter
+:end-before: def main
+```
