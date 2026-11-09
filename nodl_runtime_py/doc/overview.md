@@ -192,7 +192,11 @@ With a multithreaded executor, a goal accepted during `handle_deactivate` ends r
 
 `rclpy` sends the result to the client only when the execute callback returns.
 An execute callback that keeps working for an ended goal must check `goal_handle.is_active` and return.
-The client then receives the status of the ended goal, with the result the callback returned.
+A blocking execute callback also needs a multithreaded executor, or must be an async function, because on a single-threaded executor the callback occupies the thread that would service the deactivation request.
+`run_node` takes the executor class as `executor_class`, as the example does.
+The client receives the status of the ended goal, with the result the callback returned.
+A goal that is accepted after the deactivation started, or whose callback raises, gets a default-constructed `Result`.
+The C++ `GatedActionServer` always sends a default-constructed result for an ended goal.
 
 ```{literalinclude} examples/gated_action_node.py
 :language: python

@@ -323,6 +323,7 @@ This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which de
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
 A generated lifecycle node can block subscription messages and service requests, and the service requests and action goals it sends, while it is inactive, as the `nodl_runtime_py` overview describes.
 Generated action servers are `nodl_runtime_py.GatedActionServer`s registered with `add_managed_entity`, so they reject goals while the node is not active and end their active goals on deactivation.
+The member is a wrapper, not an `rclpy.action.ActionServer`, and its `server` property returns the wrapped server.
 The constructor still creates all parameters and entities.
 
 The generated class derives the runtime base class, which implements the transition callbacks and activates and deactivates managed publishers on every path.
@@ -358,6 +359,9 @@ Action servers of a generated lifecycle node used to accept goals in every state
 They now reject goals while the node is not active, and end active goals on deactivation.
 `handle_deactivate` runs first, so it can finish goals itself, for example by succeeding them.
 `rclpy` sends the result to the client only when an execute callback returns, so each `execute_<name>()` must check `goal_handle.is_active` while it works and return once it is false.
+A blocking `execute_<name>()` also needs a multithreaded executor, or must be an async function, because on a single-threaded executor the callback occupies the thread that would service the deactivation request.
+Pass the executor class to `run_node` as `executor_class`.
+The client receives the status of the ended goal with the result the callback returned, whereas the C++ generator sends a default-constructed result.
 The generated base documents this on every `execute_<name>()`.
 
 ## Parameters

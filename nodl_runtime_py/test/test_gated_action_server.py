@@ -10,12 +10,15 @@ import pytest
 import rclpy
 from action_msgs.msg import GoalStatus
 from example_interfaces.action import Fibonacci
+from lifecycle_msgs.msg import Transition
+from lifecycle_msgs.srv import ChangeState
 from rclpy.action import ActionClient, CancelResponse, GoalResponse
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode
 from rclpy.node import Node
 
 from nodl_runtime_py import GatedActionServer
+from nodl_runtime_py.lifecycle import LifecycleNode as NodlLifecycleNode
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'doc' / 'examples'))
 
@@ -40,8 +43,8 @@ def wait_until(predicate, timeout_s=TIMEOUT_S):
 class Fixture:
     """A gated action server on a plain lifecycle node, and a client on a peer node, spun by one executor."""
 
-    def __init__(self):
-        self.node = LifecycleNode('gated_action_node')
+    def __init__(self, node_class=LifecycleNode):
+        self.node = node_class('gated_action_node')
         self.peer = Node('gated_action_peer')
         self.lock = threading.Lock()
         self.goals = []
@@ -110,10 +113,17 @@ class Fixture:
         self.peer.destroy_node()
 
 
-@pytest.fixture
-def fixture():
+class FailingDeactivateNode(NodlLifecycleNode):
+    """A nodl lifecycle node whose deactivate hook raises, which makes the transition fail with ERROR."""
+
+    def handle_deactivate(self, state):
+        raise RuntimeError('deactivate failed')
+
+
+@pytest.fixture(params=[LifecycleNode])
+def fixture(request):
     rclpy.init()
-    fixture = Fixture()
+    fixture = Fixture(request.param)
     yield fixture
     fixture.shutdown()
     rclpy.shutdown()
@@ -202,20 +212,51 @@ def test_goals_are_accepted_again_after_reactivation(fixture):
     assert fixture.send_and_start().accepted
 
 
+@pytest.mark.parametrize('fixture', [NodlLifecycleNode], indirect=True)
+def test_goal_is_aborted_on_shutdown_from_active(fixture):
+    fixture.activate()
+    handle = fixture.send_and_start()
+
+    fixture.node.trigger_shutdown()
+
+    assert not fixture.goals[0].is_active
+    assert GoalStatus.STATUS_ABORTED == fixture.status_of(handle)
+
+
+@pytest.mark.parametrize('fixture', [FailingDeactivateNode], indirect=True)
+def test_goal_is_aborted_on_error(fixture):
+    fixture.activate()
+    handle = fixture.send_and_start()
+
+    fixture.node.trigger_deactivate()
+
+    assert not fixture.goals[0].is_active
+    assert GoalStatus.STATUS_ABORTED == fixture.status_of(handle)
+
+
 def test_example_node_ends_its_goal_on_deactivate(fixture):
+    # The fixture's multithreaded executor is the one that main() of the example selects.
     counter = Counter()
     fixture.executor.add_node(counter)
     client = ActionClient(fixture.peer, Fibonacci, 'count')
+    change_state = fixture.peer.create_client(ChangeState, '/counter/change_state')
+
+    def request(transition_id):
+        future = change_state.call_async(ChangeState.Request(transition=Transition(id=transition_id)))
+        assert wait_until(future.done)
+        assert future.result().success
+
     try:
         assert client.wait_for_server(TIMEOUT_S)
-        counter.trigger_configure()
-        counter.trigger_activate()
+        assert change_state.wait_for_service(TIMEOUT_S)
+        request(Transition.TRANSITION_CONFIGURE)
+        request(Transition.TRANSITION_ACTIVATE)
         future = client.send_goal_async(Fibonacci.Goal(order=1))
         assert wait_until(future.done)
         handle = future.result()
         assert handle.accepted
 
-        counter.trigger_deactivate()
+        request(Transition.TRANSITION_DEACTIVATE)
 
         assert GoalStatus.STATUS_ABORTED == fixture.status_of(handle)
     finally:

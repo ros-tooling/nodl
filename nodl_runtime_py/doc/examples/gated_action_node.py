@@ -6,6 +6,7 @@ import sys
 import time
 
 from example_interfaces.action import Fibonacci
+from rclpy.executors import MultiThreadedExecutor
 
 from nodl_runtime_py import GatedActionServer, run_node
 from nodl_runtime_py.lifecycle import LifecycleNode
@@ -28,7 +29,8 @@ class Counter(LifecycleNode):
 
 
 def main():
-    return run_node(Counter)
+    # The execute callback blocks, so the executor needs another thread to service the deactivation.
+    return run_node(Counter, executor_class=MultiThreadedExecutor)
 
 
 if __name__ == '__main__':
