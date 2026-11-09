@@ -439,9 +439,10 @@ Clients send only while the gate is open, which includes `handle_activate`:
 |---|---|
 | `async_send_request`, `async_send_goal` | Throws `nodl_runtime_cpp::InactiveError`. |
 | `wait_for_service`, `wait_for_action_server`, readiness checks | Allowed. |
-| Cancel and result requests, through `GatedActionClient::client()` | Allowed. |
+| Cancel and result requests, through `client()` | Allowed. |
 
 Responses to requests sent while the gate was open still arrive after deactivation.
+The wrappers expose only the send, wait and ready methods and a read-only `client()` accessor that returns the wrapped client, which serves anything else, such as cancel and result requests or removing a pending request.
 See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
 
 ```cpp
@@ -470,6 +471,8 @@ Service and action clients of a lifecycle node used to send in every state.
 Sending from the constructor, `handle_configure` or while inactive now throws `InactiveError`.
 Move requests made at configure time, such as fetching configuration from another node, to `handle_activate`.
 `wait_for_service` and `wait_for_action_server` stay allowed in `handle_configure`.
+A client member is no longer an `rclcpp::Client` or `rclcpp_action::Client`, so code that passes it to an `rclcpp` API stops compiling.
+Pass `client()` instead.
 
 ### Namespace
 

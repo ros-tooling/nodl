@@ -80,7 +80,9 @@ These are not gated:
 
 - waiting for a service or an action server, and checking whether it is ready, so `wait_for_service` works in `handle_configure`
 - responses to requests sent while the gate was open
-- cancel and result requests of an action client, which go through `GatedActionClient::client()`
+- cancel and result requests of an action client
+
+The wrappers expose only the send, wait and ready methods and a read-only `client()` accessor that returns the wrapped client, which serves anything else, such as cancel and result requests or removing a pending request.
 
 With a multithreaded executor, callbacks can run while `handle_activate` is still executing, because the gate is already open.
 State that they need must be ready by the end of `handle_configure`.

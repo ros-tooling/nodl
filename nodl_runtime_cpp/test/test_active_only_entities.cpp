@@ -212,6 +212,15 @@ TEST_F(GatedEntities, WaitingForServiceIsNotGated)
   EXPECT_TRUE(client.service_is_ready());
 }
 
+TEST_F(GatedEntities, ClientsExposeTheWrappedClient)
+{
+  auto service_client = node_->create_client<AddTwoInts>("add");
+  auto action_client = rclcpp_action::create_client<Fibonacci>(node_, "fibonacci");
+
+  EXPECT_EQ(nodl_runtime_cpp::GatedClient<AddTwoInts>(gate_, service_client).client(), service_client);
+  EXPECT_EQ(nodl_runtime_cpp::GatedActionClient<Fibonacci>(gate_, action_client).client(), action_client);
+}
+
 TEST_F(GatedEntities, ActionClientSendThrowsWhileClosed)
 {
   auto server = rclcpp_action::create_server<Fibonacci>(

@@ -65,6 +65,12 @@ public:
     return client_->service_is_ready();
   }
 
+  /// The guarded client, for calls that are not gated.
+  const typename rclcpp::Client<ServiceT>::SharedPtr & client() const
+  {
+    return client_;
+  }
+
 private:
   GatePtr gate_;
   typename rclcpp::Client<ServiceT>::SharedPtr client_;
