@@ -202,25 +202,11 @@ class ActiveOnlyActionClient:
 class GatedActionServer(SimpleManagedEntity):
     """An action server that rejects goals while inactive and ends its active goals at deactivation.
 
-    The server is its own managed entity.
-    Register it with ``add_managed_entity``, which the default ``rclpy.lifecycle.LifecycleNode`` transitions then drive.
-    It is inactive until the node activates, so every goal sent before then is rejected.
-
-    At deactivation the server first becomes inactive, so no new goal is accepted,
-    then ends every goal it accepted that is still active:
-
-    ========================  ===================================
-    Goal state                Result
-    ========================  ===================================
-    executing                 ``abort()``
-    canceling                 ``canceled()``
-    terminal                  skipped
-    ========================  ===================================
-
-    A goal that reaches a terminal state while it is ended is skipped.
-    ``rclpy`` sends the result of a goal when its execute callback returns.
-    An execute callback that keeps working for an ended goal must check ``goal_handle.is_active`` and return,
-    and the client then receives the callback's result with the ended status.
+    The server is a managed entity, so register it with ``add_managed_entity``.
+    ``on_deactivate`` becomes inactive first, then ends each recorded goal that is still active:
+    ``abort()`` for executing goals and ``canceled()`` for canceling goals.
+    A call that fails because the goal went terminal is skipped, and one that fails while the goal is still active is retried once.
+    See the ``nodl_runtime_py`` overview for the goal state table and what execute callbacks must check.
     """
 
     def __init__(
@@ -234,9 +220,7 @@ class GatedActionServer(SimpleManagedEntity):
         cancel_callback: Callable[[ServerGoalHandle], CancelResponse] = default_cancel_callback,
         **kwargs: Any,
     ) -> None:
-        """Create the action server on ``node``.
-
-        Accepted goals are executed at once, as with the default accepted callback of ``rclpy.action.ActionServer``.
+        """Create the action server on ``node``, which executes each accepted goal at once.
 
         :param node: The node that owns the action server.
         :param action_type: The action type.

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""A lifecycle node whose action goals end when it deactivates."""
+"""A hand-written (non-generated) lifecycle node whose action goals end when it deactivates."""
 
 import sys
 import time
@@ -15,6 +15,7 @@ from nodl_runtime_py.lifecycle import LifecycleNode
 class Counter(LifecycleNode):
     def __init__(self):
         super().__init__('counter')
+        # The server is created by hand to keep the example self-contained, where a generated node creates its own.
         self.server = GatedActionServer(self, Fibonacci, 'count', self._execute)
         self.add_managed_entity(self.server)
 

@@ -357,12 +357,9 @@ The `nodl_runtime_py` overview lists what the wrappers expose.
 
 Action servers of a generated lifecycle node used to accept goals in every state, and left goals running when the node deactivated.
 They now reject goals while the node is not active, and end active goals on deactivation.
-`handle_deactivate` runs first, so it can finish goals itself, for example by succeeding them.
-`rclpy` sends the result to the client only when an execute callback returns, so each `execute_<name>()` must check `goal_handle.is_active` while it works and return once it is false.
-A blocking `execute_<name>()` also needs a multithreaded executor, or must be an async function, because on a single-threaded executor the callback occupies the thread that would service the deactivation request.
-Pass the executor class to `run_node` as `executor_class`.
-The client receives the status of the ended goal with the result the callback returned, whereas the C++ generator sends a default-constructed result.
+Each `execute_<name>()` must check `goal_handle.is_active` while it works and return once it is false, and a blocking one needs a multithreaded executor, passed to `run_node` as `executor_class`.
 The generated base documents this on every `execute_<name>()`.
+The `nodl_runtime_py` overview describes the goal handling, including the result the client receives.
 
 ## Parameters
 
