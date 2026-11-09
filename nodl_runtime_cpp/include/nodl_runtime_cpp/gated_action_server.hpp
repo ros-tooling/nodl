@@ -36,6 +36,7 @@ namespace nodl_runtime_cpp
  * | terminal | skipped |
  *
  * A goal that reaches a terminal state while it is ended makes the call throw, and the server skips that goal.
+ * A call that throws while the goal is still active, such as `execute()` racing the author's own, is retried once.
  * A worker that keeps running for an ended goal must check `goal_handle->is_active()`,
  * because a terminal or feedback call that races the deactivation throws.
  *
@@ -133,23 +134,37 @@ private:
     return true;
   }
 
+  /// End a goal, retrying once when a call throws but the goal is still active.
+  /// A throw from a goal that went terminal concurrently is final, but a deferred goal that the author executed
+  /// concurrently makes `execute()` throw while the goal still needs to be aborted.
   static void end_goal(GoalHandle & goal_handle)
+  {
+    for (int attempt = 0; attempt < 2; ++attempt) {
+      if (try_end_goal(goal_handle)) {
+        return;
+      }
+    }
+  }
+
+  /// Returns false when a call threw and the goal is still active, so the caller can try again.
+  static bool try_end_goal(GoalHandle & goal_handle)
   {
     try {
       if (!goal_handle.is_active()) {
-        return;
+        return true;
       }
       auto result = std::make_shared<typename ActionT::Result>();
       if (goal_handle.is_canceling()) {
         goal_handle.canceled(std::move(result));
-        return;
+        return true;
       }
       if (!goal_handle.is_executing()) {
         goal_handle.execute();
       }
       goal_handle.abort(std::move(result));
+      return true;
     } catch (const rclcpp::exceptions::RCLError &) {
-      // The goal reached a terminal state concurrently, so it is already ended.
+      return !goal_handle.is_active();
     }
   }
 

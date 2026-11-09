@@ -62,7 +62,10 @@ protected:
     server_ = std::make_shared<nodl_runtime_cpp::GatedActionServer<Fibonacci>>(
       node_,
       "fibonacci",
-      [](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal> goal) {
+      [this](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal> goal) {
+        if (deactivate_in_goal_callback) {
+          node_->deactivate();
+        }
         return kDefer == goal->order ? rclcpp_action::GoalResponse::ACCEPT_AND_DEFER
                                      : rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
@@ -102,7 +105,8 @@ protected:
   };
 
   /// Send a goal and wait until the server hands it out, or return an empty `Sent` when it is rejected.
-  Sent send(int32_t order)
+  /// With `expect_handle` false, return as soon as the client has its goal handle.
+  Sent send(int32_t order, bool expect_handle = true)
   {
     Sent sent;
     Fibonacci::Goal goal;
@@ -116,6 +120,9 @@ protected:
       return sent;
     }
     sent.result = client_->async_get_result(sent.client);
+    if (!expect_handle) {
+      return sent;
+    }
     const auto deadline = std::chrono::steady_clock::now() + 5s;
     while (std::chrono::steady_clock::now() < deadline) {
       {
@@ -145,6 +152,7 @@ protected:
   rclcpp_action::Client<Fibonacci>::SharedPtr client_;
   rclcpp::executors::SingleThreadedExecutor executor_;
   std::thread spinner_;
+  std::atomic<bool> deactivate_in_goal_callback{false};
   std::mutex mutex_;
   std::vector<std::shared_ptr<GoalHandle>> handles_;
   size_t handles_seen_ = 0;
@@ -240,6 +248,20 @@ TEST_F(GatedActionServerTest, ConcurrentSuccessDoesNotFailTheDeactivation)
     EXPECT_TRUE(kSucceeded == status || kAborted == status) << "status " << static_cast<int>(status);
     node_->cleanup();
   }
+}
+
+TEST_F(GatedActionServerTest, EndsAGoalAcceptedAfterDeactivationStarted)
+{
+  activate();
+  // The goal callback runs on the executor thread, so the deactivation finishes before the accepted callback.
+  deactivate_in_goal_callback = true;
+
+  auto sent = send(0, false);
+
+  ASSERT_NE(sent.client, nullptr);
+  EXPECT_EQ(status_of(sent), kAborted);
+  std::lock_guard<std::mutex> lock(mutex_);
+  EXPECT_TRUE(handles_.empty());
 }
 
 TEST_F(GatedActionServerTest, AcceptsGoalsAgainAfterReactivation)
