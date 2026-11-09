@@ -101,6 +101,9 @@ They run in this order around the hooks:
 | shutdown | standard deactivation, then hook |
 | error | standard deactivation, then hook |
 
+Only activation and deactivation, including the deactivation on shutdown and error, reach managed entities.
+A custom managed entity added with `add_managed_entity` does not receive configure or cleanup, and its `on_shutdown` and `on_error` are not called.
+
 A hook that raises makes the transition fail with ERROR, which runs `handle_error` after the standard deactivation.
 Publishers are therefore active during `handle_activate`, and inactive during `handle_shutdown` and `handle_error`.
 `run_node` configures, activates and shuts down these nodes like any other lifecycle node.

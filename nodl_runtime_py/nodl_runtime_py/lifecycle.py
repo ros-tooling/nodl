@@ -30,6 +30,8 @@ class LifecycleNode(RclpyLifecycleNode):
 
     The standard activation and deactivation are the ``rclpy`` defaults,
     which activate and deactivate every managed entity, lifecycle publishers included.
+    Only these reach managed entities, including the deactivation on shutdown and error.
+    A custom managed entity does not receive configure or cleanup, and its ``on_shutdown`` and ``on_error`` are not called.
     They run in this order:
 
     ===========  ========================================================================================
