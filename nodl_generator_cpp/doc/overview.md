@@ -457,6 +457,7 @@ Whatever is still active afterwards ends with a default-constructed result:
 | Canceling | `CANCELED` |
 | Succeeded, aborted or canceled already | unchanged |
 
+The Python generator sends the result that the execute callback returned instead.
 This also happens on a failed `handle_activate`, and on shutdown and error, where it happens before the hook.
 With a multithreaded executor, a goal accepted during `handle_deactivate` ends right after it.
 A worker that outlives its goal must check `goal_handle->is_active()` and stop, because a terminal or feedback call that races the deactivation throws.
