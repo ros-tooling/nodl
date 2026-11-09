@@ -19,33 +19,11 @@ _SEALED_CALLBACKS = (
 
 
 class LifecycleNode(RclpyLifecycleNode):
-    """An ``rclpy`` lifecycle node whose transitions always run the standard behavior.
+    """An ``rclpy`` lifecycle node whose transition callbacks are sealed, with ``handle_*`` hooks to add behavior.
 
-    The ``on_*`` transition callbacks are implemented here and cannot be overridden:
-    a subclass that defines one raises ``TypeError`` when the class is defined.
-    Subclasses customize a transition by defining the matching optional hook instead,
-    ``handle_configure``, ``handle_activate``, ``handle_deactivate``, ``handle_cleanup``, ``handle_shutdown`` or ``handle_error``.
-    Each hook takes the previous state and returns a ``TransitionCallbackReturn``, SUCCESS by default.
-    A hook that raises makes the transition fail with ERROR, which runs ``handle_error``.
-
-    The standard activation and deactivation are the ``rclpy`` defaults,
-    which activate and deactivate every managed entity, lifecycle publishers included.
-    Only these reach managed entities, including the deactivation on shutdown and error.
-    A custom managed entity does not receive configure or cleanup, and its ``on_shutdown`` and ``on_error`` are not called.
-    They run in this order:
-
-    ===========  ========================================================================================
-    Transition   Order
-    ===========  ========================================================================================
-    configure    hook
-    activate     standard activation, then hook.
-                 A result that is not SUCCESS runs the standard deactivation and is returned.
-    deactivate   hook, then standard deactivation.
-                 A result that is not SUCCESS is returned, and the node stays active.
-    cleanup      hook
-    shutdown     standard deactivation, then hook
-    error        standard deactivation, then hook
-    ===========  ========================================================================================
+    A subclass that defines an ``on_*`` transition callback raises ``TypeError`` when the class is defined.
+    It overrides the matching optional hook instead, each taking the previous state and returning a ``TransitionCallbackReturn``.
+    See the ``nodl_runtime_py`` overview for the order of the hooks and for an example.
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:

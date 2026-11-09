@@ -325,17 +325,16 @@ The constructor still creates all parameters and entities.
 Subscriptions, services, clients, and actions do not become lifecycle-managed.
 
 The generated class does not define transition callbacks.
-The base class implements `on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` and `on_error`, and activates and deactivates managed publishers on every path.
-Application code customizes a transition by defining the matching hook, `handle_configure`, `handle_activate`, `handle_deactivate`, `handle_cleanup`, `handle_shutdown` or `handle_error`.
-Each hook takes the state and returns a `TransitionCallbackReturn`, SUCCESS by default, and needs no `super()` call:
+The base class implements them and activates and deactivates managed publishers on every path.
+Application code customizes a transition by defining the matching `handle_*` hook, which needs no `super()` call.
+The `nodl_runtime_py` overview lists the hooks and their order.
+For example, in an application subclass of the generated class:
 
 ```python
 def handle_activate(self, state):
     # Application-specific activation work, with managed publishers already active.
     return TransitionCallbackReturn.SUCCESS
 ```
-
-The `nodl_runtime_py` overview describes the order of the hooks.
 
 ### Migrating lifecycle nodes
 

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""A lifecycle node that publishes only while active, run as an executable."""
+"""A hand-written (non-generated) node using nodl_runtime_py.lifecycle.LifecycleNode to illustrate the lifecycle hooks."""
 
 import sys
 
