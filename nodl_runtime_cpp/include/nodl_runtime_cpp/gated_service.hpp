@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 // SPDX-License-Identifier: Apache-2.0
-#ifndef NODL_RUNTIME_CPP__GATED_SERVICE_HPP_
-#define NODL_RUNTIME_CPP__GATED_SERVICE_HPP_
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -85,5 +84,3 @@ typename rclcpp::Service<ServiceT>::SharedPtr create_gated_service(
 }
 
 }  // namespace nodl_runtime_cpp
-
-#endif  // NODL_RUNTIME_CPP__GATED_SERVICE_HPP_

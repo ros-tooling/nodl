@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 // SPDX-License-Identifier: Apache-2.0
-#ifndef NODL_RUNTIME_CPP__GATED_SUBSCRIPTION_HPP_
-#define NODL_RUNTIME_CPP__GATED_SUBSCRIPTION_HPP_
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -34,5 +33,3 @@ std::function<void(std::shared_ptr<const MessageT>)> gate_subscription_callback(
 }
 
 }  // namespace nodl_runtime_cpp
-
-#endif  // NODL_RUNTIME_CPP__GATED_SUBSCRIPTION_HPP_

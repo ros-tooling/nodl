@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 // SPDX-License-Identifier: Apache-2.0
-#ifndef NODL_RUNTIME_CPP__GATE_HPP_
-#define NODL_RUNTIME_CPP__GATE_HPP_
+#pragma once
 
 #include <memory>
 
@@ -21,5 +20,3 @@ using Gate = rclcpp_lifecycle::SimpleManagedEntity;
 using GatePtr = std::shared_ptr<const Gate>;
 
 }  // namespace nodl_runtime_cpp
-
-#endif  // NODL_RUNTIME_CPP__GATE_HPP_

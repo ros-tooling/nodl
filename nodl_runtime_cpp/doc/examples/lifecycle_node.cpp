@@ -47,7 +47,11 @@ private:
 using AddTwoInts = example_interfaces::srv::AddTwoInts;
 using Int32 = example_interfaces::msg::Int32;
 
-/// Doubles the numbers it receives and adds numbers on request, but only while active.
+/// Example of a non-generated node that gates a subscription and a service server on `nodl_runtime_cpp::LifecycleNode`'s gate.
+/**
+ * It doubles the numbers it receives and adds numbers on request, but only while active.
+ * The endpoints are created by hand to keep the example self-contained, where a generated node creates its own.
+ */
 class Doubler : public nodl_runtime_cpp::LifecycleNode
 {
 public:
