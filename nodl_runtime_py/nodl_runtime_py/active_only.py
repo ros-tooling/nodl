@@ -17,7 +17,7 @@ from rclpy.task import Future
 
 
 class InactiveError(RuntimeError):
-    """Raised when a request or goal is sent through a gated client while its gate is closed."""
+    """Raised when a request or goal is sent through an active-only client while its gate is closed."""
 
 
 class _Dropped:
@@ -101,7 +101,7 @@ def create_active_only_service(
     return service
 
 
-class GatedClient:
+class ActiveOnlyClient:
     """A service client whose ``call_async`` raises ``InactiveError`` while its gate is closed.
 
     The ``client`` property returns the wrapped client, see the ``nodl_runtime_py`` overview.
@@ -145,7 +145,7 @@ class GatedClient:
         return self._client.wait_for_service(timeout_sec)
 
 
-class GatedActionClient:
+class ActiveOnlyActionClient:
     """An action client whose ``send_goal_async`` raises ``InactiveError`` while its gate is closed.
 
     The ``client`` property returns the wrapped client, see the ``nodl_runtime_py`` overview.

@@ -168,7 +168,7 @@ def test_render_python():
     assert parameters['colour']['g']['default_value'] == 0.4
 
 
-_GATED_BASE = CodegenPython(
+_ACTIVATION_GATED_BASE = CodegenPython(
     role=Role.BASE_CLASS,
     module='nodl_runtime_py.lifecycle',
     activation_gated=True,
@@ -179,7 +179,7 @@ _GATED_BASE = CodegenPython(
 def test_render_python_activates_only_subscriptions_and_services_of_an_activation_gated_base():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
-    generated = _render_python(doc, 'interfaces_node_base', _GATED_BASE)
+    generated = _render_python(doc, 'interfaces_node_base', _ACTIVATION_GATED_BASE)
 
     ast.parse(generated)
     for expected in (
@@ -193,17 +193,17 @@ def test_render_python_activates_only_subscriptions_and_services_of_an_activatio
     assert '            self.on_echo_in,\n' not in generated
 
 
-def test_render_python_wraps_clients_of_a_gated_base():
+def test_render_python_wraps_clients_of_an_activation_gated_base():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
-    generated = _render_python(doc, 'interfaces_node_base', _GATED_BASE)
+    generated = _render_python(doc, 'interfaces_node_base', _ACTIVATION_GATED_BASE)
 
     ast.parse(generated)
     for expected in (
-        'from nodl_runtime_py.gated import GatedActionClient',
-        'from nodl_runtime_py.gated import GatedClient',
-        "self.cli_delegate_add = GatedClient(\n            self.activation_gate,\n            self.create_client(\n                example_interfaces.srv.AddTwoInts,\n                '/delegate_add',\n                qos_profile=",
-        'self.action_cli_delegate_fibonacci = GatedActionClient(\n            self.activation_gate,\n            rclpy.action.ActionClient(\n                self,\n                example_interfaces.action.Fibonacci,',
+        'from nodl_runtime_py.active_only import ActiveOnlyActionClient',
+        'from nodl_runtime_py.active_only import ActiveOnlyClient',
+        "self.cli_delegate_add = ActiveOnlyClient(\n            self.activation_gate,\n            self.create_client(\n                example_interfaces.srv.AddTwoInts,\n                '/delegate_add',\n                qos_profile=",
+        'self.action_cli_delegate_fibonacci = ActiveOnlyActionClient(\n            self.activation_gate,\n            rclpy.action.ActionClient(\n                self,\n                example_interfaces.action.Fibonacci,',
     ):
         assert expected in generated
     assert '= self.create_client(' not in generated
@@ -220,13 +220,13 @@ action_clients:
 """
     )
 
-    generated = _render_python(doc, 'action_client_node_base', _GATED_BASE)
+    generated = _render_python(doc, 'action_client_node_base', _ACTIVATION_GATED_BASE)
 
-    assert 'from nodl_runtime_py.gated import GatedActionClient\n' in generated
-    assert 'GatedClient' not in generated
+    assert 'from nodl_runtime_py.active_only import ActiveOnlyActionClient\n' in generated
+    assert 'ActiveOnlyClient' not in generated
 
 
-def test_render_python_leaves_an_ungated_base_unchanged():
+def test_render_python_leaves_a_non_activation_gated_base_unchanged():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
     generated = _render_python(doc, 'interfaces_node_base')

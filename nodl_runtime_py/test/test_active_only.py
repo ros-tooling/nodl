@@ -18,7 +18,7 @@ from rclpy.executors import SingleThreadedExecutor
 from rclpy.lifecycle import SimpleManagedEntity
 from rclpy.node import Node
 
-from nodl_runtime_py import InactiveError, create_gated_service, gate_subscription_callback
+from nodl_runtime_py import InactiveError, active_only_subscription_callback, create_active_only_service
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'doc' / 'examples'))
 
@@ -175,7 +175,7 @@ def test_clients_expose_the_wrapped_client(spinner):
     assert isinstance(spinner.calculator.fibonacci.client, ActionClient)
 
 
-def test_waiting_for_service_is_not_gated(spinner):
+def test_waiting_for_service_is_not_active_only(spinner):
     spinner.calculator.trigger_configure()
     spinner.spin_until(spinner.calculator.remote_add.service_is_ready)
     assert spinner.calculator.remote_add.wait_for_service(0.0)
@@ -195,7 +195,7 @@ def test_action_client_send_succeeds_while_open(spinner):
     assert future.result().accepted
 
 
-def test_waiting_for_action_server_is_not_gated(spinner):
+def test_waiting_for_action_server_is_not_active_only(spinner):
     spinner.calculator.trigger_configure()
     spinner.spin_until(spinner.calculator.fibonacci.server_is_ready)
     assert spinner.calculator.fibonacci.wait_for_server(0.0)

@@ -55,8 +55,8 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         )
     {% endfor %}
     {% for client in service_clients %}
-{% if gated %}
-        self.{{ client.member_name }} = GatedClient(
+{% if activation_gated %}
+        self.{{ client.member_name }} = ActiveOnlyClient(
             self.activation_gate,
             self.create_client(
                 {{ client.py_type }},
@@ -87,8 +87,8 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         )
     {% endfor %}
     {% for action in action_clients %}
-{% if gated %}
-        self.{{ action.member_name }} = GatedActionClient(
+{% if activation_gated %}
+        self.{{ action.member_name }} = ActiveOnlyActionClient(
             self.activation_gate,
             rclpy.action.ActionClient(
                 self,
