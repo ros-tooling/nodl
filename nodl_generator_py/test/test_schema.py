@@ -30,16 +30,16 @@ def test_load_base_class_defaults_publisher_method():
     assert config.module == 'rclpy.node'
     assert config.class_ == 'Node'
     assert config.publisher_method == 'create_publisher'
-    assert config.gated is False
+    assert config.activation_gated is False
 
 
-def test_load_gated_base_class():
-    assert load(_base(gated=True)).gated is True
+def test_load_activation_gated_base_class():
+    assert load(_base(activation_gated=True)).activation_gated is True
 
 
-def test_load_gated_requires_a_boolean():
+def test_load_activation_gated_requires_a_boolean():
     with pytest.raises(ValidationError):
-        load(_base(gated='yes'))
+        load(_base(activation_gated='yes'))
 
 
 def test_load_no_generate():
@@ -75,7 +75,7 @@ def test_invalid_metadata_fails(codegen):
         ('module', 'rclpy.node'),
         ('class', 'Node'),
         ('publisher_method', 'create_publisher'),
-        ('gated', True),
+        ('activation_gated', True),
     ],
 )
 def test_no_generate_rejects_base_class_fields(field, value):

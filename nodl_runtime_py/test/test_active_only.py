@@ -15,11 +15,11 @@ from rclpy.executors import SingleThreadedExecutor
 from rclpy.lifecycle import SimpleManagedEntity
 from rclpy.node import Node
 
-from nodl_runtime_py import create_gated_service, gate_subscription_callback
+from nodl_runtime_py import active_only_subscription_callback, create_active_only_service
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'doc' / 'examples'))
 
-from gated_node import Calculator  # noqa: E402
+from active_only_node import Calculator  # noqa: E402
 
 # How long to spin when waiting for something that must not happen.
 QUIET_S = 0.5
@@ -27,7 +27,7 @@ TIMEOUT_S = 10
 
 
 class Peer(Node):
-    """The other end of the calculator's entities, never gated."""
+    """The other end of the calculator's entities, never active-only."""
 
     def __init__(self):
         super().__init__('peer')
@@ -135,21 +135,21 @@ def test_service_responds_again_after_reactivation(spinner):
 def test_subscription_wrapper_needs_only_the_gate():
     gate = SimpleManagedEntity()
     calls = []
-    wrapped = gate_subscription_callback(gate, calls.append)
+    wrapped = active_only_subscription_callback(gate, calls.append)
     wrapped(1)
     gate.on_activate(None)
     wrapped(2)
     assert [2] == calls
 
 
-def test_async_subscription_callback_gated():
+def test_async_subscription_callback_active_only():
     gate = SimpleManagedEntity()
     calls = []
 
     async def callback(msg):
         calls.append(msg)
 
-    wrapped = gate_subscription_callback(gate, callback)
+    wrapped = active_only_subscription_callback(gate, callback)
     assert inspect.iscoroutinefunction(wrapped)
     asyncio.run(wrapped(1))
     gate.on_activate(None)
@@ -164,7 +164,7 @@ def async_service(spinner):
         return response
 
     gate = SimpleManagedEntity()
-    create_gated_service(spinner.calculator, gate, AddTwoInts, 'async_add', on_add)
+    create_active_only_service(spinner.calculator, gate, AddTwoInts, 'async_add', on_add)
     client = spinner.peer.create_client(AddTwoInts, 'async_add')
     spinner.spin_until(client.service_is_ready)
     return gate, client
@@ -206,7 +206,7 @@ def test_async_subscription_callback_stops_after_deactivate():
     async def callback(msg):
         calls.append(msg)
 
-    wrapped = gate_subscription_callback(gate, callback)
+    wrapped = active_only_subscription_callback(gate, callback)
     gate.on_activate(None)
     asyncio.run(wrapped(1))
     gate.on_deactivate(None)

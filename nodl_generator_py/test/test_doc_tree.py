@@ -211,7 +211,7 @@ def test_root_python_provider_metadata_is_rejected(tmp_path, role):
         generate_python(root, 'example_node_base')
 
 
-def test_gated_lifecycle_base_gates_subscription_and_service_callbacks(tmp_path):
+def test_active_only_lifecycle_base_gates_subscription_and_service_callbacks(tmp_path):
     _write(
         tmp_path / 'base.nodl.yaml',
         """nodl_version: 2
@@ -221,7 +221,7 @@ codegen:
     module: nodl_runtime_py.lifecycle
     class: LifecycleNode
     publisher_method: create_lifecycle_publisher
-    gated: true
+    activation_gated: true
 """,
     )
     root = _write(
@@ -242,5 +242,5 @@ service_servers:
     result = generate_python(root, 'lifecycle_node_base')
 
     assert 'from nodl_runtime_py.lifecycle import LifecycleNode' in result.module
-    assert 'gate_subscription_callback(self.activation_gate, self.on_command),' in result.module
-    assert 'self.srv_add = create_gated_service(' in result.module
+    assert 'active_only_subscription_callback(self.activation_gate, self.on_command),' in result.module
+    assert 'self.srv_add = create_active_only_service(' in result.module

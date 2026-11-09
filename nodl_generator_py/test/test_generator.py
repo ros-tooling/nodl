@@ -171,29 +171,29 @@ def test_render_python():
 _GATED_BASE = CodegenPython(
     role=Role.BASE_CLASS,
     module='nodl_runtime_py.lifecycle',
-    gated=True,
+    activation_gated=True,
     **{'class': 'LifecycleNode'},
 )
 
 
-def test_render_python_gates_subscriptions_and_services_of_a_gated_base():
+def test_render_python_activates_only_subscriptions_and_services_of_an_activation_gated_base():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
     generated = _render_python(doc, 'interfaces_node_base', _GATED_BASE)
 
     ast.parse(generated)
     for expected in (
-        'from nodl_runtime_py.gated import create_gated_service',
-        'from nodl_runtime_py.gated import gate_subscription_callback',
-        'gate_subscription_callback(self.activation_gate, self.on_echo_in),',
-        'self.srv_add = create_gated_service(\n            self,\n            self.activation_gate,\n            example_interfaces.srv.AddTwoInts,',
+        'from nodl_runtime_py.active_only import create_active_only_service',
+        'from nodl_runtime_py.active_only import active_only_subscription_callback',
+        'active_only_subscription_callback(self.activation_gate, self.on_echo_in),',
+        'self.srv_add = create_active_only_service(\n            self,\n            self.activation_gate,\n            example_interfaces.srv.AddTwoInts,',
     ):
         assert expected in generated
     assert 'self.create_service(' not in generated
     assert '            self.on_echo_in,\n' not in generated
 
 
-def test_render_python_leaves_an_ungated_base_unchanged():
+def test_render_python_leaves_a_non_activation_gated_base_unchanged():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
     generated = _render_python(doc, 'interfaces_node_base')

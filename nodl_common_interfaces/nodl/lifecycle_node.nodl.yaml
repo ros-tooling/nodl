@@ -19,7 +19,7 @@ codegen:
     module: nodl_runtime_py.lifecycle
     class: LifecycleNode
     publisher_method: create_lifecycle_publisher
-    gated: true
+    activation_gated: true
 
 include:
   - ref: local://node.nodl.yaml

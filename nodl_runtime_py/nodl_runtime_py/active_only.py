@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Helpers that gate a subscription or a service on an activation gate, see the ``nodl_runtime_py`` overview."""
+"""Helpers that make a subscription or a service work only while an activation gate is open, see the ``nodl_runtime_py`` overview."""
 
 from __future__ import annotations
 
@@ -20,7 +20,9 @@ class _Dropped:
 _DROPPED = _Dropped()
 
 
-def gate_subscription_callback(gate: SimpleManagedEntity, callback: Callable[[Any], Any]) -> Callable[[Any], Any]:
+def active_only_subscription_callback(
+    gate: SimpleManagedEntity, callback: Callable[[Any], Any]
+) -> Callable[[Any], Any]:
     """Wrap a subscription callback so that messages are dropped while ``gate`` is closed.
 
     The result is passed to ``Node.create_subscription`` in place of ``callback``.
@@ -32,20 +34,20 @@ def gate_subscription_callback(gate: SimpleManagedEntity, callback: Callable[[An
     """
     if inspect.iscoroutinefunction(callback):
 
-        async def gated_async(msg: Any) -> Any:
+        async def active_only_async(msg: Any) -> Any:
             if gate.is_activated:
                 return await callback(msg)
 
-        return gated_async
+        return active_only_async
 
-    def gated(msg: Any) -> Any:
+    def active_only(msg: Any) -> Any:
         if gate.is_activated:
             return callback(msg)
 
-    return gated
+    return active_only
 
 
-def create_gated_service(
+def create_active_only_service(
     node: Node,
     gate: SimpleManagedEntity,
     srv_type: Any,
@@ -70,18 +72,18 @@ def create_gated_service(
     """
     if inspect.iscoroutinefunction(callback):
 
-        async def gated_async(request: Any, response: Any) -> Any:
+        async def active_only_async(request: Any, response: Any) -> Any:
             return await callback(request, response) if gate.is_activated else _DROPPED
 
-        gated_callback: Callable[[Any, Any], Any] = gated_async
+        active_only_callback: Callable[[Any, Any], Any] = active_only_async
     else:
 
-        def gated_sync(request: Any, response: Any) -> Any:
+        def active_only_sync(request: Any, response: Any) -> Any:
             return callback(request, response) if gate.is_activated else _DROPPED
 
-        gated_callback = gated_sync
+        active_only_callback = active_only_sync
 
-    service = node.create_service(srv_type, srv_name, gated_callback, **kwargs)
+    service = node.create_service(srv_type, srv_name, active_only_callback, **kwargs)
     send_response = service.send_response
 
     def send_unless_dropped(response: Any, header: Any) -> None:

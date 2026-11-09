@@ -35,7 +35,7 @@ class LifecycleNode(RclpyLifecycleNode):
 
     @property
     def activation_gate(self) -> SimpleManagedEntity:
-        """The activation gate for :mod:`nodl_runtime_py.gated`, open while the node is active and during ``handle_activate``."""
+        """The activation gate for :mod:`nodl_runtime_py.active_only`, open while the node is active and during ``handle_activate``."""
         return self._activation_gate
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
