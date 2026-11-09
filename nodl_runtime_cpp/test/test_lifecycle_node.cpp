@@ -126,6 +126,25 @@ protected:
   std::shared_ptr<RecordingNode> node_ = std::make_shared<RecordingNode>();
 };
 
+TEST_F(LifecycleNodeTest, ConstructsWithNameAndOptions)
+{
+  nodl_runtime_cpp::LifecycleNode node("named_node", rclcpp::NodeOptions().use_intra_process_comms(true));
+
+  EXPECT_STREQ(node.get_name(), "named_node");
+  EXPECT_STREQ(node.get_namespace(), "/");
+  EXPECT_TRUE(node.get_node_options().use_intra_process_comms());
+}
+
+TEST_F(LifecycleNodeTest, ConstructsWithNamespaceAndOptions)
+{
+  nodl_runtime_cpp::LifecycleNode node("named_node", "ns");
+  nodl_runtime_cpp::LifecycleNode with_options("other_node", "ns", rclcpp::NodeOptions());
+
+  EXPECT_STREQ(node.get_name(), "named_node");
+  EXPECT_STREQ(node.get_namespace(), "/ns");
+  EXPECT_STREQ(with_options.get_namespace(), "/ns");
+}
+
 TEST_F(LifecycleNodeTest, DefaultHooksSucceed)
 {
   auto node = std::make_shared<nodl_runtime_cpp::LifecycleNode>("plain_node");

@@ -3,7 +3,7 @@
 #pragma once
 
 #include <memory>
-#include <utility>
+#include <string>
 
 #include "nodl_runtime_cpp/gate.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
@@ -26,11 +26,28 @@ public:
 
   /// Construct the node and register its activation gate.
   /**
-   * \param[in] args Arguments of a `rclcpp_lifecycle::LifecycleNode` constructor.
+   * The constructors mirror those of `rclcpp_lifecycle::LifecycleNode` that exist in every supported distribution.
+   *
+   * \param[in] node_name Name of the node.
+   * \param[in] options Options of the node.
    */
-  template <typename... Args>
-  explicit LifecycleNode(Args &&... args)
-  : rclcpp_lifecycle::LifecycleNode(std::forward<Args>(args)...)
+  explicit LifecycleNode(const std::string & node_name, const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
+  : rclcpp_lifecycle::LifecycleNode(node_name, options)
+  {
+    add_managed_entity(gate_);
+  }
+
+  /// Construct the node in a namespace and register its activation gate.
+  /**
+   * \param[in] node_name Name of the node.
+   * \param[in] namespace_ Namespace of the node.
+   * \param[in] options Options of the node.
+   */
+  LifecycleNode(
+    const std::string & node_name,
+    const std::string & namespace_,
+    const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
+  : rclcpp_lifecycle::LifecycleNode(node_name, namespace_, options)
   {
     add_managed_entity(gate_);
   }

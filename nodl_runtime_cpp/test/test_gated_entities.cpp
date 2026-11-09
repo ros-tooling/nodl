@@ -5,6 +5,7 @@
 #include <chrono>
 #include <future>
 #include <memory>
+#include <stdexcept>
 #include <thread>
 
 #include "example_interfaces/msg/int32.hpp"
@@ -61,7 +62,9 @@ protected:
   void TearDown() override
   {
     executor_.cancel();
-    spinner_.join();
+    if (spinner_.joinable()) {
+      spinner_.join();
+    }
   }
 
   void open_gate()
@@ -144,6 +147,34 @@ TEST_F(GatedEntities, ServiceStopsAnsweringAfterDeactivate)
   auto dropped = client->async_send_request(request);
 
   EXPECT_EQ(dropped.future.wait_for(300ms), std::future_status::timeout);
+}
+
+TEST_F(GatedEntities, ThrowingServiceCallbackLeavesRequestUnanswered)
+{
+  auto service = nodl_runtime_cpp::create_gated_service<AddTwoInts>(
+    *node_, gate_, "add", [](std::shared_ptr<AddTwoInts::Request>, std::shared_ptr<AddTwoInts::Response>) {
+      throw std::runtime_error("callback failed");
+    });
+  auto client = peer_->create_client<AddTwoInts>("add");
+  ASSERT_TRUE(client->wait_for_service(5s));
+  open_gate();
+  // The exception leaves the executor, so spin it from the test thread.
+  executor_.cancel();
+  spinner_.join();
+
+  auto request = client->async_send_request(std::make_shared<AddTwoInts::Request>());
+  bool threw = false;
+  const auto deadline = std::chrono::steady_clock::now() + 5s;
+  while (!threw && std::chrono::steady_clock::now() < deadline) {
+    try {
+      executor_.spin_some(10ms);
+    } catch (const std::runtime_error &) {
+      threw = true;
+    }
+  }
+
+  EXPECT_TRUE(threw);
+  EXPECT_EQ(request.future.wait_for(300ms), std::future_status::timeout);
 }
 
 }  // namespace
