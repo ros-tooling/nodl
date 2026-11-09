@@ -4,21 +4,30 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <memory>
 #include <type_traits>
 
+#include "example_interfaces/action/fibonacci.hpp"
+#include "example_interfaces/srv/add_two_ints.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "nodl_runtime_cpp/gate.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "test_nodl_generators/cpp_lifecycle_node_base.hpp"
 
 namespace
 {
 
+using AddTwoInts = example_interfaces::srv::AddTwoInts;
+using Fibonacci = example_interfaces::action::Fibonacci;
 using std::chrono_literals::operator""ms;
+using std::chrono_literals::operator""s;
 
 /// Implements only what the generated base requires, publishes from `handle_activate`, and counts its callbacks.
+/// It also sends from both client kinds in `handle_configure` and `handle_activate`, and keeps what happened.
 class TestNode : public CppLifecycleNodeBase
 {
   static_assert(
@@ -38,10 +47,39 @@ public:
     pub_status_->publish(message);
   }
 
+  /// Whether the service and the action server that the clients send to are discovered.
+  bool clients_ready() const
+  {
+    return cli_add_->service_is_ready() && action_cli_fibonacci_->action_server_is_ready();
+  }
+
 protected:
+  CallbackReturn handle_configure(const rclcpp_lifecycle::State &) override
+  {
+    // Waiting is not gated, sending is.
+    waiting_in_configure_threw = false;
+    try {
+      cli_add_->wait_for_service(0ms);
+      cli_add_->service_is_ready();
+      action_cli_fibonacci_->wait_for_action_server(0ms);
+    } catch (const nodl_runtime_cpp::InactiveError &) {
+      waiting_in_configure_threw = true;
+    }
+    service_send_in_configure_threw =
+      throws_inactive([this] { cli_add_->async_send_request(std::make_shared<AddTwoInts::Request>()); });
+    action_send_in_configure_threw =
+      throws_inactive([this] { action_cli_fibonacci_->async_send_goal(Fibonacci::Goal()); });
+    return CallbackReturn::SUCCESS;
+  }
+
   CallbackReturn handle_activate(const rclcpp_lifecycle::State &) override
   {
     publish_status();
+    auto request = std::make_shared<AddTwoInts::Request>();
+    request->a = 2;
+    request->b = 3;
+    activate_sum = cli_add_->async_send_request(request).future.share();
+    activate_goal_handle = action_cli_fibonacci_->async_send_goal(Fibonacci::Goal());
     return CallbackReturn::SUCCESS;
   }
 
@@ -59,6 +97,23 @@ protected:
 
 public:
   std::atomic<int> cmd_vel_count{0};
+  bool waiting_in_configure_threw = true;
+  bool service_send_in_configure_threw = false;
+  bool action_send_in_configure_threw = false;
+  std::shared_future<AddTwoInts::Response::SharedPtr> activate_sum;
+  std::shared_future<rclcpp_action::ClientGoalHandle<Fibonacci>::SharedPtr> activate_goal_handle;
+
+private:
+  template <typename F>
+  static bool throws_inactive(F && send)
+  {
+    try {
+      send();
+    } catch (const nodl_runtime_cpp::InactiveError &) {
+      return true;
+    }
+    return false;
+  }
 };
 
 class GeneratedLifecycleNode : public ::testing::Test
@@ -130,12 +185,37 @@ protected:
     return rclcpp::FutureReturnCode::SUCCESS == executor_.spin_until_future_complete(future, 500ms);
   }
 
+  /// A peer that answers the node's clients.
+  void serve_clients()
+  {
+    add_service_ = peer_->create_service<AddTwoInts>(
+      "add", [](AddTwoInts::Request::SharedPtr request, AddTwoInts::Response::SharedPtr response) {
+        response->sum = request->a + request->b;
+      });
+    fibonacci_server_ = rclcpp_action::create_server<Fibonacci>(
+      peer_,
+      "fibonacci",
+      [](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal>) {
+        return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+      },
+      [](std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>>) { return rclcpp_action::CancelResponse::ACCEPT; },
+      [](std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>> goal_handle) {
+        goal_handle->succeed(std::make_shared<Fibonacci::Result>());
+      });
+    const auto deadline = std::chrono::steady_clock::now() + 5s;
+    while (!node_->clients_ready() && std::chrono::steady_clock::now() < deadline) {
+      executor_.spin_some(10ms);
+    }
+  }
+
   std::shared_ptr<TestNode> node_ = std::make_shared<TestNode>();
   std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_ =
     peer_->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", rclcpp::QoS(1).best_effort());
   rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr client_ = peer_->create_client<std_srvs::srv::Trigger>("trigger");
+  rclcpp::Service<AddTwoInts>::SharedPtr add_service_;
+  rclcpp_action::Server<Fibonacci>::SharedPtr fibonacci_server_;
   rclcpp::executors::SingleThreadedExecutor executor_;
   int received_ = 0;
 };
@@ -185,6 +265,22 @@ TEST_F(GeneratedLifecycleNode, DeliversSubscriptionsAndServesRequestsOnlyWhileAc
   node_->deactivate();
   EXPECT_FALSE(subscription_delivers());
   EXPECT_FALSE(service_responds());
+}
+
+TEST_F(GeneratedLifecycleNode, SendsFromClientsOnlyOnceTheGateIsOpen)
+{
+  serve_clients();
+
+  node_->configure();
+  EXPECT_FALSE(node_->waiting_in_configure_threw);
+  EXPECT_TRUE(node_->service_send_in_configure_threw);
+  EXPECT_TRUE(node_->action_send_in_configure_threw);
+
+  node_->activate();
+  ASSERT_EQ(executor_.spin_until_future_complete(node_->activate_sum, 5s), rclcpp::FutureReturnCode::SUCCESS);
+  EXPECT_EQ(node_->activate_sum.get()->sum, 5);
+  ASSERT_EQ(executor_.spin_until_future_complete(node_->activate_goal_handle, 5s), rclcpp::FutureReturnCode::SUCCESS);
+  EXPECT_NE(node_->activate_goal_handle.get(), nullptr);
 }
 
 }  // namespace

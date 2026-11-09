@@ -76,6 +76,11 @@ def _build_template_context(
         + [e.type for e in action_servers]
         + [e.type for e in action_clients]
     )
+    if activation_gated and service_clients:
+        headers.add('nodl_runtime_cpp/gated_client.hpp')
+    if activation_gated and action_clients:
+        headers.add('nodl_runtime_cpp/gated_action_client.hpp')
+
     for ros_type in type_sources:
         headers.add(ros_type_to_header(ros_type))
 

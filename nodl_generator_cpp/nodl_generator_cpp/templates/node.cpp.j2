@@ -75,7 +75,13 @@ namespace {{ namespace }}
 
   // Create service clients
 {% for cli in service_clients %}
+{% if activation_gated %}
+  {{ cli.member }} = std::make_shared<nodl_runtime_cpp::GatedClient<{{ cli.cpp_type }}>>(
+    this->gate(),
+    this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}"));
+{% else %}
   {{ cli.member }} = this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}");
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if action_servers %}
@@ -100,7 +106,13 @@ namespace {{ namespace }}
 
   // Create action clients
 {% for cli in action_clients %}
+{% if activation_gated %}
+  {{ cli.member }} = std::make_shared<nodl_runtime_cpp::GatedActionClient<{{ cli.cpp_type }}>>(
+    this->gate(),
+    rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}"));
+{% else %}
   {{ cli.member }} = rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}");
+{% endif %}
 {% endfor %}
 {% endif %}
 }

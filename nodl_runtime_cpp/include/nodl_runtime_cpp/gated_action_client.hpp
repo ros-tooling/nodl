@@ -1,0 +1,82 @@
+// SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
+// SPDX-License-Identifier: Apache-2.0
+#ifndef NODL_RUNTIME_CPP__GATED_ACTION_CLIENT_HPP_
+#define NODL_RUNTIME_CPP__GATED_ACTION_CLIENT_HPP_
+
+#include <chrono>
+#include <memory>
+#include <utility>
+
+#include "nodl_runtime_cpp/gate.hpp"
+#include "rclcpp_action/client.hpp"
+
+namespace nodl_runtime_cpp
+{
+
+/// An action client that refuses to send goals while the gate is closed.
+/**
+ * Sending a goal throws `InactiveError` rather than dropping it,
+ * because a dropped goal would return a future that never completes.
+ * Waiting for the server and readiness checks are not gated.
+ * Cancel and result requests are not gated either, and go through `client()`.
+ *
+ * \tparam ActionT Action type.
+ */
+template <typename ActionT>
+class GatedActionClient
+{
+public:
+  /// Shared pointer to the wrapper, the type of a generated client member.
+  using SharedPtr = std::shared_ptr<GatedActionClient>;
+
+  /// \param[in] gate The activation gate, shared with the node.
+  /// \param[in] client The client to guard, usually from `rclcpp_action::create_client`.
+  GatedActionClient(GatePtr gate, typename rclcpp_action::Client<ActionT>::SharedPtr client)
+  : gate_(std::move(gate))
+  , client_(std::move(client))
+  {}
+
+  /// Send a goal, as `rclcpp_action::Client::async_send_goal`.
+  /**
+   * \param[in] goal The goal to send.
+   * \param[in] options Goal, feedback and result callbacks.
+   * \return What `async_send_goal` returns.
+   * \throws InactiveError if the gate is closed.
+   */
+  auto async_send_goal(
+    const typename ActionT::Goal & goal,
+    const typename rclcpp_action::Client<ActionT>::SendGoalOptions & options =
+      typename rclcpp_action::Client<ActionT>::SendGoalOptions())
+  {
+    throw_if_closed(*gate_, "Sending a goal");
+    return client_->async_send_goal(goal, options);
+  }
+
+  /// Wait for the action server, as `rclcpp_action::ClientBase::wait_for_action_server`.
+  /// Not gated.
+  template <typename RepT = int64_t, typename RatioT = std::milli>
+  bool wait_for_action_server(std::chrono::duration<RepT, RatioT> timeout = std::chrono::duration<RepT, RatioT>(-1))
+  {
+    return client_->wait_for_action_server(timeout);
+  }
+
+  /// Whether the action server is available. Not gated.
+  bool action_server_is_ready() const
+  {
+    return client_->action_server_is_ready();
+  }
+
+  /// The guarded client, for cancel and result requests that are not gated.
+  const typename rclcpp_action::Client<ActionT>::SharedPtr & client() const
+  {
+    return client_;
+  }
+
+private:
+  GatePtr gate_;
+  typename rclcpp_action::Client<ActionT>::SharedPtr client_;
+};
+
+}  // namespace nodl_runtime_cpp
+
+#endif  // NODL_RUNTIME_CPP__GATED_ACTION_CLIENT_HPP_

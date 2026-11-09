@@ -3,7 +3,7 @@
 `nodl_runtime_cpp` provides shared utilities for C++ nodes, especially those that `nodl_generator_cpp` generates.
 It currently provides `rclcpp_lifecycle` wrapper classes to enable a reusable pattern for consistently managing the state and behavior of entities in Lifecycle nodes.
 
-The package is header-only, and depends on `rclcpp` and `rclcpp_lifecycle`, which it exports.
+The package is header-only, and depends on `rclcpp`, `rclcpp_action` and `rclcpp_lifecycle`, which it exports.
 
 ```xml
 <depend>nodl_runtime_cpp</depend>
@@ -57,8 +57,8 @@ The example is compiled as part of the package tests.
 
 ### Active-only entities
 
-A lifecycle node has the ability to block subscription messages and service requests while it is inactive.
-`active_only_subscription_callback` and `create_active_only_service` each put one entity behind the node's activation gate.
+A lifecycle node has the ability to block subscription messages, service requests and client requests while it is inactive.
+`active_only_subscription_callback`, `create_active_only_service`, `GatedClient` and `GatedActionClient` each put one entity behind the node's activation gate.
 The entity is still created in the constructor, as usual.
 
 `nodl_runtime_cpp::LifecycleNode` owns the gate, a `nodl_runtime_cpp::Gate`, which is an alias of `rclcpp_lifecycle::SimpleManagedEntity`.
@@ -70,6 +70,17 @@ The helpers take the gate, not the node, so they also work with a gate that a no
 |---|---|---|
 | Subscription | `active_only_subscription_callback` | The message is dropped and the callback is not called. |
 | Service server | `create_active_only_service` | The request is dropped and no response is sent, so the client's request never completes. |
+| Service client | `GatedClient` | `async_send_request` throws `InactiveError`. |
+| Action client | `GatedActionClient` | `async_send_goal` throws `InactiveError`. |
+
+Clients throw instead of dropping, because a dropped request would return a future that never completes.
+The gate is already open in `handle_activate`, so that hook can call a client, but `handle_configure` cannot.
+Move requests made at configure time, such as fetching configuration from another node, to `handle_activate`.
+These are not gated:
+
+- waiting for a service or an action server, and checking whether it is ready, so `wait_for_service` works in `handle_configure`
+- responses to requests sent while the gate was open
+- cancel and result requests of an action client, which go through `GatedActionClient::client()`
 
 With a multithreaded executor, callbacks can run while `handle_activate` is still executing, because the gate is already open.
 State that they need must be ready by the end of `handle_configure`.
@@ -77,8 +88,8 @@ A callback that throws propagates out of the executor, and an active-only servic
 
 #### Active-only example
 
-This example shows a hand-written (non-generated) node using the gate of `nodl_runtime_cpp::LifecycleNode` to gate a subscription and a service server.
-It doubles the numbers it receives and adds numbers on request, and blocks both while it is inactive.
+This example shows a hand-written (non-generated) node using the gate of `nodl_runtime_cpp::LifecycleNode` to gate a subscription, a service server and a client.
+It doubles the numbers it receives, adds numbers on request and asks a peer to add numbers, and blocks all three while it is inactive.
 Generated nodes with an `activation_gated` base class wrap their callbacks the same way.
 
 ```{literalinclude} examples/lifecycle_node.cpp

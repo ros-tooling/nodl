@@ -1,0 +1,16 @@
+---
+# Lifecycle base class with a service client and an action client.
+# The generated members are gated on the base class's activation gate.
+
+nodl_version: 2
+
+include:
+  - ref: test://rclcpp_lifecycle_node
+
+service_clients:
+  - name: add
+    type: example_interfaces/srv/AddTwoInts
+
+action_clients:
+  - name: navigate
+    type: nav2_msgs/action/NavigateToPose

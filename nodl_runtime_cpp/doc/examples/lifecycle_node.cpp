@@ -6,6 +6,7 @@
 
 #include "example_interfaces/msg/int32.hpp"
 #include "example_interfaces/srv/add_two_ints.hpp"
+#include "nodl_runtime_cpp/gated_client.hpp"
 #include "nodl_runtime_cpp/active_only_service.hpp"
 #include "nodl_runtime_cpp/active_only_subscription.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -47,9 +48,9 @@ private:
 using AddTwoInts = example_interfaces::srv::AddTwoInts;
 using Int32 = example_interfaces::msg::Int32;
 
-/// Example of a non-generated node that gates a subscription and a service server on `nodl_runtime_cpp::LifecycleNode`'s gate.
+/// Example of a non-generated node that gates a subscription, a service server and a client on `nodl_runtime_cpp::LifecycleNode`'s gate.
 /**
- * It doubles the numbers it receives and adds numbers on request, and blocks both while it is inactive.
+ * It doubles the numbers it receives, adds numbers on request and asks a peer to add numbers, and blocks all three while it is inactive.
  * The endpoints are created by hand to keep the example self-contained, where a generated node creates its own.
  */
 class Doubler : public nodl_runtime_cpp::LifecycleNode
@@ -77,12 +78,28 @@ public:
       [](std::shared_ptr<AddTwoInts::Request> request, std::shared_ptr<AddTwoInts::Response> response) {
         response->sum = request->a + request->b;
       });
+
+    // Sending throws nodl_runtime_cpp::InactiveError until the gate is open.
+    client_ =
+      std::make_shared<nodl_runtime_cpp::GatedClient<AddTwoInts>>(gate(), create_client<AddTwoInts>("remote_add"));
+  }
+
+protected:
+  // The gate is already open here, so the node can call a client.
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/) override
+  {
+    auto request = std::make_shared<AddTwoInts::Request>();
+    request->a = 1;
+    request->b = 2;
+    client_->async_send_request(request);
+    return CallbackReturn::SUCCESS;
   }
 
 private:
   rclcpp_lifecycle::LifecyclePublisher<Int32>::SharedPtr publisher_;
   rclcpp::Subscription<Int32>::SharedPtr subscription_;
   rclcpp::Service<AddTwoInts>::SharedPtr service_;
+  nodl_runtime_cpp::GatedClient<AddTwoInts>::SharedPtr client_;
 };
 
 int main(int argc, char ** argv)
