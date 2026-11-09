@@ -41,3 +41,7 @@ class CodegenPython(BaseModel):
     module: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$')] = None
     class_: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*$')] = Field(None, alias='class')
     publisher_method: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*$')] = 'create_publisher'
+    gated: Optional[bool] = Field(
+        False,
+        description='Whether the base class is a ``nodl_runtime_py.lifecycle.LifecycleNode``,\nwhich exposes an ``activation_gate`` that is open only while the node is active.\nGenerated subscription and service server callbacks then run only while the gate is open.\n',
+    )

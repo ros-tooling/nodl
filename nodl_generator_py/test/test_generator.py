@@ -18,6 +18,7 @@ from nodl_generator_py.generator import (
     _snake_to_pascal,
     _target_to_node_name,
 )
+from nodl_generator_py.models import CodegenPython, Role
 from nodl_schema import load_nodl, parse_nodl
 from nodl_schema.models import (
     Durability,
@@ -165,6 +166,42 @@ def test_render_python():
     assert 'colour.r' not in parameters
     assert parameters['colour']['r']['default_value'] == 0.8
     assert parameters['colour']['g']['default_value'] == 0.4
+
+
+_GATED_BASE = CodegenPython(
+    role=Role.BASE_CLASS,
+    module='nodl_runtime_py.lifecycle',
+    gated=True,
+    **{'class': 'LifecycleNode'},
+)
+
+
+def test_render_python_gates_subscriptions_and_services_of_a_gated_base():
+    doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
+
+    generated = _render_python(doc, 'interfaces_node_base', _GATED_BASE)
+
+    ast.parse(generated)
+    for expected in (
+        'from nodl_runtime_py.gated import create_gated_service',
+        'from nodl_runtime_py.gated import gate_subscription_callback',
+        'gate_subscription_callback(self.activation_gate, self.on_echo_in),',
+        'self.srv_add = create_gated_service(\n            self,\n            self.activation_gate,\n            example_interfaces.srv.AddTwoInts,',
+    ):
+        assert expected in generated
+    assert 'self.create_service(' not in generated
+    assert '            self.on_echo_in,\n' not in generated
+
+
+def test_render_python_leaves_an_ungated_base_unchanged():
+    doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
+
+    generated = _render_python(doc, 'interfaces_node_base')
+
+    assert 'nodl_runtime_py' not in generated
+    assert 'activation_gate' not in generated
+    assert '            self.on_echo_in,\n' in generated
+    assert 'self.srv_add = self.create_service(' in generated
 
 
 def test_generate_parameter_yaml_preserves_integer_validation_values():

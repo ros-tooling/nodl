@@ -295,7 +295,7 @@ codegen:
     role: NO_GENERATE
 ```
 
-`NO_GENERATE` takes no `module`, `class`, or `publisher_method` fields.
+`NO_GENERATE` takes no `module`, `class`, `publisher_method`, or `gated` fields.
 Entities supplied by either kind of provider and all of its transitive includes are not generated again.
 A `BASE_CLASS` included by a `NO_GENERATE` provider is hidden from the generator.
 At most one Python base provider may be visible.
@@ -321,8 +321,10 @@ publishers:
 
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
+Generated subscription and service server callbacks are gated on the node's activation gate, so messages and requests are dropped while the node is not active.
+A dropped service request gets no response.
 The constructor still creates all parameters and entities.
-Subscriptions, services, clients, and actions do not become lifecycle-managed.
+Clients and actions do not become lifecycle-managed.
 
 The generated class derives the runtime base class, which implements the transition callbacks and activates and deactivates managed publishers on every path.
 The authored class does not define transition callbacks.
@@ -340,6 +342,13 @@ def handle_activate(self, state):
 
 An authored subclass that defines `on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` or `on_error` raises `TypeError` when the class is defined.
 Rename each override to the matching `handle_*` hook and remove the `super()` call.
+
+Subscriptions and services of generated lifecycle nodes no longer deliver while the node is unconfigured or inactive.
+A callback that checked whether the node was active no longer needs to.
+Callbacks that must run in every state need a node that does not use the lifecycle base.
+
+The gating comes from `gated: true` in the `codegen.python` metadata of a `BASE_CLASS` provider, which `nodl://nodl_common_interfaces/lifecycle_node` sets.
+It states that the base is a `nodl_runtime_py.lifecycle.LifecycleNode` that exposes `activation_gate`, and it defaults to `false`.
 
 ## Parameters
 
@@ -377,7 +386,7 @@ python -m nodl_generator_py \
 
 This version supports parameters, publishers, subscriptions, services, actions,
 their available QoS settings, include composition, and one included Python base provider.
-Lifecycle management applies only to publishers created for a lifecycle base.
+Lifecycle management applies to publishers, subscriptions and service servers created for a lifecycle base.
 
 ## Relationship to other packages
 

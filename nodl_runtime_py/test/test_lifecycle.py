@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 import rclpy
-from rclpy.lifecycle import LifecyclePublisher, TransitionCallbackReturn
+from rclpy.lifecycle import LifecyclePublisher, SimpleManagedEntity, TransitionCallbackReturn
 from std_msgs.msg import String
 
 from nodl_runtime_py.lifecycle import LifecycleNode
@@ -159,6 +159,79 @@ def test_error_from_active_deactivates(make_node):
     node.trigger_deactivate()
     assert ('error', False) == node.calls[-1]
     assert not node.publisher.is_activated
+
+
+class GateRecordingNode(LifecycleNode):
+    """Record whether the activation gate is open in each hook."""
+
+    def __init__(self, activate_result=SUCCESS):
+        super().__init__('gate_recording_node')
+        self.activate_result = activate_result
+        self.gate_open_in = {}
+
+    def _record(self, name):
+        self.gate_open_in[name] = self.activation_gate.is_activated
+        return SUCCESS
+
+    def handle_configure(self, state):
+        return self._record('configure')
+
+    def handle_activate(self, state):
+        self._record('activate')
+        return self.activate_result
+
+    def handle_deactivate(self, state):
+        return self._record('deactivate')
+
+    def handle_shutdown(self, state):
+        return self._record('shutdown')
+
+
+@pytest.fixture
+def gate_node():
+    nodes = []
+
+    def make(**kwargs):
+        nodes.append(GateRecordingNode(**kwargs))
+        return nodes[-1]
+
+    yield make
+    for node in nodes:
+        node.destroy_node()
+
+
+def test_gate_opens_before_handle_activate_and_closes_after_handle_deactivate(gate_node):
+    node = gate_node()
+    assert not node.activation_gate.is_activated
+    node.trigger_configure()
+    assert not node.activation_gate.is_activated
+    node.trigger_activate()
+    assert node.activation_gate.is_activated
+    node.trigger_deactivate()
+    assert not node.activation_gate.is_activated
+    assert {'configure': False, 'activate': True, 'deactivate': True} == node.gate_open_in
+
+
+def test_gate_is_closed_after_a_failed_activate(gate_node):
+    node = gate_node(activate_result=FAILURE)
+    node.trigger_configure()
+    node.trigger_activate()
+    assert not node.activation_gate.is_activated
+
+
+def test_gate_is_closed_in_shutdown_from_active(gate_node):
+    node = gate_node()
+    node.trigger_configure()
+    node.trigger_activate()
+    node.trigger_shutdown()
+    assert not node.gate_open_in['shutdown']
+    assert not node.activation_gate.is_activated
+
+
+def test_gate_is_read_only(gate_node):
+    node = gate_node()
+    with pytest.raises(AttributeError):
+        node.activation_gate = SimpleManagedEntity()
 
 
 @pytest.mark.parametrize('callback', [f'on_{hook}' for hook in HOOKS])

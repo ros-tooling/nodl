@@ -121,3 +121,31 @@ Sealing the callbacks means a node cannot skip that behavior by accident, and th
 Only activation and deactivation, including the deactivation on shutdown and error, reach managed entities.
 A custom managed entity added with `add_managed_entity` does not receive configure or cleanup, and its `on_shutdown` and `on_error` are not called.
 This matches the C++ base class, because `rclcpp_lifecycle` managed entities only have activate and deactivate callbacks.
+
+## Gating entities on activation
+
+An `rclpy` lifecycle node delivers subscription and service callbacks in every state.
+`LifecycleNode` owns an activation gate, an `rclpy.lifecycle.SimpleManagedEntity` registered with `add_managed_entity`, exposed read-only as `activation_gate`.
+The standard activation opens it before `handle_activate` runs, and the standard deactivation closes it, on every path that deactivates publishers.
+The helpers take the gate, not the node, so any node that owns a gate can use them:
+
+```{literalinclude} examples/gated_node.py
+:language: python
+:start-at: class Calculator
+:end-before: def main
+```
+
+| Entity | Helper | While the gate is closed |
+|---|---|---|
+| Subscription | `gate_subscription_callback` | The message is dropped and the callback is not called. |
+| Service server | `create_gated_service` | The request is dropped and gets no response, so its client keeps waiting. |
+
+Both helpers accept coroutine function callbacks.
+`create_gated_service` takes the keyword arguments of `Node.create_service`, such as `qos_profile` or `callback_group`.
+
+`rclpy` always sends the value a service callback returns, and has no way to skip the response.
+`create_gated_service` therefore replaces `send_response` on the service instance.
+This relies on the executor calling `service.send_response`, which the tests check on every supported distribution.
+
+With a multithreaded executor, callbacks can run while `handle_activate` is still executing, because the gate is already open.
+State that they need must be ready by the end of `handle_configure`.

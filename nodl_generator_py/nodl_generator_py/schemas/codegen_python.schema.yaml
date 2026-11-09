@@ -25,6 +25,13 @@ properties:
     type: string
     pattern: ^[A-Za-z_][A-Za-z0-9_]*$
     default: create_publisher
+  gated:
+    description: |
+      Whether the base class is a ``nodl_runtime_py.lifecycle.LifecycleNode``,
+      which exposes an ``activation_gate`` that is open only while the node is active.
+      Generated subscription and service server callbacks then run only while the gate is open.
+    type: boolean
+    default: false
 
 allOf:
   - if:
@@ -39,3 +46,4 @@ allOf:
           - required: [module]
           - required: [class]
           - required: [publisher_method]
+          - required: [gated]

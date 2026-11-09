@@ -9,3 +9,13 @@ publishers:
       history: KEEP_LAST
       depth: 10
       reliability: RELIABLE
+subscriptions:
+  - name: /lifecycle_command
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+service_servers:
+  - name: /lifecycle_add
+    type: example_interfaces/srv/AddTwoInts
