@@ -375,8 +375,9 @@ Setting a parameter that is not declared in the NoDL document, such as one the a
 
 Reading values:
 
-- Reads of `self.params_` are safe without a lock, because an update rebinds it and never mutates it in place.
-  Mutating it is unsupported: the next update replaces it.
+- Reads of `self.params_` are safe without a lock, because an update rebinds it to a copy that shares no object with the previous one, nested parameters such as `colour.r` and lists included.
+  An update never changes the object you already hold.
+  Mutating `self.params_` is unsupported: the next update replaces it.
 - To read several values consistently, take `params = self.params_` once, as `on_echo_in` does in the example below.
 
 Reacting to changes:

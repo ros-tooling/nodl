@@ -143,8 +143,9 @@ def test_render_python():
         'class InterfacesNodeBase(Node, metaclass=abc.ABCMeta):',
         "super().__init__('interfaces_node', **kwargs)",
         'self._param_listener = interfaces_node_base_parameters.interfaces_node.ParamListener(self)',
-        'self.params_ = self._param_listener.get_params()',
+        'self.params_ = copy_parameters(self._param_listener.get_params())',
         'self._param_listener.set_user_callback(self._nodl_update_params)',
+        'from nodl_runtime_py.parameters import copy_parameters, parameter_values, values_equal',
         'def on_parameters_changed(self, params) -> None:',
         'self.pub_echo_out = self.create_publisher(',
         'def on_echo_in(self, msg: std_msgs.msg.String) -> None:',
@@ -211,7 +212,8 @@ def test_render_python_leaves_parameters_of_an_activation_gated_base_to_the_runt
 
     generated = _render_python(doc, 'interfaces_node_base', _ACTIVATION_GATED_BASE)
 
-    assert 'self.params_ = self._param_listener.get_params()' in generated
+    assert 'self.params_ = copy_parameters(self._param_listener.get_params())' in generated
+    assert 'from nodl_runtime_py.parameters import copy_parameters\n' in generated
     assert 'set_user_callback' not in generated
     assert '_nodl_update_params' not in generated
     assert 'def on_parameters_changed(self, params) -> None:' in generated
@@ -270,7 +272,7 @@ def test_render_python_leaves_a_non_activation_gated_base_unchanged():
 
     generated = _render_python(doc, 'interfaces_node_base')
 
-    assert 'nodl_runtime_py' not in generated
+    assert 'nodl_runtime_py.active_only' not in generated
     assert 'activation_gate' not in generated
     assert '            self.on_echo_in,\n' in generated
     assert 'self.srv_add = self.create_service(' in generated

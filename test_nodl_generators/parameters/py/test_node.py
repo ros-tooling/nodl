@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """End-to-end test for generated rclpy parameters."""
 
+import math
+
 import pytest
 import rclpy
 from node_impl import RecordingParametersNode
@@ -86,5 +88,48 @@ def test_snapshot_is_unaffected_by_later_updates(ros_context):
 
         assert snapshot.max_speed == 1.5
         assert node.params_.max_speed == 3.0
+    finally:
+        node.destroy_node()
+
+
+def test_nested_parameter_change_calls_hook_and_keeps_earlier_snapshot(ros_context):
+    node = RecordingParametersNode()
+    try:
+        snapshot = node.params_
+
+        result = node.set_parameters([Parameter('colour.r', value=0.5)])[0]
+
+        assert result.successful
+        assert [change.colour.r for change in node.changes] == [0.5]
+        assert node.params_.colour.r == 0.5
+        assert snapshot.colour.r == 0.8
+        assert snapshot.colour is not node.params_.colour
+    finally:
+        # generate_parameter_library_py keeps nested defaults in a class attribute shared by every node, so restore the default for later nodes.
+        node.set_parameters([Parameter('colour.r', value=0.8)])
+        node.destroy_node()
+
+
+def test_same_value_does_not_call_hook(ros_context):
+    node = RecordingParametersNode()
+    try:
+        node.set_parameters([Parameter('colour.r', value=0.8), Parameter('max_speed', value=1.5)])
+        node.set_parameters([Parameter('waypoints', value=[1.0, 2.0])])
+
+        assert node.changes == []
+    finally:
+        node.destroy_node()
+
+
+def test_array_change_calls_hook_and_repeated_nan_does_not(ros_context):
+    node = RecordingParametersNode()
+    try:
+        node.set_parameters([Parameter('waypoints', value=[1.0, 3.0])])
+        node.set_parameters([Parameter('waypoints', value=[float('nan')])])
+        node.set_parameters([Parameter('waypoints', value=[float('nan')])])
+
+        assert len(node.changes) == 2
+        assert list(node.changes[0].waypoints) == [1.0, 3.0]
+        assert math.isnan(node.changes[1].waypoints[0])
     finally:
         node.destroy_node()

@@ -4,19 +4,6 @@
 {% endfor %}
 {% if params_module %}
 from . import {{ params_module }}
-
-
-{% if not activation_gated %}
-def _nodl_values(params) -> dict:
-    """Return the parameter values of ``params`` as nested dicts, without the update stamp."""
-    return {
-        name: _nodl_values(value) if hasattr(value, '__dict__') else value
-        for name in dir(params)
-        if not name.startswith('_') and name != 'stamp_'
-        for value in [getattr(params, name)]
-        if not callable(value)
-    }
-{% endif %}
 {% endif %}
 
 
@@ -27,8 +14,9 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         super().__init__('{{ node_name }}', **kwargs)
     {% if params_module %}
         self._param_listener = {{ params_module }}.{{ node_name }}.ParamListener(self)
-        self.params_ = self._param_listener.get_params()
+        self.params_ = copy_parameters(self._param_listener.get_params())
 {% if not activation_gated %}
+        self._nodl_last_values = parameter_values(self.params_)
         self._param_listener.set_user_callback(self._nodl_update_params)
 {% endif %}
     {% endif %}
@@ -132,10 +120,12 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
 {% if not activation_gated %}
     def _nodl_update_params(self, params) -> None:
         # The listener calls back for every parameter set on the node, so skip those that leave the declared values unchanged.
-        if _nodl_values(params) == _nodl_values(self.params_):
+        values = parameter_values(params)
+        if values_equal(values, self._nodl_last_values):
             return
-        self.params_ = params
-        self.on_parameters_changed(params)
+        self._nodl_last_values = values
+        self.params_ = copy_parameters(params)
+        self.on_parameters_changed(self.params_)
 
 {% endif %}
     def on_parameters_changed(self, params) -> None:

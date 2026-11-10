@@ -9,6 +9,7 @@ It currently provides a lifecycle node base class that manages the state and beh
 |---|---|
 | `nodl_runtime_py.lifecycle.LifecycleNode` | A lifecycle node base class with standard transitions and optional hooks, described below. |
 | `create_active_only_service`, `active_only_subscription_callback`, `ActiveOnlyClient`, `ActiveOnlyActionServer`, `ActiveOnlyActionClient` | Let a lifecycle node block subscription messages, service requests, and the requests and goals it sends while it is inactive, and reject action goals and end its active ones, described below. |
+| `copy_parameters`, `parameter_values`, `values_equal` | Let generated code give each parameter update its own copy of the typed values, and tell whether the values changed, described below. |
 | `run_node` | The main loop of an executable, described below. |
 | `rclpy` | Generated base classes derive from `rclpy` node classes and create their entities. |
 | `generate_parameter_library_py` | Generated parameter modules import its parameter validators. |
@@ -26,6 +27,15 @@ the way message packages pair `rosidl_default_generators` with `rosidl_default_r
 ```
 
 `nodl_generate_py()` fails at configure time when the calling package does not declare it.
+
+## Parameter values
+
+Generated nodes with parameters use three functions from `nodl_runtime_py.parameters` to keep `self.params_` current:
+
+- `copy_parameters(params)` returns a copy of a `generate_parameter_library_py` parameter object that shares no object with it.
+  The library keeps a nested struct such as `colour` as a class attribute, so an ordinary copy shares it.
+- `parameter_values(params)` returns the values as a nested dict, without the update stamp.
+- `values_equal(first, second)` compares two such dicts, treating NaN as equal to NaN so that setting NaN again is not a change.
 
 ## Running a node
 
