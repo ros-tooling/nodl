@@ -107,6 +107,7 @@ publishers:
     assert 'self.pub_status = self.create_lifecycle_publisher(' in result.module
     assert '/rosout' not in result.module
     assert 'change_state' not in result.module
+    assert 'activation_gate' not in result.module
     assert result.parameters_yaml is None
     assert result.sources == [
         root.resolve(),
@@ -208,3 +209,38 @@ def test_root_python_provider_metadata_is_rejected(tmp_path, role):
 
     with pytest.raises(CodegenError, match=f'root document has codegen.python role {role}'):
         generate_python(root, 'example_node_base')
+
+
+def test_active_only_lifecycle_base_gates_subscription_and_service_callbacks(tmp_path):
+    _write(
+        tmp_path / 'base.nodl.yaml',
+        """nodl_version: 2
+codegen:
+  python:
+    role: BASE_CLASS
+    module: nodl_runtime_py.lifecycle
+    class: LifecycleNode
+    publisher_method: create_lifecycle_publisher
+    activation_gated: true
+""",
+    )
+    root = _write(
+        tmp_path / 'root.nodl.yaml',
+        """nodl_version: 2
+include:
+  - ref: local://base.nodl.yaml
+subscriptions:
+  - name: command
+    type: std_msgs/msg/String
+    qos: {history: KEEP_LAST, depth: 10, reliability: RELIABLE}
+service_servers:
+  - name: add
+    type: example_interfaces/srv/AddTwoInts
+""",
+    )
+
+    result = generate_python(root, 'lifecycle_node_base')
+
+    assert 'from nodl_runtime_py.lifecycle import LifecycleNode' in result.module
+    assert 'active_only_subscription_callback(self.activation_gate, self.on_command),' in result.module
+    assert 'self.srv_add = create_active_only_service(' in result.module

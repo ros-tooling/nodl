@@ -5,7 +5,7 @@
 from typing import Any, final
 
 from rclpy.lifecycle import LifecycleNode as RclpyLifecycleNode
-from rclpy.lifecycle import LifecycleState, TransitionCallbackReturn
+from rclpy.lifecycle import LifecycleState, SimpleManagedEntity, TransitionCallbackReturn
 
 # The transition callbacks that subclasses must not define, because this class implements them.
 _SEALED_CALLBACKS = (
@@ -23,8 +23,20 @@ class LifecycleNode(RclpyLifecycleNode):
 
     A subclass that defines an ``on_*`` transition callback raises ``TypeError`` when the class is defined.
     It overrides the matching optional hook instead, each taking the previous state and returning a ``TransitionCallbackReturn``.
+    The node owns an activation gate, see :attr:`activation_gate`.
     See the ``nodl_runtime_py`` overview for the order of the hooks and for an example.
     """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Construct the node, with the same arguments as ``rclpy.lifecycle.LifecycleNode``."""
+        super().__init__(*args, **kwargs)
+        self._activation_gate = SimpleManagedEntity()
+        self.add_managed_entity(self._activation_gate)
+
+    @property
+    def activation_gate(self) -> SimpleManagedEntity:
+        """The activation gate for :mod:`nodl_runtime_py.active_only`, open while the node is active and during ``handle_activate``."""
+        return self._activation_gate
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

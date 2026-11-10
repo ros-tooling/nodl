@@ -27,15 +27,28 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         self.{{ sub.member_name }} = self.create_subscription(
             {{ sub.py_type }},
             '{{ sub.name }}',
+{% if activation_gated %}
+            active_only_subscription_callback(self.activation_gate, self.{{ sub.callback_name }}),
+{% else %}
             self.{{ sub.callback_name }},
+{% endif %}
             {{ sub.qos_py | indent(12) }},
         )
     {% endfor %}
     {% for service in service_servers %}
+{% if activation_gated %}
+        self.{{ service.member_name }} = create_active_only_service(
+            self,
+            self.activation_gate,
+            {{ service.py_type }},
+            '{{ service.name }}',
+            self.{{ service.callback_name }},
+{% else %}
         self.{{ service.member_name }} = self.create_service(
             {{ service.py_type }},
             '{{ service.name }}',
             self.{{ service.callback_name }},
+{% endif %}
 {% if service.qos_py is defined %}
             qos_profile={{ service.qos_py | indent(12) }},
 {% endif %}

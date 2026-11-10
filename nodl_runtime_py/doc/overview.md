@@ -1,13 +1,14 @@
 # nodl_runtime_py
 
 `nodl_runtime_py` provides shared utilities for Python nodes, especially those that `nodl_generator_py` generates.
-It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, and `run_node`, a main loop for `rclpy` nodes.
+It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, helpers that let a lifecycle node block subscription messages and service requests while it is inactive, and `run_node`, a main loop for `rclpy` nodes.
 
 ## What it provides
 
 | Provides | For |
 |---|---|
 | `nodl_runtime_py.lifecycle.LifecycleNode` | A lifecycle node base class with standard transitions and optional hooks, described below. |
+| `create_active_only_service`, `active_only_subscription_callback` | Let a lifecycle node block subscription messages and service requests while it is inactive, described below. |
 | `run_node` | The main loop of an executable, described below. |
 | `rclpy` | Generated base classes derive from `rclpy` node classes and create their entities. |
 | `generate_parameter_library_py` | Generated parameter modules import its parameter validators. |
@@ -121,3 +122,37 @@ Sealing the callbacks means a node cannot skip that behavior by accident, and th
 Only activation and deactivation, including the deactivation on shutdown and error, reach managed entities.
 A custom managed entity added with `add_managed_entity` does not receive configure or cleanup, and its `on_shutdown` and `on_error` are not called.
 This matches the C++ base class, because `rclcpp_lifecycle` managed entities only have activate and deactivate callbacks.
+
+## Active-only entities
+
+`nodl_runtime_py.lifecycle.LifecycleNode` owns an activation gate, exposed read-only as `activation_gate`.
+The gate is open while the node is active, and during `handle_activate`.
+Two helpers take the gate, not the node, and let one entity block its messages or requests while the gate is closed:
+
+| Entity | Helper | While the gate is closed |
+|---|---|---|
+| Subscription | `active_only_subscription_callback` | The message is dropped and the callback is not called. |
+| Service server | `create_active_only_service` | The request is dropped and gets no response, so its client keeps waiting. |
+
+Both accept coroutine function callbacks.
+`create_active_only_service` takes the keyword arguments of `Node.create_service`, such as `qos_profile` or `callback_group`.
+Generated lifecycle nodes use them for every subscription and service server.
+Any node that owns a gate can use them, as in this example of a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` to gate a subscription and a service on activation:
+
+```{literalinclude} examples/active_only_node.py
+:language: python
+:start-at: class Calculator
+:end-before: def main
+```
+
+With a multithreaded executor, callbacks can run while `handle_activate` is still executing.
+State that they need must be ready by the end of `handle_configure`.
+
+### Background
+
+`rclpy` delivers subscription and service callbacks in every lifecycle state, and only publishers follow the lifecycle.
+The gate is a `rclpy.lifecycle.SimpleManagedEntity` registered with `add_managed_entity`, so the standard activation opens it and the standard deactivation closes it, on every path that deactivates publishers.
+
+`rclpy` always sends the value a service callback returns, and has no way to skip the response.
+`create_active_only_service` therefore replaces `send_response` on the service instance.
+This relies on the executor calling `service.send_response`, which the tests check on every supported distribution.
