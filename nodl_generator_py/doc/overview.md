@@ -324,11 +324,11 @@ Generated publishers use `create_lifecycle_publisher()`, so they publish only wh
 The constructor still creates all parameters and entities.
 Subscriptions, services, clients, and actions do not become lifecycle-managed.
 
-The generated class does not define transition callbacks.
-The base class implements them and activates and deactivates managed publishers on every path.
-Application code customizes a transition by defining the matching `handle_*` hook, which needs no `super()` call.
+The generated class derives the runtime base class, which implements the transition callbacks and activates and deactivates managed publishers on every path.
+The authored class does not define transition callbacks.
+It customizes a transition by defining the matching `handle_*` hook, which needs no `super()` call.
 The `nodl_runtime_py` overview lists the hooks and their order.
-For example, in an application subclass of the generated class:
+For example, in the authored subclass of the generated class:
 
 ```python
 def handle_activate(self, state):
@@ -338,7 +338,7 @@ def handle_activate(self, state):
 
 ### Migrating lifecycle nodes
 
-A subclass that defines `on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` or `on_error` raises `TypeError` when the class is defined.
+An authored subclass that defines `on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` or `on_error` raises `TypeError` when the class is defined.
 Rename each override to the matching `handle_*` hook and remove the `super()` call.
 
 ## Parameters
