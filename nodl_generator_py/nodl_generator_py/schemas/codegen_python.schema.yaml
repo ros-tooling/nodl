@@ -28,7 +28,8 @@ properties:
   activation_gated:
     description: |
       If the node is a lifecycle node, make the generated base class wrap subscription and service server callbacks
-      behind the activation gate so they only trigger callbacks when the node is active.
+      behind the activation gate so they only trigger callbacks when the node is active,
+      and wrap service and action clients so they raise ``nodl_runtime_py.InactiveError`` instead of sending when it is not.
       The base class must be a ``nodl_runtime_py.lifecycle.LifecycleNode``, which exposes ``activation_gate``.
     type: boolean
     default: false

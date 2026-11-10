@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Helpers that block a subscription's messages or a service's requests while an activation gate is closed, see the ``nodl_runtime_py`` overview."""
+"""Helpers that block a subscription's messages, a service's requests, or a client's requests and goals while an activation gate is closed, see the ``nodl_runtime_py`` overview."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from rclpy.task import Future
 
 
 class InactiveError(RuntimeError):
-    """Raised when a request or goal is sent through an active-only client while its gate is closed."""
+    """Raised by an active-only client that blocks a request or goal while its gate is closed."""
 
 
 class _Dropped:
@@ -102,7 +102,7 @@ def create_active_only_service(
 
 
 class ActiveOnlyClient:
-    """A service client whose ``call_async`` raises ``InactiveError`` while its gate is closed.
+    """A service client that blocks ``call_async`` with ``InactiveError`` while its gate is closed.
 
     The ``client`` property returns the wrapped client, see the ``nodl_runtime_py`` overview.
     """
@@ -146,7 +146,7 @@ class ActiveOnlyClient:
 
 
 class ActiveOnlyActionClient:
-    """An action client whose ``send_goal_async`` raises ``InactiveError`` while its gate is closed.
+    """An action client that blocks ``send_goal_async`` with ``InactiveError`` while its gate is closed.
 
     The ``client`` property returns the wrapped client, see the ``nodl_runtime_py`` overview.
     """

@@ -321,8 +321,7 @@ publishers:
 
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
-A generated lifecycle node can block subscription messages and service requests while it is inactive, as the `nodl_runtime_py` overview describes.
-Generated service and action clients raise `InactiveError` when sending while the node is inactive.
+A generated lifecycle node can block subscription messages and service requests, and the service requests and action goals it sends, while it is inactive, as the `nodl_runtime_py` overview describes.
 The constructor still creates all parameters and entities.
 Action servers do not become lifecycle-managed.
 
@@ -343,14 +342,14 @@ def handle_activate(self, state):
 An authored subclass that defines `on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` or `on_error` raises `TypeError` when the class is defined.
 Rename each override to the matching `handle_*` hook and remove the `super()` call.
 
-Subscriptions and services of generated lifecycle nodes now block messages and requests while the node is unconfigured or inactive.
+Subscriptions and services of generated lifecycle nodes now block messages and requests, and their clients block sends, while the node is unconfigured or inactive.
 A callback that checked whether the node was active no longer needs to.
 Callbacks that must run in every state need a node that does not use the lifecycle base.
 
 A `BASE_CLASS` provider enables this with `activation_gated: true` in its `codegen.python` metadata, as `nodl://nodl_common_interfaces/lifecycle_node` does.
 The base must then be a `nodl_runtime_py.lifecycle.LifecycleNode`, and `activation_gated` defaults to `false`.
 
-Sending a service request or an action goal from the constructor, from `handle_configure`, or while the node is inactive raises `InactiveError`.
+A client send from the constructor, from `handle_configure`, or while the node is inactive is blocked with `InactiveError`.
 Requests that configuration needs, such as fetching settings from another node, belong in `handle_activate`, where the gate is already open.
 A generated client member is a wrapper, not an `rclpy` client, and its `client` property returns the `rclpy` client.
 The `nodl_runtime_py` overview lists what the wrappers expose.
