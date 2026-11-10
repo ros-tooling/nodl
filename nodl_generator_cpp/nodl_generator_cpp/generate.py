@@ -158,6 +158,7 @@ def cmake_deps(source: Path, target_name: str, *, include_prefix: str | None = N
             doc.service_clients or [],
             doc.action_servers or [],
             doc.action_clients or [],
+            has_parameters,
         ),
         generated_filenames=generated_filenames(target_name, has_parameters, include_prefix=include_prefix),
     )
@@ -202,6 +203,7 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
         namespace=planner.namespace,
         publisher_class=base.publisher_type,
         activation_gated=base.activation_gated,
+        parameter_names=list(doc.parameters or {}),
     )
     if has_parameters:
         generated_files += [generate_genparamlib_yaml(target_name, doc.parameters, namespace=planner.namespace)]

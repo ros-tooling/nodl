@@ -22,12 +22,20 @@ class ParamsNode : public CppParamsNodeBase
 public:
   double max_speed() const
   {
-    return params_.max_speed;
+    return params_.lock()->max_speed;
   }
 
   std::string robot_name() const
   {
-    return params_.robot_name;
+    return params_.lock()->robot_name;
+  }
+
+  int notifications = 0;
+
+protected:
+  void on_parameters_changed(const cpp_params_node_base::Params &) override
+  {
+    ++notifications;
   }
 };
 
@@ -58,6 +66,16 @@ TEST_F(DownstreamTest, SubclassOfExportedParameterizedBaseReadsDefaults)
 
   EXPECT_DOUBLE_EQ(node->max_speed(), 1.5);
   EXPECT_EQ(node->robot_name(), "bot");
+}
+
+TEST_F(DownstreamTest, SubclassOfExportedParameterizedBaseFollowsChanges)
+{
+  auto node = std::make_shared<ParamsNode>();
+
+  ASSERT_TRUE(node->set_parameter(rclcpp::Parameter("max_speed", 2.5)).successful);
+
+  EXPECT_DOUBLE_EQ(node->max_speed(), 2.5);
+  EXPECT_EQ(node->notifications, 1);
 }
 
 TEST_F(DownstreamTest, SubclassOfExportedStaticBaseRuns)

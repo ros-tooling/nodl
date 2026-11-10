@@ -118,7 +118,8 @@ Everything else keeps the node-kind conventions:
 - Pure-virtual callbacks for inbound entities (`on_*`), overridden by the subclass.
 - Entities are created in the constructor via the interface-taking `rclcpp` / `rclcpp_action` free functions.
 - Parameters use `generate_parameter_library` unchanged:
-  `param_listener_` is constructed from `get_node_parameters_interface()` and the logger from `NodeLoggingInterface`.
+  the private `param_listener_` is constructed from `get_node_parameters_interface()` and the logger from `NodeLoggingInterface`,
+  and `params_` is a protected `nodl_runtime_cpp::MutexProtected<Params>` that follows accepted changes.
 - The `NodeInterfaces` aggregate is stored as a protected member `node_interfaces_`,
   so subclass business logic can reach the same interfaces without re-plumbing them.
 

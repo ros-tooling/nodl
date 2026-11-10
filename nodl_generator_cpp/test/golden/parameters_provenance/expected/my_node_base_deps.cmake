@@ -5,6 +5,7 @@ set(my_node_base_NODL_SOURCES
   /RESOLVED/1.nodl.yaml
 )
 set(my_node_base_ROS_DEPS
+  nodl_runtime_cpp
   rclcpp
 )
 set(my_node_base_GENERATED_FILES

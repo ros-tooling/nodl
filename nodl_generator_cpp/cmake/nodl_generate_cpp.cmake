@@ -32,6 +32,10 @@
 # Doing so raises an error.
 # The exporting package declares ``nodl_generator_cpp`` as a ``<buildtool_export_depend>``,
 # and the ROS dependencies of its documents as ``<depend>`` or ``<build_export_depend>``.
+# A node with parameters, or on the ``nodl_runtime_cpp`` lifecycle base, includes ``nodl_runtime_cpp``.
+# The package must declare it as a build dependency, and as a build export dependency for ``EXPORT``,
+# so ``<depend>nodl_runtime_cpp</depend>`` satisfies both.
+# Configuration fails otherwise.
 # A STATIC library linked into several SHARED libraries that are loaded into one process
 # gives each of them its own copy of the class and parameter code.
 #
@@ -180,6 +184,27 @@ macro(nodl_generate_cpp TARGET)
       "(file: ${_nodl_file})")
   endif()
   include("${_deps_file}")
+
+  # Generated code that includes nodl_runtime_cpp needs it to build, and for EXPORT targets also to build downstream.
+  # That covers nodes with parameters and nodes on the runtime lifecycle base.
+  if("nodl_runtime_cpp" IN_LIST ${TARGET}_ROS_DEPS)
+    if(NOT DEFINED _AMENT_PACKAGE_NAME)
+      ament_package_xml()
+    endif()
+    if(NOT "nodl_runtime_cpp" IN_LIST ${PROJECT_NAME}_BUILD_DEPENDS)
+      message(FATAL_ERROR
+        "nodl_generate_cpp: package '${PROJECT_NAME}' must declare a build dependency on nodl_runtime_cpp, "
+        "which the code generated for target '${TARGET}' includes. "
+        "Add <depend>nodl_runtime_cpp</depend> to its package.xml.")
+    endif()
+    if(_nodl_exported AND NOT "nodl_runtime_cpp" IN_LIST ${PROJECT_NAME}_BUILD_EXPORT_DEPENDS)
+      message(FATAL_ERROR
+        "nodl_generate_cpp: package '${PROJECT_NAME}' exports target '${TARGET}', "
+        "so it must declare a build export dependency on nodl_runtime_cpp, "
+        "which the exported header includes. "
+        "Add <depend>nodl_runtime_cpp</depend> to its package.xml.")
+    endif()
+  endif()
 
   # ── watch all NoDL sources for reconfigure ─────────────────────────
   # Every file in the include tree is a configure-dependency.  Any

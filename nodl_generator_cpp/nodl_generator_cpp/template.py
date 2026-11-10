@@ -55,6 +55,7 @@ def _build_template_context(
     namespace: str | None = None,
     publisher_class: str,
     activation_gated: bool = False,
+    parameter_names: list[str] | None = None,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -76,6 +77,8 @@ def _build_template_context(
         + [e.type for e in action_servers]
         + [e.type for e in action_clients]
     )
+    if has_parameters:
+        headers.add('nodl_runtime_cpp/mutex_protected.hpp')
     if activation_gated and service_clients:
         headers.add('nodl_runtime_cpp/active_only_client.hpp')
     if activation_gated and action_servers:
@@ -146,6 +149,7 @@ def _build_template_context(
             for e in action_clients
         ],
         'has_parameters': has_parameters,
+        'parameter_fields': parameter_names or [],
         'header_include': prefixed(include_prefix, f'{target_name}.hpp'),
         'parameters_include': prefixed(include_prefix, f'{target_name}_parameters.hpp'),
         'namespace': namespace,
@@ -175,6 +179,7 @@ def render_templates(
     namespace: str | None = None,
     publisher_class: str,
     activation_gated: bool = False,
+    parameter_names: list[str] | None = None,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
@@ -186,6 +191,7 @@ def render_templates(
     which the class reaches as ``<target_name>::``.
     Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
     When *activation_gated* is set, subscription and service server callbacks are blocked while the base class's activation gate is closed.
+    *parameter_names* are the NoDL parameter names, which name the fields that the change callback compares.
     """
     ctx = _build_template_context(
         target_name,
@@ -202,6 +208,7 @@ def render_templates(
         namespace=namespace,
         publisher_class=publisher_class,
         activation_gated=activation_gated,
+        parameter_names=parameter_names,
     )
 
     env = _get_env()

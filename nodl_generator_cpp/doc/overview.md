@@ -314,7 +314,9 @@ The generated class uses visibility to separate concerns:
 | **Protected** | Publishers | `pub_<name>_` | Subclass needs `publish()`. |
 | **Protected** | Service clients | `cli_<name>_` | Subclass needs `async_send_request()`. |
 | **Protected** | Action clients | `action_cli_<name>_` | Subclass needs `async_send_goal()`. |
-| **Protected** | Parameter listener & params | `param_listener_`, `params_` | Subclass reads parameters. |
+| **Protected** | Parameters | `params_`, `param_listener()` | Subclass reads parameters through the lock of `params_`, and the const listener. |
+| **Protected, virtual** | Parameter change hook | `on_parameters_changed(params)` | Subclass reacts to an accepted change. |
+| **Private** | Parameter listener | `param_listener_` | Wiring only. |
 | **Protected, pure-virtual** | Subscription callbacks | `on_<name>(msg)` | Subclass implements business logic. |
 | **Protected, pure-virtual** | Service server callbacks | `on_<name>(request, response)` | Subclass implements business logic. |
 | **Protected, pure-virtual** | Action server callbacks | `on_<name>_goal()`, `on_<name>_cancel()`, `on_<name>_accepted()` | Subclass implements business logic. |
@@ -578,25 +580,85 @@ Every generated node must inherit from a concrete base.
 
 ## Parameters
 
+A node with parameters gets a `params_` member that holds the latest values, including changes made while the node runs.
+Reading it takes its lock:
+
+| To read | Write | Cost |
+|---|---|---|
+| One field | `params_.lock()->max_speed` | One uncontended mutex lock. |
+| Several fields, consistently | `{ const auto p = params_.lock(); use(p->a, p->b); }` | One lock, held for the block. |
+| A snapshot to keep or pass on | `const my_node::Params p = *params_.lock();` | One lock and a copy of the struct. |
+| In a `const` method | `params_.lock()` | `lock() const` returns a read-only guard. |
+
+`params_` is a protected `nodl_runtime_cpp::MutexProtected<my_node::Params>`.
+Writing through the guard is unsupported, because the next parameter change overwrites it.
+
+When a set of parameters changes a parameter declared in the NoDL document, the class stores the new values in `params_` and then calls the protected virtual `on_parameters_changed(const Params & params)`.
+A set that changes none of them, such as one for a parameter the author declared, or one that repeats the current values, does not call the hook.
+The hook is empty by default.
+Override it to react to a change, and read `params`, not `get_parameter()`, because the hook runs while the change is being validated and `get_parameter()` still returns the old value.
+The hook cannot reject a change and must not block.
+It runs after the lock is released, so it can lock `params_`.
+It runs on the thread that sets the parameter, which is an executor thread for a parameter service call and the caller's thread for `set_parameter`.
+Another on-set-parameters callback can still reject the same set after the hook ran, which leaves `params_` updated and the hook already called.
+A parameter set during the constructor of a subclass reaches the hook before that constructor finishes.
+The generated class adds `params_`, `param_listener()` and `on_parameters_changed`, so an authored member with one of these names hides or overrides it.
+Mark the hook `override` so that a misspelled name does not compile.
+
+For the latest values from the parameter library, a protected `param_listener()` returns a `const ParamListener &`, which offers `get_params()`, `try_get_params()`, `try_update_params()` and `is_old()`.
+The listener itself is private, so a subclass cannot replace the change callback.
+React to changes with `on_parameters_changed`, and never call `setUserCallback`.
+
+A base class with `activation_gated` keeps its constructor-time `params_` for now, and has no `on_parameters_changed`.
+
+```{literalinclude} ../../test_nodl_generators/parameters/cpp/test_node.cpp
+:language: cpp
+:start-at: /// Reads its parameters
+:end-before: class GeneratedParameters
+```
+
+The example is a hand-written (non-generated) subclass of a generated node, and is built and run as part of `test_nodl_generators`.
+
+The generated class includes `nodl_runtime_cpp`, so the package declares it:
+
+```xml
+<depend>nodl_runtime_cpp</depend>
+```
+
+`nodl_generate_cpp()` fails at configure time without it.
+The check requires a build dependency, and for an `EXPORT` target a build export dependency as well, and `<depend>` provides both.
+It applies to every node whose generated code includes `nodl_runtime_cpp`, which includes the nodes on the lifecycle base class.
+
+Rules for reading parameters:
+
+- Do not bind a reference to `*params_.lock()` or one of its fields beyond the guard, copy instead.
+- Do not hold a guard across `set_parameter`, service waits, spinning or other blocking calls.
+  A `set_parameter` on the same node while holding the guard deadlocks.
+- A value used only at construction, such as a QoS setting, does not follow later changes, so declare its parameter `read_only`.
+
+### How parameters are generated
+
 The C++ parameter structs are generated with [`generate_parameter_library`](https://github.com/PickNikRobotics/generate_parameter_library), which is bundled with `nodl_generator_cpp`.
 The NoDL parameter schema is a formalization of its implicit schema, so NoDL parameters convert to it directly.
 
 The generator converts NoDL parameters to a YAML file in that format, then delegates to the library to produce the
 C++ parameter header.
 Dotted NoDL names remain flat in the source document, while the intermediate YAML is nested as that format requires.
-For example, `colour.r` is available as `params_.colour.r` and retains `colour.r` as its ROS parameter name.
+For example, `colour.r` is available as `params_.lock()->colour.r` and retains `colour.r` as its ROS parameter name.
 No `declare_parameter()` calls appear in the generated templates.
-
-The generated base class holds two protected members for parameter access:
-
-```cpp
-protected:
-  my_node::ParamListener param_listener_;
-  my_node::Params params_;
-```
 
 Parameters declared by providers and their includes (e.g. `use_sim_time` from `rclcpp::Node`) are not generated,
 and do not appear in the intermediate YAML or the generated header.
+
+### Migrating
+
+BREAKING CHANGE: for generated C++ nodes with parameters:
+
+- `params_.x` becomes `params_.lock()->x`, and passing `params_` whole becomes `*params_.lock()`.
+- `param_listener_` is private.
+  Replace `param_listener_.get_params()` with `*params_.lock()` or `param_listener().get_params()`, and replace a `setUserCallback` call with an `on_parameters_changed` override.
+- `params_` follows dynamic parameter changes after construction.
+- The package must declare `<depend>nodl_runtime_cpp</depend>`.
 
 ## CLI reference
 

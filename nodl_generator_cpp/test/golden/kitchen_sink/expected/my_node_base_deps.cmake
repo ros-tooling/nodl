@@ -8,6 +8,7 @@ set(my_node_base_ROS_DEPS
   example_interfaces
   geometry_msgs
   nav2_msgs
+  nodl_runtime_cpp
   rclcpp
   rclcpp_action
   std_msgs

@@ -10,9 +10,9 @@ public:
   TestNode()
   {
     // Verify the class and the parameter structs both live in nodl_test::nodl_test.
-    nodl_test::nodl_test::cpp_namespace_node_base::Params params = param_listener_.get_params();
+    nodl_test::nodl_test::cpp_namespace_node_base::Params params = param_listener().get_params();
     (void)params.max_speed;
-    (void)params_.robot_name;
+    (void)params_.lock()->robot_name;
     (void)pub_status_;
   }
 };

@@ -43,6 +43,7 @@ def ros_deps(
     service_clients: list[ServiceEndpoint],
     action_servers: list[ActionEndpoint],
     action_clients: list[ActionEndpoint],
+    has_parameters: bool = False,
 ) -> list[str]:
     """Compute the sorted, deduplicated list of ROS package dependencies.
 
@@ -53,6 +54,8 @@ def ros_deps(
       (part before first ``/`` of its ``type``).
     - If any action servers or action clients are present, ``rclcpp_action``
       is added (the generated code includes ``rclcpp_action/rclcpp_action.hpp``).
+    - When *has_parameters* is true, ``nodl_runtime_cpp`` is added
+      (the generated code includes ``nodl_runtime_cpp/mutex_protected.hpp``).
     """
     pkgs = {_package_from_header(base_header)}
 
@@ -69,6 +72,9 @@ def ros_deps(
 
     if action_servers or action_clients:
         pkgs.add('rclcpp_action')
+
+    if has_parameters:
+        pkgs.add('nodl_runtime_cpp')
 
     return sorted(pkgs)
 
