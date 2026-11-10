@@ -140,15 +140,14 @@ After migration, it inherits the generated base instead.
 :end-before: int main
 ```
 
-:::{note}
+````{admonition} Generated C++ base
 :collapsible: closed
-:title: Generated C++ base
 
 ```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/test/expected/generated_cpp.txt
 :language: cpp
 ```
 
-:::
+````
 
 :::
 
@@ -170,15 +169,14 @@ After migration, it inherits the generated base instead.
 :end-before: def main
 ```
 
-:::{note}
+````{admonition} Generated Python base
 :collapsible: closed
-:title: Generated Python base
 
 ```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/test/expected/generated_python.txt
 :language: python
 ```
 
-:::
+````
 
 :::
 ::::
