@@ -380,10 +380,19 @@ Reading values:
   Mutating `self.params_` is unsupported: the next update replaces it.
 - To read several values consistently, take `params = self.params_` once, as `on_echo_in` does in the example below.
 
+Nested parameters, those with a dotted name such as `colour.r`, have a limit that comes from `generate_parameter_library_py`.
+The library keeps the nested values in one object that every node using the same generated parameter class in a process shares.
+When a process runs several such nodes, a change to a nested parameter of one node can show up in `self.params_` and in the hook of the others on their next update, and in the default of a node constructed afterwards, while `get_parameter()` keeps the node's own value.
+Flat parameters are not affected.
+Run such nodes in separate processes, or avoid nested parameters, until the library changes.
+
 Reacting to changes:
 
 - The hook cannot reject a change and must not block.
 - The hook runs on the thread that sets the parameter, which with a multithreaded executor can run alongside the node's other callbacks.
+  Concurrent sets from different threads are not serialized, so the hook can run twice for one change or be skipped.
+- The hook receives the same object as `self.params_`, unlike in C++ where it receives the listener's copy.
+  Mutating the argument changes `self.params_`, which is unsupported.
 - The hook runs while the change is validated, before it is committed.
   Use its argument, because `get_parameter()` still returns the old value.
 - If another on-set-parameters callback rejects the same set, `self.params_` is not rolled back and the hook has already run.

@@ -9,6 +9,7 @@ from nodl_runtime_py.active_only import (
     active_only_subscription_callback,
     create_active_only_service,
 )
+from nodl_runtime_py.parameters import copy_parameters, parameter_values, values_equal
 from nodl_runtime_py.run import run_node
 
 __all__ = [
@@ -18,5 +19,8 @@ __all__ = [
     'InactiveError',
     'create_active_only_service',
     'active_only_subscription_callback',
+    'copy_parameters',
+    'parameter_values',
     'run_node',
+    'values_equal',
 ]
