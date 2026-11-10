@@ -7,6 +7,7 @@
 #include <future>
 #include <memory>
 #include <type_traits>
+#include <vector>
 
 #include "example_interfaces/action/fibonacci.hpp"
 #include "example_interfaces/srv/add_two_ints.hpp"
@@ -28,6 +29,7 @@ using std::chrono_literals::operator""s;
 
 /// Implements only what the generated base requires, publishes from `handle_activate`, and counts its callbacks.
 /// It also sends from both client kinds in `handle_configure` and `handle_activate`, and keeps what happened.
+/// Its action server never works on a goal, and `handle_deactivate` succeeds only the goals of order 1.
 class TestNode : public CppLifecycleNodeBase
 {
   static_assert(
@@ -83,6 +85,32 @@ protected:
     return CallbackReturn::SUCCESS;
   }
 
+  CallbackReturn handle_deactivate(const rclcpp_lifecycle::State &) override
+  {
+    for (const auto & goal_handle : count_goals) {
+      if (1 == goal_handle->get_goal()->order) {
+        goal_handle->succeed(std::make_shared<Fibonacci::Result>());
+      }
+    }
+    return CallbackReturn::SUCCESS;
+  }
+
+  rclcpp_action::GoalResponse on_count_goal(
+    const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal>) override
+  {
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  }
+
+  rclcpp_action::CancelResponse on_count_cancel(std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>>) override
+  {
+    return rclcpp_action::CancelResponse::ACCEPT;
+  }
+
+  void on_count_accepted(std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>> goal_handle) override
+  {
+    count_goals.push_back(goal_handle);
+  }
+
   void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr /*msg*/) override
   {
     ++cmd_vel_count;
@@ -97,6 +125,7 @@ protected:
 
 public:
   std::atomic<int> cmd_vel_count{0};
+  std::vector<std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>>> count_goals;
   bool waiting_in_configure_threw = true;
   bool service_send_in_configure_threw = false;
   bool action_send_in_configure_threw = false;
@@ -281,6 +310,42 @@ TEST_F(GeneratedLifecycleNode, SendsFromClientsOnlyOnceTheGateIsOpen)
   EXPECT_EQ(node_->activate_sum.get()->sum, 5);
   ASSERT_EQ(executor_.spin_until_future_complete(node_->activate_goal_handle, 5s), rclcpp::FutureReturnCode::SUCCESS);
   EXPECT_NE(node_->activate_goal_handle.get(), nullptr);
+}
+
+TEST_F(GeneratedLifecycleNode, EndsActionGoalsOnDeactivationAfterTheHook)
+{
+  auto action_client = rclcpp_action::create_client<Fibonacci>(peer_, "count");
+  const auto deadline = std::chrono::steady_clock::now() + 5s;
+  while (!action_client->action_server_is_ready() && std::chrono::steady_clock::now() < deadline) {
+    executor_.spin_some(10ms);
+  }
+  const auto send = [&](int32_t order) {
+    Fibonacci::Goal goal;
+    goal.order = order;
+    auto handle_future = action_client->async_send_goal(goal);
+    EXPECT_EQ(executor_.spin_until_future_complete(handle_future, 5s), rclcpp::FutureReturnCode::SUCCESS);
+    return handle_future.get();
+  };
+
+  // Rejected while unconfigured and inactive.
+  EXPECT_EQ(send(0), nullptr);
+  node_->configure();
+  EXPECT_EQ(send(0), nullptr);
+
+  node_->activate();
+  auto abandoned = send(0);
+  auto finished_by_hook = send(1);
+  ASSERT_NE(abandoned, nullptr);
+  ASSERT_NE(finished_by_hook, nullptr);
+  auto abandoned_result = action_client->async_get_result(abandoned);
+  auto finished_result = action_client->async_get_result(finished_by_hook);
+
+  node_->deactivate();
+
+  ASSERT_EQ(executor_.spin_until_future_complete(abandoned_result, 5s), rclcpp::FutureReturnCode::SUCCESS);
+  EXPECT_EQ(abandoned_result.get().code, rclcpp_action::ResultCode::ABORTED);
+  ASSERT_EQ(executor_.spin_until_future_complete(finished_result, 5s), rclcpp::FutureReturnCode::SUCCESS);
+  EXPECT_EQ(finished_result.get().code, rclcpp_action::ResultCode::SUCCEEDED);
 }
 
 }  // namespace

@@ -3,13 +3,17 @@
 #include "nodl_runtime_cpp/lifecycle_node.hpp"
 
 #include <memory>
+#include <thread>
 
+#include "example_interfaces/action/fibonacci.hpp"
 #include "example_interfaces/msg/int32.hpp"
 #include "example_interfaces/srv/add_two_ints.hpp"
+#include "nodl_runtime_cpp/active_only_action_server.hpp"
 #include "nodl_runtime_cpp/active_only_client.hpp"
 #include "nodl_runtime_cpp/active_only_service.hpp"
 #include "nodl_runtime_cpp/active_only_subscription.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "std_msgs/msg/string.hpp"
 
 /// Example of a non-generated node that uses `nodl_runtime_cpp::LifecycleNode`, and publishes a greeting when it activates.
@@ -100,6 +104,48 @@ private:
   rclcpp::Subscription<Int32>::SharedPtr subscription_;
   rclcpp::Service<AddTwoInts>::SharedPtr service_;
   nodl_runtime_cpp::ActiveOnlyClient<AddTwoInts>::SharedPtr client_;
+};
+
+using Fibonacci = example_interfaces::action::Fibonacci;
+using FibonacciGoalHandle = rclcpp_action::ServerGoalHandle<Fibonacci>;
+
+/// Example of a non-generated node that serves an action with `nodl_runtime_cpp::ActiveOnlyActionServer`.
+/**
+ * It rejects goals while it is inactive, and ends its active goals when it deactivates.
+ * The server is created by hand to keep the example self-contained, where a generated node creates its own.
+ */
+class Counter : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  Counter()
+  : nodl_runtime_cpp::LifecycleNode("counter")
+  , server_(std::make_shared<nodl_runtime_cpp::ActiveOnlyActionServer<Fibonacci>>(
+      this,
+      "count",
+      [](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal>) {
+        return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+      },
+      [](std::shared_ptr<FibonacciGoalHandle>) { return rclcpp_action::CancelResponse::ACCEPT; },
+      [](std::shared_ptr<FibonacciGoalHandle> goal_handle) {
+        // Do not block here. The node aborts the goal when it deactivates, so the worker checks is_active().
+        std::thread([goal_handle] {
+          for (int i = 0; i < goal_handle->get_goal()->order && goal_handle->is_active(); ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          }
+          try {
+            goal_handle->succeed(std::make_shared<Fibonacci::Result>());
+          } catch (const rclcpp::exceptions::RCLError &) {
+            // The goal ended while the worker was finishing, so there is nothing left to report.
+          }
+        }).detach();
+      }))
+  {
+    // Goals are rejected until the node activates, and active goals end when it deactivates.
+    add_managed_entity(server_);
+  }
+
+private:
+  nodl_runtime_cpp::ActiveOnlyActionServer<Fibonacci>::SharedPtr server_;
 };
 
 int main(int argc, char ** argv)

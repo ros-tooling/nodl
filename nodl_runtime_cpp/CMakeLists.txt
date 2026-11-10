@@ -45,6 +45,11 @@ if(BUILD_TESTING)
     ${PROJECT_NAME}
     ${example_interfaces_TARGETS})
 
+  ament_add_gtest(test_active_only_action_server test/test_active_only_action_server.cpp TIMEOUT 60)
+  target_link_libraries(test_active_only_action_server
+    ${PROJECT_NAME}
+    ${example_interfaces_TARGETS})
+
   # The documentation example is compiled but not installed or run.
   add_executable(lifecycle_node_example doc/examples/lifecycle_node.cpp)
   target_link_libraries(lifecycle_node_example

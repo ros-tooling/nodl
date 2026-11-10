@@ -49,7 +49,8 @@ definitions:
         description: |
           If the node is a lifecycle node, make the generated base class wrap subscription and service server callbacks
           behind the activation gate, so they only trigger callbacks when the node is active,
-          and declare service and action clients as wrappers that only send requests and goals when the node is active.
+          and declare service and action clients as wrappers that only send requests and goals when the node is active,
+          and make action servers reject goals while the node is inactive and end their active goals when it deactivates.
           The base class must expose the gate as a protected ``gate()`` member
           (e.g. ``nodl_runtime_cpp::LifecycleNode``).
         type: boolean
