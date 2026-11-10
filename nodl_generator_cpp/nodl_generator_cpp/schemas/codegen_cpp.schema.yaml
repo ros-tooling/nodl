@@ -47,10 +47,10 @@ definitions:
         default: rclcpp::Publisher
       activation_gated:
         description: |
-          Whether the base class is a NoDL runtime lifecycle base that exposes the activation gate
-          as a protected ``gate()`` member (e.g. ``nodl_runtime_cpp::LifecycleNode``).
-          When set, the generated class wraps subscription and service server callbacks,
-          so they run only while the node is active.
+          If the node is a lifecycle node, make the generated base class wrap subscription and service server callbacks
+          behind the activation gate, so they only trigger callbacks when the node is active.
+          The base class must expose the gate as a protected ``gate()`` member
+          (e.g. ``nodl_runtime_cpp::LifecycleNode``).
         type: boolean
         default: false
 

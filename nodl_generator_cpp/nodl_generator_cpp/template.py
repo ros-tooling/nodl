@@ -178,7 +178,7 @@ def render_templates(
     and the parameter structs are expected under ``<namespace>::<target_name>``,
     which the class reaches as ``<target_name>::``.
     Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
-    When *activation_gated* is set, subscription and service server callbacks run only while the base class's activation gate is open.
+    When *activation_gated* is set, subscription and service server callbacks are blocked while the base class's activation gate is closed.
     """
     ctx = _build_template_context(
         target_name,

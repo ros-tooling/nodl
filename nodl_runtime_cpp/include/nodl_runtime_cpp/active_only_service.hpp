@@ -41,7 +41,7 @@ private:
 
 }  // namespace detail
 
-/// Create a service server that answers requests only while the gate is open.
+/// Create a service server that drops requests while the gate is closed.
 /**
  * A request that arrives while the gate is closed is dropped and no response is sent.
  * The server uses a deferred response, so the client's request never completes.

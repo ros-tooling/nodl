@@ -11,7 +11,7 @@
 namespace nodl_runtime_cpp
 {
 
-/// Wrap a subscription callback so it runs only while the gate is open.
+/// Wrap a subscription callback so it drops messages while the gate is closed.
 /**
  * Messages that arrive while the gate is closed are dropped and the callback is not called.
  * Pass the result to `create_subscription` in place of the callback.

@@ -49,7 +49,7 @@ using Int32 = example_interfaces::msg::Int32;
 
 /// Example of a non-generated node that gates a subscription and a service server on `nodl_runtime_cpp::LifecycleNode`'s gate.
 /**
- * It doubles the numbers it receives and adds numbers on request, but only while active.
+ * It doubles the numbers it receives and adds numbers on request, and blocks both while it is inactive.
  * The endpoints are created by hand to keep the example self-contained, where a generated node creates its own.
  */
 class Doubler : public nodl_runtime_cpp::LifecycleNode

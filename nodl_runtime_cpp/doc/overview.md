@@ -57,8 +57,8 @@ The example is compiled as part of the package tests.
 
 ### Active-only entities
 
-A lifecycle node can deliver subscription messages and serve requests only while it is active.
-`active_only_subscription_callback` and `create_active_only_service` gate one entity each on the node's activation gate.
+A lifecycle node has the ability to block subscription messages and service requests while it is inactive.
+`active_only_subscription_callback` and `create_active_only_service` each put one entity behind the node's activation gate.
 The entity is still created in the constructor, as usual.
 
 `nodl_runtime_cpp::LifecycleNode` owns the gate, a `nodl_runtime_cpp::Gate`, which is an alias of `rclcpp_lifecycle::SimpleManagedEntity`.
@@ -78,7 +78,7 @@ A callback that throws propagates out of the executor, and an active-only servic
 #### Active-only example
 
 This example shows a hand-written (non-generated) node using the gate of `nodl_runtime_cpp::LifecycleNode` to gate a subscription and a service server.
-It doubles the numbers it receives and adds numbers on request, but only while active.
+It doubles the numbers it receives and adds numbers on request, and blocks both while it is inactive.
 Generated nodes with an `activation_gated` base class wrap their callbacks the same way.
 
 ```{literalinclude} examples/lifecycle_node.cpp

@@ -409,8 +409,9 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 ### The `activation_gated` field
 
 `BASE_CLASS` accepts an optional boolean `activation_gated`, which defaults to false.
-It states that the base class is a NoDL runtime lifecycle base that exposes its activation gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode`.
-With `activation_gated`, the generated constructor wraps each subscription and service server callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
+If the node is a lifecycle node, it makes the generated base class wrap subscription and service server callbacks behind the activation gate, so they only trigger callbacks when the node is active.
+The base class must expose the gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode` does.
+The generated constructor wraps each callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
 The endpoints are still created in the constructor.
 Without `activation_gated`, the callbacks are registered unwrapped.
 
@@ -451,7 +452,7 @@ An authored class that defines `on_activate` or the other transition callbacks n
 Move the logic into the matching `handle_*` hook, and drop the call to the base class's implementation.
 
 Subscriptions and service servers of a lifecycle node used to deliver in every state.
-They now deliver only while the node is active, so remove any `is_activated()` checks in their callbacks.
+A lifecycle node can now block subscription messages and service requests while it is inactive, and generated nodes do, so remove any `is_activated()` checks in their callbacks.
 A node that relied on receiving messages or serving requests while unconfigured or inactive must do that work elsewhere.
 
 ### Namespace

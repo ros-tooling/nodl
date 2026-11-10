@@ -1,6 +1,6 @@
 ---
 # Lifecycle base class with a subscription and a service server.
-# The generated callbacks run only while the node is active.
+# The generated callbacks are blocked while the node is inactive.
 
 nodl_version: 2
 
