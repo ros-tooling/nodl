@@ -144,7 +144,7 @@ def test_render_python():
         "super().__init__('interfaces_node', **kwargs)",
         'self._param_listener = interfaces_node_base_parameters.interfaces_node.ParamListener(self)',
         'self.params_ = self._param_listener.get_params()',
-        'self._param_listener.set_user_callback(self._update_params)',
+        'self._param_listener.set_user_callback(self._nodl_update_params)',
         'def on_parameters_changed(self, params) -> None:',
         'self.pub_echo_out = self.create_publisher(',
         'def on_echo_in(self, msg: std_msgs.msg.String) -> None:',
@@ -177,7 +177,7 @@ def test_render_python_without_parameters_has_no_listener_or_hook():
 
     generated = _render_python(doc, 'example_node')
 
-    for unexpected in ('_param_listener', 'params_', 'on_parameters_changed', '_update_params'):
+    for unexpected in ('_param_listener', 'params_', 'on_parameters_changed', '_nodl_update_params'):
         assert unexpected not in generated
 
 
@@ -213,6 +213,7 @@ def test_render_python_leaves_parameters_of_an_activation_gated_base_to_the_runt
 
     assert 'self.params_ = self._param_listener.get_params()' in generated
     assert 'set_user_callback' not in generated
+    assert '_nodl_update_params' not in generated
     assert 'def on_parameters_changed(self, params) -> None:' in generated
 
 

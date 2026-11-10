@@ -4,6 +4,19 @@
 {% endfor %}
 {% if params_module %}
 from . import {{ params_module }}
+
+
+{% if not activation_gated %}
+def _nodl_values(params) -> dict:
+    """Return the parameter values of ``params`` as nested dicts, without the update stamp."""
+    return {
+        name: _nodl_values(value) if hasattr(value, '__dict__') else value
+        for name in dir(params)
+        if not name.startswith('_') and name != 'stamp_'
+        for value in [getattr(params, name)]
+        if not callable(value)
+    }
+{% endif %}
 {% endif %}
 
 
@@ -16,7 +29,7 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         self._param_listener = {{ params_module }}.{{ node_name }}.ParamListener(self)
         self.params_ = self._param_listener.get_params()
 {% if not activation_gated %}
-        self._param_listener.set_user_callback(self._update_params)
+        self._param_listener.set_user_callback(self._nodl_update_params)
 {% endif %}
     {% endif %}
     {% for pub in publishers %}
@@ -116,15 +129,24 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
     {% endfor %}
     {% if params_module %}
 
-    def _update_params(self, params) -> None:
+{% if not activation_gated %}
+    def _nodl_update_params(self, params) -> None:
+        # The listener calls back for every parameter set on the node, so skip those that leave the declared values unchanged.
+        if _nodl_values(params) == _nodl_values(self.params_):
+            return
         self.params_ = params
         self.on_parameters_changed(params)
 
+{% endif %}
     def on_parameters_changed(self, params) -> None:
-        """React to new parameter values, called before the change is committed.
+        """React to new parameter values.
 
-        Use ``params`` rather than ``get_parameter()``, which still returns the old values.
-        The hook cannot reject a change and must not block.
+{% if activation_gated %}
+        The base does not call this hook.
+{% else %}
+        The hook runs while the change is validated, before it is committed, so use ``params`` rather than ``get_parameter()``, which still returns the old values.
+        It cannot reject a change and must not block.
+{% endif %}
         """
     {% endif %}
     {% for sub in subscriptions %}

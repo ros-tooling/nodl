@@ -53,6 +53,31 @@ def test_rejected_value_changes_neither_params_nor_hook(ros_context):
         node.destroy_node()
 
 
+def test_unrelated_parameter_does_not_call_hook(ros_context):
+    node = RecordingParametersNode()
+    try:
+        result = node.set_parameters([Parameter('unrelated', value=5)])[0]
+
+        assert result.successful
+        assert node.get_parameter('unrelated').value == 5
+        assert node.changes == []
+        assert node.params_.max_speed == 1.5
+    finally:
+        node.destroy_node()
+
+
+def test_hook_runs_before_the_change_is_committed(ros_context):
+    node = RecordingParametersNode()
+    try:
+        node.set_parameters([Parameter('max_speed', value=2.5)])
+
+        assert node.changes[0].max_speed == 2.5
+        assert node.committed_during_hook == [1.5]
+        assert node.get_parameter('max_speed').value == 2.5
+    finally:
+        node.destroy_node()
+
+
 def test_snapshot_is_unaffected_by_later_updates(ros_context):
     node = RecordingParametersNode()
     try:

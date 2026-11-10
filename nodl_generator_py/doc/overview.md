@@ -232,7 +232,7 @@ A `console_scripts` entry calls it as `sys.exit(main())`, and so does running th
 
 ```{literalinclude} examples/echo_robot_py/echo_robot_py/echo_node.py
 :language: python
-:start-at: from nodl_runtime_py
+:start-at: def main
 :caption: echo_robot_py/echo_node.py
 ```
 
@@ -369,8 +369,34 @@ NoDL parameters are converted to the YAML format consumed by
 Dotted NoDL names remain flat in the source document, while the intermediate YAML is nested as required by genparamlib.
 For example, `colour.r` is available as `self.params_.colour.r` and retains `colour.r` as its ROS parameter name.
 A node with parameters keeps `self.params_` current.
-Every accepted parameter change rebinds it to a fresh copy, then calls `on_parameters_changed(params)` with the new values.
+When the declared parameters change, the generated base rebinds `self.params_` to a fresh copy, then calls `on_parameters_changed(params)` with the new values.
 The default hook does nothing.
+Setting a parameter that is not declared in the NoDL document, such as one the authored class declares itself, calls neither.
+
+Reading values:
+
+- Reads of `self.params_` are safe without a lock, because an update rebinds it and never mutates it in place.
+  Mutating it is unsupported: the next update replaces it.
+- To read several values consistently, take `params = self.params_` once, as `on_echo_in` does in the example below.
+
+Reacting to changes:
+
+- The hook cannot reject a change and must not block.
+- The hook runs on the thread that sets the parameter, which with a multithreaded executor can run alongside the node's other callbacks.
+- The hook runs while the change is validated, before it is committed.
+  Use its argument, because `get_parameter()` still returns the old value.
+- If another on-set-parameters callback rejects the same set, `self.params_` is not rolled back and the hook has already run.
+- A change made to a declared parameter in the authored class's `__init__` calls the hook before `__init__` finishes.
+- Parameters that the node reads only at construction, such as QoS, do not follow later changes and should be `read_only`.
+
+The example declares one parameter, and its authored class reads and reacts to it.
+
+```{literalinclude} examples/echo_robot_py/nodl/echo_node.nodl.yaml
+:language: yaml
+:start-at: parameters:
+:end-before: publishers:
+:caption: nodl/echo_node.nodl.yaml
+```
 
 ```{literalinclude} examples/echo_robot_py/echo_robot_py/echo_node.py
 :language: python
@@ -378,22 +404,15 @@ The default hook does nothing.
 :caption: echo_robot_py/echo_node.py
 ```
 
-- Reads of `self.params_` are safe without a lock, because an update replaces the object instead of changing it.
-  To read several values consistently, take `params = self.params_` once, as `on_echo_in` does.
-  Mutating `self.params_` is unsupported: the next update replaces it.
-- The hook cannot reject a change and must not block.
-- The hook runs while the change is being validated, before it is committed.
-  Use its argument, because `get_parameter()` still returns the old value.
-- Parameters that the node reads only at construction, such as QoS, do not follow later changes and should be `read_only`.
-- The parameter listener is private to the generated base, so the base can keep `self.params_` current.
+With an `activation_gated` base, `self.params_` keeps its construction-time values and `on_parameters_changed` is not called.
 
-A generated node with an `activation_gated` base does not follow changes after construction yet.
+The parameter listener is private to the generated base, so that the base alone decides how `self.params_` is kept current.
 
 ### Migrating from `param_listener_`
 
 BREAKING CHANGE: for generated Python nodes with parameters, `self.params_` follows dynamic parameter changes after construction, and `self.param_listener_` is gone.
-Replace `self.param_listener_.get_params()` with `self.params_`.
-Replace a `set_user_callback` call with an `on_parameters_changed` override.
+Replace `self.param_listener_.get_params()` with `self.params_`, which is the current values and is rebound on each change, not copied once.
+Replace a `set_user_callback` call with an `on_parameters_changed` override, which receives the new values.
 
 ## CLI reference
 
