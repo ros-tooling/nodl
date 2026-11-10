@@ -52,15 +52,16 @@ public:
     add_managed_entity(gate_);
   }
 
-  /// Runs `handle_configure`.
+  /// Runs `refresh_parameters`, then `handle_configure`.
   CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) final
   {
+    refresh_parameters();
     return handle_configure(previous_state);
   }
 
-  /// Runs the standard activation, then `handle_activate`.
+  /// Runs the standard activation, `start_parameter_updates`, `refresh_parameters`, then `handle_activate`.
   /**
-   * When `handle_activate` does not return SUCCESS, runs the standard deactivation and returns its result.
+   * When `handle_activate` does not return SUCCESS, runs `stop_parameter_updates` and the standard deactivation, and returns its result.
    */
   CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) final
   {
@@ -68,20 +69,24 @@ public:
     if (CallbackReturn::SUCCESS != activated) {
       return activated;
     }
+    start_parameter_updates();
+    refresh_parameters();
     const auto result = handle_activate(previous_state);
     if (CallbackReturn::SUCCESS != result) {
+      stop_parameter_updates();
       rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
     }
     return result;
   }
 
-  /// Runs `handle_deactivate`, then the standard deactivation if the hook returned SUCCESS.
+  /// Runs `handle_deactivate`, then `stop_parameter_updates` and the standard deactivation if the hook returned SUCCESS.
   CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) final
   {
     const auto result = handle_deactivate(previous_state);
     if (CallbackReturn::SUCCESS != result) {
       return result;
     }
+    stop_parameter_updates();
     return rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
   }
 
@@ -91,16 +96,18 @@ public:
     return handle_cleanup(previous_state);
   }
 
-  /// Runs the standard deactivation, then `handle_shutdown`.
+  /// Runs `stop_parameter_updates`, the standard deactivation, then `handle_shutdown`.
   CallbackReturn on_shutdown(const rclcpp_lifecycle::State & previous_state) final
   {
+    stop_parameter_updates();
     rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
     return handle_shutdown(previous_state);
   }
 
-  /// Runs the standard deactivation, then `handle_error`.
+  /// Runs `stop_parameter_updates`, the standard deactivation, then `handle_error`.
   CallbackReturn on_error(const rclcpp_lifecycle::State & previous_state) final
   {
+    stop_parameter_updates();
     rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
     return handle_error(previous_state);
   }
@@ -115,7 +122,25 @@ protected:
     return gate_;
   }
 
-  /// Called on the configure transition.
+  /// Called on configure and on activate, before the hooks, to bring the node's parameter values up to date.
+  /**
+   * It must not call user hooks.
+   */
+  virtual void refresh_parameters()
+  {}
+
+  /// Called on activate, after the standard activation and before `refresh_parameters`, to follow parameter changes.
+  virtual void start_parameter_updates()
+  {}
+
+  /// Called when the node leaves the active state, before the standard deactivation, to stop following parameter changes.
+  /**
+   * It also runs on shutdown and error, whatever the state.
+   */
+  virtual void stop_parameter_updates()
+  {}
+
+  /// Called on the configure transition, after `refresh_parameters`.
   virtual CallbackReturn handle_configure(const rclcpp_lifecycle::State & /*previous_state*/)
   {
     return CallbackReturn::SUCCESS;

@@ -5,6 +5,7 @@
 
 #include <nodl_runtime_cpp/lifecycle_node.hpp>
 #include <nodl_runtime_cpp/mutex_protected.hpp>
+#include <nodl_runtime_cpp/parameter_values.hpp>
 #include "my_node_base_parameters.hpp"
 
 class MyNodeBase : public nodl_runtime_cpp::LifecycleNode
@@ -30,4 +31,22 @@ protected:
   {
     return param_listener_;
   }
+
+  /// Called after `params_` takes the values of an accepted parameter change.
+  /// Only while the node is active.
+  /// Runs during parameter validation, before the change is committed, so read `params` instead of `get_parameter()`.
+  /// It cannot reject a change and must not block.
+  virtual void on_parameters_changed(const my_node_base::Params & params)
+  {
+    (void)params;
+  }
+
+  /// Store the current parameter values in `params_`, without calling `on_parameters_changed`.
+  void refresh_parameters() final;
+
+  /// Follow parameter changes in `params_`, and call `on_parameters_changed` for each.
+  void start_parameter_updates() final;
+
+  /// Stop following parameter changes.
+  void stop_parameter_updates() final;
 };

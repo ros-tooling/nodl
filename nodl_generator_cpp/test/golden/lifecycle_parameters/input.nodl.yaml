@@ -1,6 +1,6 @@
 ---
 # Lifecycle base class with parameters.
-# The runtime base keeps the constructor-time values, so the generated class has no change hook.
+# The activation-gated base refreshes and follows the parameters through the runtime base's seams.
 
 nodl_version: 2
 

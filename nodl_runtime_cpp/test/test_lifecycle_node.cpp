@@ -37,6 +37,8 @@ public:
 
   /// The hooks called so far, in order.
   std::vector<std::string> calls;
+  /// The parameter seams and the hooks called so far, in order.
+  std::vector<std::string> sequence;
   /// Whether the publisher was active when each hook was called.
   std::vector<bool> publisher_active_in_hook;
   /// Whether the gate was open when each hook was called.
@@ -60,6 +62,21 @@ public:
   }
 
 protected:
+  void refresh_parameters() override
+  {
+    sequence.push_back("refresh");
+  }
+
+  void start_parameter_updates() override
+  {
+    sequence.push_back("start");
+  }
+
+  void stop_parameter_updates() override
+  {
+    sequence.push_back("stop");
+  }
+
   CallbackReturn handle_configure(const rclcpp_lifecycle::State &) override
   {
     return record("configure", Outcome::SUCCESS);
@@ -94,6 +111,7 @@ private:
   CallbackReturn record(const std::string & name, Outcome outcome)
   {
     calls.push_back(name);
+    sequence.push_back(name);
     publisher_active_in_hook.push_back(publisher_->is_activated());
     gate_open_in_hook.push_back(gate()->is_activated());
     switch (outcome) {
@@ -294,6 +312,72 @@ TEST_F(LifecycleNodeTest, FailingDeactivateKeepsNodeAndPublisherActive)
 
   EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_ACTIVE);
   EXPECT_TRUE(node_->publisher_active());
+}
+
+using Sequence = std::vector<std::string>;
+
+TEST_F(LifecycleNodeTest, ParameterSeamsRunInTransitionOrder)
+{
+  node_->configure();
+  EXPECT_EQ(node_->sequence, (Sequence{"refresh", "configure"}));
+
+  node_->sequence.clear();
+  node_->activate();
+  EXPECT_EQ(node_->sequence, (Sequence{"start", "refresh", "activate"}));
+
+  node_->sequence.clear();
+  node_->deactivate();
+  EXPECT_EQ(node_->sequence, (Sequence{"deactivate", "stop"}));
+
+  node_->sequence.clear();
+  node_->cleanup();
+  EXPECT_EQ(node_->sequence, (Sequence{"cleanup"}));
+}
+
+TEST_F(LifecycleNodeTest, FailingActivateStopsParameterUpdates)
+{
+  node_->activate_outcome = Outcome::FAILURE;
+  node_->configure();
+  node_->sequence.clear();
+
+  node_->activate();
+
+  EXPECT_EQ(node_->sequence, (Sequence{"start", "refresh", "activate", "stop"}));
+}
+
+TEST_F(LifecycleNodeTest, FailingDeactivateKeepsParameterUpdates)
+{
+  node_->deactivate_outcome = Outcome::FAILURE;
+  node_->configure();
+  node_->activate();
+  node_->sequence.clear();
+
+  node_->deactivate();
+
+  EXPECT_EQ(node_->sequence, (Sequence{"deactivate"}));
+}
+
+TEST_F(LifecycleNodeTest, ShutdownFromActiveStopsParameterUpdatesBeforeTheHook)
+{
+  node_->configure();
+  node_->activate();
+  node_->sequence.clear();
+
+  node_->shutdown();
+
+  EXPECT_EQ(node_->sequence, (Sequence{"stop", "shutdown"}));
+}
+
+TEST_F(LifecycleNodeTest, ErrorStopsParameterUpdatesBeforeTheHook)
+{
+  node_->deactivate_outcome = Outcome::THROW;
+  node_->configure();
+  node_->activate();
+  node_->sequence.clear();
+
+  node_->deactivate();
+
+  EXPECT_EQ(node_->sequence, (Sequence{"deactivate", "stop", "error"}));
 }
 
 }  // namespace

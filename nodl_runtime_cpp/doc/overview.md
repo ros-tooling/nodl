@@ -28,15 +28,20 @@ Lifecycle publishers follow the node state on every path with no author code, be
 
 | Transition | Order |
 |---|---|
-| configure | hook only, managed entities are not notified |
-| activate | standard activation, then hook, and a result other than SUCCESS runs the standard deactivation and is returned |
-| deactivate | hook, then standard deactivation if the hook returned SUCCESS |
+| configure | `refresh_parameters`, then hook, and managed entities are not notified |
+| activate | standard activation, `start_parameter_updates`, `refresh_parameters`, then hook, and a result other than SUCCESS runs `stop_parameter_updates` and the standard deactivation and is returned |
+| deactivate | hook, then `stop_parameter_updates` and standard deactivation if the hook returned SUCCESS |
 | cleanup | hook only, managed entities are not notified |
-| shutdown | standard deactivation, then hook |
-| error | standard deactivation, then hook |
+| shutdown | `stop_parameter_updates`, standard deactivation, then hook |
+| error | `stop_parameter_updates`, standard deactivation, then hook |
 
 Only activation and deactivation reach managed entities, which includes the deactivation that runs on shutdown and error.
 Configure and cleanup run only the hooks, so an entity registered with `add_managed_entity` does not receive them.
+
+`refresh_parameters`, `start_parameter_updates` and `stop_parameter_updates` are protected virtual seams that do nothing by default.
+A subclass that keeps parameter values overrides them: refresh stores the current values, start follows later changes, and stop ends that.
+Start runs before refresh on activate, so a change between the two is not missed.
+The generated classes of `nodl_generator_cpp` override them for nodes with parameters.
 
 A hook that throws is turned into ERROR by `rclcpp_lifecycle`, which runs `on_error`.
 When `handle_error` returns SUCCESS, the node ends unconfigured.

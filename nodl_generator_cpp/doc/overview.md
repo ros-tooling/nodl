@@ -316,6 +316,7 @@ The generated class uses visibility to separate concerns:
 | **Protected** | Action clients | `action_cli_<name>_` | Subclass needs `async_send_goal()`. |
 | **Protected** | Parameters | `params_`, `param_listener()` | Subclass reads parameters through the lock of `params_`, and the const listener. |
 | **Protected, virtual** | Parameter change hook | `on_parameters_changed(params)` | Subclass reacts to an accepted change. |
+| **Protected, final** | Lifecycle parameter updates | `refresh_parameters()`, `start_parameter_updates()`, `stop_parameter_updates()` | The runtime lifecycle base calls them on its transitions. |
 | **Private** | Parameter listener | `param_listener_` | Wiring only. |
 | **Protected, pure-virtual** | Subscription callbacks | `on_<name>(msg)` | Subclass implements business logic. |
 | **Protected, pure-virtual** | Service server callbacks | `on_<name>(request, response)` | Subclass implements business logic. |
@@ -609,7 +610,17 @@ For the latest values from the parameter library, a protected `param_listener()`
 The listener itself is private, so a subclass cannot replace the change callback.
 React to changes with `on_parameters_changed`, and never call `setUserCallback`.
 
-A base class with `activation_gated` keeps its constructor-time `params_` for now, and has no `on_parameters_changed`.
+### On a lifecycle node
+
+A node on the `nodl_runtime_cpp::LifecycleNode` base follows parameter changes only while it is active.
+`params_` is refreshed when the node configures and again when it activates, so `handle_configure` and `handle_activate` read the latest values, including any set while the node was unconfigured or inactive.
+Between those transitions the node does not call `on_parameters_changed`, and `params_` keeps the values it had when the node last deactivated.
+While the node is active, a change updates `params_` and calls `on_parameters_changed` as described above.
+
+The refreshes do not call `on_parameters_changed`, so apply parameter values in `handle_configure` and `handle_activate`, and use the hook for changes while active.
+Updates are live from just after the activation gate opens until just before it closes.
+The generated class overrides the `refresh_parameters`, `start_parameter_updates` and `stop_parameter_updates` seams of the runtime base as `final`, so an authored subclass overrides the hook instead.
+See the `nodl_runtime_cpp` overview for the order on each transition.
 
 ```{literalinclude} ../../test_nodl_generators/parameters/cpp/test_node.cpp
 :language: cpp
@@ -658,6 +669,8 @@ BREAKING CHANGE: for generated C++ nodes with parameters:
 - `param_listener_` is private.
   Replace `param_listener_.get_params()` with `*params_.lock()` or `param_listener().get_params()`, and replace a `setUserCallback` call with an `on_parameters_changed` override.
 - `params_` follows dynamic parameter changes after construction.
+  On a lifecycle node it is refreshed at configure and activate and follows changes only while active, so `on_parameters_changed` runs only while the node is active.
+  Apply parameter values in `handle_configure` and `handle_activate`.
 - The package must declare `<depend>nodl_runtime_cpp</depend>`.
 
 ## CLI reference

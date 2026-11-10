@@ -28,6 +28,7 @@ using std::chrono_literals::operator""ms;
 using std::chrono_literals::operator""s;
 
 /// Implements only what the generated base requires, publishes from `handle_activate`, and counts its callbacks.
+/// It also records `gain` where each hook sees it, and the values that `on_parameters_changed` receives.
 /// It also sends from both client kinds in `handle_configure` and `handle_activate`, and keeps what happened.
 /// Its action server never works on a goal, and `handle_deactivate` succeeds only the goals of order 1.
 class TestNode : public CppLifecycleNodeBase
@@ -55,9 +56,15 @@ public:
     return cli_add_->service_is_ready() && action_cli_fibonacci_->action_server_is_ready();
   }
 
+  double gain() const
+  {
+    return params_.lock()->gain;
+  }
+
 protected:
   CallbackReturn handle_configure(const rclcpp_lifecycle::State &) override
   {
+    gain_in_configure = gain();
     // Waiting is allowed, sending is not.
     waiting_in_configure_threw = false;
     try {
@@ -76,6 +83,7 @@ protected:
 
   CallbackReturn handle_activate(const rclcpp_lifecycle::State &) override
   {
+    gain_in_activate = gain();
     publish_status();
     auto request = std::make_shared<AddTwoInts::Request>();
     request->a = 2;
@@ -93,6 +101,11 @@ protected:
       }
     }
     return CallbackReturn::SUCCESS;
+  }
+
+  void on_parameters_changed(const cpp_lifecycle_node_base::Params & params) override
+  {
+    notified_gains.push_back(params.gain);
   }
 
   rclcpp_action::GoalResponse on_count_goal(
@@ -124,6 +137,9 @@ protected:
   }
 
 public:
+  double gain_in_configure = 0.0;
+  double gain_in_activate = 0.0;
+  std::vector<double> notified_gains;
   std::atomic<int> cmd_vel_count{0};
   std::vector<std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>>> count_goals;
   bool waiting_in_configure_threw = true;
@@ -346,6 +362,48 @@ TEST_F(GeneratedLifecycleNode, EndsActionGoalsOnDeactivationAfterTheHook)
   EXPECT_EQ(abandoned_result.get().code, rclcpp_action::ResultCode::ABORTED);
   ASSERT_EQ(executor_.spin_until_future_complete(finished_result, 5s), rclcpp::FutureReturnCode::SUCCESS);
   EXPECT_EQ(finished_result.get().code, rclcpp_action::ResultCode::SUCCEEDED);
+}
+
+TEST_F(GeneratedLifecycleNode, RefreshesParametersSetWhileUnconfiguredAtConfigure)
+{
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("gain", 2.0)).successful);
+  EXPECT_DOUBLE_EQ(node_->gain(), 1.0);
+
+  node_->configure();
+
+  EXPECT_DOUBLE_EQ(node_->gain_in_configure, 2.0);
+  EXPECT_TRUE(node_->notified_gains.empty());
+}
+
+TEST_F(GeneratedLifecycleNode, RefreshesParametersSetWhileInactiveAtActivate)
+{
+  node_->configure();
+  node_->activate();
+  node_->deactivate();
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("gain", 3.0)).successful);
+  EXPECT_DOUBLE_EQ(node_->gain(), 1.0);
+
+  node_->activate();
+
+  EXPECT_DOUBLE_EQ(node_->gain_in_activate, 3.0);
+  EXPECT_TRUE(node_->notified_gains.empty());
+}
+
+TEST_F(GeneratedLifecycleNode, FollowsParameterChangesOnlyWhileActive)
+{
+  node_->configure();
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("gain", 2.0)).successful);
+  EXPECT_DOUBLE_EQ(node_->gain(), 1.0);
+
+  node_->activate();
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("gain", 4.0)).successful);
+  EXPECT_DOUBLE_EQ(node_->gain(), 4.0);
+  EXPECT_EQ(node_->notified_gains, std::vector<double>{4.0});
+
+  node_->deactivate();
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("gain", 5.0)).successful);
+  EXPECT_DOUBLE_EQ(node_->gain(), 4.0);
+  EXPECT_EQ(node_->notified_gains, std::vector<double>{4.0});
 }
 
 }  // namespace
