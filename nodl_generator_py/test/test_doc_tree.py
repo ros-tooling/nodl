@@ -211,7 +211,7 @@ def test_root_python_provider_metadata_is_rejected(tmp_path, role):
         generate_python(root, 'example_node_base')
 
 
-def test_active_only_lifecycle_base_gates_subscription_and_service_callbacks(tmp_path):
+def test_activation_gated_lifecycle_base_makes_callbacks_and_clients_active_only(tmp_path):
     _write(
         tmp_path / 'base.nodl.yaml',
         """nodl_version: 2
@@ -236,6 +236,12 @@ subscriptions:
 service_servers:
   - name: add
     type: example_interfaces/srv/AddTwoInts
+service_clients:
+  - name: remote_add
+    type: example_interfaces/srv/AddTwoInts
+action_clients:
+  - name: fibonacci
+    type: example_interfaces/action/Fibonacci
 """,
     )
 
@@ -244,3 +250,5 @@ service_servers:
     assert 'from nodl_runtime_py.lifecycle import LifecycleNode' in result.module
     assert 'active_only_subscription_callback(self.activation_gate, self.on_command),' in result.module
     assert 'self.srv_add = create_active_only_service(' in result.module
+    assert 'self.cli_remote_add = ActiveOnlyClient(' in result.module
+    assert 'self.action_cli_fibonacci = ActiveOnlyActionClient(' in result.module

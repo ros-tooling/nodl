@@ -1,13 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""A hand-written (non-generated) node using nodl_runtime_py.lifecycle.LifecycleNode to block a subscription's messages and a service's requests while it is inactive."""
+"""A hand-written (non-generated) node using nodl_runtime_py.lifecycle.LifecycleNode to block a subscription's messages, a service's requests and its clients' sends while it is inactive."""
 
 import sys
 
+from example_interfaces.action import Fibonacci
 from example_interfaces.msg import Int32
 from example_interfaces.srv import AddTwoInts
+from rclpy.action.client import ActionClient
 
-from nodl_runtime_py import active_only_subscription_callback, create_active_only_service, run_node
+from nodl_runtime_py import (
+    ActiveOnlyActionClient,
+    ActiveOnlyClient,
+    active_only_subscription_callback,
+    create_active_only_service,
+    run_node,
+)
 from nodl_runtime_py.lifecycle import LifecycleNode
 
 
@@ -20,6 +28,8 @@ class Calculator(LifecycleNode):
         gate = self.activation_gate
         self.create_subscription(Int32, 'number', active_only_subscription_callback(gate, self._on_number), 10)
         create_active_only_service(self, gate, AddTwoInts, 'add', self._on_add)
+        self.remote_add = ActiveOnlyClient(gate, self.create_client(AddTwoInts, 'remote_add'))
+        self.fibonacci = ActiveOnlyActionClient(gate, ActionClient(self, Fibonacci, 'fibonacci'))
 
     def _on_number(self, msg):
         self.last_number = msg.data

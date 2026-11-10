@@ -236,6 +236,10 @@ def _render_python(
         imports.add('from nodl_runtime_py.active_only import active_only_subscription_callback')
     if base.activation_gated and service_servers:
         imports.add('from nodl_runtime_py.active_only import create_active_only_service')
+    if base.activation_gated and service_clients:
+        imports.add('from nodl_runtime_py.active_only import ActiveOnlyClient')
+    if base.activation_gated and action_clients:
+        imports.add('from nodl_runtime_py.active_only import ActiveOnlyActionClient')
     if action_servers or action_clients:
         imports.add('import rclpy.action')
     qos_endpoints = (

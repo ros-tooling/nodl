@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Helpers that block a subscription's messages or a service's requests while an activation gate is closed, see the ``nodl_runtime_py`` overview."""
+"""Helpers that block a subscription's messages, a service's requests, or a client's requests and goals while an activation gate is closed, see the ``nodl_runtime_py`` overview."""
 
 from __future__ import annotations
 
@@ -8,9 +8,16 @@ import inspect
 from collections.abc import Callable
 from typing import Any
 
+from rclpy.action.client import ActionClient
+from rclpy.client import Client
 from rclpy.lifecycle import SimpleManagedEntity
 from rclpy.node import Node
 from rclpy.service import Service
+from rclpy.task import Future
+
+
+class InactiveError(RuntimeError):
+    """Raised by an active-only client that blocks a request or goal while its gate is closed."""
 
 
 class _Dropped:
@@ -92,3 +99,92 @@ def create_active_only_service(
 
     setattr(service, 'send_response', send_unless_dropped)
     return service
+
+
+class ActiveOnlyClient:
+    """A service client that blocks ``call_async`` with ``InactiveError`` while its gate is closed.
+
+    The ``client`` property returns the wrapped client, see the ``nodl_runtime_py`` overview.
+    """
+
+    def __init__(self, gate: SimpleManagedEntity, client: Client) -> None:
+        """Wrap ``client``, which the node created with ``Node.create_client``.
+
+        :param gate: The activation gate.
+        :param client: The client to gate.
+        """
+        self._gate = gate
+        self._client = client
+
+    @property
+    def client(self) -> Client:
+        """The wrapped client, for anything the wrapper does not expose."""
+        return self._client
+
+    def call_async(self, request: Any) -> Future:
+        """Send a request and return the future of its response.
+
+        :param request: The service request.
+        :return: A future that completes with the response.
+        :raises InactiveError: When the gate is closed.
+        """
+        if not self._gate.is_activated:
+            raise InactiveError(f'cannot call service {self._client.srv_name}: the node is not active')
+        return self._client.call_async(request)
+
+    def service_is_ready(self) -> bool:
+        """Return whether a server is ready, whether or not the gate is open."""
+        return self._client.service_is_ready()
+
+    def wait_for_service(self, timeout_sec: float | None = None) -> bool:
+        """Wait for a server to become ready, whether or not the gate is open.
+
+        :param timeout_sec: Seconds to wait, or ``None`` to wait forever.
+        :return: ``True`` if a server is ready, ``False`` on a timeout.
+        """
+        return self._client.wait_for_service(timeout_sec)
+
+
+class ActiveOnlyActionClient:
+    """An action client that blocks ``send_goal_async`` with ``InactiveError`` while its gate is closed.
+
+    The ``client`` property returns the wrapped client, see the ``nodl_runtime_py`` overview.
+    """
+
+    def __init__(self, gate: SimpleManagedEntity, client: ActionClient) -> None:
+        """Wrap ``client``, which the caller created with ``rclpy.action.ActionClient``.
+
+        :param gate: The activation gate.
+        :param client: The client to gate.
+        """
+        self._gate = gate
+        self._client = client
+
+    @property
+    def client(self) -> ActionClient:
+        """The wrapped client, for anything the wrapper does not expose."""
+        return self._client
+
+    def send_goal_async(self, goal: Any, **kwargs: Any) -> Future:
+        """Send a goal and return the future of its goal handle.
+
+        :param goal: The goal request.
+        :param kwargs: Passed to ``ActionClient.send_goal_async``, for example ``feedback_callback``.
+        :return: A future that completes with the goal handle.
+        :raises InactiveError: When the gate is closed.
+        """
+        if not self._gate.is_activated:
+            raise InactiveError('cannot send a goal: the node is not active')
+        return self._client.send_goal_async(goal, **kwargs)
+
+    def server_is_ready(self) -> bool:
+        """Return whether a server is ready, whether or not the gate is open."""
+        return self._client.server_is_ready()
+
+    def wait_for_server(self, timeout_sec: float | None = None) -> bool:
+        """Wait for a server to become ready, whether or not the gate is open.
+
+        :param timeout_sec: Seconds to wait, or ``None`` to wait forever.
+        :return: ``True`` if a server is ready, ``False`` on a timeout.
+        """
+        return self._client.wait_for_server(timeout_sec)
