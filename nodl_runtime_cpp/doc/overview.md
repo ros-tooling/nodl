@@ -22,7 +22,7 @@ target_link_libraries(my_node nodl_runtime_cpp::nodl_runtime_cpp)
 It implements and marks as `final` the standard lifecycle methods (`on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` and `on_error`) to manage the node's endpoints in a standard way.
 It provides new optional hooks for node authors to add behavior on each transition: `handle_configure`, `handle_activate`, `handle_deactivate`, `handle_cleanup`, `handle_shutdown` and `handle_error`.
 Each hook takes the previous state and returns a `CallbackReturn`, and defaults to SUCCESS.
-A subclass, generated or authored, defines the hook that matches the transition instead of an `on_*` method.
+An authored subclass defines the hook that matches the transition instead of an `on_*` method.
 
 Lifecycle publishers follow the node state on every path with no author code, because the base class runs the standard activation and deactivation of `rclcpp_lifecycle::LifecycleNode` around the hooks.
 
@@ -45,7 +45,7 @@ When `handle_error` returns SUCCESS, the node ends unconfigured.
 
 This example shows a hand-written (non-generated) node using `nodl_runtime_cpp::LifecycleNode` to illustrate using the lifecycle hooks to add custom behavior on state transitions.
 It publishes from `handle_activate` and logs from `handle_deactivate`.
-Generated nodes derive the same class, so their authors implement the same hooks.
+Generated nodes derive the same class, so an authored subclass of a generated node defines the same hooks.
 
 ```{literalinclude} examples/lifecycle_node.cpp
 :language: cpp
