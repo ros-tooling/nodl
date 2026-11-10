@@ -163,7 +163,7 @@ It handles the differences in dependency target names between distributions, so 
 The generator requires that a nodl document includes exactly one spec with a codegen class type `BASE_CLASS`.
 
 The `nodl_common_interfaces` package provides shared NoDL descriptions for the standard node and lifecycle-node base types.
-Their `codegen.cpp` metadata selects `rclcpp::Node` or `rclcpp_lifecycle::LifecycleNode` as the `BASE_CLASS`.
+Their `codegen.cpp` metadata selects `rclcpp::Node` or `nodl_runtime_cpp::LifecycleNode` as the `BASE_CLASS`.
 They are registered as `nodl://nodl_common_interfaces/node` and `nodl://nodl_common_interfaces/lifecycle_node`.
 `nodl_generator_cpp` depends on `nodl_common_interfaces`, so a package that generates code does not have to explicitly declare it.
 
@@ -327,7 +327,7 @@ Entity names are sanitised for use as C++ identifiers: leading `~/` or `/` is st
 ## Base class and includes
 
 When generating a node, the generator walks the NoDL document tree to find a `BASE_CLASS` role document.
-The metadata there informs which base class (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`, or a custom class) this node implementation inherits from.
+The metadata there informs which base class (`rclcpp::Node`, `nodl_runtime_cpp::LifecycleNode`, or a custom class) this node implementation inherits from.
 
 Included documents' roles inform the generator what entities need to be generated, and which do not.
 For example, the base class already provides its interface, so those endpoints should not be created by the generator.
@@ -398,14 +398,39 @@ It defaults to `rclcpp::Publisher`, and `header` must declare it.
 codegen:
   cpp:
     role: BASE_CLASS
-    class: rclcpp_lifecycle::LifecycleNode
-    header: rclcpp_lifecycle/lifecycle_node.hpp
+    class: nodl_runtime_cpp::LifecycleNode
+    header: nodl_runtime_cpp/lifecycle_node.hpp
     publisher_type: rclcpp_lifecycle::LifecyclePublisher
 ```
 
 The generated class declares each publisher as `<publisher_type><MessageT>::SharedPtr`.
-`rclcpp_lifecycle::LifecycleNode::on_activate` and `on_deactivate` activate and deactivate its lifecycle publishers.
-A subclass that overrides those callbacks calls the base class's implementation to keep that behavior.
+
+### Lifecycle nodes
+
+A generated lifecycle node derives `nodl_runtime_cpp::LifecycleNode`, so a package that generates one depends on `nodl_runtime_cpp`.
+That base class implements and seals the transition callbacks (`on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` and `on_error`) and calls optional hooks instead.
+The authored subclass defines the hook that matches the transition, not a transition callback: `handle_configure`, `handle_activate`, `handle_deactivate`, `handle_cleanup`, `handle_shutdown` or `handle_error`.
+Each takes the previous state and returns a `CallbackReturn`, and defaults to SUCCESS.
+The base class activates and deactivates the generated lifecycle publishers on every path, so a hook never has to.
+See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
+
+```cpp
+class MyNode : public MyNodeBase
+{
+protected:
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/) override
+  {
+    // The publishers are already active.
+    return CallbackReturn::SUCCESS;
+  }
+};
+```
+
+#### Migrating from overridden transitions
+
+Earlier versions derived `rclcpp_lifecycle::LifecycleNode` directly, and an author's `on_activate` had to call the base class's implementation to activate the publishers.
+An authored class that defines `on_activate` or the other transition callbacks no longer compiles, because the runtime base class seals them with `final`.
+Move the logic into the matching `handle_*` hook, and drop the call to the base class's implementation.
 
 ### Namespace
 
