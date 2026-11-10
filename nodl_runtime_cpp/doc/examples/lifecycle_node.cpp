@@ -4,6 +4,10 @@
 
 #include <memory>
 
+#include "example_interfaces/msg/int32.hpp"
+#include "example_interfaces/srv/add_two_ints.hpp"
+#include "nodl_runtime_cpp/active_only_service.hpp"
+#include "nodl_runtime_cpp/active_only_subscription.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
@@ -38,6 +42,47 @@ protected:
 
 private:
   rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr publisher_;
+};
+
+using AddTwoInts = example_interfaces::srv::AddTwoInts;
+using Int32 = example_interfaces::msg::Int32;
+
+/// Example of a non-generated node that gates a subscription and a service server on `nodl_runtime_cpp::LifecycleNode`'s gate.
+/**
+ * It doubles the numbers it receives and adds numbers on request, and blocks both while it is inactive.
+ * The endpoints are created by hand to keep the example self-contained, where a generated node creates its own.
+ */
+class Doubler : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  Doubler()
+  : nodl_runtime_cpp::LifecycleNode("doubler")
+  , publisher_(create_publisher<Int32>("doubled", 10))
+  {
+    // The gate is open from the standard activation until the standard deactivation.
+    subscription_ = create_subscription<Int32>(
+      "numbers",
+      10,
+      nodl_runtime_cpp::active_only_subscription_callback<Int32>(gate(), [this](std::shared_ptr<const Int32> message) {
+        Int32 doubled;
+        doubled.data = 2 * message->data;
+        publisher_->publish(doubled);
+      }));
+
+    // A request that arrives while the gate is closed gets no response.
+    service_ = nodl_runtime_cpp::create_active_only_service<AddTwoInts>(
+      *this,
+      gate(),
+      "add",
+      [](std::shared_ptr<AddTwoInts::Request> request, std::shared_ptr<AddTwoInts::Response> response) {
+        response->sum = request->a + request->b;
+      });
+  }
+
+private:
+  rclcpp_lifecycle::LifecyclePublisher<Int32>::SharedPtr publisher_;
+  rclcpp::Subscription<Int32>::SharedPtr subscription_;
+  rclcpp::Service<AddTwoInts>::SharedPtr service_;
 };
 
 int main(int argc, char ** argv)

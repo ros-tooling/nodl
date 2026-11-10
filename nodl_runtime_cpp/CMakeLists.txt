@@ -28,6 +28,7 @@ install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(example_interfaces REQUIRED)
   find_package(lifecycle_msgs REQUIRED)
   find_package(std_msgs REQUIRED)
 
@@ -37,10 +38,16 @@ if(BUILD_TESTING)
     ${lifecycle_msgs_TARGETS}
     ${std_msgs_TARGETS})
 
+  ament_add_gtest(test_active_only_entities test/test_active_only_entities.cpp TIMEOUT 60)
+  target_link_libraries(test_active_only_entities
+    ${PROJECT_NAME}
+    ${example_interfaces_TARGETS})
+
   # The documentation example is compiled but not installed or run.
   add_executable(lifecycle_node_example doc/examples/lifecycle_node.cpp)
   target_link_libraries(lifecycle_node_example
     ${PROJECT_NAME}
+    ${example_interfaces_TARGETS}
     ${std_msgs_TARGETS})
 endif()
 

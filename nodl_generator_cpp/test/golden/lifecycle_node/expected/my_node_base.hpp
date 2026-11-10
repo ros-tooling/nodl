@@ -4,10 +4,10 @@
 #include <memory>
 
 #include <geometry_msgs/msg/twist.hpp>
-#include <rclcpp_lifecycle/lifecycle_node.hpp>
+#include <nodl_runtime_cpp/lifecycle_node.hpp>
 #include <std_msgs/msg/string.hpp>
 
-class MyNodeBase : public rclcpp_lifecycle::LifecycleNode
+class MyNodeBase : public nodl_runtime_cpp::LifecycleNode
 {
 public:
   explicit MyNodeBase(const rclcpp::NodeOptions & options = rclcpp::NodeOptions{});

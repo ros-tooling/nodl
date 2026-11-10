@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include <memory>
+#include <string>
+
+#include "nodl_runtime_cpp/gate.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 namespace nodl_runtime_cpp
@@ -13,12 +17,40 @@ namespace nodl_runtime_cpp
  * The `on_*` transition callbacks are `final`, and run the standard activation and deactivation of
  * `rclcpp_lifecycle::LifecycleNode` around the hooks.
  * See the `nodl_runtime_cpp` overview for the order on each transition.
+ * The node owns an activation gate, which `gate()` exposes to subclasses.
  */
 class LifecycleNode : public rclcpp_lifecycle::LifecycleNode
 {
 public:
-  using rclcpp_lifecycle::LifecycleNode::LifecycleNode;
   using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+
+  /// Construct the node and register its activation gate.
+  /**
+   * The constructors mirror those of `rclcpp_lifecycle::LifecycleNode` that exist in every supported distribution.
+   *
+   * \param[in] node_name Name of the node.
+   * \param[in] options Options of the node.
+   */
+  explicit LifecycleNode(const std::string & node_name, const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
+  : rclcpp_lifecycle::LifecycleNode(node_name, options)
+  {
+    add_managed_entity(gate_);
+  }
+
+  /// Construct the node in a namespace and register its activation gate.
+  /**
+   * \param[in] node_name Name of the node.
+   * \param[in] namespace_ Namespace of the node.
+   * \param[in] options Options of the node.
+   */
+  LifecycleNode(
+    const std::string & node_name,
+    const std::string & namespace_,
+    const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
+  : rclcpp_lifecycle::LifecycleNode(node_name, namespace_, options)
+  {
+    add_managed_entity(gate_);
+  }
 
   /// Runs `handle_configure`.
   CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) final
@@ -74,6 +106,15 @@ public:
   }
 
 protected:
+  /// The activation gate, open while the node is active.
+  /**
+   * It opens in the standard activation, so it is already open in `handle_activate`.
+   */
+  GatePtr gate() const
+  {
+    return gate_;
+  }
+
   /// Called on the configure transition.
   virtual CallbackReturn handle_configure(const rclcpp_lifecycle::State & /*previous_state*/)
   {
@@ -82,6 +123,7 @@ protected:
 
   /// Called on the activate transition, after the standard activation.
   /**
+   * The gate is already open.
    * A result other than SUCCESS leaves the node inactive.
    */
   virtual CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/)
@@ -118,6 +160,9 @@ protected:
   {
     return CallbackReturn::SUCCESS;
   }
+
+private:
+  std::shared_ptr<Gate> gate_ = std::make_shared<Gate>();
 };
 
 }  // namespace nodl_runtime_cpp

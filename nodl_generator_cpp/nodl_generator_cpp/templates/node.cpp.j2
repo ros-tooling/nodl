@@ -1,6 +1,12 @@
 {% set has_entities = publishers or subscriptions or service_servers or service_clients or action_servers or action_clients or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
+{% if activation_gated and subscriptions %}
+#include <nodl_runtime_cpp/active_only_subscription.hpp>
+{% endif %}
+{% if activation_gated and service_servers %}
+#include <nodl_runtime_cpp/active_only_service.hpp>
+{% endif %}
 
 {% if namespace %}
 namespace {{ namespace }}
@@ -25,23 +31,44 @@ namespace {{ namespace }}
 
   // Create subscriptions
 {% for sub in subscriptions %}
+{% if activation_gated %}
+  {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
+    "{{ sub.name }}",
+    {{ sub.qos }},
+    nodl_runtime_cpp::active_only_subscription_callback<{{ sub.cpp_type }}>(
+      this->gate(),
+      [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
+        this->{{ sub.callback }}(msg);
+      }));
+{% else %}
   {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
     "{{ sub.name }}",
     {{ sub.qos }},
     [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
       this->{{ sub.callback }}(msg);
     });
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if service_servers %}
 
   // Create service servers
 {% for srv in service_servers %}
+{% if activation_gated %}
+  {{ srv.member }} = nodl_runtime_cpp::create_active_only_service<{{ srv.cpp_type }}>(
+    *this,
+    this->gate(),
+    "{{ srv.name }}",
+    [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
+      this->{{ srv.callback }}(req, res);
+    });
+{% else %}
   {{ srv.member }} = this->create_service<{{ srv.cpp_type }}>(
     "{{ srv.name }}",
     [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
       this->{{ srv.callback }}(req, res);
     });
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if service_clients %}

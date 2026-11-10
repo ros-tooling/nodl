@@ -36,6 +36,10 @@ class CodegenBaseClass(BaseModel):
         'rclcpp::Publisher',
         description="Fully-qualified C++ publisher class template that the base class's ``create_publisher`` returns,\ndeclared by ``header`` (e.g. ``rclcpp_lifecycle::LifecyclePublisher``).\n",
     )
+    activation_gated: Optional[bool] = Field(
+        False,
+        description='If the node is a lifecycle node, make the generated base class wrap subscription and service server callbacks\nbehind the activation gate, so they only trigger callbacks when the node is active.\nThe base class must expose the gate as a protected ``gate()`` member\n(e.g. ``nodl_runtime_cpp::LifecycleNode``).\n',
+    )
 
 
 class CodegenNoGenerate(BaseModel):

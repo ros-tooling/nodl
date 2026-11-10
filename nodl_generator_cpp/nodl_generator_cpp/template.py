@@ -54,6 +54,7 @@ def _build_template_context(
     include_prefix: str | None = None,
     namespace: str | None = None,
     publisher_class: str,
+    activation_gated: bool = False,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -142,6 +143,7 @@ def _build_template_context(
         'parameters_include': prefixed(include_prefix, f'{target_name}_parameters.hpp'),
         'namespace': namespace,
         'publisher_class': publisher_class,
+        'activation_gated': activation_gated,
     }
 
 
@@ -165,6 +167,7 @@ def render_templates(
     include_prefix: str | None = None,
     namespace: str | None = None,
     publisher_class: str,
+    activation_gated: bool = False,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
@@ -175,6 +178,7 @@ def render_templates(
     and the parameter structs are expected under ``<namespace>::<target_name>``,
     which the class reaches as ``<target_name>::``.
     Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
+    When *activation_gated* is set, subscription and service server callbacks are blocked while the base class's activation gate is closed.
     """
     ctx = _build_template_context(
         target_name,
@@ -190,6 +194,7 @@ def render_templates(
         include_prefix=include_prefix,
         namespace=namespace,
         publisher_class=publisher_class,
+        activation_gated=activation_gated,
     )
 
     env = _get_env()
