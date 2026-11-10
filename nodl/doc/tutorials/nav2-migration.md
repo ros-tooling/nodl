@@ -1,19 +1,13 @@
-# Nav2: migrate one client, keep the system
+# Use NoDL with Nav2
 
-This tutorial replaces one goal client at the edge of a working Nav2 system.
-Every Nav2 server remains conventional and unchanged.
+Use a NoDL-generated client to send a navigation goal to an existing Nav2 system.
+Only the client changes; Nav2's servers, planner, controller, and behavior tree stay unchanged.
 
 ```text
-Before: conventional goal client ── NavigateToPose ──> unchanged Nav2
-After:  NoDL-backed goal client  ── NavigateToPose ──> unchanged Nav2
+NoDL-backed goal client ── NavigateToPose ──> unchanged Nav2
 ```
 
-This demonstrates incremental NoDL adoption: NoDL-backed and conventional nodes can coexist across an ordinary ROS
-interface.
-
-> **Launch → Migrate one client → Conform**
-
-## 1. Start with working Nav2
+## 1. Start Nav2
 
 In a workspace with Nav2 and the TurtleBot 3 simulation installed, launch the upstream system:
 
@@ -25,68 +19,29 @@ ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False
 Use **2D Pose Estimate** in RViz to initialize the robot.
 Select **Nav2 Goal**, choose a reachable point, and confirm that the robot moves there.
 
-This is the behavior to preserve.
-Leave Nav2 running for the rest of the tutorial.
+Leave Nav2 running.
 
 ![The NoDL-backed client moves the robot from Start to Goal through the unchanged Nav2 system.](img/nav2-migration.gif)
 
-## 2. Migrate one client
+## 2. Use NoDL for the goal client
 
-The migration boundary is a small node that sends one `NavigateToPose` goal.
-These are the main files in the migrated package:
-
-::::{tabs}
-:::{group-tab} C++
-
-```text
-navigate_to_pose_nodl/
-├── nodl/
-│   └── navigate_to_pose_client.nodl.yaml
-├── CMakeLists.txt
-├── package.xml
-└── src/
-    ├── navigate_to_pose_client_nodl.cpp
-    ├── navigation.cpp
-    └── navigation.hpp
-```
-
-:::
-
-:::{group-tab} Python
-
-```text
-navigate_to_pose_nodl/
-├── nodl/
-│   └── navigate_to_pose_client.nodl.yaml
-├── CMakeLists.txt
-├── package.xml
-└── navigate_to_pose_nodl/
-    ├── __init__.py
-    ├── navigate_to_pose_client_nodl.py
-    └── navigation.py
-```
-
-:::
-::::
-
-The Python example uses `ament_cmake_python` so NoDL generation runs in `CMakeLists.txt`; a pure `ament_python` package
-would instead use `setup.py`, `setup.cfg`, and `resource/`.
+The example package is `examples/nodl_tutorials/navigate_to_pose_nodl`.
+Its client sends one `NavigateToPose` goal.
 
 ### `nodl/navigate_to_pose_client.nodl.yaml`
 
-Declare the action boundary once for both languages:
+Declare the action client once for both languages:
 
 ```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/nodl/navigate_to_pose_client.nodl.yaml
 :language: yaml
 ```
 
-The contract says nothing about Nav2's planner, controller, lifecycle nodes, costmaps, or behavior tree.
-Those conventional components remain behind the `NavigateToPose` interface.
+The action name and type match the interface already provided by Nav2.
 
 ### `CMakeLists.txt`
 
-Register the contract, generate the selected language's client base, and install the `_nodl` executable.
-The highlighted lines are the NoDL-specific additions to the package's actual `CMakeLists.txt`:
+Register the contract, generate a client base, and install the executable.
+The highlighted lines are the NoDL additions to the example's `CMakeLists.txt`:
 
 ::::{tabs}
 :::{group-tab} C++
@@ -97,8 +52,8 @@ The highlighted lines are the NoDL-specific additions to the package's actual `C
 :emphasize-lines: 2-3,5,7,13
 ```
 
-The C++ generation input adds the standard node base from `nodl://nodl_common_interfaces/node` to the public contract.
-The generated header is included as `navigate_to_pose_nodl/navigate_to_pose_client_base.hpp`.
+The generation input combines the contract with `nodl://nodl_common_interfaces/node`.
+Include the generated header as `navigate_to_pose_nodl/navigate_to_pose_client_base.hpp`.
 
 :::
 
@@ -110,16 +65,16 @@ The generated header is included as `navigate_to_pose_nodl/navigate_to_pose_clie
 :emphasize-lines: 2-4,6,8
 ```
 
-`NO_INDEX` avoids registering the same public contract a second time, as in the Basics tutorial.
-Import the generated base from `nodl_generated.navigate_to_pose_nodl.navigate_to_pose_client_py_base`.
+This example uses `ament_cmake_python` so generation runs in the package build.
+`NO_INDEX` avoids registering the same contract twice.
 
 :::
 ::::
 
 ### Client implementation
 
-Before migration, each client creates `ActionClient` directly.
-After migration, it inherits the generated base instead.
+Move the action-client declaration from the constructor into NoDL, then inherit the generated base.
+Goal construction, waiting, and result handling stay in the shared `navigation.cpp` or `navigation.py` helper.
 
 ::::{tabs}
 :::{group-tab} C++
@@ -140,15 +95,6 @@ After migration, it inherits the generated base instead.
 :end-before: int main
 ```
 
-````{admonition} Generated C++ base
-:collapsible: closed
-
-```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/test/expected/generated_cpp.txt
-:language: cpp
-```
-
-````
-
 :::
 
 :::{group-tab} Python
@@ -157,7 +103,7 @@ After migration, it inherits the generated base instead.
 
 ```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/navigate_to_pose_nodl/navigate_to_pose_client.py
 :language: python
-:start-at: class NavigateToPoseClient
+:start-at: from nav2_msgs.action import NavigateToPose
 :end-before: def main
 ```
 
@@ -165,32 +111,21 @@ After migration, it inherits the generated base instead.
 
 ```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/navigate_to_pose_nodl/navigate_to_pose_client_nodl.py
 :language: python
-:start-at: class NavigateToPoseClientNodl
+:start-at: from nodl_generated.navigate_to_pose_nodl.navigate_to_pose_client_py_base
 :end-before: def main
 ```
-
-````{admonition} Generated Python base
-:collapsible: closed
-
-```{literalinclude} ../../../examples/nodl_tutorials/navigate_to_pose_nodl/test/expected/generated_python.txt
-:language: python
-```
-
-````
 
 :::
 ::::
 
-The generated base maps the contract's `NavigateToPose` type and `navigate_to_pose` name to the action-client member
-used by the thin subclass.
-Only that interface wiring changes.
-The application still owns the goal, waiting policy, result handling, and exit status.
+The generated base creates `action_cli_navigate_to_pose_` in C++ or `action_cli_navigate_to_pose` in Python.
+The navigation behavior stays the same.
 
-## 3. Build, run, and verify the mixed system
+## 3. Build, run, and check conformance
 
 ### Build
 
-Build and source the migrated clients:
+Build and source the example:
 
 ```bash
 colcon build --packages-up-to navigate_to_pose_nodl
@@ -199,10 +134,10 @@ source install/setup.bash
 
 ### Run and check conformance
 
-Leave the conventional Nav2 launch running.
+Keep Nav2 running.
 Source `install/setup.bash` in each new terminal.
-Run the selected client, then compare its observed interface with the contract while the robot is moving.
-The example uses goal coordinates `(-2.0, -0.5)`; choose a reachable point for your map that takes several seconds to reach.
+Run either client, then check its interface while the robot is moving.
+Use `(-2.0, -0.5)` or another reachable goal that takes several seconds to reach.
 
 ::::{tabs}
 :::{group-tab} C++
@@ -216,9 +151,7 @@ ros2 nodl conform /navigate_to_pose_client \
   --file examples/nodl_tutorials/navigate_to_pose_nodl/nodl/navigate_to_pose_client.nodl.yaml
 ```
 
-```text
-/navigate_to_pose_client: conforms
-```
+Expected: **`/navigate_to_pose_client: conforms`**.
 
 :::
 
@@ -233,33 +166,24 @@ ros2 nodl conform /navigate_to_pose_client_py \
   --file examples/nodl_tutorials/navigate_to_pose_nodl/nodl/navigate_to_pose_client.nodl.yaml
 ```
 
-```text
-/navigate_to_pose_client_py: conforms
-```
+Expected: **`/navigate_to_pose_client_py: conforms`**.
 
 :::
 ::::
 
-The robot should reach the selected goal.
-Its navigation proves that the mixed system still works; conformance proves that the migrated client exposes its
-declared ROS interface.
+The robot should reach the goal through the unchanged Nav2 servers.
+Conformance checks the client's declared ROS interface; successful navigation checks that it works with Nav2.
 
 ### Run automated checks
 
-The same interface checks run without the simulator in CI:
+The package tests run without the simulator:
 
 ```bash
 colcon test --packages-select navigate_to_pose_nodl
 colcon test-result --verbose
 ```
 
-The conformance tests start each NoDL-backed client without coordinates, which keeps its interface available without
-sending a goal.
-The package registers these tests in its `CMakeLists.txt`:
-
-- `tutorial_tests` checks contract registration, the conventional and NoDL-backed Python clients, and the documented
-  generated C++ and Python code;
-- `navigate_to_pose_client_nodl_conformance_cpp` checks the generated C++ client against the client contract; and
-- `navigate_to_pose_client_nodl_conformance_py` checks the generated Python client against the same contract.
-
-The conventional C++ client is also compiled during testing so its documented before example cannot drift.
+They check registration, generated-code snapshots, both Python clients, and live conformance for both generated clients.
+Conformance tests start the clients without coordinates so they expose their interfaces without sending a goal.
+The conventional C++ client is also compiled to keep the before example valid.
+These checks run in CI; they do not test navigation through the simulator.
