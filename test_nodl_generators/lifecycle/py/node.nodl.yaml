@@ -2,6 +2,12 @@
 nodl_version: 2
 include:
   - ref: nodl://nodl_common_interfaces/lifecycle_node
+parameters:
+  gain:
+    type: double
+    default_value: 1.0
+    validation:
+      gt<>: [0.0]
 publishers:
   - name: /lifecycle_status
     type: std_msgs/msg/String

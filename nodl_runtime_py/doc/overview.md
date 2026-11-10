@@ -115,14 +115,19 @@ They run in this order around the hooks:
 
 | Transition | Order |
 |---|---|
-| configure | hook |
-| activate | standard activation, then hook. A result that is not SUCCESS runs the standard deactivation and is returned. |
-| deactivate | hook, then standard deactivation. A result that is not SUCCESS is returned and the node stays active. |
+| configure | refresh parameters, then hook |
+| activate | standard activation, start parameter updates, refresh parameters, then hook. A result that is not SUCCESS stops parameter updates, runs the standard deactivation and is returned. |
+| deactivate | hook, then, if it succeeds, stop parameter updates and the standard deactivation. A result that is not SUCCESS is returned and the node stays active. |
 | cleanup | hook |
-| shutdown | standard deactivation, then hook |
-| error | standard deactivation, then hook |
+| shutdown | stop parameter updates, standard deactivation, then hook |
+| error | stop parameter updates, standard deactivation, then hook |
 
 Publishers are therefore active during `handle_activate`, and inactive during `handle_shutdown` and `handle_error`.
+
+The parameter steps do nothing in this class.
+`refresh_parameters()`, `start_parameter_updates()` and `stop_parameter_updates()` are the seams a generated base overrides to keep the parameters of a node current while it is active, see the `nodl_generator_py` overview.
+Exactly one class below `LifecycleNode` may define each of them, and a second definition raises `TypeError`.
+Authors use the hooks instead.
 
 ### Background
 

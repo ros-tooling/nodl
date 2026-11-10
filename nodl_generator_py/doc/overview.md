@@ -414,13 +414,21 @@ The example declares one parameter, and its authored class reads and reacts to i
 :caption: echo_robot_py/echo_node.py
 ```
 
-With an `activation_gated` base, `self.params_` keeps its construction-time values and `on_parameters_changed` is not called.
+### Parameters of lifecycle nodes
+
+With an `activation_gated` base, `self.params_` is refreshed when the node configures and when it activates, so `handle_configure` and `handle_activate` always see the latest values, including changes made while the node was unconfigured or inactive.
+While the node is active, `self.params_` follows changes as above and `on_parameters_changed(params)` is called.
+While it is not active, a change updates neither until the next refresh.
+The refreshes at configure and activate do not call `on_parameters_changed`, so apply the values in `handle_configure` or `handle_activate`.
+With a multi-threaded executor, a parameter set that lands while a refresh runs can leave `self.params_` one change stale until the next change, because there is no lock.
+The `nodl_runtime_py` overview gives the order of these steps among the lifecycle hooks.
 
 The parameter listener is private to the generated base, so that the base alone decides how `self.params_` is kept current.
 
 ### Migrating from `param_listener_`
 
 BREAKING CHANGE: for generated Python nodes with parameters, `self.params_` follows dynamic parameter changes after construction, and `self.param_listener_` is gone.
+For `activation_gated` nodes, `self.params_` is refreshed at configure and activate and follows changes only while active, and `on_parameters_changed` runs only while active.
 Replace `self.param_listener_.get_params()` with `self.params_`, which is the current values and is rebound on each change, not copied once.
 Replace a `set_user_callback` call with an `on_parameters_changed` override, which receives the new values.
 
