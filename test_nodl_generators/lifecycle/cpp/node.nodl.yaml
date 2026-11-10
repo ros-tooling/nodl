@@ -1,10 +1,16 @@
 ---
-# LifecycleNode base class with a publisher, a subscription, a service server, an action server and both client kinds.
+# LifecycleNode base class with a parameter, a publisher, a subscription, a service server, an action server and both client kinds.
 
 nodl_version: 2
 
 include:
   - ref: nodl://nodl_common_interfaces/lifecycle_node
+
+parameters:
+  gain:
+    type: double
+    default_value: 1.0
+    description: A gain that the node applies while it runs
 
 publishers:
   - name: status

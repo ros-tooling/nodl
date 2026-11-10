@@ -7,3 +7,27 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 , params_(param_listener_.get_params())
 {
 }
+
+void MyNodeBase::refresh_parameters()
+{
+  *params_.lock() = param_listener_.get_params();
+}
+
+void MyNodeBase::start_parameter_updates()
+{
+  param_listener_.setUserCallback([this](const my_node_base::Params & params) {
+    {
+      const auto current = params_.lock();
+      if (nodl_runtime_cpp::values_equal(params.max_speed, current->max_speed)) {
+        return;
+      }
+      *current = params;
+    }
+    this->on_parameters_changed(params);
+  });
+}
+
+void MyNodeBase::stop_parameter_updates()
+{
+  param_listener_.clearUserCallback();
+}

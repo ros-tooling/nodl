@@ -1,3 +1,15 @@
+{% macro change_callback() -%}
+[this](const {{ target_name }}::Params & params) {
+    {
+      const auto current = params_.lock();
+      if ({% for f in parameter_fields %}nodl_runtime_cpp::values_equal(params.{{ f }}, current->{{ f }}){% if not loop.last %}{{ ' &&\n          ' }}{% endif %}{% endfor %}) {
+        return;
+      }
+      *current = params;
+    }
+    this->on_parameters_changed(params);
+  }
+{%- endmacro %}
 {% set has_entities = publishers or subscriptions or service_servers or service_clients or action_servers or action_clients or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
@@ -21,16 +33,7 @@ namespace {{ namespace }}
 {% if has_entities %}
 {
 {% if has_parameters and not activation_gated %}
-  param_listener_.setUserCallback([this](const {{ target_name }}::Params & params) {
-    {
-      const auto current = params_.lock();
-      if ({% for f in parameter_fields %}nodl_runtime_cpp::values_equal(params.{{ f }}, current->{{ f }}){% if not loop.last %}{{ ' &&\n          ' }}{% endif %}{% endfor %}) {
-        return;
-      }
-      *current = params;
-    }
-    this->on_parameters_changed(params);
-  });
+  param_listener_.setUserCallback({{ change_callback() }});
 {% endif %}
 {% if publishers %}
 
@@ -137,6 +140,23 @@ namespace {{ namespace }}
 }
 {% else %}
 {}
+{% endif %}
+{% if has_parameters and activation_gated %}
+
+void {{ class_name }}::refresh_parameters()
+{
+  *params_.lock() = param_listener_.get_params();
+}
+
+void {{ class_name }}::start_parameter_updates()
+{
+  param_listener_.setUserCallback({{ change_callback() }});
+}
+
+void {{ class_name }}::stop_parameter_updates()
+{
+  param_listener_.clearUserCallback();
+}
 {% endif %}
 {% if namespace %}
 

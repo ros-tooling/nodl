@@ -43,15 +43,27 @@ protected:
   {
     return param_listener_;
   }
-{% if not activation_gated %}
 
   /// Called after `params_` takes the values of an accepted parameter change.
+{% if activation_gated %}
+  /// Only while the node is active.
+{% endif %}
   /// Runs during parameter validation, before the change is committed, so read `params` instead of `get_parameter()`.
   /// It cannot reject a change and must not block.
   virtual void on_parameters_changed(const {{ target_name }}::Params & params)
   {
     (void)params;
   }
+{% if activation_gated %}
+
+  /// Store the current parameter values in `params_`, without calling `on_parameters_changed`.
+  void refresh_parameters() final;
+
+  /// Follow parameter changes in `params_`, and call `on_parameters_changed` for each.
+  void start_parameter_updates() final;
+
+  /// Stop following parameter changes.
+  void stop_parameter_updates() final;
 {% endif %}
 {% endif %}
 {% if publishers %}
