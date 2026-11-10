@@ -232,7 +232,7 @@ A `console_scripts` entry calls it as `sys.exit(main())`, and so does running th
 
 ```{literalinclude} examples/echo_robot_py/echo_robot_py/echo_node.py
 :language: python
-:start-at: from nodl_runtime_py
+:start-at: def main
 :caption: echo_robot_py/echo_node.py
 ```
 
@@ -277,7 +277,7 @@ and replacing other non-alphanumeric groups with `_`.
 | Service client | `cli_<name>` | Send requests. |
 | Action server | `action_srv_<name>`, `on_<name>_goal()`, `on_<name>_cancel()`, and abstract `execute_<name>()` | Optionally override admission and cancellation policy; implement execution. |
 | Action client | `action_cli_<name>` | Send goals. |
-| Parameters | `param_listener_` and `params_` | Read typed parameter values. |
+| Parameters | `params_` and `on_parameters_changed(params)` | Read typed parameter values, and optionally react to changes. |
 
 The constructor accepts keyword arguments and forwards them to the selected `rclpy` base class.
 
@@ -368,12 +368,61 @@ NoDL parameters are converted to the YAML format consumed by
 [`generate_parameter_library_py`](https://github.com/PickNikRobotics/generate_parameter_library).
 Dotted NoDL names remain flat in the source document, while the intermediate YAML is nested as required by genparamlib.
 For example, `colour.r` is available as `self.params_.colour.r` and retains `colour.r` as its ROS parameter name.
-The generated base obtains the initial typed values during construction:
+A node with parameters keeps `self.params_` current.
+When the declared parameters change, the generated base rebinds `self.params_` to a fresh copy, then calls `on_parameters_changed(params)` with the new values.
+The default hook does nothing.
+Setting a parameter that is not declared in the NoDL document, such as one the authored class declares itself, calls neither.
 
-```python
-self.param_listener_ = echo_node_base_parameters.echo_node.ParamListener(self)
-self.params_ = self.param_listener_.get_params()
+Reading values:
+
+- Reads of `self.params_` are safe without a lock, because an update rebinds it to a copy that shares no object with the previous one, nested parameters such as `colour.r` and lists included.
+  An update never changes the object you already hold.
+  Mutating `self.params_` is unsupported: the next update replaces it.
+- To read several values consistently, take `params = self.params_` once, as `on_echo_in` does in the example below.
+
+Nested parameters, those with a dotted name such as `colour.r`, have a limit that comes from `generate_parameter_library_py`.
+The library keeps the nested values in one object that every node using the same generated parameter class in a process shares.
+When a process runs several such nodes, a change to a nested parameter of one node can show up in `self.params_` and in the hook of the others on their next update, and in the default of a node constructed afterwards, while `get_parameter()` keeps the node's own value.
+Flat parameters are not affected.
+Run such nodes in separate processes, or avoid nested parameters, until the library changes.
+
+Reacting to changes:
+
+- The hook cannot reject a change and must not block.
+- The hook runs on the thread that sets the parameter, which with a multithreaded executor can run alongside the node's other callbacks.
+  Concurrent sets from different threads are not serialized, so the hook can run twice for one change or be skipped.
+- The hook receives the same object as `self.params_`, unlike in C++ where it receives the listener's copy.
+  Mutating the argument changes `self.params_`, which is unsupported.
+- The hook runs while the change is validated, before it is committed.
+  Use its argument, because `get_parameter()` still returns the old value.
+- If another on-set-parameters callback rejects the same set, `self.params_` is not rolled back and the hook has already run.
+- A change made to a declared parameter in the authored class's `__init__` calls the hook before `__init__` finishes.
+- Parameters that the node reads only at construction, such as QoS, do not follow later changes and should be `read_only`.
+
+The example declares one parameter, and its authored class reads and reacts to it.
+
+```{literalinclude} examples/echo_robot_py/nodl/echo_node.nodl.yaml
+:language: yaml
+:start-at: parameters:
+:end-before: publishers:
+:caption: nodl/echo_node.nodl.yaml
 ```
+
+```{literalinclude} examples/echo_robot_py/echo_robot_py/echo_node.py
+:language: python
+:pyobject: EchoNode
+:caption: echo_robot_py/echo_node.py
+```
+
+With an `activation_gated` base, `self.params_` keeps its construction-time values and `on_parameters_changed` is not called.
+
+The parameter listener is private to the generated base, so that the base alone decides how `self.params_` is kept current.
+
+### Migrating from `param_listener_`
+
+BREAKING CHANGE: for generated Python nodes with parameters, `self.params_` follows dynamic parameter changes after construction, and `self.param_listener_` is gone.
+Replace `self.param_listener_.get_params()` with `self.params_`, which is the current values and is rebound on each change, not copied once.
+Replace a `set_user_callback` call with an `on_parameters_changed` override, which receives the new values.
 
 ## CLI reference
 

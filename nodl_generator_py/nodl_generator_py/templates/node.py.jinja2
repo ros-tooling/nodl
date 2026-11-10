@@ -13,8 +13,12 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
     def __init__(self, **kwargs) -> None:
         super().__init__('{{ node_name }}', **kwargs)
     {% if params_module %}
-        self.param_listener_ = {{ params_module }}.{{ node_name }}.ParamListener(self)
-        self.params_ = self.param_listener_.get_params()
+        self._param_listener = {{ params_module }}.{{ node_name }}.ParamListener(self)
+        self.params_ = copy_parameters(self._param_listener.get_params())
+{% if not activation_gated %}
+        self._nodl_last_values = parameter_values(self.params_)
+        self._param_listener.set_user_callback(self._nodl_update_params)
+{% endif %}
     {% endif %}
     {% for pub in publishers %}
         self.{{ pub.member_name }} = self.{{ publisher_method }}(
@@ -111,6 +115,30 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         )
 {% endif %}
     {% endfor %}
+    {% if params_module %}
+
+{% if not activation_gated %}
+    def _nodl_update_params(self, params) -> None:
+        # The listener calls back for every parameter set on the node, so skip those that leave the declared values unchanged.
+        values = parameter_values(params)
+        if values_equal(values, self._nodl_last_values):
+            return
+        self._nodl_last_values = values
+        self.params_ = copy_parameters(params)
+        self.on_parameters_changed(self.params_)
+
+{% endif %}
+    def on_parameters_changed(self, params) -> None:
+        """React to new parameter values.
+
+{% if activation_gated %}
+        The base does not call this hook.
+{% else %}
+        The hook runs while the change is validated, before it is committed, so use ``params`` rather than ``get_parameter()``, which still returns the old values.
+        It cannot reject a change and must not block.
+{% endif %}
+        """
+    {% endif %}
     {% for sub in subscriptions %}
 
     @abc.abstractmethod
