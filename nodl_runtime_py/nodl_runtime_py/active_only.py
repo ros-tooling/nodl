@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Helpers that make a subscription or a service work only while an activation gate is open, see the ``nodl_runtime_py`` overview."""
+"""Helpers that block a subscription's messages or a service's requests while an activation gate is closed, see the ``nodl_runtime_py`` overview."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def active_only_subscription_callback(
 
     :param gate: The activation gate.
     :param callback: The callback that takes the message.
-    :return: A callback that calls ``callback`` only while the gate is open.
+    :return: A callback that calls ``callback`` when the gate is open and drops the message otherwise.
     """
     if inspect.iscoroutinefunction(callback):
 

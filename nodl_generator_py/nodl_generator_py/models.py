@@ -43,5 +43,5 @@ class CodegenPython(BaseModel):
     publisher_method: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*$')] = 'create_publisher'
     activation_gated: Optional[bool] = Field(
         False,
-        description='Whether the base class is a ``nodl_runtime_py.lifecycle.LifecycleNode``,\nwhich exposes an ``activation_gate`` that is open only while the node is active.\nGenerated subscription and service server callbacks then run only while the gate is open.\n',
+        description='If the node is a lifecycle node, make the generated base class wrap subscription and service server callbacks\nbehind the activation gate so they only trigger callbacks when the node is active.\nThe base class must be a ``nodl_runtime_py.lifecycle.LifecycleNode``, which exposes ``activation_gate``.\n',
     )

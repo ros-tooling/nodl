@@ -27,9 +27,9 @@ properties:
     default: create_publisher
   activation_gated:
     description: |
-      Whether the base class is a ``nodl_runtime_py.lifecycle.LifecycleNode``,
-      which exposes an ``activation_gate`` that is open only while the node is active.
-      Generated subscription and service server callbacks then run only while the gate is open.
+      If the node is a lifecycle node, make the generated base class wrap subscription and service server callbacks
+      behind the activation gate so they only trigger callbacks when the node is active.
+      The base class must be a ``nodl_runtime_py.lifecycle.LifecycleNode``, which exposes ``activation_gate``.
     type: boolean
     default: false
 

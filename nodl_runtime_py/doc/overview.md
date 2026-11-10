@@ -1,14 +1,14 @@
 # nodl_runtime_py
 
 `nodl_runtime_py` provides shared utilities for Python nodes, especially those that `nodl_generator_py` generates.
-It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, helpers that make subscriptions and services of a lifecycle node work only while it is active, and `run_node`, a main loop for `rclpy` nodes.
+It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, helpers that let a lifecycle node block subscription messages and service requests while it is inactive, and `run_node`, a main loop for `rclpy` nodes.
 
 ## What it provides
 
 | Provides | For |
 |---|---|
 | `nodl_runtime_py.lifecycle.LifecycleNode` | A lifecycle node base class with standard transitions and optional hooks, described below. |
-| `create_active_only_service`, `active_only_subscription_callback` | Subscriptions and services that work only while a lifecycle node is active, described below. |
+| `create_active_only_service`, `active_only_subscription_callback` | Let a lifecycle node block subscription messages and service requests while it is inactive, described below. |
 | `run_node` | The main loop of an executable, described below. |
 | `rclpy` | Generated base classes derive from `rclpy` node classes and create their entities. |
 | `generate_parameter_library_py` | Generated parameter modules import its parameter validators. |
@@ -127,7 +127,7 @@ This matches the C++ base class, because `rclcpp_lifecycle` managed entities onl
 
 `nodl_runtime_py.lifecycle.LifecycleNode` owns an activation gate, exposed read-only as `activation_gate`.
 The gate is open while the node is active, and during `handle_activate`.
-Two helpers take the gate, not the node, and make one entity work only while it is open:
+Two helpers take the gate, not the node, and let one entity block its messages or requests while the gate is closed:
 
 | Entity | Helper | While the gate is closed |
 |---|---|---|

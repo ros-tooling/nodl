@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""A hand-written (non-generated) node using nodl_runtime_py.lifecycle.LifecycleNode to gate a subscription and a service on activation."""
+"""A hand-written (non-generated) node using nodl_runtime_py.lifecycle.LifecycleNode to block a subscription's messages and a service's requests while it is inactive."""
 
 import sys
 
