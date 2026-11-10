@@ -420,6 +420,7 @@ With an `activation_gated` base, `self.params_` is refreshed when the node confi
 While the node is active, `self.params_` follows changes as above and `on_parameters_changed(params)` is called.
 While it is not active, a change updates neither until the next refresh.
 The refreshes at configure and activate do not call `on_parameters_changed`, so apply the values in `handle_configure` or `handle_activate`.
+With a multi-threaded executor, a parameter set that lands while a refresh runs can leave `self.params_` one change stale until the next change, because there is no lock.
 The `nodl_runtime_py` overview gives the order of these steps among the lifecycle hooks.
 
 The parameter listener is private to the generated base, so that the base alone decides how `self.params_` is kept current.

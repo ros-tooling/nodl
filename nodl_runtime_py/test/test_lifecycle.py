@@ -294,7 +294,10 @@ class SeamNode(LifecycleNode):
 
     def handle_activate(self, state):
         self.calls.append('activate')
-        return self.results.get('activate', SUCCESS)
+        result = self.results.get('activate', SUCCESS)
+        if isinstance(result, Exception):
+            raise result
+        return result
 
     def handle_deactivate(self, state):
         self.calls.append('deactivate')
@@ -372,7 +375,27 @@ def test_error_stops_parameter_updates_first(seam_node):
     node.trigger_configure()
     node.calls.clear()
     node.trigger_activate()
+    # on_activate stops after the failed hook, and on_error stops again, which is harmless because clearing an unset callback is idempotent.
     assert ['start', 'refresh', 'activate', 'stop', 'stop', 'error'] == node.calls
+
+
+def test_raising_hook_stops_parameter_updates(seam_node):
+    node = seam_node(results={'activate': RuntimeError('boom')})
+    node.trigger_configure()
+    node.calls.clear()
+    node.trigger_activate()
+    # rclpy turns the exception into ERROR before on_activate can stop, so on_error does.
+    assert ['start', 'refresh', 'activate', 'stop', 'error'] == node.calls
+
+
+@pytest.mark.parametrize('before', [[], ['configure'], ['configure', 'activate']])
+def test_shutdown_stops_parameter_updates_from_any_state(seam_node, before):
+    node = seam_node()
+    for transition in before:
+        getattr(node, f'trigger_{transition}')()
+    node.calls.clear()
+    assert SUCCESS == node.trigger_shutdown()
+    assert ['stop', 'shutdown'] == node.calls
 
 
 @pytest.mark.parametrize('seam', ['refresh_parameters', 'start_parameter_updates', 'stop_parameter_updates'])

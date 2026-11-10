@@ -59,7 +59,7 @@ class LifecycleNode(RclpyLifecycleNode):
             if definer is not None:
                 raise TypeError(
                     f'{cls.__qualname__} defines {name}, which {definer.__qualname__} already defines.'
-                    ' Only the generated base defines it, so use the handle_* hooks and on_parameters_changed instead.'
+                    ' Only one class below LifecycleNode may define it, so use the handle_* hooks and on_parameters_changed instead.'
                 )
 
     def refresh_parameters(self) -> None:
