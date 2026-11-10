@@ -408,8 +408,8 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 ### Lifecycle nodes
 
 A generated lifecycle node derives `nodl_runtime_cpp::LifecycleNode`, so a package that generates one depends on `nodl_runtime_cpp`.
-The base class seals the transition callbacks (`on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` and `on_error`) and calls optional hooks instead.
-Override the hook that matches the transition: `handle_configure`, `handle_activate`, `handle_deactivate`, `handle_cleanup`, `handle_shutdown` or `handle_error`.
+That base class implements and seals the transition callbacks (`on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` and `on_error`) and calls optional hooks instead.
+The authored subclass defines the hook that matches the transition, not a transition callback: `handle_configure`, `handle_activate`, `handle_deactivate`, `handle_cleanup`, `handle_shutdown` or `handle_error`.
 Each takes the previous state and returns a `CallbackReturn`, and defaults to SUCCESS.
 The base class activates and deactivates the generated lifecycle publishers on every path, so a hook never has to.
 See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
@@ -429,7 +429,7 @@ protected:
 #### Migrating from overridden transitions
 
 Earlier versions derived `rclcpp_lifecycle::LifecycleNode` directly, and an author's `on_activate` had to call the base class's implementation to activate the publishers.
-A node that overrides `on_activate` or the other transition callbacks no longer compiles, because they are `final`.
+An authored class that defines `on_activate` or the other transition callbacks no longer compiles, because the runtime base class seals them with `final`.
 Move the logic into the matching `handle_*` hook, and drop the call to the base class's implementation.
 
 ### Namespace
