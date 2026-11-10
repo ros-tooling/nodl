@@ -17,6 +17,9 @@ _SEALED_CALLBACKS = (
     'on_error',
 )
 
+# The seams for generated code, which one class below LifecycleNode may define.
+_SEAMS = ('refresh_parameters', 'start_parameter_updates', 'stop_parameter_updates')
+
 
 class LifecycleNode(RclpyLifecycleNode):
     """An ``rclpy`` lifecycle node whose transition callbacks are sealed, with ``handle_*`` hooks to add behavior.
@@ -47,6 +50,26 @@ class LifecycleNode(RclpyLifecycleNode):
                 f'{cls.__qualname__} defines {", ".join(sealed)}, which LifecycleNode implements and does not allow overriding.'
                 f' Define {hooks} instead.'
             )
+        for name in _SEAMS:
+            if name not in cls.__dict__:
+                continue
+            definer = next(
+                (base for base in cls.__mro__[1:] if name in base.__dict__ and base is not LifecycleNode), None
+            )
+            if definer is not None:
+                raise TypeError(
+                    f'{cls.__qualname__} defines {name}, which {definer.__qualname__} already defines.'
+                    ' Only the generated base defines it, so use the handle_* hooks and on_parameters_changed instead.'
+                )
+
+    def refresh_parameters(self) -> None:
+        """Bring the node's parameter values up to date, called by the transitions that need current values."""
+
+    def start_parameter_updates(self) -> None:
+        """Start following parameter changes, called while the node activates."""
+
+    def stop_parameter_updates(self) -> None:
+        """Stop following parameter changes, called before the node deactivates."""
 
     def handle_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
         """Run when configuring, and return SUCCESS to reach the inactive state."""
@@ -74,6 +97,7 @@ class LifecycleNode(RclpyLifecycleNode):
 
     @final
     def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
+        self.refresh_parameters()
         return self.handle_configure(state)
 
     @final
@@ -81,8 +105,11 @@ class LifecycleNode(RclpyLifecycleNode):
         result = super().on_activate(state)
         if TransitionCallbackReturn.SUCCESS != result:
             return result
+        self.start_parameter_updates()
+        self.refresh_parameters()
         result = self.handle_activate(state)
         if TransitionCallbackReturn.SUCCESS != result:
+            self.stop_parameter_updates()
             super().on_deactivate(state)
         return result
 
@@ -91,6 +118,7 @@ class LifecycleNode(RclpyLifecycleNode):
         result = self.handle_deactivate(state)
         if TransitionCallbackReturn.SUCCESS != result:
             return result
+        self.stop_parameter_updates()
         return super().on_deactivate(state)
 
     @final
@@ -99,6 +127,7 @@ class LifecycleNode(RclpyLifecycleNode):
 
     @final
     def on_shutdown(self, state: LifecycleState) -> TransitionCallbackReturn:
+        self.stop_parameter_updates()
         result = super().on_deactivate(state)
         if TransitionCallbackReturn.SUCCESS != result:
             return result
@@ -106,6 +135,7 @@ class LifecycleNode(RclpyLifecycleNode):
 
     @final
     def on_error(self, state: LifecycleState) -> TransitionCallbackReturn:
+        self.stop_parameter_updates()
         result = super().on_deactivate(state)
         if TransitionCallbackReturn.SUCCESS != result:
             return result

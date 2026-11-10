@@ -15,8 +15,8 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
     {% if params_module %}
         self._param_listener = {{ params_module }}.{{ node_name }}.ParamListener(self)
         self.params_ = copy_parameters(self._param_listener.get_params())
-{% if not activation_gated %}
         self._nodl_last_values = parameter_values(self.params_)
+{% if not activation_gated %}
         self._param_listener.set_user_callback(self._nodl_update_params)
 {% endif %}
     {% endif %}
@@ -117,7 +117,18 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
     {% endfor %}
     {% if params_module %}
 
-{% if not activation_gated %}
+{% if activation_gated %}
+    def refresh_parameters(self) -> None:
+        self.params_ = copy_parameters(self._param_listener.get_params())
+        self._nodl_last_values = parameter_values(self.params_)
+
+    def start_parameter_updates(self) -> None:
+        self._param_listener.set_user_callback(self._nodl_update_params)
+
+    def stop_parameter_updates(self) -> None:
+        self._param_listener.clear_user_callback()
+
+{% endif %}
     def _nodl_update_params(self, params) -> None:
         # The listener calls back for every parameter set on the node, so skip those that leave the declared values unchanged.
         values = parameter_values(params)
@@ -127,16 +138,14 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         self.params_ = copy_parameters(params)
         self.on_parameters_changed(self.params_)
 
-{% endif %}
     def on_parameters_changed(self, params) -> None:
         """React to new parameter values.
 
 {% if activation_gated %}
-        The base does not call this hook.
-{% else %}
+        The hook runs only while the node is active, and not for the refresh at configure and activate.
+{% endif %}
         The hook runs while the change is validated, before it is committed, so use ``params`` rather than ``get_parameter()``, which still returns the old values.
         It cannot reject a change and must not block.
-{% endif %}
         """
     {% endif %}
     {% for sub in subscriptions %}

@@ -269,3 +269,124 @@ def test_run_node_configures_and_activates_a_subclass(run_script):
     code, output = node.stop(signal.SIGINT)
     assert 0 == code, output
     assert 'Shut down' in output
+
+
+class SeamNode(LifecycleNode):
+    """Define the parameter seams the way a generated base does, and record them with the hooks."""
+
+    def __init__(self, results=None):
+        super().__init__('seam_node')
+        self.results = results or {}
+        self.calls = []
+
+    def refresh_parameters(self):
+        self.calls.append('refresh')
+
+    def start_parameter_updates(self):
+        self.calls.append('start')
+
+    def stop_parameter_updates(self):
+        self.calls.append('stop')
+
+    def handle_configure(self, state):
+        self.calls.append('configure')
+        return SUCCESS
+
+    def handle_activate(self, state):
+        self.calls.append('activate')
+        return self.results.get('activate', SUCCESS)
+
+    def handle_deactivate(self, state):
+        self.calls.append('deactivate')
+        return self.results.get('deactivate', SUCCESS)
+
+    def handle_shutdown(self, state):
+        self.calls.append('shutdown')
+        return SUCCESS
+
+    def handle_error(self, state):
+        self.calls.append('error')
+        return SUCCESS
+
+
+@pytest.fixture
+def seam_node():
+    nodes = []
+
+    def make(**kwargs):
+        nodes.append(SeamNode(**kwargs))
+        return nodes[-1]
+
+    yield make
+    for node in nodes:
+        node.destroy_node()
+
+
+def test_default_parameter_seams_do_nothing(make_node):
+    node = make_node()
+    assert node.refresh_parameters() is None
+    assert node.start_parameter_updates() is None
+    assert node.stop_parameter_updates() is None
+
+
+def test_parameter_seams_run_in_transition_order(seam_node):
+    node = seam_node()
+    node.trigger_configure()
+    assert ['refresh', 'configure'] == node.calls
+    node.calls.clear()
+    node.trigger_activate()
+    assert ['start', 'refresh', 'activate'] == node.calls
+    node.calls.clear()
+    node.trigger_deactivate()
+    assert ['deactivate', 'stop'] == node.calls
+
+
+def test_failed_activate_stops_parameter_updates(seam_node):
+    node = seam_node(results={'activate': FAILURE})
+    node.trigger_configure()
+    node.calls.clear()
+    node.trigger_activate()
+    assert ['start', 'refresh', 'activate', 'stop'] == node.calls
+
+
+def test_failed_deactivate_keeps_parameter_updates(seam_node):
+    node = seam_node(results={'deactivate': FAILURE})
+    node.trigger_configure()
+    node.trigger_activate()
+    node.calls.clear()
+    node.trigger_deactivate()
+    assert ['deactivate'] == node.calls
+
+
+def test_shutdown_stops_parameter_updates_first(seam_node):
+    node = seam_node()
+    node.trigger_configure()
+    node.trigger_activate()
+    node.calls.clear()
+    node.trigger_shutdown()
+    assert ['stop', 'shutdown'] == node.calls
+
+
+def test_error_stops_parameter_updates_first(seam_node):
+    node = seam_node(results={'activate': ERROR})
+    node.trigger_configure()
+    node.calls.clear()
+    node.trigger_activate()
+    assert ['start', 'refresh', 'activate', 'stop', 'stop', 'error'] == node.calls
+
+
+@pytest.mark.parametrize('seam', ['refresh_parameters', 'start_parameter_updates', 'stop_parameter_updates'])
+def test_a_second_definition_of_a_parameter_seam_raises(seam):
+    class Generated(LifecycleNode):
+        pass
+
+    setattr(Generated, seam, lambda self: None)
+
+    with pytest.raises(TypeError, match=f'{seam}.*Generated'):
+        type('Authored', (Generated,), {seam: lambda self: None})
+
+
+@pytest.mark.parametrize('seam', ['refresh_parameters', 'start_parameter_updates', 'stop_parameter_updates'])
+def test_one_definition_of_a_parameter_seam_is_allowed(seam):
+    namespace = {seam: lambda self: None}
+    type('Generated', (LifecycleNode,), namespace)

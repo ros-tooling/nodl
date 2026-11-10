@@ -25,8 +25,14 @@ class GeneratedLifecycleNode(LifecycleNodeBase):
         self.activate_futures = []
         self.count_goals = []
         self.count_goals_lock = threading.Lock()
+        self.gain_in_hook = {}
+        self.changes = []
+
+    def on_parameters_changed(self, params):
+        self.changes.append(params.gain)
 
     def handle_configure(self, state):
+        self.gain_in_hook['configure'] = self.params_.gain
         for send in (
             lambda: self.cli_lifecycle_remote_add.call_async(AddTwoInts.Request(a=1, b=2)),
             lambda: self.action_cli_lifecycle_fibonacci.send_goal_async(Fibonacci.Goal(order=1)),
@@ -39,6 +45,7 @@ class GeneratedLifecycleNode(LifecycleNodeBase):
 
     def handle_activate(self, state):
         self.activate_count += 1
+        self.gain_in_hook['activate'] = self.params_.gain
         self.activate_futures = [
             self.cli_lifecycle_remote_add.call_async(AddTwoInts.Request(a=1, b=2)),
             self.action_cli_lifecycle_fibonacci.send_goal_async(Fibonacci.Goal(order=1)),

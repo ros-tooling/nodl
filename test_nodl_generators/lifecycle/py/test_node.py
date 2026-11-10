@@ -15,6 +15,7 @@ from rclpy.action import ActionClient, ActionServer
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, LifecyclePublisher, TransitionCallbackReturn
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from std_msgs.msg import String
 
 from nodl_runtime_py import InactiveError
@@ -212,3 +213,38 @@ def test_generated_action_server_ends_goals_on_deactivate(ros_context):
         spinner.join(10.0)
         node.destroy_node()
         harness.destroy_node()
+
+
+def test_generated_parameters_are_refreshed_by_transitions_and_live_only_while_active(ros_context):
+    node = GeneratedLifecycleNode()
+    try:
+        assert node.params_.gain == 1.0
+
+        node.set_parameters([Parameter('gain', value=2.0)])
+        assert node.params_.gain == 1.0
+        assert node.trigger_configure() == TransitionCallbackReturn.SUCCESS
+        assert node.gain_in_hook['configure'] == 2.0
+
+        node.set_parameters([Parameter('gain', value=3.0)])
+        assert node.params_.gain == 2.0
+        assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+        assert node.gain_in_hook['activate'] == 3.0
+        assert node.changes == []
+
+        assert node.set_parameters([Parameter('gain', value=4.0)])[0].successful
+        assert node.params_.gain == 4.0
+        assert node.changes == [4.0]
+        assert not node.set_parameters([Parameter('gain', value=-1.0)])[0].successful
+        assert node.params_.gain == 4.0
+        assert node.changes == [4.0]
+
+        assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS
+        node.set_parameters([Parameter('gain', value=5.0)])
+        assert node.params_.gain == 4.0
+        assert node.changes == [4.0]
+
+        assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+        assert node.gain_in_hook['activate'] == 5.0
+        assert node.changes == [4.0]
+    finally:
+        node.destroy_node()

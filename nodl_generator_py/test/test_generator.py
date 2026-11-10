@@ -207,16 +207,33 @@ def test_render_python_activates_only_subscriptions_and_services_of_an_activatio
     assert '            self.on_echo_in,\n' not in generated
 
 
-def test_render_python_leaves_parameters_of_an_activation_gated_base_to_the_runtime():
+def test_render_python_overrides_the_parameter_seams_of_an_activation_gated_base():
     doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
 
     generated = _render_python(doc, 'interfaces_node_base', _ACTIVATION_GATED_BASE)
 
-    assert 'self.params_ = copy_parameters(self._param_listener.get_params())' in generated
-    assert 'from nodl_runtime_py.parameters import copy_parameters\n' in generated
-    assert 'set_user_callback' not in generated
-    assert '_nodl_update_params' not in generated
-    assert 'def on_parameters_changed(self, params) -> None:' in generated
+    for expected in (
+        'self.params_ = copy_parameters(self._param_listener.get_params())',
+        'from nodl_runtime_py.parameters import copy_parameters, parameter_values, values_equal\n',
+        'def refresh_parameters(self) -> None:',
+        'def start_parameter_updates(self) -> None:',
+        'self._param_listener.set_user_callback(self._nodl_update_params)',
+        'def stop_parameter_updates(self) -> None:',
+        'self._param_listener.clear_user_callback()',
+        'def on_parameters_changed(self, params) -> None:',
+    ):
+        assert expected in generated
+    init = generated.split('def refresh_parameters')[0]
+    assert 'set_user_callback' not in init
+
+
+def test_render_python_does_not_override_the_parameter_seams_of_a_non_activation_gated_base():
+    doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
+
+    generated = _render_python(doc, 'interfaces_node_base')
+
+    for unexpected in ('refresh_parameters', 'start_parameter_updates', 'stop_parameter_updates'):
+        assert unexpected not in generated
 
 
 def test_render_python_wraps_clients_of_an_activation_gated_base():

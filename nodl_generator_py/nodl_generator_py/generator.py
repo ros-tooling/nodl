@@ -233,10 +233,7 @@ def _render_python(
     if subscriptions or service_servers or action_servers:
         imports.add('import abc')
     if doc.parameters:
-        names = (
-            ['copy_parameters'] if base.activation_gated else ['copy_parameters', 'parameter_values', 'values_equal']
-        )
-        imports.add(f'from nodl_runtime_py.parameters import {", ".join(names)}')
+        imports.add('from nodl_runtime_py.parameters import copy_parameters, parameter_values, values_equal')
     if base.activation_gated and subscriptions:
         imports.add('from nodl_runtime_py.active_only import active_only_subscription_callback')
     if base.activation_gated and service_servers:
