@@ -1,0 +1,75 @@
+<!-- SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 435" role="img" aria-labelledby="title description">
+  <title id="title">From goal request to action execution</title>
+  <desc id="description">The runtime rejects goals unless active. Active goals reach the handwritten on_fibonacci_goal validation callback, which accepts or rejects them. For accepted goals, C++ calls on_fibonacci_accepted to start the execute worker; Python dispatches to execute_fibonacci. Execution publishes feedback while running and ends the goal with a result. A client can separately request cancellation while the goal runs. The on_fibonacci_cancel callback accepts the request; execution observes it and ends the goal as canceled.</desc>
+  <style>
+    :root {
+      --text: #0f172a;
+      --line: #475569;
+      --node: #f1f5f9;
+      --border: #64748b;
+      --runtime: #dbeafe;
+      --runtime-border: #2563eb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #e2e8f0;
+        --line: #cbd5e1;
+        --node: #263244;
+        --border: #94a3b8;
+        --runtime: #172f50;
+        --runtime-border: #60a5fa;
+      }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="var(--line)"/>
+    </marker>
+  </defs>
+  <g fill="none" stroke="var(--line)" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M 145 65 H 185"/>
+    <path d="M 375 65 H 425"/>
+    <path d="M 685 65 H 735"/>
+    <path d="M 280 100 V 122"/>
+    <path d="M 555 100 V 122"/>
+    <path d="M 810 100 V 183 H 390 V 205"/>
+    <path d="M 650 252 H 700"/>
+    <path d="M 195 385 H 245"/>
+    <path d="M 545 385 H 600 V 305"/>
+  </g>
+  <g font-family="sans-serif" text-anchor="middle" fill="var(--text)" font-size="17">
+    <rect x="15" y="30" width="130" height="70" rx="8" fill="var(--node)" stroke="var(--border)"/>
+    <text x="80" y="71">Goal request</text>
+    <rect x="185" y="30" width="190" height="70" rx="8" fill="var(--runtime)" stroke="var(--runtime-border)"/>
+    <text x="280" y="57" font-weight="bold">Runtime gate</text>
+    <text x="280" y="82">Active?</text>
+    <rect x="425" y="30" width="260" height="70" rx="8" fill="var(--node)" stroke="var(--border)"/>
+    <text x="555" y="57" font-family="monospace">on_fibonacci_goal</text>
+    <text x="555" y="82">Validate order</text>
+    <rect x="735" y="30" width="150" height="70" rx="8" fill="var(--node)" stroke="var(--border)"/>
+    <text x="810" y="71">Accepted</text>
+    <rect x="207" y="122" width="146" height="32" rx="5" fill="var(--node)"/>
+    <text x="280" y="144">No → reject</text>
+    <rect x="482" y="122" width="146" height="32" rx="5" fill="var(--node)"/>
+    <text x="555" y="144">Invalid → reject</text>
+    <rect x="170" y="205" width="480" height="100" rx="8" fill="var(--node)" stroke="var(--border)"/>
+    <text x="410" y="230" font-weight="bold">Execute the accepted goal</text>
+    <text x="410" y="259" font-size="16">C++: <tspan font-family="monospace">on_fibonacci_accepted → execute</tspan></text>
+    <text x="410" y="287" font-size="16">Python: <tspan font-family="monospace">execute_fibonacci</tspan></text>
+    <rect x="700" y="205" width="185" height="100" rx="8" fill="var(--node)" stroke="var(--border)"/>
+    <text x="792" y="236">Feedback</text>
+    <text x="792" y="259">while running</text>
+    <text x="792" y="288">Result at the end</text>
+    <rect x="15" y="350" width="180" height="70" rx="8" fill="var(--node)" stroke="var(--border)"/>
+    <text x="105" y="378">Client requests</text>
+    <text x="105" y="403">cancellation</text>
+    <rect x="245" y="350" width="300" height="70" rx="8" fill="var(--node)" stroke="var(--border)"/>
+    <text x="395" y="378" font-family="monospace">on_fibonacci_cancel</text>
+    <text x="395" y="403">Accept cancellation request</text>
+    <rect x="620" y="352" width="265" height="64" rx="5" fill="var(--node)"/>
+    <text x="752" y="378">Execution observes it</text>
+    <text x="752" y="403">and ends the goal as canceled</text>
+  </g>
+</svg>

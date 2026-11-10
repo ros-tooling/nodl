@@ -94,36 +94,34 @@ This generates a lifecycle node with `on_fibonacci_goal`, `on_fibonacci_cancel`,
 
 ## 3. Implement behavior on the managed lifecycle server
 
-Each complete server fits in one short source file:
+Complete tested source:
 {download}`C++ source <../../../examples/nodl_tutorials/lifecycle_action/cpp/fibonacci_action_server.cpp>` or
 {download}`Python source <../../../examples/nodl_tutorials/lifecycle_action/python/fibonacci_action_server.py>`.
-The diagrams show its three responsibilities.
-Expand each implementation to see excerpts with line numbers matching the source.
+The excerpts below use matching source line numbers.
 
-### Let the runtime manage activation
+### What the runtime replaces
 
-The generated action server starts inactive and rejects goals until activation.
-Deactivation closes admission and ends outstanding goals: executing goals are aborted; canceling goals are canceled.
-No active flag or transition override is needed in either subclass:
+The runtime replaces the handwritten active flag, activation/deactivation overrides, and inactive-goal check:
 
-![The generated runtime creates an inactive managed action server, activates it through its sealed transition callback, and ends outstanding goals on deactivation.](img/lifecycle-goal-gate.svg)
+- Activation opens goal admission; inactive goals are rejected before the application callback.
+- Deactivation closes admission, aborts executing goals, and cancels canceling goals.
 
-The runtime owns the sealed `on_*` transition callbacks.
-Applications that need resource-specific transition behavior implement `handle_*` hooks instead; this server needs none.
+You implement validation, cancellation decisions, calculation, feedback, and results.
+Your worker must stop when the runtime ends its goal.
+
+The runtime owns the sealed `on_*` lifecycle transition callbacks.
+Use `handle_*` hooks for extra transition work, such as creating or releasing application resources; none are needed here.
+
+![The runtime gates goals before on_fibonacci_goal. Accepted goals execute through the language-specific callbacks and publish feedback and a result. A separate client cancellation request reaches on_fibonacci_cancel; execution observes the accepted cancellation and ends the goal.](img/lifecycle-action-flow.svg)
+
+These action callbacks are set up at construction, not activation; they are not lifecycle service handlers.
+Acceptance agrees to run a goal—it is not feedback or completion.
 
 ### Decide whether to accept a goal or cancellation
 
-Only goals sent while the managed server is active reach `on_fibonacci_goal`, where the application validates the request.
-`on_fibonacci_cancel` accepts client cancellation requests; the execution loop completes them.
-A Fibonacci goal has an integer field named `order`.
+`on_fibonacci_goal` validates the integer `order`: 0–46 keeps the sequence within 32-bit integers.
 For example, `{order: 5}` produces `[0, 1, 1, 2, 3, 5]`.
-Accept values from 0 to 46 so the sequence fits the action's 32-bit integers:
-
-![The runtime rejects inactive goals before the application callback. The goal callback checks the order; the separate cancellation callback accepts cancellation requests.](img/lifecycle-goal-admission.svg)
-
-:::::{note}
-:collapsible: closed
-:title: Implementation — goal and cancellation handlers
+`on_fibonacci_cancel` accepts client cancellation requests; execution completes them.
 
 ::::{tabs}
 :::{group-tab} C++
@@ -147,27 +145,14 @@ Accept values from 0 to 46 so the sequence fits the action's 32-bit integers:
 
 :::
 ::::
-:::::
 
 ### Execute the accepted goal
 
-Calculate the sequence, publish feedback, observe cancellation, and stop if the runtime has already ended the goal:
-
-In C++, `on_fibonacci_accepted` starts the `execute` worker and returns; the worker continues independently.
-In Python, the executor calls `execute_fibonacci` for the accepted goal.
-A client can request cancellation while the goal runs.
-`on_fibonacci_cancel` accepts the request; execution observes it at its next cancellation check.
-Deactivation can abort the goal independently of the worker, so check the goal's active state before working or finishing.
-While ROS is running, ignore a feedback or finish exception only when the goal is already inactive; otherwise propagate it.
-
-![Execution checks whether the goal is still active, then checks completion and client cancellation. A runtime-ended goal stops the worker; only the goal ends, not the node.](img/lifecycle-goal-execution.svg)
-
-On deactivation, the C++ runtime sends a default-constructed result (an empty sequence).
-Python sends the sequence returned when `execute_fibonacci` exits; the terminal status is `ABORTED` in both languages for an executing goal.
-
-:::::{note}
-:collapsible: closed
-:title: Implementation — execution and feedback
+In C++, `on_fibonacci_accepted` starts the `execute` worker thread and returns.
+Python dispatches to `execute_fibonacci`.
+Execution calculates the sequence, publishes feedback, and checks for client cancellation.
+Because deactivation can end the goal independently, check its active state before working or finishing.
+While ROS is running, suppress feedback/finish exceptions only if the goal has already ended.
 
 ::::{tabs}
 :::{group-tab} C++
@@ -191,9 +176,10 @@ Python sends the sequence returned when `execute_fibonacci` exits; the terminal 
 
 :::
 ::::
-:::::
 
-The calculation, feedback, ordinary result, cancellation decision, and cooperative worker exit stay handwritten.
+`succeed` and `canceled` finish the goal, not the node.
+On deactivation, the C++ runtime sends a default-constructed result (an empty sequence).
+Python sends the sequence returned when `execute_fibonacci` exits; the terminal status is `ABORTED` in both languages for an executing goal.
 
 ## 4. Understand the lifecycle boundary
 
@@ -205,23 +191,18 @@ The calculation, feedback, ordinary result, cancellation decision, and cooperati
 | Managed `/fibonacci` action server, inactive rejection, and termination of outstanding goals on deactivation | Order validation, Fibonacci calculation, feedback, and client cancellation decision |
 | Language-specific callback surface and action message plumbing | Workers that stop when a goal is no longer active and handle termination races |
 
-New goals are accepted only while active.
-Deactivation rejects new goals and ends outstanding goals; the node stays running.
-This is behavior of NoDL's managed action-server provider, not an automatic property of ROS action servers.
+Deactivation ends outstanding goals, not the node.
+This policy comes from NoDL's managed provider; ordinary ROS action servers are not automatically lifecycle-managed.
 
 :::{note}
 :collapsible: closed
 :title: Scope of this example
 
-The node starts unconfigured, with the goal gate closed.
-Configure and cleanup use the default `handle_*` hooks; this example does not reload parameters or manage application resources during those transitions.
-It does not implement custom error recovery.
-
-Inactive goal rejection happens in the managed server before the handwritten callback, not by suspending DDS reads.
-This example does not demonstrate subscription queue behavior or lifecycle-dependent QoS.
-Callback groups govern callback scheduling within a node; they are separate from this node-wide lifecycle policy.
-
-These are the example's choices, not a recommendation that every production node use the same policy.
+The node starts unconfigured and rejects goals.
+Configure and cleanup use default `handle_*` hooks: no resource management, parameter reload, or custom error recovery is demonstrated.
+Inactive rejection does not suspend DDS reads; subscription queues and lifecycle-dependent QoS are outside this example.
+Callback groups control scheduling within a node, independently of this node-wide lifecycle policy.
+Production applications can need different policies.
 
 :::
 
