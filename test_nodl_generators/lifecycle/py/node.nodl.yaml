@@ -22,6 +22,9 @@ service_servers:
 service_clients:
   - name: /lifecycle_remote_add
     type: example_interfaces/srv/AddTwoInts
+action_servers:
+  - name: /lifecycle_count
+    type: example_interfaces/action/Fibonacci
 action_clients:
   - name: /lifecycle_fibonacci
     type: example_interfaces/action/Fibonacci

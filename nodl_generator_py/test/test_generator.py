@@ -210,6 +210,21 @@ def test_render_python_wraps_clients_of_an_activation_gated_base():
     assert '= rclpy.action.ActionClient(' not in generated
 
 
+def test_render_python_makes_action_servers_of_an_activation_gated_base_managed_entities():
+    doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
+
+    generated = _render_python(doc, 'interfaces_node_base', _ACTIVATION_GATED_BASE)
+
+    ast.parse(generated)
+    for expected in (
+        'from nodl_runtime_py.active_only import ActiveOnlyActionServer',
+        "self.action_srv_fibonacci = ActiveOnlyActionServer(\n            self,\n            example_interfaces.action.Fibonacci,\n            '/fibonacci',\n            self.execute_fibonacci,\n            goal_callback=self.on_fibonacci_goal,\n            cancel_callback=self.on_fibonacci_cancel,\n        )\n        self.add_managed_entity(self.action_srv_fibonacci)\n",
+        'check ``goal_handle.is_active``',
+    ):
+        assert expected in generated
+    assert '= rclpy.action.ActionServer(' not in generated
+
+
 def test_render_python_imports_only_the_client_wrappers_it_uses():
     doc = parse_nodl(
         """
@@ -237,6 +252,9 @@ def test_render_python_leaves_a_non_activation_gated_base_unchanged():
     assert 'self.srv_add = self.create_service(' in generated
     assert 'self.cli_delegate_add = self.create_client(' in generated
     assert 'self.action_cli_delegate_fibonacci = rclpy.action.ActionClient(' in generated
+    assert 'self.action_srv_fibonacci = rclpy.action.ActionServer(' in generated
+    assert 'add_managed_entity' not in generated
+    assert 'is_active' not in generated
 
 
 def test_generate_parameter_yaml_preserves_integer_validation_values():

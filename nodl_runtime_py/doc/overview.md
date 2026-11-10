@@ -1,14 +1,14 @@
 # nodl_runtime_py
 
 `nodl_runtime_py` provides shared utilities for Python nodes, especially those that `nodl_generator_py` generates.
-It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, helpers that let a lifecycle node block subscription messages, service requests and the requests and goals it sends while it is inactive, and `run_node`, a main loop for `rclpy` nodes.
+It currently provides a lifecycle node base class that manages the state and behavior of a node's entities in a standard way, helpers that let a lifecycle node block subscription messages, service requests and the requests and goals it sends while it is inactive, reject action goals and end its active ones, and `run_node`, a main loop for `rclpy` nodes.
 
 ## What it provides
 
 | Provides | For |
 |---|---|
 | `nodl_runtime_py.lifecycle.LifecycleNode` | A lifecycle node base class with standard transitions and optional hooks, described below. |
-| `create_active_only_service`, `active_only_subscription_callback`, `ActiveOnlyClient`, `ActiveOnlyActionClient` | Let a lifecycle node block subscription messages, service requests, and the requests and goals it sends while it is inactive, described below. |
+| `create_active_only_service`, `active_only_subscription_callback`, `ActiveOnlyClient`, `ActiveOnlyActionServer`, `ActiveOnlyActionClient` | Let a lifecycle node block subscription messages, service requests, and the requests and goals it sends while it is inactive, and reject action goals and end its active ones, described below. |
 | `run_node` | The main loop of an executable, described below. |
 | `rclpy` | Generated base classes derive from `rclpy` node classes and create their entities. |
 | `generate_parameter_library_py` | Generated parameter modules import its parameter validators. |
@@ -134,11 +134,12 @@ Helpers and wrappers take the gate, not the node, and let one entity block its m
 | Subscription | `active_only_subscription_callback` | The message is dropped and the callback is not called. |
 | Service server | `create_active_only_service` | The request is dropped and gets no response, so its client keeps waiting. |
 | Service client | `ActiveOnlyClient` | `call_async` raises `InactiveError`. |
+| Action server | `ActiveOnlyActionServer` | New goals are rejected, and active goals end at deactivation. |
 | Action client | `ActiveOnlyActionClient` | `send_goal_async` raises `InactiveError`. |
 
 The subscription and service helpers accept coroutine function callbacks.
 `create_active_only_service` takes the keyword arguments of `Node.create_service`, such as `qos_profile` or `callback_group`.
-Generated lifecycle nodes use them for every subscription, service server, service client and action client.
+Generated lifecycle nodes use them for every subscription, service server, service client, action server and action client.
 Any node that owns a gate can use them, as in this example of a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` to block a subscription's messages, a service's requests and its clients' sends while it is inactive:
 
 ```{literalinclude} examples/active_only_node.py
@@ -159,12 +160,53 @@ Waiting for the service in `handle_configure` is allowed.
 With a multithreaded executor, callbacks can run while `handle_activate` is still executing.
 State that they need must be ready by the end of `handle_configure`.
 
+### Action goals at deactivation
+
+A lifecycle node can reject action goals while it is inactive and end its active goals when it deactivates.
+Create an `ActiveOnlyActionServer` in the constructor and register it with `add_managed_entity`.
+It takes the arguments of `rclpy.action.ActionServer` except the accepted callback, executes each accepted goal at once, and exposes the wrapped server as the read-only `server`.
+It rejects goals until the node activates.
+At deactivation it becomes inactive first, so no new goal is accepted, then ends every goal it accepted that is still active:
+
+| Goal state | Result |
+|---|---|
+| Executing | `abort()` |
+| Canceling | `canceled()` |
+| Terminal | skipped |
+
+A goal that reaches a terminal state while it is being ended is skipped.
+`handle_deactivate` runs before the standard deactivation, so a hook can finish goals itself, for example by succeeding them.
+On shutdown and error the standard deactivation, and so the ending of goals, runs before the hook.
+With a multithreaded executor, a goal accepted during `handle_deactivate` ends right after it.
+
+`rclpy` sends the result to the client only when the execute callback returns, so an execute callback that keeps working for an ended goal must check `goal_handle.is_active` and return.
+The client receives the status of the ended goal with the result the callback returned.
+A goal that is accepted after the deactivation started, or whose callback raises, gets a default-constructed `Result`.
+The C++ `ActiveOnlyActionServer` always sends a default-constructed result for an ended goal.
+
+A blocking execute callback needs a multithreaded executor, or must be an async function.
+`run_node` takes the executor class as `executor_class`, as the example does.
+
+This example shows a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` and `ActiveOnlyActionServer`, which can end its goals when it deactivates.
+Generated nodes with an `activation_gated` base class create their action servers the same way.
+
+```{literalinclude} examples/active_only_action_node.py
+:language: python
+:start-at: class Counter
+:end-before: def main
+```
+
 ### Background
 
 `rclpy` delivers subscription and service callbacks, and sends client requests, in every lifecycle state, and only publishers follow the lifecycle.
 The gate is a `rclpy.lifecycle.SimpleManagedEntity` registered with `add_managed_entity`, so the standard activation opens it and the standard deactivation closes it, on every path that deactivates publishers.
 
 Clients raise instead of dropping, because a dropped request returns a future that never completes.
+
+An action server ends its goals at deactivation, because otherwise they would keep running, and keep their clients waiting, in a node that no longer does any work.
+`rclpy` has no way to send a result other than the one the execute callback returns, and a callback blocked in its work cannot be interrupted.
+So the server marks the goal ended and leaves the callback to notice and return, which is why the client gets the callback's result.
+A callback that blocks occupies an executor thread, so on a single-threaded executor the request that deactivates the node is never serviced.
 
 `rclpy` always sends the value a service callback returns, and has no way to skip the response.
 `create_active_only_service` therefore replaces `send_response` on the service instance.

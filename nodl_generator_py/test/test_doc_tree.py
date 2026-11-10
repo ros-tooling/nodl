@@ -236,6 +236,9 @@ subscriptions:
 service_servers:
   - name: add
     type: example_interfaces/srv/AddTwoInts
+action_servers:
+  - name: count
+    type: example_interfaces/action/Fibonacci
 service_clients:
   - name: remote_add
     type: example_interfaces/srv/AddTwoInts
@@ -250,5 +253,6 @@ action_clients:
     assert 'from nodl_runtime_py.lifecycle import LifecycleNode' in result.module
     assert 'active_only_subscription_callback(self.activation_gate, self.on_command),' in result.module
     assert 'self.srv_add = create_active_only_service(' in result.module
+    assert 'self.action_srv_count = ActiveOnlyActionServer(' in result.module
     assert 'self.cli_remote_add = ActiveOnlyClient(' in result.module
     assert 'self.action_cli_fibonacci = ActiveOnlyActionClient(' in result.module

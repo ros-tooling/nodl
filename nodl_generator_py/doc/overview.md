@@ -322,8 +322,10 @@ publishers:
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
 A generated lifecycle node can block subscription messages and service requests, and the service requests and action goals it sends, while it is inactive, as the `nodl_runtime_py` overview describes.
+A generated lifecycle node can also reject action goals while it is inactive and end its active goals when it deactivates.
+Its action servers are `nodl_runtime_py.ActiveOnlyActionServer`s registered with `add_managed_entity`.
+The member is a wrapper, not an `rclpy.action.ActionServer`, and its `server` property returns the wrapped server.
 The constructor still creates all parameters and entities.
-Action servers do not become lifecycle-managed.
 
 The generated class derives the runtime base class, which implements the transition callbacks and activates and deactivates managed publishers on every path.
 The authored class does not define transition callbacks.
@@ -353,6 +355,12 @@ A client send from the constructor, from `handle_configure`, or while the node i
 Requests that configuration needs, such as fetching settings from another node, belong in `handle_activate`, where the gate is already open.
 A generated client member is a wrapper, not an `rclpy` client, and its `client` property returns the `rclpy` client.
 The `nodl_runtime_py` overview lists what the wrappers expose.
+
+Action servers of a generated lifecycle node used to accept goals in every state, and left goals running when the node deactivated.
+The node can now reject goals while it is not active, and end active goals on deactivation.
+Each `execute_<name>()` must check `goal_handle.is_active` while it works and return once it is false, and a blocking one needs a multithreaded executor, passed to `run_node` as `executor_class`.
+The generated base documents this on every `execute_<name>()`.
+The `nodl_runtime_py` overview describes the goal handling, including the result the client receives.
 
 ## Parameters
 
@@ -390,7 +398,7 @@ python -m nodl_generator_py \
 
 This version supports parameters, publishers, subscriptions, services, actions,
 their available QoS settings, include composition, and one included Python base provider.
-Lifecycle management applies to publishers, subscriptions, service servers, service clients and action clients created for a lifecycle base.
+Lifecycle management applies to publishers, subscriptions, service servers, service clients, action servers and action clients created for a lifecycle base.
 
 ## Relationship to other packages
 
