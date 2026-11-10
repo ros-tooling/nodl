@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """NoDL-backed action client used as the migrated implementation."""
 
-from navigate_to_pose_nodl.generated.navigate_to_pose_client_py_base import NavigateToPoseClientPyBase
+from nodl_generated.navigate_to_pose_nodl.navigate_to_pose_client_py_base import NavigateToPoseClientPyBase
+
 from navigate_to_pose_nodl.navigation import run
 
 

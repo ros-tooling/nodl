@@ -111,6 +111,7 @@ The generated header is included as `navigate_to_pose_nodl/navigate_to_pose_clie
 ```
 
 `NO_INDEX` avoids registering the same public contract a second time, as in the Basics tutorial.
+Import the generated base from `nodl_generated.navigate_to_pose_nodl.navigate_to_pose_client_py_base`.
 
 :::
 ::::

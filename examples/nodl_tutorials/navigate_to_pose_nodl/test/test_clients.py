@@ -46,7 +46,11 @@ def test_documented_generated_wiring_matches_build():
         + (cpp / 'navigate_to_pose_client_base.cpp').read_text()
     )
     python = (
-        generated / 'navigate_to_pose_client_py_base' / PACKAGE / 'generated' / 'navigate_to_pose_client_py_base.py'
+        generated
+        / 'navigate_to_pose_client_py_base'
+        / 'nodl_generated'
+        / PACKAGE
+        / 'navigate_to_pose_client_py_base.py'
     )
 
     assert actual_cpp.strip() == (EXPECTED / 'generated_cpp.txt').read_text().strip()
