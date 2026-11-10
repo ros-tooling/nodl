@@ -319,20 +319,27 @@ publishers:
       reliability: RELIABLE
 ```
 
-This generates a subclass of `rclpy.lifecycle.LifecycleNode`.
+This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
 The constructor still creates all parameters and entities.
 Subscriptions, services, clients, and actions do not become lifecycle-managed.
 
-The generator does not emit transition callbacks.
-The default `rclpy` callbacks activate and deactivate managed publishers.
-If an application subclass overrides a transition callback and wants that default behavior, it must call and return the corresponding `super()` callback:
+The generated class derives the runtime base class, which implements the transition callbacks and activates and deactivates managed publishers on every path.
+The authored class does not define transition callbacks.
+It customizes a transition by defining the matching `handle_*` hook, which needs no `super()` call.
+The `nodl_runtime_py` overview lists the hooks and their order.
+For example, in the authored subclass of the generated class:
 
 ```python
-def on_activate(self, state):
-    # Add application-specific activation work before or after this call.
-    return super().on_activate(state)
+def handle_activate(self, state):
+    # Application-specific activation work, with managed publishers already active.
+    return TransitionCallbackReturn.SUCCESS
 ```
+
+### Migrating lifecycle nodes
+
+An authored subclass that defines `on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` or `on_error` raises `TypeError` when the class is defined.
+Rename each override to the matching `handle_*` hook and remove the `super()` call.
 
 ## Parameters
 

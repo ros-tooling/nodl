@@ -10,7 +10,7 @@ For what a NoDL document declares, see {external+nodl:doc}`concepts`.
 | Reference | Describes |
 |---|---|
 | `nodl://nodl_common_interfaces/node` | The standard node interface — publishers (`/rosout`, `/parameter_events`), parameter services, and `use_sim_time`. Selects `rclcpp::Node` or `rclpy.node.Node` for code generation. |
-| `nodl://nodl_common_interfaces/lifecycle_node` | The standard lifecycle-node interface — includes `node`, adds the `transition_event` publisher and lifecycle services, and selects `rclcpp_lifecycle::LifecycleNode` or `rclpy.lifecycle.LifecycleNode`. |
+| `nodl://nodl_common_interfaces/lifecycle_node` | The standard lifecycle-node interface — includes `node`, adds the `transition_event` publisher and lifecycle services, and selects `rclcpp_lifecycle::LifecycleNode` or `nodl_runtime_py.lifecycle.LifecycleNode`. |
 
 Both documents carry `codegen.cpp` and `codegen.python` `BASE_CLASS` metadata.
 Each generator reads only its own metadata while sharing the same interface contract and reference.

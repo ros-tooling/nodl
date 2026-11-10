@@ -16,7 +16,7 @@ codegen:
     publisher_type: rclcpp_lifecycle::LifecyclePublisher
   python:
     role: BASE_CLASS
-    module: rclpy.lifecycle
+    module: nodl_runtime_py.lifecycle
     class: LifecycleNode
     publisher_method: create_lifecycle_publisher
 

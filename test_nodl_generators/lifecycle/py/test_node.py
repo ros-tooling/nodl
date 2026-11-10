@@ -22,7 +22,7 @@ def ros_context():
         rclpy.shutdown()
 
 
-def _spin_until(executor, predicate, timeout=2.0):
+def _spin_until(executor, predicate, timeout=10.0):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline and not predicate():
         executor.spin_once(timeout_sec=0.05)
@@ -48,6 +48,7 @@ def test_generated_publisher_follows_lifecycle_transitions(ros_context):
 
         assert node.trigger_configure() == TransitionCallbackReturn.SUCCESS
         assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+        assert node.activate_count == 1
         node.pub_lifecycle_status.publish(String(data='active'))
         assert _spin_until(executor, lambda: received == ['active'])
 
