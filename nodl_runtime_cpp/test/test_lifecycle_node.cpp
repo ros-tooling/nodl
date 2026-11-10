@@ -35,10 +35,8 @@ public:
   , publisher_(create_publisher<std_msgs::msg::String>("chatter", 10))
   {}
 
-  /// The hooks called so far, in order.
-  std::vector<std::string> calls;
   /// The parameter seams and the hooks called so far, in order.
-  std::vector<std::string> sequence;
+  std::vector<std::string> calls;
   /// Whether the publisher was active when each hook was called.
   std::vector<bool> publisher_active_in_hook;
   /// Whether the gate was open when each hook was called.
@@ -64,17 +62,17 @@ public:
 protected:
   void refresh_parameters() override
   {
-    sequence.push_back("refresh");
+    calls.push_back("refresh");
   }
 
   void start_parameter_updates() override
   {
-    sequence.push_back("start");
+    calls.push_back("start");
   }
 
   void stop_parameter_updates() override
   {
-    sequence.push_back("stop");
+    calls.push_back("stop");
   }
 
   CallbackReturn handle_configure(const rclcpp_lifecycle::State &) override
@@ -111,7 +109,6 @@ private:
   CallbackReturn record(const std::string & name, Outcome outcome)
   {
     calls.push_back(name);
-    sequence.push_back(name);
     publisher_active_in_hook.push_back(publisher_->is_activated());
     gate_open_in_hook.push_back(gate()->is_activated());
     switch (outcome) {
@@ -182,7 +179,10 @@ TEST_F(LifecycleNodeTest, EachHookRunsOncePerTransitionInOrder)
   node_->cleanup();
   node_->shutdown();
 
-  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate", "deactivate", "cleanup", "shutdown"}));
+  EXPECT_EQ(
+    node_->calls,
+    (std::vector<std::string>{
+      "refresh", "configure", "start", "refresh", "activate", "deactivate", "stop", "cleanup", "stop", "shutdown"}));
 }
 
 TEST_F(LifecycleNodeTest, PublisherIsActiveDuringActivateAndAfter)
@@ -259,7 +259,7 @@ TEST_F(LifecycleNodeTest, FailingActivateLeavesNodeAndPublisherInactive)
 
   EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_INACTIVE);
   EXPECT_FALSE(node_->publisher_active());
-  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate"}));
+  EXPECT_EQ(node_->calls, (std::vector<std::string>{"refresh", "configure", "start", "refresh", "activate", "stop"}));
 }
 
 TEST_F(LifecycleNodeTest, ThrowingActivateRunsErrorAndLeavesPublisherInactive)
@@ -271,7 +271,8 @@ TEST_F(LifecycleNodeTest, ThrowingActivateRunsErrorAndLeavesPublisherInactive)
 
   EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
   EXPECT_FALSE(node_->publisher_active());
-  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate", "error"}));
+  EXPECT_EQ(
+    node_->calls, (std::vector<std::string>{"refresh", "configure", "start", "refresh", "activate", "stop", "error"}));
 }
 
 TEST_F(LifecycleNodeTest, ShutdownFromActiveDeactivatesPublisherBeforeHook)
@@ -297,7 +298,9 @@ TEST_F(LifecycleNodeTest, ErrorDeactivatesPublisherBeforeHook)
 
   EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
   EXPECT_FALSE(node_->publisher_active());
-  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate", "deactivate", "error"}));
+  EXPECT_EQ(
+    node_->calls,
+    (std::vector<std::string>{"refresh", "configure", "start", "refresh", "activate", "deactivate", "stop", "error"}));
   // configure, activate, deactivate, error
   EXPECT_EQ(node_->publisher_active_in_hook, (std::vector<bool>{false, true, true, false}));
 }
@@ -319,30 +322,30 @@ using Sequence = std::vector<std::string>;
 TEST_F(LifecycleNodeTest, ParameterSeamsRunInTransitionOrder)
 {
   node_->configure();
-  EXPECT_EQ(node_->sequence, (Sequence{"refresh", "configure"}));
+  EXPECT_EQ(node_->calls, (Sequence{"refresh", "configure"}));
 
-  node_->sequence.clear();
+  node_->calls.clear();
   node_->activate();
-  EXPECT_EQ(node_->sequence, (Sequence{"start", "refresh", "activate"}));
+  EXPECT_EQ(node_->calls, (Sequence{"start", "refresh", "activate"}));
 
-  node_->sequence.clear();
+  node_->calls.clear();
   node_->deactivate();
-  EXPECT_EQ(node_->sequence, (Sequence{"deactivate", "stop"}));
+  EXPECT_EQ(node_->calls, (Sequence{"deactivate", "stop"}));
 
-  node_->sequence.clear();
+  node_->calls.clear();
   node_->cleanup();
-  EXPECT_EQ(node_->sequence, (Sequence{"cleanup"}));
+  EXPECT_EQ(node_->calls, (Sequence{"cleanup"}));
 }
 
 TEST_F(LifecycleNodeTest, FailingActivateStopsParameterUpdates)
 {
   node_->activate_outcome = Outcome::FAILURE;
   node_->configure();
-  node_->sequence.clear();
+  node_->calls.clear();
 
   node_->activate();
 
-  EXPECT_EQ(node_->sequence, (Sequence{"start", "refresh", "activate", "stop"}));
+  EXPECT_EQ(node_->calls, (Sequence{"start", "refresh", "activate", "stop"}));
 }
 
 TEST_F(LifecycleNodeTest, FailingDeactivateKeepsParameterUpdates)
@@ -350,22 +353,22 @@ TEST_F(LifecycleNodeTest, FailingDeactivateKeepsParameterUpdates)
   node_->deactivate_outcome = Outcome::FAILURE;
   node_->configure();
   node_->activate();
-  node_->sequence.clear();
+  node_->calls.clear();
 
   node_->deactivate();
 
-  EXPECT_EQ(node_->sequence, (Sequence{"deactivate"}));
+  EXPECT_EQ(node_->calls, (Sequence{"deactivate"}));
 }
 
 TEST_F(LifecycleNodeTest, ShutdownFromActiveStopsParameterUpdatesBeforeTheHook)
 {
   node_->configure();
   node_->activate();
-  node_->sequence.clear();
+  node_->calls.clear();
 
   node_->shutdown();
 
-  EXPECT_EQ(node_->sequence, (Sequence{"stop", "shutdown"}));
+  EXPECT_EQ(node_->calls, (Sequence{"stop", "shutdown"}));
 }
 
 TEST_F(LifecycleNodeTest, ErrorStopsParameterUpdatesBeforeTheHook)
@@ -373,11 +376,39 @@ TEST_F(LifecycleNodeTest, ErrorStopsParameterUpdatesBeforeTheHook)
   node_->deactivate_outcome = Outcome::THROW;
   node_->configure();
   node_->activate();
-  node_->sequence.clear();
+  node_->calls.clear();
 
   node_->deactivate();
 
-  EXPECT_EQ(node_->sequence, (Sequence{"deactivate", "stop", "error"}));
+  EXPECT_EQ(node_->calls, (Sequence{"deactivate", "stop", "error"}));
+}
+
+TEST_F(LifecycleNodeTest, ThrowingActivateStopsParameterUpdatesThroughError)
+{
+  node_->activate_outcome = Outcome::THROW;
+  node_->configure();
+  node_->calls.clear();
+
+  node_->activate();
+
+  EXPECT_EQ(node_->calls, (Sequence{"start", "refresh", "activate", "stop", "error"}));
+}
+
+TEST_F(LifecycleNodeTest, ShutdownFromUnconfiguredStopsParameterUpdatesBeforeTheHook)
+{
+  node_->shutdown();
+
+  EXPECT_EQ(node_->calls, (Sequence{"stop", "shutdown"}));
+}
+
+TEST_F(LifecycleNodeTest, ShutdownFromInactiveStopsParameterUpdatesBeforeTheHook)
+{
+  node_->configure();
+  node_->calls.clear();
+
+  node_->shutdown();
+
+  EXPECT_EQ(node_->calls, (Sequence{"stop", "shutdown"}));
 }
 
 }  // namespace

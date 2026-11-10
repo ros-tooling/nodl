@@ -40,7 +40,8 @@ Configure and cleanup run only the hooks, so an entity registered with `add_mana
 
 `refresh_parameters`, `start_parameter_updates` and `stop_parameter_updates` are protected virtual seams that do nothing by default.
 A subclass that keeps parameter values overrides them: refresh stores the current values, start follows later changes, and stop ends that.
-Start runs before refresh on activate, so a change between the two is not missed.
+Start runs before refresh on activate, so a change between the two is not missed, and a change after start can reach a subclass's change handling before `handle_activate` has run.
+The seams are not synchronized with parameter changes from other threads, so transitions and parameter services are expected to run on the same executor.
 The generated classes of `nodl_generator_cpp` override them for nodes with parameters.
 
 A hook that throws is turned into ERROR by `rclcpp_lifecycle`, which runs `on_error`.

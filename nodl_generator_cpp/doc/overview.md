@@ -414,7 +414,8 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 `BASE_CLASS` accepts an optional boolean `activation_gated`, which defaults to false.
 If the node is a lifecycle node, it makes the generated base class wrap subscription and service server callbacks behind the activation gate, so they only trigger callbacks when the node is active.
 It also declares service and action clients as wrappers that only send requests and goals when the node is active, and makes action servers reject goals while the node is inactive and end their active goals when it deactivates.
-The base class must expose the gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode` does.
+If the node has parameters, the generated class also refreshes them at configure and activate, and follows changes only while the node is active.
+The base class must derive from `nodl_runtime_cpp::LifecycleNode`, which provides the gate through a protected `gate()` member, the `handle_*` hooks and the parameter update seams.
 The generated constructor wraps each callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
 The service client members are `nodl_runtime_cpp::ActiveOnlyClient` and each action client as a `nodl_runtime_cpp::ActiveOnlyActionClient`, both held by `SharedPtr` as before.
 Each action server is a `nodl_runtime_cpp::ActiveOnlyActionServer`, held by `SharedPtr` and registered with `add_managed_entity`.
@@ -612,13 +613,16 @@ React to changes with `on_parameters_changed`, and never call `setUserCallback`.
 
 ### On a lifecycle node
 
-A node on the `nodl_runtime_cpp::LifecycleNode` base follows parameter changes only while it is active.
+If the base class has `activation_gated`, the node follows parameter changes only while it is active.
 `params_` is refreshed when the node configures and again when it activates, so `handle_configure` and `handle_activate` read the latest values, including any set while the node was unconfigured or inactive.
 Between those transitions the node does not call `on_parameters_changed`, and `params_` keeps the values it had when the node last deactivated.
 While the node is active, a change updates `params_` and calls `on_parameters_changed` as described above.
 
 The refreshes do not call `on_parameters_changed`, so apply parameter values in `handle_configure` and `handle_activate`, and use the hook for changes while active.
 Updates are live from just after the activation gate opens until just before it closes.
+A change that arrives after the updates start and before `handle_activate` runs calls `on_parameters_changed` before `handle_activate` has run, so keep the hook independent of state that `handle_activate` sets up.
+Transitions and parameter services are expected to run on the same executor.
+Setting a parameter from another thread while a transition runs is a data race on the change callback.
 The generated class overrides the `refresh_parameters`, `start_parameter_updates` and `stop_parameter_updates` seams of the runtime base as `final`, so an authored subclass overrides the hook instead.
 See the `nodl_runtime_cpp` overview for the order on each transition.
 

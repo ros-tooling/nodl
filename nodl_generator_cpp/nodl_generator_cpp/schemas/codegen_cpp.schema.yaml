@@ -51,8 +51,10 @@ definitions:
           behind the activation gate, so they only trigger callbacks when the node is active,
           and declare service and action clients as wrappers that only send requests and goals when the node is active,
           and make action servers reject goals while the node is inactive and end their active goals when it deactivates.
-          The base class must expose the gate as a protected ``gate()`` member
-          (e.g. ``nodl_runtime_cpp::LifecycleNode``).
+          If the node has parameters, the generated base class also refreshes them at configure and activate,
+          and follows parameter changes only while the node is active.
+          The base class must derive from ``nodl_runtime_cpp::LifecycleNode``,
+          which provides the gate through a protected ``gate()`` member and the parameter update hooks.
         type: boolean
         default: false
 

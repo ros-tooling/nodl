@@ -202,6 +202,10 @@ class TestLoad:
         assert isinstance(result, CodegenBaseClass)
         assert result.activation_gated is True
 
+    def test_activation_gated_description_names_the_runtime_base(self):
+        description = CodegenBaseClass.schema()['properties']['activation_gated']['description']
+        assert 'derive from ``nodl_runtime_cpp::LifecycleNode``' in description
+
     def test_returns_no_generate_model(self):
         result = load({CODEGEN_KEY: {'role': 'NO_GENERATE'}})
         assert isinstance(result, CodegenNoGenerate)

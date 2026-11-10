@@ -38,7 +38,7 @@ class CodegenBaseClass(BaseModel):
     )
     activation_gated: Optional[bool] = Field(
         False,
-        description='If the node is a lifecycle node, make the generated base class wrap subscription and service server callbacks\nbehind the activation gate, so they only trigger callbacks when the node is active,\nand declare service and action clients as wrappers that only send requests and goals when the node is active,\nand make action servers reject goals while the node is inactive and end their active goals when it deactivates.\nThe base class must expose the gate as a protected ``gate()`` member\n(e.g. ``nodl_runtime_cpp::LifecycleNode``).\n',
+        description='If the node is a lifecycle node, make the generated base class wrap subscription and service server callbacks\nbehind the activation gate, so they only trigger callbacks when the node is active,\nand declare service and action clients as wrappers that only send requests and goals when the node is active,\nand make action servers reject goals while the node is inactive and end their active goals when it deactivates.\nIf the node has parameters, the generated base class also refreshes them at configure and activate,\nand follows parameter changes only while the node is active.\nThe base class must derive from ``nodl_runtime_cpp::LifecycleNode``,\nwhich provides the gate through a protected ``gate()`` member and the parameter update hooks.\n',
     )
 
 
