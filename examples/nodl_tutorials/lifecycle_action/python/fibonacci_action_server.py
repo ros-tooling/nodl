@@ -7,31 +7,17 @@ import time
 
 import rclpy
 from example_interfaces.action import Fibonacci
-from nodl_tutorial_lifecycle_action_py.generated.fibonacci_action_server_py_base import (
+from nodl_generated.nodl_tutorial_lifecycle_action_py.fibonacci_action_server_py_base import (
     FibonacciActionServerPyBase,
 )
 from rclpy.action import CancelResponse, GoalResponse
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.lifecycle import TransitionCallbackReturn
 
 
 class FibonacciActionServer(FibonacciActionServerPyBase):
-    def __init__(self):
-        super().__init__()
-        self._active = False
-
-    def on_activate(self, state):
-        result = super().on_activate(state)
-        self._active = result == TransitionCallbackReturn.SUCCESS
-        return result
-
-    def on_deactivate(self, state):
-        self._active = False
-        return super().on_deactivate(state)
-
     def on_fibonacci_goal(self, goal_request):
         self.get_logger().info(f'Received goal request with order {goal_request.order}')
-        if not self._active or not 0 <= goal_request.order <= 46:
+        if not 0 <= goal_request.order <= 46:
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
 
@@ -42,15 +28,23 @@ class FibonacciActionServer(FibonacciActionServerPyBase):
 
     def execute_fibonacci(self, goal_handle):
         feedback = Fibonacci.Feedback(sequence=[0, 1])
-        for index in range(1, goal_handle.request.order):
-            if goal_handle.is_cancel_requested:
-                goal_handle.canceled()
-                return Fibonacci.Result(sequence=feedback.sequence)
-            feedback.sequence.append(feedback.sequence[index] + feedback.sequence[index - 1])
-            goal_handle.publish_feedback(feedback)
-            time.sleep(0.1)
+        try:
+            for index in range(1, goal_handle.request.order):
+                if not goal_handle.is_active:
+                    return Fibonacci.Result(sequence=feedback.sequence)
+                if goal_handle.is_cancel_requested:
+                    goal_handle.canceled()
+                    return Fibonacci.Result(sequence=feedback.sequence)
+                feedback.sequence.append(feedback.sequence[index] + feedback.sequence[index - 1])
+                goal_handle.publish_feedback(feedback)
+                time.sleep(0.1)
 
-        goal_handle.succeed()
+            if goal_handle.is_active:
+                goal_handle.succeed()
+        except RuntimeError:
+            # Deactivation can end the goal between the active check and a feedback/finish call.
+            if goal_handle.is_active:
+                raise
         return Fibonacci.Result(sequence=feedback.sequence)
 
 

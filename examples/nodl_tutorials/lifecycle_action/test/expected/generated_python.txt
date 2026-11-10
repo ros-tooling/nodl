@@ -2,7 +2,8 @@
 import abc
 import example_interfaces.action
 import rclpy.action
-from rclpy.lifecycle import LifecycleNode
+from nodl_runtime_py.active_only import ActiveOnlyActionServer
+from nodl_runtime_py.lifecycle import LifecycleNode
 
 
 class FibonacciActionServerPyBase(LifecycleNode, metaclass=abc.ABCMeta):
@@ -10,7 +11,7 @@ class FibonacciActionServerPyBase(LifecycleNode, metaclass=abc.ABCMeta):
 
     def __init__(self, **kwargs) -> None:
         super().__init__('fibonacci_action_server_py', **kwargs)
-        self.action_srv_fibonacci = rclpy.action.ActionServer(
+        self.action_srv_fibonacci = ActiveOnlyActionServer(
             self,
             example_interfaces.action.Fibonacci,
             'fibonacci',
@@ -18,6 +19,7 @@ class FibonacciActionServerPyBase(LifecycleNode, metaclass=abc.ABCMeta):
             goal_callback=self.on_fibonacci_goal,
             cancel_callback=self.on_fibonacci_cancel,
         )
+        self.add_managed_entity(self.action_srv_fibonacci)
 
     def on_fibonacci_goal(self, goal_request: example_interfaces.action.Fibonacci.Goal) -> rclpy.action.GoalResponse:
         """Accept or reject a goal received on fibonacci."""
@@ -29,5 +31,9 @@ class FibonacciActionServerPyBase(LifecycleNode, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def execute_fibonacci(self, goal_handle: rclpy.action.server.ServerGoalHandle) -> example_interfaces.action.Fibonacci.Result:
-        """Execute a goal received on fibonacci."""
+        """Execute a goal received on fibonacci.
+
+        The node ends active goals when it deactivates.
+        The result reaches the client only when this callback returns, so check ``goal_handle.is_active`` while working and return once it is false.
+        """
         raise NotImplementedError

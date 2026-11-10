@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 210" role="img" aria-labelledby="title description">
   <title id="title">Lifecycle transitions and Fibonacci goal admission</title>
-  <desc id="description">Configure moves from unconfigured to inactive. Activate moves from inactive to active. Deactivate returns to inactive, and cleanup returns to unconfigured. Only active accepts new goals. These are the transitions exercised in this tutorial.</desc>
+  <desc id="description">Configure moves from unconfigured to inactive. Activate moves from inactive to active. Deactivate returns to inactive and ends outstanding goals: executing goals are aborted and canceling goals are canceled. Cleanup returns to unconfigured. Only active accepts new goals. These are the transitions exercised in this tutorial.</desc>
   <style>
     :root {
       --text: #0f172a;
@@ -62,4 +62,6 @@
     <path d="M 337 140 H 250"/>
     <path d="M 650 140 H 562"/>
   </g>
+  <rect x="150" y="181" width="600" height="24" rx="4" fill="var(--node)"/>
+  <text x="450" y="198" font-family="sans-serif" font-size="15" text-anchor="middle" fill="var(--text)">Deactivation: abort executing goals; cancel canceling goals.</text>
 </svg>

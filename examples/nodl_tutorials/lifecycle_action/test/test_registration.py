@@ -7,7 +7,6 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from ament_index_python.resources import get_resource, get_resources
-from rclpy.lifecycle import LifecycleNode
 
 PACKAGE = Path.cwd().name
 LANGUAGE = PACKAGE.removeprefix('nodl_tutorial_lifecycle_action_')
@@ -33,9 +32,12 @@ def test_registered_contract_matches_installed_source():
 def test_base_uses_lifecycle_provider():
     if LANGUAGE == 'cpp':
         header = (GENERATED / PACKAGE / f'{TARGET}.hpp').read_text()
-        assert 'public rclcpp_lifecycle::LifecycleNode' in header
+        assert 'public nodl_runtime_cpp::LifecycleNode' in header
+        assert 'nodl_runtime_cpp::ActiveOnlyActionServer' in header
     else:
-        module = importlib.import_module(f'{PACKAGE}.generated.{TARGET}')
+        from nodl_runtime_py.lifecycle import LifecycleNode
+
+        module = importlib.import_module(f'nodl_generated.{PACKAGE}.{TARGET}')
         assert issubclass(module.FibonacciActionServerPyBase, LifecycleNode)
         assert hasattr(module.FibonacciActionServerPyBase, 'execute_fibonacci')
 
@@ -50,6 +52,6 @@ def test_documented_generated_base_matches_build():
         )
         expected = EXPECTED / 'generated_cpp.txt'
     else:
-        actual = (GENERATED / PACKAGE / 'generated' / f'{TARGET}.py').read_text()
+        actual = (GENERATED / 'nodl_generated' / PACKAGE / f'{TARGET}.py').read_text()
         expected = EXPECTED / 'generated_python.txt'
     assert actual.strip() == expected.read_text().strip()

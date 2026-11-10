@@ -14,6 +14,8 @@ import rclpy
 from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 from example_interfaces.action import Fibonacci
+from lifecycle_msgs.msg import Transition
+from lifecycle_msgs.srv import ChangeState
 from rclpy.action import ActionClient
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
@@ -123,8 +125,10 @@ def test_lifecycle_action_server(executable, node_name):
         executor = SingleThreadedExecutor()
         executor.add_node(harness)
         client = ActionClient(harness, Fibonacci, '/fibonacci')
+        transitions = harness.create_client(ChangeState, f'{node_name}/change_state')
         try:
             assert client.wait_for_server(timeout_sec=5.0)
+            assert transitions.wait_for_service(timeout_sec=5.0)
             assert not _send_goal(executor, client, 5).accepted
 
             _set_transition(node_name, 'configure', 'inactive')
@@ -156,6 +160,36 @@ def test_lifecycle_action_server(executable, node_name):
             canceled_result = cancel_goal.get_result_async()
             _spin_until(executor, canceled_result.done)
             assert canceled_result.result().status == GoalStatus.STATUS_CANCELED
+
+            # Request deactivation directly after feedback, without CLI startup consuming the goal's work time.
+            for _ in range(3):
+                running_feedback = []
+                running_goal = _send_goal(
+                    executor, client, 46, lambda message: running_feedback.append(message.feedback)
+                )
+                assert running_goal.accepted
+                running_result = running_goal.get_result_async()
+                _spin_until(executor, lambda: bool(running_feedback))
+                request = ChangeState.Request(transition=Transition(id=Transition.TRANSITION_DEACTIVATE))
+                deactivation = transitions.call_async(request)
+                _spin_until(executor, deactivation.done)
+                assert deactivation.result().success
+                _spin_until(executor, running_result.done)
+                assert running_result.result().status == GoalStatus.STATUS_ABORTED
+                if LANGUAGE == 'cpp':
+                    assert list(running_result.result().result.sequence) == []
+                else:
+                    assert list(running_result.result().result.sequence)[:2] == [0, 1]
+                assert not _send_goal(executor, client, 5).accepted
+                _set_transition(node_name, 'activate', 'active')
+
+            # A worker that raced deactivation must not take down the node or prevent another goal.
+            recovered_goal = _send_goal(executor, client, 5)
+            assert recovered_goal.accepted
+            recovered_result = recovered_goal.get_result_async()
+            _spin_until(executor, recovered_result.done)
+            assert recovered_result.result().status == GoalStatus.STATUS_SUCCEEDED
+            assert list(recovered_result.result().result.sequence) == [0, 1, 1, 2, 3, 5]
 
             _set_transition(node_name, 'deactivate', 'inactive')
             assert not _send_goal(executor, client, 5).accepted
