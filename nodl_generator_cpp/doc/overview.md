@@ -340,7 +340,7 @@ A NoDL document can carry a `codegen.cpp` field describing how it takes part in 
 |---|---|---|---|
 | `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
 | `NO_GENERATE` | Included documents | none | The document has an existing implementation but does not provide the generated class's base. |
-| `NODE` | The root document | `namespace` (optional) | The document is the one being generated. |
+| `NODE` | The root document | `namespace`, `callback_groups` (optional) | The document is the one being generated. |
 
 The schema for this field is defined in {repo}`nodl_generator_cpp/nodl_generator_cpp/schemas/codegen_cpp.schema.yaml`
 and validated by `nodl_generator_cpp`, not `nodl_schema`.
@@ -426,6 +426,49 @@ so subclasses inherit from `my_pkg::nodes::MyNodeBase`.
 The parameter structs live under it too, as `my_pkg::nodes::my_node_base::Params`.
 ROS parameter names never include the namespace.
 Without a `namespace`, the class is generated in the global namespace.
+
+### Callback groups
+
+Use root `codegen.cpp.callback_groups` metadata to assign generated subscriptions and service servers to named groups.
+For example, this tested fixture places a work subscription and a status service in different groups:
+
+```{literalinclude} /../../test_nodl_generators/callback_groups/cpp/separate.nodl.yaml
+:language: yaml
+```
+
+Its included interface declares the endpoints:
+
+```{literalinclude} /../../test_nodl_generators/callback_groups/cpp/interface.nodl.yaml
+:language: yaml
+```
+
+When registering the generated contract, also register `interface.nodl.yaml` with `ament_nodl_register()`, as required for `local://` includes.
+
+Each group requires a `type`: `MUTUALLY_EXCLUSIVE` serializes callbacks within that group; `REENTRANT` permits overlap, including repeated invocations of the same handler.
+The generator creates and retains groups before constructing the endpoints.
+Groups do not create threads: the application must choose a multithreaded executor to permit concurrent execution.
+Protect shared application state whenever handlers can overlap.
+
+Group identifiers contain lowercase letters, digits, and underscores and start with a lowercase letter.
+Each group must assign at least one subscription or service server.
+Endpoint lists match exact declared names before namespace resolution and remapping, so `work`, `/work`, and `~/work` are different selectors.
+The root may assign endpoints brought in through ordinary includes, but cannot assign endpoints already implemented by `BASE_CLASS` or `NO_GENERATE` providers.
+Duplicate assignments, unknown names, unsupported categories, and invalid metadata fail both dependency discovery and generation.
+
+Unassigned endpoints retain the node's default callback group.
+Omitting the metadata preserves the existing generated code.
+This first version does not assign clients, actions, lifecycle infrastructure, or parameter infrastructure, and does not expose the generated groups to subclasses.
+
+Callback groups govern scheduling, not lifecycle admission.
+They do not bypass an activation gate, stop an already-running handler, or make lifecycle hooks mutually exclusive with handlers in other groups.
+Groups remain attached across lifecycle transitions.
+
+The executable fixture covers defaults, shared groups, separate groups, reentrant subscriptions, and lifecycle transitions:
+
+```bash
+colcon test --packages-select test_nodl_generators --ctest-args -R test_cpp_callback_groups
+colcon test-result --verbose
+```
 
 ### Walking the include tree
 

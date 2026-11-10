@@ -1,0 +1,13 @@
+---
+nodl_version: 2
+include:
+  - ref: nodl://nodl_common_interfaces/node
+  - ref: local://interface.nodl.yaml
+codegen:
+  cpp:
+    role: NODE
+    callback_groups:
+      serial:
+        type: MUTUALLY_EXCLUSIVE
+        subscriptions: [work]
+        service_servers: [status]

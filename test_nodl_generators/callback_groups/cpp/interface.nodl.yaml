@@ -1,0 +1,14 @@
+---
+nodl_version: 2
+
+subscriptions:
+  - name: work
+    type: std_msgs/msg/Empty
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+
+service_servers:
+  - name: status
+    type: std_srvs/srv/Trigger
