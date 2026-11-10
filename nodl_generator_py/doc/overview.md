@@ -322,7 +322,8 @@ publishers:
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
 A generated lifecycle node can block subscription messages and service requests, and the service requests and action goals it sends, while it is inactive, as the `nodl_runtime_py` overview describes.
-Generated action servers are `nodl_runtime_py.ActiveOnlyActionServer`s registered with `add_managed_entity`, so they reject goals while the node is not active and end their active goals on deactivation.
+A generated lifecycle node can also reject action goals while it is inactive and end its active goals when it deactivates.
+Its action servers are `nodl_runtime_py.ActiveOnlyActionServer`s registered with `add_managed_entity`.
 The member is a wrapper, not an `rclpy.action.ActionServer`, and its `server` property returns the wrapped server.
 The constructor still creates all parameters and entities.
 
@@ -356,7 +357,7 @@ A generated client member is a wrapper, not an `rclpy` client, and its `client` 
 The `nodl_runtime_py` overview lists what the wrappers expose.
 
 Action servers of a generated lifecycle node used to accept goals in every state, and left goals running when the node deactivated.
-They now reject goals while the node is not active, and end active goals on deactivation.
+The node can now reject goals while it is not active, and end active goals on deactivation.
 Each `execute_<name>()` must check `goal_handle.is_active` while it works and return once it is false, and a blocking one needs a multithreaded executor, passed to `run_node` as `executor_class`.
 The generated base documents this on every `execute_<name>()`.
 The `nodl_runtime_py` overview describes the goal handling, including the result the client receives.

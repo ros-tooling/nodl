@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Helpers that block a subscription's messages, a service's requests, or a client's requests and goals while an activation gate is closed, see the ``nodl_runtime_py`` overview."""
+"""Helpers that block a subscription's messages, a service's requests, a client's requests and goals, or an action server's goals, while an activation gate is closed, see the ``nodl_runtime_py`` overview."""
 
 from __future__ import annotations
 
@@ -200,7 +200,7 @@ class ActiveOnlyActionClient:
 
 
 class ActiveOnlyActionServer(SimpleManagedEntity):
-    """An action server that rejects goals while inactive and ends its active goals at deactivation.
+    """An action server that lets a lifecycle node reject goals while it is inactive and end its active goals when it deactivates.
 
     The server is a managed entity, so register it with ``add_managed_entity``.
     ``on_deactivate`` becomes inactive first, then ends each recorded goal that is still active:

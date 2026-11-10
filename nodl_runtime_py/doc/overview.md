@@ -162,10 +162,11 @@ State that they need must be ready by the end of `handle_configure`.
 
 ### Action goals at deactivation
 
-Create a `ActiveOnlyActionServer` in the constructor and register it with `add_managed_entity`.
+A lifecycle node can reject action goals while it is inactive and end its active goals when it deactivates.
+Create an `ActiveOnlyActionServer` in the constructor and register it with `add_managed_entity`.
 It takes the arguments of `rclpy.action.ActionServer` except the accepted callback, executes each accepted goal at once, and exposes the wrapped server as the read-only `server`.
 It rejects goals until the node activates.
-At deactivation it first becomes inactive, so no new goal is accepted, then ends every goal it accepted that is still active:
+At deactivation it becomes inactive first, so no new goal is accepted, then ends every goal it accepted that is still active:
 
 | Goal state | Result |
 |---|---|
@@ -186,8 +187,8 @@ The C++ `ActiveOnlyActionServer` always sends a default-constructed result for a
 A blocking execute callback needs a multithreaded executor, or must be an async function.
 `run_node` takes the executor class as `executor_class`, as the example does.
 
-This example shows a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` and `ActiveOnlyActionServer`, whose goals end when it deactivates.
-Generated nodes with a `activation_gated` base class create their action servers the same way.
+This example shows a hand-written (non-generated) node using `nodl_runtime_py.lifecycle.LifecycleNode` and `ActiveOnlyActionServer`, which can end its goals when it deactivates.
+Generated nodes with an `activation_gated` base class create their action servers the same way.
 
 ```{literalinclude} examples/active_only_action_node.py
 :language: python

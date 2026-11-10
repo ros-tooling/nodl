@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""A hand-written (non-generated) lifecycle node whose action goals end when it deactivates."""
+"""A hand-written (non-generated) lifecycle node that can end its action goals when it deactivates."""
 
 import sys
 import time
