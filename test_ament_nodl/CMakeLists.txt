@@ -97,6 +97,14 @@ if(BUILD_TESTING)
     PARAMETERS limit:=5 mode:=1_000
   )
 
+  nodl_add_conformance_test(conformance_fixture_qos_override
+    EXECUTABLE conformance_fixture_node
+    NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
+    NODE_NAMESPACE /conformance
+    PARAMETERS limit:=5 mode:=1_000
+      qos_overrides./conformance/state.publisher.reliability:=best_effort
+  )
+
   nodl_add_conformance_test(conformance_injected
     EXECUTABLE conformance_injected_node
     NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
@@ -119,6 +127,7 @@ if(BUILD_TESTING)
 
   find_package(launch_testing_ament_cmake REQUIRED)
   add_launch_test(test/test_conformance_ignore.py TIMEOUT 60)
+  add_launch_test(test/test_deployment_conformance.py TIMEOUT 90)
 
   # The documented example of ros2nodl.testing.conformance_test lives in the ros2nodl docs, so it stays tested.
   ament_add_pytest_test(test_conformance_pytest

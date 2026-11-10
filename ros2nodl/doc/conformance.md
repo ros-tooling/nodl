@@ -3,7 +3,7 @@
 Check whether a running node conforms to an explicit NoDL document:
 
 ```console
-ros2 nodl conform NODE_NAME --file FILE [--timeout SEC] [--ignore RULE ...]
+ros2 nodl conform NODE_NAME --file FILE [--params-file FILE ...] [-p NAME:=VALUE ...] [--timeout SEC] [--ignore RULE ...]
 ```
 
 ```console
@@ -17,6 +17,65 @@ the check before runtime observation. A description failure stops comparison.
 
 Description gaps become `unverifiable` differences with their original path and
 reason. Semantic differences are aggregated and sorted for stable diagnostics.
+
+## Deployment expectations
+
+Repeat `--params-file` and `-p` / `--param` to check explicit deployment configuration.
+These inputs describe expectations and do not modify the running node.
+The CLI, `ros2nodl.testing.conformance_test`, and `nodl_add_conformance_test` use the same resolver and checker.
+The CMake helper passes its existing `PARAMETERS_FILE` and `PARAMETERS` inputs both to the executable and to the checker.
+Python callers pass `params_files=[...]` and `parameters=['name:=value', ...]` to `conformance_report`, `check_conformance`, or `assert_conforms`.
+
+Configuration is resolved by ROS itself, including YAML types, nested parameter names, node selectors, and wildcard selectors.
+It does not use PyYAML's interpretation of inline strings: for example, ROS reads `1_000` as a string.
+Invalid configuration fails before live observation.
+Files are passed in order, followed by inline items, exactly as in the CMake launch helper.
+Native ROS selector precedence applies: a node-specific file entry can win over an unqualified inline item even when the inline item appears last.
+Later values replace earlier values within the same selector.
+
+The contract's `default_value`, an explicit deployment expectation, and the observed current value have separate meanings.
+A deployment may differ from a contract default.
+All explicitly selected values, including mutable parameters, must match their type and value at the moment of observation.
+This checks a snapshot; it does not prove what value a mutable parameter had at startup.
+Unselected nodes' configuration does not become an expectation for the target.
+An undeclared deployment parameter fails even if an ignore rule matches it.
+Explicit framework parameters such as `use_sim_time` can also be checked.
+
+With configuration inputs, the checker evaluates the contract's built-in value validators and fixed-size capacities against explicit values and observed values.
+Opaque `additional_constraints` and custom validators are reported as `unverifiable`; they are never executed.
+Without configuration inputs, existing interface-only checks continue to ignore parameter values and validators.
+
+### QoS overrides
+
+An explicit `qos_overrides.<absolute-topic>.<publisher|subscription>.<policy>` expectation can replace that policy in the expected endpoint QoS.
+The running node must expose that exact parameter as read-only, and the topic must select one declared endpoint.
+This uses the node's enabled ROS QoS overrides as permission; it does not enable overrides in generated nodes.
+Both the override parameter value and the actual endpoint QoS are checked.
+A node that stores the parameter without applying its QoS still fails.
+
+Supported policies are `history`, `depth`, `reliability`, `durability`, `liveliness`, `deadline`, `lifespan` (publishers only), and `liveliness_lease_duration`.
+Policy strings use ROS lowercase names such as `best_effort`; durations are integer nanoseconds.
+Unknown policies, policies absent from the node's read-only parameters, unknown targets, endpoint identifiers, and the unobservable `avoid_ros_namespace_conventions` policy fail with `configuration_error`.
+
+The executable fixture in `test_ament_nodl/test/test_deployment_conformance.py` runs these equivalent startup and checking inputs:
+
+```console
+ros2 run test_ament_nodl conformance_fixture_node --ros-args \
+  -r __ns:=/deployment -r __node:=fixture \
+  --params-file test_ament_nodl/test/fixtures/conformance_fixture_parameters.yaml \
+  -p qos_overrides./deployment/state.publisher.reliability:=best_effort
+```
+
+```console
+ros2 nodl conform /deployment/fixture \
+  --file test_ament_nodl/test/fixtures/conformance_fixture.nodl.yaml \
+  --params-file test_ament_nodl/test/fixtures/conformance_fixture_parameters.yaml \
+  -p qos_overrides./deployment/state.publisher.reliability:=best_effort
+```
+
+Adding `-p limit:=6` to the check fails because the node's value is `5`.
+Adding `-p limit:=20` also violates the declared bounds.
+The fixture executes both failure cases and checks unapplied and unpermitted QoS overrides.
 
 ## Ignoring endpoints
 
@@ -128,8 +187,9 @@ All arguments are keywords.
 :`node_name`: Node name passed to the executable and used to construct its fully qualified name. Defaults to `executable`, which must then be a valid node name.
 :`node_namespace`: Namespace passed to the executable. Defaults to `/`.
 :`timeout`: Maximum time in seconds for the conformance check, a positive integer. Defaults to 15.
-:`parameters`: List of `name:=value` items passed to the node as `-p` arguments, applied after `parameters_files`.
-:`parameters_files`: List of absolute paths of YAML parameter files passed to the node.
+:`parameters`: List of `name:=value` items passed to the node as `-p` arguments and checked as deployment expectations.
+  Items follow `parameters_files` in the ROS arguments; native ROS selector precedence applies.
+:`parameters_files`: List of absolute paths of YAML parameter files passed to the node and checked as deployment expectations.
 :`ignore`: List of ignore rules, as for `--ignore`.
   Rules in `NODL_CONFORMANCE_IGNORE` apply as well, after these.
 

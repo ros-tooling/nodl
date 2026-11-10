@@ -49,27 +49,49 @@ def conformance_report(
     node_fqn: str,
     timeout_sec: float = 15.0,
     ignore: Iterable[IgnoreRule | str] = (),
+    params_files: Iterable[str | Path] = (),
+    parameters: Iterable[str] = (),
 ) -> DiffReport:
     """Compare one running node with one explicit NoDL document.
 
     ``ignore`` rules leave observed entities that the document does not declare out of the differences,
     and list them in ``ignored``.
     See :class:`nodl_schema.IgnoreRule` for the rule syntax.
+    ``params_files`` and ``parameters`` describe explicit deployment expectations, resolved by ROS.
+    When supplied, current parameter values and supported constraints are checked,
+    and permitted QoS overrides adjust endpoint expectations without changing the contract defaults.
     """
     from ros2nodl.infrastructure import strip_infrastructure
 
     rules = [rule if isinstance(rule, IgnoreRule) else IgnoreRule.parse(rule) for rule in ignore]
     expected = strip_infrastructure(_load_document(nodl_file))
 
+    from ros2nodl.configuration import resolve_configuration
+
+    files, items = list(params_files), list(parameters)
+    configured = bool(files or items)
+    expectations = resolve_configuration(node_fqn=node_fqn, params_files=files, parameters=items)
+
     from ros2nodl.describe import DescribeOptions, describe_node
 
     result = describe_node(
         node_fqn,
         timeout_sec=timeout_sec,
-        options=DescribeOptions(include_parameters=True, keep_hidden=False),
+        options=DescribeOptions(include_parameters=True, keep_hidden=configured),
     )
-    report = diff_report(expected, result.doc, node_fqn=node_fqn, ignore=rules)
     differences = [_gap_difference(gap) for gap in result.gaps]
+    if configured:
+        from ros2nodl.deployment import deployment_expectations
+
+        expected, deployment_differences = deployment_expectations(
+            expected,
+            result.doc,
+            expectations,
+            node_fqn=node_fqn,
+        )
+        differences.extend(deployment_differences)
+    observed = strip_infrastructure(result.doc) if configured else result.doc
+    report = diff_report(expected, observed, node_fqn=node_fqn, ignore=rules)
     differences.extend(report.differences)
     return DiffReport(sorted(differences, key=_sort_key), report.ignored)
 
@@ -80,6 +102,8 @@ def check_conformance(
     node_fqn: str,
     timeout_sec: float = 15.0,
     ignore: Iterable[IgnoreRule | str] = (),
+    params_files: Iterable[str | Path] = (),
+    parameters: Iterable[str] = (),
 ) -> list[Difference]:
     """Return the conformance differences of :func:`conformance_report`."""
     return conformance_report(
@@ -87,6 +111,8 @@ def check_conformance(
         node_fqn=node_fqn,
         timeout_sec=timeout_sec,
         ignore=ignore,
+        params_files=params_files,
+        parameters=parameters,
     ).differences
 
 
@@ -96,6 +122,8 @@ def assert_conforms(
     node_fqn: str,
     timeout_sec: float = 15.0,
     ignore: Iterable[IgnoreRule | str] = (),
+    params_files: Iterable[str | Path] = (),
+    parameters: Iterable[str] = (),
 ) -> DiffReport:
     """Raise one assertion that contains every conformance difference.
 
@@ -106,6 +134,8 @@ def assert_conforms(
         node_fqn=node_fqn,
         timeout_sec=timeout_sec,
         ignore=ignore,
+        params_files=params_files,
+        parameters=parameters,
     )
     if report.differences:
         rendered = '\n'.join(f'  {difference}' for difference in report.differences)

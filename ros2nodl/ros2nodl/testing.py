@@ -87,6 +87,8 @@ def conformance_test(
     Rules in the ``NODL_CONFORMANCE_IGNORE`` environment variable apply when the test runs, after ``ignore``.
 
     The arguments match the options of the ``nodl_add_conformance_test`` CMake macro, and are checked when this function is called.
+    Parameter files and items configure startup and supply deployment expectations to the checker.
+    Native ROS selector precedence applies to both; explicit values are checked at observation time.
     The ``ros2nodl`` conformance guide describes each argument.
 
     :raises ValueError: if an argument is invalid.
@@ -131,6 +133,8 @@ def conformance_test(
                 node_fqn=node_fqn,
                 timeout_sec=timeout,
                 ignore=[*rules, *ignore_from_environment(os.environ)],
+                params_files=files,
+                parameters=items,
             )
 
     module = sys._getframe(1).f_globals.get('__name__', __name__)

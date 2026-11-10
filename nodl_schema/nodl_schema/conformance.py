@@ -162,7 +162,7 @@ def _qos_differences(
         if difference is not None:
             differences.append(difference)
 
-    if _value(expected.history) == 'KEEP_LAST':
+    if _value(expected.history) == 'KEEP_LAST' and expected.depth is not None:
         if actual.depth is None:
             differences.append(_difference('unverifiable', section, name, 'depth: observed value is unknown'))
         elif expected.depth != actual.depth:
