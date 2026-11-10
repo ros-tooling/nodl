@@ -22,7 +22,7 @@ endmacro()
 add_cpp_fixture(minimal cpp_minimal_node_base SHARED EXPORT)
 add_cpp_fixture(pub_sub cpp_pub_sub_node_base EXPORT RESOURCE_NAME cpp_pub_sub_node)
 add_cpp_fixture(services cpp_services_node_base EXPORT)
-add_cpp_fixture(parameters cpp_params_node_base EXPORT)
+nodl_generate_cpp(cpp_params_node_base EXPORT parameters/cpp/node.nodl.yaml)
 nodl_generate_cpp(cpp_lifecycle_node_base EXPORT lifecycle/cpp/node.nodl.yaml)
 
 # Without EXPORT, a SHARED library is installed for runtime only, with no headers.
@@ -63,6 +63,10 @@ if(BUILD_TESTING)
   ament_add_gtest(test_cpp_lifecycle lifecycle/cpp/test_node.cpp TIMEOUT 60)
   target_link_libraries(test_cpp_lifecycle cpp_lifecycle_node_base)
 
+  # The generated parameters follow dynamic changes.
+  ament_add_gtest(test_cpp_parameters parameters/cpp/test_node.cpp TIMEOUT 60)
+  target_link_libraries(test_cpp_parameters cpp_params_node_base)
+
   # These tests read the install manifests in the build directory, so files left by earlier builds in the install prefix do not matter.
   # Checks which fixtures are installed and exported.
   ament_add_pytest_test(test_install_space test_install_space.py
@@ -74,8 +78,9 @@ if(BUILD_TESTING)
     ENV BUILD_DIR=${CMAKE_BINARY_DIR}
   )
 
-  # Checks that nodl_generate_py requires the nodl_runtime_py dependency.
+  # Checks that nodl_generate_py and nodl_generate_cpp require their runtime package.
   ament_add_pytest_test(test_runtime_dependency test_runtime_dependency.py)
+  ament_add_pytest_test(test_runtime_dependency_cpp test_runtime_dependency_cpp.py)
 
   # Each Python fixture document is registered with the ament index under its target name.
   # The pub_sub fixture overrides it with RESOURCE_NAME, and the services fixture passes NO_INDEX.

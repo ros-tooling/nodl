@@ -6,6 +6,20 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 , param_listener_(this->get_node_parameters_interface(), this->get_logger())
 , params_(param_listener_.get_params())
 {
+  param_listener_.setUserCallback([this](const my_node_base::Params & params) {
+    {
+      const auto current = params_.lock();
+      if (nodl_runtime_cpp::values_equal(params.max_speed, current->max_speed) &&
+          nodl_runtime_cpp::values_equal(params.robot_name, current->robot_name) &&
+          nodl_runtime_cpp::values_equal(params.enabled, current->enabled) &&
+          nodl_runtime_cpp::values_equal(params.colour.r, current->colour.r) &&
+          nodl_runtime_cpp::values_equal(params.colour.g, current->colour.g)) {
+        return;
+      }
+      *current = params;
+    }
+    this->on_parameters_changed(params);
+  });
 
   // Create publishers
   pub_status_ = this->create_publisher<std_msgs::msg::String>("status", rclcpp::QoS(10).reliable());

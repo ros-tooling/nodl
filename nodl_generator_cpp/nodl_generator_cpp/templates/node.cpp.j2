@@ -20,6 +20,18 @@ namespace {{ namespace }}
 {% endif %}
 {% if has_entities %}
 {
+{% if has_parameters and not activation_gated %}
+  param_listener_.setUserCallback([this](const {{ target_name }}::Params & params) {
+    {
+      const auto current = params_.lock();
+      if ({% for f in parameter_fields %}nodl_runtime_cpp::values_equal(params.{{ f }}, current->{{ f }}){% if not loop.last %}{{ ' &&\n          ' }}{% endif %}{% endfor %}) {
+        return;
+      }
+      *current = params;
+    }
+    this->on_parameters_changed(params);
+  });
+{% endif %}
 {% if publishers %}
 
   // Create publishers

@@ -20,3 +20,9 @@ parameters:
   enabled:
     type: bool
     default_value: true
+  offset:
+    type: double
+    default_value: 0.0
+  gains:
+    type: double_array
+    default_value: [1.0, 2.0]

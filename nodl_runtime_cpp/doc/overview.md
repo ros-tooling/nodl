@@ -1,7 +1,7 @@
 # nodl_runtime_cpp
 
 `nodl_runtime_cpp` provides shared utilities for C++ nodes, especially those that `nodl_generator_cpp` generates.
-It currently provides `rclcpp_lifecycle` wrapper classes to enable a reusable pattern for consistently managing the state and behavior of entities in Lifecycle nodes.
+It provides `rclcpp_lifecycle` wrapper classes to enable a reusable pattern for consistently managing the state and behavior of entities in Lifecycle nodes, and `MutexProtected`, a value that is only reachable while holding its lock.
 
 The package is header-only, and depends on `rclcpp`, `rclcpp_action` and `rclcpp_lifecycle`, which it exports.
 
@@ -123,6 +123,31 @@ Generated nodes with an `activation_gated` base class wrap their endpoints the s
 ```
 
 The example is compiled as part of the package tests.
+
+### Mutex-protected values
+
+`nodl_runtime_cpp::MutexProtected<T>` holds a `T` that can only be reached while holding its mutex.
+`lock()` blocks until the mutex is free and returns a guard with `->` and `*` access, which releases the mutex when it is destroyed.
+`lock() const` returns a guard with read-only access, so a `const` method can read the value.
+The constructor takes a `T` to copy, or the arguments to construct it in place.
+It is copied from `rosgraph_monitor/mutex_protected.hpp` in ros-tooling/graph-monitor.
+
+Generated nodes with parameters hold their parameters in a `MutexProtected`.
+This example, from the package tests, guards a value that is read from `const` methods and written from others:
+
+```{literalinclude} ../test/test_mutex_protected.cpp
+:language: cpp
+:start-at: /// Holds a Value that only ever gets touched under the lock
+:end-at: ProtectedValue value_;
+```
+
+Do not hold a guard across a blocking call, and copy a value out of the guard instead of keeping a reference to it.
+
+### Parameter values
+
+`nodl_runtime_cpp::values_equal(first, second)` compares two parameter values and treats NaN as equal to NaN, which `==` does not.
+It compares the elements of vectors and arrays the same way.
+Generated nodes use it to tell whether a parameter set changed a declared parameter.
 
 ## Background
 
