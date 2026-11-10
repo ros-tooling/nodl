@@ -25,7 +25,7 @@ using GatePtr = std::shared_ptr<const Gate>;
 class InactiveError : public std::runtime_error
 {
 public:
-  /// \param[in] what Description of the refused operation.
+  /// \param[in] what Description of the blocked operation.
   explicit InactiveError(const std::string & what)
   : std::runtime_error(what)
   {}
@@ -40,7 +40,7 @@ public:
 inline void throw_if_closed(const Gate & gate, const std::string & operation)
 {
   if (!gate.is_activated()) {
-    throw InactiveError(operation + " refused: the node is not active");
+    throw InactiveError(operation + " blocked: the node is not active");
   }
 }
 

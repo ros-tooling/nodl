@@ -73,9 +73,8 @@ The helpers take the gate, not the node, so they also work with a gate that a no
 | Service client | `ActiveOnlyClient` | `async_send_request` throws `InactiveError`. |
 | Action client | `ActiveOnlyActionClient` | `async_send_goal` throws `InactiveError`. |
 
-A client sends only while the gate is open.
-The gate is already open in `handle_activate`, so that hook can call a client, but `handle_configure` cannot.
-Move requests made at configure time, such as fetching configuration from another node, to `handle_activate`.
+A client can send from `handle_activate`, where the gate is already open, and while the node is active.
+It cannot send from `handle_configure`, so make requests that were made at configure time, such as fetching configuration from another node, from `handle_activate`.
 These stay available while the gate is closed:
 
 - waiting for a service or an action server, and checking whether it is ready, so `wait_for_service` works in `handle_configure`
@@ -90,7 +89,7 @@ A callback that throws propagates out of the executor, and an active-only servic
 
 #### Active-only example
 
-This example shows a hand-written (non-generated) node using the gate of `nodl_runtime_cpp::LifecycleNode` to gate a subscription, a service server and a client.
+This example shows a hand-written (non-generated) node using the gate of `nodl_runtime_cpp::LifecycleNode` to put a subscription, a service server and a client behind the gate.
 It doubles the numbers it receives, adds numbers on request and asks a peer to add numbers, and blocks all three while it is inactive.
 Generated nodes with an `activation_gated` base class wrap their callbacks the same way.
 

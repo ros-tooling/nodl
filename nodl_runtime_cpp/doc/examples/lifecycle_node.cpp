@@ -48,7 +48,7 @@ private:
 using AddTwoInts = example_interfaces::srv::AddTwoInts;
 using Int32 = example_interfaces::msg::Int32;
 
-/// Example of a non-generated node that gates a subscription, a service server and a client on `nodl_runtime_cpp::LifecycleNode`'s gate.
+/// Example of a non-generated node that puts a subscription, a service server and a client behind `nodl_runtime_cpp::LifecycleNode`'s gate.
 /**
  * It doubles the numbers it receives, adds numbers on request and asks a peer to add numbers, and blocks all three while it is inactive.
  * The endpoints are created by hand to keep the example self-contained, where a generated node creates its own.

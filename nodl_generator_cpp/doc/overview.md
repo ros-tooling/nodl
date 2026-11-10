@@ -410,9 +410,10 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 
 `BASE_CLASS` accepts an optional boolean `activation_gated`, which defaults to false.
 If the node is a lifecycle node, it makes the generated base class wrap subscription and service server callbacks behind the activation gate, so they only trigger callbacks when the node is active.
+It also declares service and action clients as wrappers that only send requests and goals when the node is active.
 The base class must expose the gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode` does.
 The generated constructor wraps each callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
-It also declares each service client as a `nodl_runtime_cpp::ActiveOnlyClient` and each action client as a `nodl_runtime_cpp::ActiveOnlyActionClient`, both held by `SharedPtr` as before.
+The service client members are `nodl_runtime_cpp::ActiveOnlyClient` and each action client as a `nodl_runtime_cpp::ActiveOnlyActionClient`, both held by `SharedPtr` as before.
 The endpoints are still created in the constructor.
 Without `activation_gated`, the callbacks are registered unwrapped and the clients are the plain `rclcpp` clients.
 
@@ -433,9 +434,10 @@ It also gates the generated subscriptions and service servers on its activation 
 With a multithreaded executor, these callbacks can run while `handle_activate` is still executing.
 State they need must be ready by the end of `handle_configure`.
 
-Clients send only while the gate is open, which includes `handle_activate`:
+A lifecycle node can also block client requests while it is inactive.
+The gate is open in `handle_activate`, so that hook can send requests:
 
-| Client call | Gate closed |
+| Client call | While the node is not active |
 |---|---|
 | `async_send_request`, `async_send_goal` | Throws `nodl_runtime_cpp::InactiveError`. |
 | `wait_for_service`, `wait_for_action_server`, readiness checks | Allowed. |

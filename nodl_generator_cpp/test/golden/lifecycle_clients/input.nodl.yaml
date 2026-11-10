@@ -1,6 +1,6 @@
 ---
 # Lifecycle base class with a service client and an action client.
-# The generated members are active-only on the base class's activation gate.
+# The generated clients can send only while the node is active.
 
 nodl_version: 2
 

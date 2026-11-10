@@ -12,7 +12,7 @@
 namespace nodl_runtime_cpp
 {
 
-/// An action client whose `async_send_goal` throws `InactiveError` while the gate is closed.
+/// An action client that blocks goals while the gate is closed, by throwing `InactiveError` from `async_send_goal`.
 /**
  * The other methods forward to the wrapped client, and `client()` returns it.
  * See the `nodl_runtime_cpp` overview for what stays available while the gate is closed.

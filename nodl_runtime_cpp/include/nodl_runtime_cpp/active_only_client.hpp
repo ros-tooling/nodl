@@ -13,7 +13,7 @@
 namespace nodl_runtime_cpp
 {
 
-/// A service client whose `async_send_request` throws `InactiveError` while the gate is closed.
+/// A service client that blocks requests while the gate is closed, by throwing `InactiveError` from `async_send_request`.
 /**
  * The other methods forward to the wrapped client, and `client()` returns it.
  * See the `nodl_runtime_cpp` overview for what stays available while the gate is closed.
