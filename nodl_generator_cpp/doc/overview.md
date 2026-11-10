@@ -410,10 +410,12 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 
 `BASE_CLASS` accepts an optional boolean `activation_gated`, which defaults to false.
 If the node is a lifecycle node, it makes the generated base class wrap subscription and service server callbacks behind the activation gate, so they only trigger callbacks when the node is active.
+It also declares service and action clients as wrappers that only send requests and goals when the node is active.
 The base class must expose the gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode` does.
 The generated constructor wraps each callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
+The service client members are `nodl_runtime_cpp::ActiveOnlyClient` and each action client as a `nodl_runtime_cpp::ActiveOnlyActionClient`, both held by `SharedPtr` as before.
 The endpoints are still created in the constructor.
-Without `activation_gated`, the callbacks are registered unwrapped.
+Without `activation_gated`, the callbacks are registered unwrapped and the clients are the plain `rclcpp` clients.
 
 ### Lifecycle nodes
 
@@ -431,6 +433,18 @@ It also gates the generated subscriptions and service servers on its activation 
 
 With a multithreaded executor, these callbacks can run while `handle_activate` is still executing.
 State they need must be ready by the end of `handle_configure`.
+
+A lifecycle node can also block client requests while it is inactive.
+The gate is open in `handle_activate`, so that hook can send requests:
+
+| Client call | While the node is not active |
+|---|---|
+| `async_send_request`, `async_send_goal` | Throws `nodl_runtime_cpp::InactiveError`. |
+| `wait_for_service`, `wait_for_action_server`, readiness checks | Allowed. |
+| Cancel and result requests, through `client()` | Allowed. |
+
+Responses to requests sent while the gate was open still arrive after deactivation.
+The wrappers expose only the send, wait and ready methods and a read-only `client()` accessor that returns the wrapped client, which serves anything else, such as cancel and result requests or removing a pending request.
 See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
 
 ```cpp
@@ -454,6 +468,13 @@ Move the logic into the matching `handle_*` hook, and drop the call to the base 
 Subscriptions and service servers of a lifecycle node used to deliver in every state.
 A lifecycle node can now block subscription messages and service requests while it is inactive, and generated nodes do, so remove any `is_activated()` checks in their callbacks.
 A node that relied on receiving messages or serving requests while unconfigured or inactive must do that work elsewhere.
+
+Service and action clients of a lifecycle node used to send in every state.
+Sending from the constructor, `handle_configure` or while inactive now throws `InactiveError`.
+Move requests made at configure time, such as fetching configuration from another node, to `handle_activate`.
+`wait_for_service` and `wait_for_action_server` stay allowed in `handle_configure`.
+A client member is no longer an `rclcpp::Client` or `rclcpp_action::Client`, so code that passes it to an `rclcpp` API stops compiling.
+Pass `client()` instead.
 
 ### Namespace
 
