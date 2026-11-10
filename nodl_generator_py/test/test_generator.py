@@ -142,7 +142,10 @@ def test_render_python():
         'from . import interfaces_node_base_parameters',
         'class InterfacesNodeBase(Node, metaclass=abc.ABCMeta):',
         "super().__init__('interfaces_node', **kwargs)",
-        'self.param_listener_ = interfaces_node_base_parameters.interfaces_node.ParamListener(self)',
+        'self._param_listener = interfaces_node_base_parameters.interfaces_node.ParamListener(self)',
+        'self.params_ = self._param_listener.get_params()',
+        'self._param_listener.set_user_callback(self._update_params)',
+        'def on_parameters_changed(self, params) -> None:',
         'self.pub_echo_out = self.create_publisher(',
         'def on_echo_in(self, msg: std_msgs.msg.String) -> None:',
         'self.srv_add = self.create_service(',
@@ -168,6 +171,16 @@ def test_render_python():
     assert parameters['colour']['g']['default_value'] == 0.4
 
 
+def test_render_python_without_parameters_has_no_listener_or_hook():
+    qos = QosProfile(history=History.KEEP_LAST, depth=1, reliability=Reliability.RELIABLE)
+    doc = NodlDocument(publishers=[TopicEndpoint(name='status', type='std_msgs/msg/String', qos=qos)])
+
+    generated = _render_python(doc, 'example_node')
+
+    for unexpected in ('_param_listener', 'params_', 'on_parameters_changed', '_update_params'):
+        assert unexpected not in generated
+
+
 _ACTIVATION_GATED_BASE = CodegenPython(
     role=Role.BASE_CLASS,
     module='nodl_runtime_py.lifecycle',
@@ -191,6 +204,16 @@ def test_render_python_activates_only_subscriptions_and_services_of_an_activatio
         assert expected in generated
     assert 'self.create_service(' not in generated
     assert '            self.on_echo_in,\n' not in generated
+
+
+def test_render_python_leaves_parameters_of_an_activation_gated_base_to_the_runtime():
+    doc = load_nodl(_FIXTURES / 'interfaces_node.nodl.yaml', resolve=False)
+
+    generated = _render_python(doc, 'interfaces_node_base', _ACTIVATION_GATED_BASE)
+
+    assert 'self.params_ = self._param_listener.get_params()' in generated
+    assert 'set_user_callback' not in generated
+    assert 'def on_parameters_changed(self, params) -> None:' in generated
 
 
 def test_render_python_wraps_clients_of_an_activation_gated_base():

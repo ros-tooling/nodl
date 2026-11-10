@@ -10,7 +10,11 @@ from nodl_runtime_py import run_node
 
 class EchoNode(EchoNodeBase):
     def on_echo_in(self, msg):
-        self.pub_echo_out.publish(String(data=f'{self.params_.greeting}: {msg.data}'))
+        params = self.params_
+        self.pub_echo_out.publish(String(data=f'{params.greeting}: {msg.data}'))
+
+    def on_parameters_changed(self, params):
+        self.get_logger().info(f'greeting is now {params.greeting}')
 
 
 def main():

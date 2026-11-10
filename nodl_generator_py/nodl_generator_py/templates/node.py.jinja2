@@ -13,8 +13,11 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
     def __init__(self, **kwargs) -> None:
         super().__init__('{{ node_name }}', **kwargs)
     {% if params_module %}
-        self.param_listener_ = {{ params_module }}.{{ node_name }}.ParamListener(self)
-        self.params_ = self.param_listener_.get_params()
+        self._param_listener = {{ params_module }}.{{ node_name }}.ParamListener(self)
+        self.params_ = self._param_listener.get_params()
+{% if not activation_gated %}
+        self._param_listener.set_user_callback(self._update_params)
+{% endif %}
     {% endif %}
     {% for pub in publishers %}
         self.{{ pub.member_name }} = self.{{ publisher_method }}(
@@ -111,6 +114,19 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         )
 {% endif %}
     {% endfor %}
+    {% if params_module %}
+
+    def _update_params(self, params) -> None:
+        self.params_ = params
+        self.on_parameters_changed(params)
+
+    def on_parameters_changed(self, params) -> None:
+        """React to new parameter values, called before the change is committed.
+
+        Use ``params`` rather than ``get_parameter()``, which still returns the old values.
+        The hook cannot reject a change and must not block.
+        """
+    {% endif %}
     {% for sub in subscriptions %}
 
     @abc.abstractmethod
