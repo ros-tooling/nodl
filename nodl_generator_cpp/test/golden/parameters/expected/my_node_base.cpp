@@ -9,11 +9,11 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
   param_listener_.setUserCallback([this](const my_node_base::Params & params) {
     {
       const auto current = params_.lock();
-      if (params.max_speed == current->max_speed &&
-          params.robot_name == current->robot_name &&
-          params.enabled == current->enabled &&
-          params.colour.r == current->colour.r &&
-          params.colour.g == current->colour.g) {
+      if (nodl_runtime_cpp::values_equal(params.max_speed, current->max_speed) &&
+          nodl_runtime_cpp::values_equal(params.robot_name, current->robot_name) &&
+          nodl_runtime_cpp::values_equal(params.enabled, current->enabled) &&
+          nodl_runtime_cpp::values_equal(params.colour.r, current->colour.r) &&
+          nodl_runtime_cpp::values_equal(params.colour.g, current->colour.g)) {
         return;
       }
       *current = params;

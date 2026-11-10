@@ -79,6 +79,8 @@ def _build_template_context(
     )
     if has_parameters:
         headers.add('nodl_runtime_cpp/mutex_protected.hpp')
+        if not activation_gated:
+            headers.add('nodl_runtime_cpp/parameter_values.hpp')
     if activation_gated and service_clients:
         headers.add('nodl_runtime_cpp/active_only_client.hpp')
     if activation_gated and action_servers:

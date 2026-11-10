@@ -24,7 +24,7 @@ namespace {{ namespace }}
   param_listener_.setUserCallback([this](const {{ target_name }}::Params & params) {
     {
       const auto current = params_.lock();
-      if ({% for f in parameter_fields %}params.{{ f }} == current->{{ f }}{% if not loop.last %}{{ ' &&\n          ' }}{% endif %}{% endfor %}) {
+      if ({% for f in parameter_fields %}nodl_runtime_cpp::values_equal(params.{{ f }}, current->{{ f }}){% if not loop.last %}{{ ' &&\n          ' }}{% endif %}{% endfor %}) {
         return;
       }
       *current = params;

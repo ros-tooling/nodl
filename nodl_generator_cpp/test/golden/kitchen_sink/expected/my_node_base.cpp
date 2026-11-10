@@ -9,8 +9,8 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
   param_listener_.setUserCallback([this](const my_node_base::Params & params) {
     {
       const auto current = params_.lock();
-      if (params.max_speed == current->max_speed &&
-          params.robot_name == current->robot_name) {
+      if (nodl_runtime_cpp::values_equal(params.max_speed, current->max_speed) &&
+          nodl_runtime_cpp::values_equal(params.robot_name, current->robot_name)) {
         return;
       }
       *current = params;

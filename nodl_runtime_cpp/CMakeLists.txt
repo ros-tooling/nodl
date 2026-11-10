@@ -43,6 +43,9 @@ if(BUILD_TESTING)
   ament_add_gtest(test_mutex_protected test/test_mutex_protected.cpp)
   target_link_libraries(test_mutex_protected ${PROJECT_NAME})
 
+  ament_add_gtest(test_parameter_values test/test_parameter_values.cpp)
+  target_link_libraries(test_parameter_values ${PROJECT_NAME})
+
   ament_add_gtest(test_active_only_entities test/test_active_only_entities.cpp TIMEOUT 60)
   target_link_libraries(test_active_only_entities
     ${PROJECT_NAME}

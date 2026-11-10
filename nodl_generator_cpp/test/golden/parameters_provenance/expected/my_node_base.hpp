@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <nodl_runtime_cpp/mutex_protected.hpp>
+#include <nodl_runtime_cpp/parameter_values.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include "my_node_base_parameters.hpp"
 

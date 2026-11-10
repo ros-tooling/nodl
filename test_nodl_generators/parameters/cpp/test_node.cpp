@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -30,6 +31,12 @@ public:
   double listener_max_speed() const
   {
     return param_listener().get_params().max_speed;
+  }
+
+  /// The number of calls of the hook.
+  std::size_t notifications() const
+  {
+    return notified_max_speeds.size();
   }
 
   /// The `max_speed` that each call of the hook received.
@@ -111,4 +118,28 @@ TEST_F(GeneratedParameters, IgnoresASetThatChangesNoDeclaredValue)
   ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("max_speed", 1.5)).successful);
 
   EXPECT_TRUE(node_->notified_max_speeds.empty());
+}
+
+TEST_F(GeneratedParameters, RepeatedNanDoesNotNotifyAgain)
+{
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("offset", nan)).successful);
+  ASSERT_EQ(node_->notifications(), 1u);
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("offset", nan)).successful);
+
+  EXPECT_EQ(node_->notifications(), 1u);
+}
+
+TEST_F(GeneratedParameters, RepeatedNanInAnArrayDoesNotNotifyAgain)
+{
+  const std::vector<double> gains{1.0, std::numeric_limits<double>::quiet_NaN()};
+
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("gains", gains)).successful);
+  ASSERT_EQ(node_->notifications(), 1u);
+  ASSERT_TRUE(node_->set_parameter(rclcpp::Parameter("gains", gains)).successful);
+
+  EXPECT_EQ(node_->notifications(), 1u);
+  EXPECT_TRUE(node_->set_parameter(rclcpp::Parameter("gains", std::vector<double>{1.0, 3.0})).successful);
+  EXPECT_EQ(node_->notifications(), 2u);
 }

@@ -133,19 +133,21 @@ The constructor takes a `T` to copy, or the arguments to construct it in place.
 It is copied from `rosgraph_monitor/mutex_protected.hpp` in ros-tooling/graph-monitor.
 
 Generated nodes with parameters hold their parameters in a `MutexProtected`.
+This example, from the package tests, guards a value that is read from `const` methods and written from others:
 
-```cpp
-nodl_runtime_cpp::MutexProtected<std::vector<int>> values{std::vector<int>{1, 2, 3}};
-
-const std::size_t count = values.lock()->size();
-{
-  const auto guard = values.lock();
-  // Both reads see the same values.
-  use(guard->front(), guard->back());
-}
+```{literalinclude} ../test/test_mutex_protected.cpp
+:language: cpp
+:start-at: /// Holds a Value that only ever gets touched under the lock
+:end-at: ProtectedValue value_;
 ```
 
 Do not hold a guard across a blocking call, and copy a value out of the guard instead of keeping a reference to it.
+
+### Parameter values
+
+`nodl_runtime_cpp::values_equal(first, second)` compares two parameter values and treats NaN as equal to NaN, which `==` does not.
+It compares the elements of vectors and arrays the same way.
+Generated nodes use it to tell whether a parameter set changed a declared parameter.
 
 ## Background
 

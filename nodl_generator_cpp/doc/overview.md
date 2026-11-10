@@ -594,7 +594,7 @@ Reading it takes its lock:
 Writing through the guard is unsupported, because the next parameter change overwrites it.
 
 When a set of parameters changes a parameter declared in the NoDL document, the class stores the new values in `params_` and then calls the protected virtual `on_parameters_changed(const Params & params)`.
-A set that changes none of them, such as one for a parameter the author declared, or one that repeats the current values, does not call the hook.
+A set that changes none of them, such as one for a parameter declared with `declare_parameter()`, or one that repeats the current values, including a repeated NaN,, does not call the hook.
 The hook is empty by default.
 Override it to react to a change, and read `params`, not `get_parameter()`, because the hook runs while the change is being validated and `get_parameter()` still returns the old value.
 The hook cannot reject a change and must not block.
