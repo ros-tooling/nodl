@@ -109,9 +109,9 @@ private:
 using Fibonacci = example_interfaces::action::Fibonacci;
 using FibonacciGoalHandle = rclcpp_action::ServerGoalHandle<Fibonacci>;
 
-/// Example of a non-generated node that serves an action with `nodl_runtime_cpp::ActiveOnlyActionServer`, only while active.
+/// Example of a non-generated node that serves an action with `nodl_runtime_cpp::ActiveOnlyActionServer`.
 /**
- * Goals end when the node deactivates.
+ * It rejects goals while it is inactive, and ends its active goals when it deactivates.
  * The server is created by hand to keep the example self-contained, where a generated node creates its own.
  */
 class Counter : public nodl_runtime_cpp::LifecycleNode

@@ -410,7 +410,7 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 
 `BASE_CLASS` accepts an optional boolean `activation_gated`, which defaults to false.
 If the node is a lifecycle node, it makes the generated base class wrap subscription and service server callbacks behind the activation gate, so they only trigger callbacks when the node is active.
-It also declares service and action clients as wrappers that only send requests and goals when the node is active.
+It also declares service and action clients as wrappers that only send requests and goals when the node is active, and makes action servers reject goals while the node is inactive and end their active goals when it deactivates.
 The base class must expose the gate through a protected `gate()` member, such as `nodl_runtime_cpp::LifecycleNode` does.
 The generated constructor wraps each callback with `nodl_runtime_cpp::active_only_subscription_callback` and `nodl_runtime_cpp::create_active_only_service`, which take `gate()`.
 The service client members are `nodl_runtime_cpp::ActiveOnlyClient` and each action client as a `nodl_runtime_cpp::ActiveOnlyActionClient`, both held by `SharedPtr` as before.
@@ -447,7 +447,7 @@ The gate is open in `handle_activate`, so that hook can send requests:
 Responses to requests sent while the gate was open still arrive after deactivation.
 The wrappers expose only the send, wait and ready methods and a read-only `client()` accessor that returns the wrapped client, which serves anything else, such as cancel and result requests or removing a pending request.
 
-Action servers reject goals while the node is not active, and end their active goals when it deactivates.
+A lifecycle node can also reject action goals while it is inactive, and end its active goals when it deactivates.
 `handle_deactivate` runs first, so it can finish goals itself, for example by succeeding them with a partial result.
 Whatever is still active afterwards ends with a default-constructed result:
 
@@ -488,7 +488,7 @@ A lifecycle node can now block subscription messages and service requests while 
 A node that relied on receiving messages or serving requests while unconfigured or inactive must do that work elsewhere.
 
 Action servers of a lifecycle node used to accept goals in every state, and left goals running when the node deactivated.
-They now reject goals while the node is not active, and end active goals on deactivation as above.
+A lifecycle node can now reject goals while it is inactive and end active goals on deactivation, and generated nodes do, as above.
 Make worker threads check `goal_handle->is_active()`, and finish goals in `handle_deactivate` where they should not be aborted.
 
 Service and action clients of a lifecycle node used to send in every state.

@@ -90,7 +90,8 @@ A callback that throws propagates out of the executor, and an active-only servic
 
 #### Action goals at deactivation
 
-`ActiveOnlyActionServer` is its own managed entity, with its own gate, so it is not created from the node's gate.
+A lifecycle node can reject action goals while it is inactive, and end its active goals when it deactivates.
+`ActiveOnlyActionServer` provides this, as a managed entity with its own gate.
 Create it in the constructor and register it with `add_managed_entity`, keeping it alive as for a lifecycle publisher.
 It rejects goals until the node activates.
 At deactivation it first becomes inactive, so no new goal is accepted, then ends every goal it accepted that is still active, with a default-constructed result:
@@ -112,7 +113,7 @@ A worker that keeps running for an ended goal must check `goal_handle->is_active
 
 This example shows two hand-written (non-generated) nodes using `nodl_runtime_cpp::LifecycleNode` and its gate.
 `Doubler` doubles the numbers it receives, adds numbers on request and asks a peer to add numbers, and blocks all three while it is inactive.
-`Counter` serves an action whose goals end when it deactivates.
+`Counter` serves an action, and ends its goals when it deactivates.
 Generated nodes with an `activation_gated` base class wrap their endpoints the same way.
 
 ```{literalinclude} examples/lifecycle_node.cpp

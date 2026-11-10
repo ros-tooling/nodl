@@ -1,6 +1,6 @@
 ---
 # Lifecycle base class with an action server.
-# The generated server rejects goals while inactive and ends its goals on deactivation.
+# The generated server can reject goals while the node is inactive, and end its goals on deactivation.
 
 nodl_version: 2
 

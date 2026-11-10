@@ -18,10 +18,10 @@
 namespace nodl_runtime_cpp
 {
 
-/// An action server that rejects goals while inactive and ends its active goals at deactivation.
+/// An action server that rejects goals while the gate is closed and ends its active goals at deactivation.
 /**
  * The server is a managed entity, so register it with `add_managed_entity` and keep it alive.
- * It is inactive until the node activates.
+ * It is inactive, and rejects goals, until the node activates.
  * `on_deactivate` becomes inactive first, then ends each recorded goal that is still active with a
  * default-constructed result: `abort()` for executing and deferred goals, `canceled()` for canceling goals.
  * A call that throws because the goal went terminal is skipped, and one that throws while the goal is still active
