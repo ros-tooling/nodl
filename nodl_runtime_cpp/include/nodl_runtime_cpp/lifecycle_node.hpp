@@ -205,8 +205,12 @@ private:
   }
 
   /// Destroys the created slots in reverse, and does nothing when none is created.
+  /// An executor that waits holds the endpoints it waits on, so it is woken to release the destroyed ones.
   void deactivate_slots()
   {
+    if (0 == active_slots_) {
+      return;
+    }
     while (0 != active_slots_) {
       --active_slots_;
       try {
@@ -215,6 +219,7 @@ private:
         RCLCPP_ERROR(get_logger(), "Destroying an activation slot failed: %s", e.what());
       }
     }
+    get_node_base_interface()->get_notify_guard_condition().trigger();
   }
 
   std::vector<Slot> slots_;

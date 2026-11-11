@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -14,6 +17,7 @@
 #include "rclcpp/create_publisher.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_srvs/srv/set_bool.hpp"
 
 namespace
 {
@@ -586,6 +590,56 @@ TEST_F(ActivationRegistry, ManagedMemberIsNullUntilActivationAndAfterDeactivatio
 
   node->activate();
   EXPECT_NE(node->publisher, nullptr);
+}
+
+/// Owns a service that a slot manages.
+class ServiceNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  ServiceNode()
+  : nodl_runtime_cpp::LifecycleNode("service_node")
+  {
+    manage(service, [this] {
+      return create_service<std_srvs::srv::SetBool>(
+        "set_bool", [](std_srvs::srv::SetBool::Request::SharedPtr, std_srvs::srv::SetBool::Response::SharedPtr) {});
+    });
+  }
+
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr service;
+};
+
+TEST(ActivationRegistryExecutor, DeactivatingAfterAnEndpointRanWhileAnExecutorIsIdleDestroysIt)
+{
+  rclcpp::init(0, nullptr);
+  {
+    auto node = std::make_shared<ServiceNode>();
+    auto peer = std::make_shared<rclcpp::Node>("peer_node");
+    auto client = peer->create_client<std_srvs::srv::SetBool>("set_bool");
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 4);
+    executor.add_node(node->get_node_base_interface());
+    executor.add_node(peer);
+    std::thread spinner([&executor] { executor.spin(); });
+    // Polling for the unavailable service first makes the idle executor keep the endpoint it ran last.
+    EXPECT_FALSE(client->wait_for_service(std::chrono::milliseconds(500)));
+    node->configure();
+    EXPECT_FALSE(client->wait_for_service(std::chrono::milliseconds(500)));
+    node->activate();
+    ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(10)));
+    auto response = client->async_send_request(std::make_shared<std_srvs::srv::SetBool::Request>());
+    ASSERT_EQ(std::future_status::ready, response.future.wait_for(std::chrono::seconds(10)));
+
+    // An idle executor thread still holds the service it executed last, until something wakes it.
+    node->deactivate();
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (client->service_is_ready() && std::chrono::steady_clock::now() < deadline) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    EXPECT_FALSE(client->service_is_ready());
+    executor.cancel();
+    spinner.join();
+  }
+  rclcpp::shutdown();
 }
 
 }  // namespace

@@ -30,12 +30,14 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(lifecycle_msgs REQUIRED)
   find_package(std_msgs REQUIRED)
+  find_package(std_srvs REQUIRED)
 
   ament_add_gtest(test_lifecycle_node test/test_lifecycle_node.cpp TIMEOUT 60)
   target_link_libraries(test_lifecycle_node
     ${PROJECT_NAME}
     ${lifecycle_msgs_TARGETS}
-    ${std_msgs_TARGETS})
+    ${std_msgs_TARGETS}
+    ${std_srvs_TARGETS})
 
   # The documentation example is compiled but not installed or run.
   add_executable(lifecycle_node_example doc/examples/lifecycle_node.cpp)
