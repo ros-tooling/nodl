@@ -17,6 +17,8 @@
 
 #include "example_interfaces/action/fibonacci.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "lifecycle_msgs/msg/transition.hpp"
+#include "lifecycle_msgs/srv/change_state.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "std_srvs/srv/set_bool.hpp"
@@ -28,6 +30,17 @@ namespace
 
 using std::chrono_literals::operator""ms;
 using lifecycle_msgs::msg::State;
+using lifecycle_msgs::msg::Transition;
+
+/// Requests a transition through the lifecycle service, which an executor serializes with the default-group callbacks.
+bool change_state(const rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr & client, uint8_t transition_id)
+{
+  auto request = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
+  request->transition.id = transition_id;
+  auto response = client->async_send_request(request);
+  return std::future_status::ready == response.future.wait_for(std::chrono::seconds(10)) &&
+         response.future.get()->success;
+}
 
 using Fibonacci = example_interfaces::action::Fibonacci;
 using FibonacciGoalHandle = rclcpp_action::ServerGoalHandle<Fibonacci>;
@@ -420,6 +433,7 @@ protected:
     executor_.add_node(node_->get_node_base_interface());
     executor_.add_node(peer_);
     spinner_ = std::thread([this] { executor_.spin(); });
+    ASSERT_TRUE(change_client_->wait_for_service(TIMEOUT));
   }
 
   void TearDown() override
@@ -428,8 +442,17 @@ protected:
     spinner_.join();
   }
 
+  /// Requests a transition through the lifecycle service.
+  /// Calling `activate()` and `deactivate()` from this thread instead resets the members while callbacks run.
+  bool change_state(uint8_t transition_id)
+  {
+    return ::change_state(change_client_, transition_id);
+  }
+
   std::shared_ptr<TestNode> node_ = std::make_shared<TestNode>();
   std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
+  rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr change_client_ =
+    peer_->create_client<lifecycle_msgs::srv::ChangeState>("/cpp_lifecycle_node/change_state");
   rclcpp::executors::MultiThreadedExecutor executor_{rclcpp::ExecutorOptions(), 4};
   std::thread spinner_;
 };
@@ -438,16 +461,16 @@ TEST_F(GeneratedLifecycleNodeSpinning, ServiceIsNotDiscoverableWhileInactiveAndA
 {
   auto trigger = peer_->create_client<std_srvs::srv::Trigger>("trigger");
   EXPECT_FALSE(trigger->wait_for_service(500ms));
-  ASSERT_EQ(node_->configure().id(), State::PRIMARY_STATE_INACTIVE);
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
   EXPECT_FALSE(trigger->wait_for_service(500ms));
 
-  ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
   ASSERT_TRUE(trigger->wait_for_service(TIMEOUT));
   auto response = trigger->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>());
   ASSERT_EQ(std::future_status::ready, response.future.wait_for(TIMEOUT));
   EXPECT_TRUE(response.future.get()->success);
 
-  ASSERT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+  ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
   const auto deadline = std::chrono::steady_clock::now() + TIMEOUT;
   while (trigger->service_is_ready() && std::chrono::steady_clock::now() < deadline) {
     std::this_thread::sleep_for(10ms);
@@ -457,6 +480,7 @@ TEST_F(GeneratedLifecycleNodeSpinning, ServiceIsNotDiscoverableWhileInactiveAndA
 
 TEST_F(GeneratedLifecycleNodeSpinning, ClientCreatedAtActivationIsUsableFromHandleActivate)
 {
+  // The hook waits for a response, so the transition runs on this thread and not in the executor.
   auto set_bool = peer_->create_service<std_srvs::srv::SetBool>(
     "set_bool", [](std_srvs::srv::SetBool::Request::SharedPtr, std_srvs::srv::SetBool::Response::SharedPtr response) {
       response->success = true;
@@ -472,12 +496,12 @@ TEST_F(GeneratedLifecycleNodeSpinning, ClientCreatedAtActivationIsUsableFromHand
 TEST_F(GeneratedLifecycleNodeSpinning, PendingRequestFailsWhenTheNodeDeactivates)
 {
   // No peer serves set_bool, so the request stays pending.
-  node_->configure();
-  node_->activate();
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
   auto pending = node_->send_set_bool();
   ASSERT_EQ(std::future_status::timeout, pending.future.wait_for(200ms));
 
-  node_->deactivate();
+  ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
 
   EXPECT_THROW(pending.future.get(), std::future_error);
 }
@@ -485,14 +509,14 @@ TEST_F(GeneratedLifecycleNodeSpinning, PendingRequestFailsWhenTheNodeDeactivates
 TEST_F(GeneratedLifecycleNodeSpinning, GoalActiveAtDeactivationEndsAbortedAndTheClientGetsItsResult)
 {
   auto client = rclcpp_action::create_client<Fibonacci>(peer_, "fibonacci");
-  ASSERT_EQ(node_->configure().id(), State::PRIMARY_STATE_INACTIVE);
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
   EXPECT_FALSE(client->wait_for_action_server(500ms));
 
   // The server never answers a result request that it has not taken when it is destroyed, so the scenario is repeated
   // until the client gets the result.
   std::optional<rclcpp_action::ResultCode> code;
   for (int attempt = 0; attempt < 40 && !code; ++attempt) {
-    ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+    ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
     ASSERT_TRUE(client->wait_for_action_server(TIMEOUT));
     const auto count = node_->accepted_goal_count();
     auto sent = client->async_send_goal(Fibonacci::Goal());
@@ -505,7 +529,7 @@ TEST_F(GeneratedLifecycleNodeSpinning, GoalActiveAtDeactivationEndsAbortedAndThe
     ASSERT_LT(count, node_->accepted_goal_count());
     ASSERT_TRUE(node_->accepted_goal(count)->is_executing());
 
-    ASSERT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+    ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
 
     EXPECT_FALSE(node_->accepted_goal(count)->is_active());
     if (std::future_status::ready == result.wait_for(500ms)) {
@@ -520,14 +544,14 @@ TEST_F(GeneratedLifecycleNodeSpinning, GoalActiveAtDeactivationEndsAbortedAndThe
 TEST_F(GeneratedLifecycleNodeSpinning, ResultMayStayUnansweredAndTheClientTimesOutCleanly)
 {
   auto client = rclcpp_action::create_client<Fibonacci>(peer_, "fibonacci");
-  node_->configure();
-  node_->activate();
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
   ASSERT_TRUE(client->wait_for_action_server(TIMEOUT));
   auto sent = client->async_send_goal(Fibonacci::Goal());
   ASSERT_EQ(std::future_status::ready, sent.wait_for(TIMEOUT));
   auto result = client->async_get_result(sent.get());
 
-  node_->deactivate();
+  ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
 
   // Either the server took the result request before it was destroyed, or nothing answers it.
   if (std::future_status::ready == result.wait_for(1000ms)) {
@@ -542,6 +566,7 @@ TEST_F(GeneratedLifecycleNodeSpinning, ResultMayStayUnansweredAndTheClientTimesO
 
 TEST_F(GeneratedLifecycleNodeSpinning, ActionClientCreatedAtActivationIsUsableFromHandleActivate)
 {
+  // The hook waits for a response, so the transition runs on this thread and not in the executor.
   auto server = rclcpp_action::create_server<Fibonacci>(
     peer_,
     "remote_fibonacci",
@@ -563,12 +588,12 @@ TEST_F(GeneratedLifecycleNodeSpinning, ActionClientCreatedAtActivationIsUsableFr
 TEST_F(GeneratedLifecycleNodeSpinning, PendingGoalFailsWhenTheNodeDeactivates)
 {
   // No peer serves remote_fibonacci, so the goal request stays pending.
-  node_->configure();
-  node_->activate();
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
   auto pending = node_->send_remote_goal();
   ASSERT_EQ(std::future_status::timeout, pending.wait_for(200ms));
 
-  node_->deactivate();
+  ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
 
   EXPECT_THROW(pending.get(), std::future_error);
 }
@@ -587,6 +612,8 @@ TEST(GeneratedLifecycleNodeThreads, CyclingUnderLoadWithAMultiThreadedExecutor)
     executor.add_node(node->get_node_base_interface());
     executor.add_node(peer);
     std::thread spinner([&executor] { executor.spin(); });
+    auto change_client = peer->create_client<lifecycle_msgs::srv::ChangeState>("/cpp_lifecycle_node/change_state");
+    ASSERT_TRUE(change_client->wait_for_service(TIMEOUT));
 
     std::atomic<bool> stop{false};
     std::thread load([&] {
@@ -596,13 +623,13 @@ TEST(GeneratedLifecycleNodeThreads, CyclingUnderLoadWithAMultiThreadedExecutor)
       }
     });
 
-    ASSERT_EQ(node->configure().id(), State::PRIMARY_STATE_INACTIVE);
+    ASSERT_TRUE(change_state(change_client, Transition::TRANSITION_CONFIGURE));
     for (int cycle = 0; cycle < 20; ++cycle) {
-      ASSERT_EQ(node->activate().id(), State::PRIMARY_STATE_ACTIVE);
+      ASSERT_TRUE(change_state(change_client, Transition::TRANSITION_ACTIVATE));
       std::this_thread::sleep_for(50ms);
-      ASSERT_EQ(node->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+      ASSERT_TRUE(change_state(change_client, Transition::TRANSITION_DEACTIVATE));
     }
-    ASSERT_EQ(node->activate().id(), State::PRIMARY_STATE_ACTIVE);
+    ASSERT_TRUE(change_state(change_client, Transition::TRANSITION_ACTIVATE));
     const auto deadline = std::chrono::steady_clock::now() + TIMEOUT;
     while (0 == node->cmd_vel_received && std::chrono::steady_clock::now() < deadline) {
       std::this_thread::sleep_for(10ms);

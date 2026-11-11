@@ -484,7 +484,9 @@ The endpoint members are plain `SharedPtr`s that are null while the node is not 
   `handle_deactivate` also runs on shutdown and error from the active state, so one place stops them on every path.
 - Use the members only where the transitions do not overlap the callback: in callbacks and timers of the default callback group, which the generated endpoints use, and in the hooks.
   The default group is mutually exclusive with the lifecycle services that request transitions.
-- Do not use the members from a thread of your own, a callback group of another kind, or while `activate()` and `deactivate()` are called from a non-executor thread, because the transition resets them.
+- Request transitions through the lifecycle services, not by calling `activate()` and `deactivate()` from a non-executor thread while an executor spins:
+  that can deadlock inside rclcpp when the node has action servers or clients.
+- Do not use the members from a thread of your own, or a callback group of another kind, because the transition resets them.
   Stop such work in `handle_deactivate`, or guard every use with a mutex that `handle_deactivate` also takes.
   See the `nodl_runtime_cpp` overview for details.
 - The publishers and clients are set in `handle_activate`, so the hook can publish an initial message and call a service or an action.

@@ -53,6 +53,8 @@ Where it is not:
 - In a callback of a reentrant callback group or of a separate mutually exclusive group, which can run while a transition resets the member.
 - In a thread of your own.
 - In any callback when the transition is requested by calling `configure()`, `activate()` or `deactivate()` from a thread that is not the executor's, because that does not serialize with the default group either.
+  Such a call can also deadlock on a node with an action server or client: rclcpp (tested on Jazzy) removes the waitable of an action endpoint from its callback group when the last reference is dropped, and an executor thread that drops it while it collects the entities of that group holds the same lock.
+  This happened about once in 40 to 100 deactivations of a node with action endpoints under a spinning four-thread executor, and not in transitions requested through the lifecycle services.
 
 Stop that work in `handle_deactivate`, which runs before the endpoints are destroyed on deactivation, and on shutdown and error from the active state:
 cancel the timers, and stop and join the threads.

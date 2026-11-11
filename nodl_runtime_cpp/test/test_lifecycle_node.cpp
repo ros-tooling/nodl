@@ -973,14 +973,25 @@ protected:
     executor_.add_node(node_->get_node_base_interface());
     executor_.add_node(peer_);
     spinner_ = std::thread([this] { executor_.spin(); });
-    node_->configure();
-    node_->activate();
+    ASSERT_TRUE(change_client_->wait_for_service(std::chrono::seconds(10)));
+    ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+    ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
   }
 
   void TearDown() override
   {
     executor_.cancel();
     spinner_.join();
+  }
+
+  /// Requests a transition through the lifecycle service, so it does not overlap the callbacks of the node.
+  bool change_state(uint8_t transition_id)
+  {
+    auto request = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
+    request->transition.id = transition_id;
+    auto response = change_client_->async_send_request(request);
+    return std::future_status::ready == response.future.wait_for(std::chrono::seconds(10)) &&
+           response.future.get()->success;
   }
 
   template <typename PredicateT>
@@ -1020,7 +1031,7 @@ protected:
   {
     for (int attempt = 0; attempt < 40; ++attempt) {
       if (State::PRIMARY_STATE_ACTIVE != node_->get_current_state().id()) {
-        node_->activate();
+        EXPECT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
       }
       const auto sent = scenario();
       if (std::future_status::ready == sent.result.wait_for(std::chrono::milliseconds(500))) {
@@ -1034,6 +1045,8 @@ protected:
   std::shared_ptr<ActionServerNode> node_ = std::make_shared<ActionServerNode>();
   std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
   rclcpp_action::Client<Fibonacci>::SharedPtr client_ = rclcpp_action::create_client<Fibonacci>(peer_, "fibonacci");
+  rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr change_client_ =
+    peer_->create_client<lifecycle_msgs::srv::ChangeState>("/action_server_node/change_state");
   rclcpp::executors::MultiThreadedExecutor executor_{rclcpp::ExecutorOptions(), 4};
   std::thread spinner_;
 };
@@ -1043,7 +1056,7 @@ TEST_F(ActivationRegistryActions, ExecutingGoalEndsAbortedWhenTheNodeDeactivates
   const auto code = result_of([this] {
     auto sent = send_goal();
     EXPECT_TRUE(node_->latest_goal()->is_executing());
-    EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+    EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
     EXPECT_FALSE(node_->latest_goal()->is_active());
     EXPECT_EQ(node_->server, nullptr);
     return sent;
@@ -1059,7 +1072,7 @@ TEST_F(ActivationRegistryActions, DeferredGoalEndsAbortedWhenTheNodeDeactivates)
   const auto code = result_of([this] {
     auto sent = send_goal();
     EXPECT_FALSE(node_->latest_goal()->is_executing());
-    node_->deactivate();
+    EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
     EXPECT_FALSE(node_->latest_goal()->is_active());
     return sent;
   });
@@ -1074,7 +1087,7 @@ TEST_F(ActivationRegistryActions, CancelingGoalEndsCanceledWhenTheNodeDeactivate
     auto canceled = client_->async_cancel_goal(sent.goal_handle);
     EXPECT_EQ(std::future_status::ready, canceled.wait_for(std::chrono::seconds(10)));
     EXPECT_TRUE(node_->latest_goal()->is_canceling());
-    node_->deactivate();
+    EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
     EXPECT_FALSE(node_->latest_goal()->is_active());
     return sent;
   });
@@ -1088,7 +1101,7 @@ TEST_F(ActivationRegistryActions, GoalSucceededByTheDeactivateHookStaysSucceeded
 
   const auto code = result_of([this] {
     auto sent = send_goal();
-    EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+    EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
     return sent;
   });
 
@@ -1100,7 +1113,7 @@ TEST_F(ActivationRegistryActions, GoalThatFinishedBeforeDeactivationIsLeftAlone)
   const auto code = result_of([this] {
     auto sent = send_goal();
     node_->latest_goal()->succeed(std::make_shared<Fibonacci::Result>());
-    EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+    EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
     return sent;
   });
 
@@ -1111,7 +1124,7 @@ TEST_F(ActivationRegistryActions, ShutdownEndsActiveGoals)
 {
   auto sent = send_goal();
 
-  EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+  EXPECT_TRUE(change_state(Transition::TRANSITION_ACTIVE_SHUTDOWN));
 
   EXPECT_FALSE(node_->latest_goal()->is_active());
   if (std::future_status::ready == sent.result.wait_for(std::chrono::seconds(1))) {
@@ -1122,12 +1135,12 @@ TEST_F(ActivationRegistryActions, ShutdownEndsActiveGoals)
 TEST_F(ActivationRegistryActions, ReactivatedServerAcceptsAndEndsNewGoals)
 {
   send_goal();
-  node_->deactivate();
+  EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
   ASSERT_TRUE(wait_until([this] { return !client_->action_server_is_ready(); }));
 
-  node_->activate();
+  EXPECT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
   send_goal();
-  node_->deactivate();
+  EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
 
   EXPECT_EQ(node_->goal_count(), 2u);
   EXPECT_FALSE(node_->latest_goal()->is_active());
@@ -1136,7 +1149,7 @@ TEST_F(ActivationRegistryActions, ReactivatedServerAcceptsAndEndsNewGoals)
 TEST_F(ActivationRegistryActions, ResultMayStayUnansweredAndTheClientTimesOutCleanly)
 {
   auto sent = send_goal();
-  node_->deactivate();
+  EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
 
   // Either the server took the result request before it was destroyed, or nothing answers it.
   if (std::future_status::ready == sent.result.wait_for(std::chrono::seconds(1))) {
@@ -1149,7 +1162,7 @@ TEST_F(ActivationRegistryActions, WorkerReportingAfterTheGoalEndedGetsAnErrorFro
 {
   send_goal();
   auto goal = node_->latest_goal();
-  node_->deactivate();
+  EXPECT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
 
   EXPECT_THROW(goal->succeed(std::make_shared<Fibonacci::Result>()), rclcpp::exceptions::RCLError);
   EXPECT_THROW(goal->abort(std::make_shared<Fibonacci::Result>()), rclcpp::exceptions::RCLError);
