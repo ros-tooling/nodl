@@ -3,12 +3,12 @@
 #pragma once
 
 #include <algorithm>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <utility>
 #include <vector>
 
-#include "rclcpp/exceptions.hpp"
 #include "rclcpp_action/server.hpp"
 #include "rclcpp_action/server_goal_handle.hpp"
 
@@ -21,7 +21,9 @@ namespace nodl_runtime_cpp
  * Wrap the accepted callback of the server with `accepted`, and `end_all` ends each recorded goal that is still active
  * with a default-constructed result: `abort()` for executing and deferred goals, and `canceled()` for canceling goals.
  * A call that throws because the goal went terminal is skipped, and one that throws while the goal is still active
- * is retried once.
+ * is retried once, so `end_all` never throws.
+ * A worker that reports on a goal after it ended gets `rclcpp::exceptions::RCLError` from `succeed`, `abort`,
+ * `canceled` and `publish_feedback`, and checking `is_active()` first does not rule that out, so it catches the error.
  *
  * \tparam ActionT Action type.
  */
@@ -117,7 +119,7 @@ private:
       }
       goal_handle.abort(std::move(result));
       return true;
-    } catch (const rclcpp::exceptions::RCLError &) {
+    } catch (const std::exception &) {
       return !goal_handle.is_active();
     }
   }

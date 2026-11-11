@@ -16,6 +16,8 @@
 
 #include "example_interfaces/action/fibonacci.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "lifecycle_msgs/msg/transition.hpp"
+#include "lifecycle_msgs/srv/change_state.hpp"
 #include "nodl_runtime_cpp/lifecycle_node.hpp"
 #include "rclcpp/create_publisher.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -210,8 +212,9 @@ TEST_F(LifecycleNodeTest, ShutdownFromActiveDeactivatesPublisherBeforeHook)
 
   EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_FINALIZED);
   EXPECT_FALSE(node_->publisher_active());
-  // configure, activate, shutdown
-  EXPECT_EQ(node_->publisher_active_in_hook, (std::vector<bool>{false, true, false}));
+  // configure, activate, deactivate, shutdown
+  EXPECT_EQ(node_->calls, (std::vector<std::string>{"configure", "activate", "deactivate", "shutdown"}));
+  EXPECT_EQ(node_->publisher_active_in_hook, (std::vector<bool>{false, true, true, false}));
 }
 
 TEST_F(LifecycleNodeTest, ErrorDeactivatesPublisherBeforeHook)
@@ -468,7 +471,7 @@ TEST_F(ActivationRegistry, ThrowingDeactivateHookDestroysTheSlotsBeforeTheErrorH
   EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
 }
 
-TEST_F(ActivationRegistry, ShutdownFromActiveDestroysTheSlotsBeforeTheHook)
+TEST_F(ActivationRegistry, ShutdownFromActiveRunsTheDeactivateHookThenDestroysTheSlotsThenTheShutdownHook)
 {
   node_->configure();
   node_->activate();
@@ -476,7 +479,43 @@ TEST_F(ActivationRegistry, ShutdownFromActiveDestroysTheSlotsBeforeTheHook)
 
   EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
 
-  EXPECT_EQ(*node_->log, (Log{"destroy c", "destroy b", "destroy a", "hook shutdown"}));
+  EXPECT_EQ(*node_->log, (Log{"hook deactivate", "destroy c", "destroy b", "destroy a", "hook shutdown"}));
+}
+
+TEST_F(ActivationRegistry, ShutdownFromActiveContinuesWhenTheDeactivateHookFails)
+{
+  node_->outcomes["deactivate"] = Outcome::FAILURE;
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+
+  EXPECT_EQ(*node_->log, (Log{"hook deactivate", "destroy c", "destroy b", "destroy a", "hook shutdown"}));
+}
+
+TEST_F(ActivationRegistry, ShutdownFromActiveContinuesWhenTheDeactivateHookThrows)
+{
+  node_->outcomes["deactivate"] = Outcome::THROW;
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+
+  EXPECT_EQ(*node_->log, (Log{"hook deactivate", "destroy c", "destroy b", "destroy a", "hook shutdown"}));
+}
+
+TEST_F(ActivationRegistry, ErrorFromActiveDoesNotRunTheDeactivateHookAgainWhenItCausedTheError)
+{
+  node_->outcomes["deactivate"] = Outcome::THROW;
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  node_->deactivate();
+
+  EXPECT_EQ(*node_->log, (Log{"hook deactivate", "destroy c", "destroy b", "destroy a", "hook error"}));
 }
 
 TEST_F(ActivationRegistry, ShutdownFromInactiveAndUnconfiguredDestroysNothing)
@@ -545,6 +584,74 @@ TEST_F(ActivationRegistry, RegisteringWhileActiveThrows)
       "destroy c",
       "destroy b",
       "destroy a"}));
+}
+
+/// Registers a slot from inside the first `create`, or from `handle_activate` of a node that has no slots.
+class LateRegistrationNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  LateRegistrationNode()
+  : nodl_runtime_cpp::LifecycleNode("late_registration_node")
+  {}
+
+  using nodl_runtime_cpp::LifecycleNode::add_activation_slot;
+
+  bool register_in_activate = false;
+  bool threw_in_activate = false;
+  bool threw_in_create = false;
+
+protected:
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State &) override
+  {
+    if (register_in_activate) {
+      try {
+        add_activation_slot([] {}, [] {});
+      } catch (const std::logic_error &) {
+        threw_in_activate = true;
+      }
+    }
+    return CallbackReturn::SUCCESS;
+  }
+};
+
+TEST_F(ActivationRegistry, RegisteringFromHandleActivateOfANodeWithoutSlotsThrows)
+{
+  auto node = std::make_shared<LateRegistrationNode>();
+  node->register_in_activate = true;
+  node->configure();
+
+  node->activate();
+
+  EXPECT_TRUE(node->threw_in_activate);
+}
+
+TEST_F(ActivationRegistry, RegisteringFromInsideTheFirstCreateThrows)
+{
+  auto node = std::make_shared<LateRegistrationNode>();
+  node->add_activation_slot(
+    [&node] {
+      try {
+        node->add_activation_slot([] {}, [] {});
+      } catch (const std::logic_error &) {
+        node->threw_in_create = true;
+      }
+    },
+    [] {});
+  node->configure();
+
+  node->activate();
+
+  EXPECT_TRUE(node->threw_in_create);
+}
+
+TEST_F(ActivationRegistry, SlotsCanBeRegisteredAgainAfterDeactivation)
+{
+  auto node = std::make_shared<LateRegistrationNode>();
+  node->configure();
+  node->activate();
+  node->deactivate();
+
+  EXPECT_NO_THROW(node->add_activation_slot([] {}, [] {}));
 }
 
 TEST(ActivationRegistryLifetime, DestroyingAnActiveNodeDoesNotCallDestroy)
@@ -677,6 +784,112 @@ TEST(ActivationRegistryClient, PendingRequestFailsWhenTheNodeDeactivates)
   rclcpp::shutdown();
 }
 
+/// Publishes from a timer that it creates in `handle_activate` and resets in `handle_deactivate`.
+class TimerNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  TimerNode()
+  : nodl_runtime_cpp::LifecycleNode("timer_node")
+  {
+    manage(publisher, [this] { return rclcpp::create_publisher<std_msgs::msg::String>(*this, "chatter", 10); });
+  }
+
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
+  std::atomic<int> ticks{0};
+
+protected:
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State &) override
+  {
+    timer_ = create_wall_timer(std::chrono::milliseconds(5), [this] {
+      publisher->publish(std_msgs::msg::String());
+      ++ticks;
+    });
+    return CallbackReturn::SUCCESS;
+  }
+
+  CallbackReturn handle_deactivate(const rclcpp_lifecycle::State &) override
+  {
+    timer_.reset();
+    return CallbackReturn::SUCCESS;
+  }
+
+private:
+  rclcpp::TimerBase::SharedPtr timer_;
+};
+
+/// Requests transitions of a node through its lifecycle services, which an executor serializes with the node's callbacks.
+class ActivationRegistryServices : public ::testing::Test
+{
+protected:
+  static void SetUpTestSuite()
+  {
+    rclcpp::init(0, nullptr);
+  }
+
+  static void TearDownTestSuite()
+  {
+    rclcpp::shutdown();
+  }
+
+  template <typename NodeT>
+  void start(const std::shared_ptr<NodeT> & node)
+  {
+    client_ =
+      peer_->create_client<lifecycle_msgs::srv::ChangeState>(std::string("/") + node->get_name() + "/change_state");
+    node_ = node;
+    executor_.add_node(node->get_node_base_interface());
+    executor_.add_node(peer_);
+    spinner_ = std::thread([this] { executor_.spin(); });
+    ASSERT_TRUE(client_->wait_for_service(std::chrono::seconds(10)));
+  }
+
+  void TearDown() override
+  {
+    executor_.cancel();
+    if (spinner_.joinable()) {
+      spinner_.join();
+    }
+  }
+
+  /// Requests a transition and returns whether it succeeded.
+  bool change_state(uint8_t transition_id)
+  {
+    auto request = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
+    request->transition.id = transition_id;
+    auto response = client_->async_send_request(request);
+    return std::future_status::ready == response.future.wait_for(std::chrono::seconds(10)) &&
+           response.future.get()->success;
+  }
+
+  /// The node outlives the spinning executor, which `TearDown` stops.
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
+  std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
+  rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr client_;
+  rclcpp::executors::MultiThreadedExecutor executor_{rclcpp::ExecutorOptions(), 4};
+  std::thread spinner_;
+};
+
+using lifecycle_msgs::msg::Transition;
+
+TEST_F(ActivationRegistryServices, ShutdownFromActiveStopsTheTimerBeforeTheEndpointsAreDestroyed)
+{
+  auto node = std::make_shared<TimerNode>();
+  start(node);
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
+  while (0 == node->ticks) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVE_SHUTDOWN));
+
+  // A timer that outlived the publisher would dereference it now.
+  const auto ticks = node->ticks.load();
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  EXPECT_EQ(node->ticks, ticks);
+  EXPECT_EQ(node->publisher, nullptr);
+}
+
 using Fibonacci = example_interfaces::action::Fibonacci;
 using FibonacciGoalHandle = rclcpp_action::ServerGoalHandle<Fibonacci>;
 using ResultCode = rclcpp_action::ResultCode;
@@ -704,10 +917,17 @@ public:
     });
   }
 
-  std::shared_ptr<FibonacciGoalHandle> goal(size_t index)
+  size_t goal_count()
   {
     std::lock_guard<std::mutex> lock(mutex);
-    return index < goals.size() ? goals[index] : nullptr;
+    return goals.size();
+  }
+
+  /// The goal accepted last, or null.
+  std::shared_ptr<FibonacciGoalHandle> latest_goal()
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    return goals.empty() ? nullptr : goals.back();
   }
 
   rclcpp_action::Server<Fibonacci>::SharedPtr server;
@@ -722,7 +942,9 @@ protected:
     if (succeed_in_deactivate) {
       std::lock_guard<std::mutex> lock(mutex);
       for (const auto & goal_handle : goals) {
-        goal_handle->succeed(std::make_shared<Fibonacci::Result>());
+        if (goal_handle->is_active()) {
+          goal_handle->succeed(std::make_shared<Fibonacci::Result>());
+        }
       }
     }
     return CallbackReturn::SUCCESS;
@@ -778,25 +1000,35 @@ protected:
     std::shared_future<rclcpp_action::ClientGoalHandle<Fibonacci>::WrappedResult> result;
   };
 
-  /// Sends a goal, asks for its result and waits until the node accepted it as goal `index`.
-  SentGoal send_goal(size_t index)
+  /// Sends a goal, asks for its result and waits until the node accepted it.
+  SentGoal send_goal()
   {
-    EXPECT_TRUE(client_->wait_for_action_server(std::chrono::seconds(10)));
+    const auto count = node_->goal_count();
+    EXPECT_TRUE(wait_until([this] { return client_->action_server_is_ready(); }));
     auto sent = client_->async_send_goal(Fibonacci::Goal());
     EXPECT_EQ(std::future_status::ready, sent.wait_for(std::chrono::seconds(10)));
     auto goal_handle = sent.get();
     auto result = client_->async_get_result(goal_handle);
-    EXPECT_TRUE(wait_until([&] { return nullptr != node_->goal(index); }));
-    // A result request that the server has not taken yet is lost when the server is destroyed.
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    EXPECT_TRUE(wait_until([&] { return count < node_->goal_count(); }));
     return {goal_handle, result};
   }
 
-  /// Waits for the result of a goal, and returns its code.
-  static ResultCode result_code(const SentGoal & sent)
+  /// Runs `scenario` until the client gets the result of its goal, and returns the code.
+  /// The server never answers a result request that it has not taken when it is destroyed, so a scenario that deactivates
+  /// the node right after the goal is repeated.
+  ResultCode result_of(const std::function<SentGoal()> & scenario)
   {
-    EXPECT_EQ(std::future_status::ready, sent.result.wait_for(std::chrono::seconds(10)));
-    return sent.result.get().code;
+    for (int attempt = 0; attempt < 40; ++attempt) {
+      if (State::PRIMARY_STATE_ACTIVE != node_->get_current_state().id()) {
+        node_->activate();
+      }
+      const auto sent = scenario();
+      if (std::future_status::ready == sent.result.wait_for(std::chrono::milliseconds(500))) {
+        return sent.result.get().code;
+      }
+    }
+    ADD_FAILURE() << "The client never got a result";
+    return ResultCode::UNKNOWN;
   }
 
   std::shared_ptr<ActionServerNode> node_ = std::make_shared<ActionServerNode>();
@@ -808,78 +1040,119 @@ protected:
 
 TEST_F(ActivationRegistryActions, ExecutingGoalEndsAbortedWhenTheNodeDeactivates)
 {
-  auto sent = send_goal(0);
-  ASSERT_TRUE(node_->goal(0)->is_executing());
+  const auto code = result_of([this] {
+    auto sent = send_goal();
+    EXPECT_TRUE(node_->latest_goal()->is_executing());
+    EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+    EXPECT_FALSE(node_->latest_goal()->is_active());
+    EXPECT_EQ(node_->server, nullptr);
+    return sent;
+  });
 
-  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
-
-  EXPECT_EQ(result_code(sent), ResultCode::ABORTED);
-  EXPECT_EQ(node_->server, nullptr);
+  EXPECT_EQ(code, ResultCode::ABORTED);
 }
 
 TEST_F(ActivationRegistryActions, DeferredGoalEndsAbortedWhenTheNodeDeactivates)
 {
   node_->defer = true;
-  auto sent = send_goal(0);
-  ASSERT_FALSE(node_->goal(0)->is_executing());
 
-  node_->deactivate();
+  const auto code = result_of([this] {
+    auto sent = send_goal();
+    EXPECT_FALSE(node_->latest_goal()->is_executing());
+    node_->deactivate();
+    EXPECT_FALSE(node_->latest_goal()->is_active());
+    return sent;
+  });
 
-  EXPECT_EQ(result_code(sent), ResultCode::ABORTED);
+  EXPECT_EQ(code, ResultCode::ABORTED);
 }
 
 TEST_F(ActivationRegistryActions, CancelingGoalEndsCanceledWhenTheNodeDeactivates)
 {
-  auto sent = send_goal(0);
-  auto canceled = client_->async_cancel_goal(sent.goal_handle);
-  ASSERT_EQ(std::future_status::ready, canceled.wait_for(std::chrono::seconds(10)));
-  ASSERT_TRUE(node_->goal(0)->is_canceling());
+  const auto code = result_of([this] {
+    auto sent = send_goal();
+    auto canceled = client_->async_cancel_goal(sent.goal_handle);
+    EXPECT_EQ(std::future_status::ready, canceled.wait_for(std::chrono::seconds(10)));
+    EXPECT_TRUE(node_->latest_goal()->is_canceling());
+    node_->deactivate();
+    EXPECT_FALSE(node_->latest_goal()->is_active());
+    return sent;
+  });
 
-  node_->deactivate();
-
-  EXPECT_EQ(result_code(sent), ResultCode::CANCELED);
+  EXPECT_EQ(code, ResultCode::CANCELED);
 }
 
 TEST_F(ActivationRegistryActions, GoalSucceededByTheDeactivateHookStaysSucceeded)
 {
   node_->succeed_in_deactivate = true;
-  auto sent = send_goal(0);
 
-  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+  const auto code = result_of([this] {
+    auto sent = send_goal();
+    EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+    return sent;
+  });
 
-  EXPECT_EQ(result_code(sent), ResultCode::SUCCEEDED);
+  EXPECT_EQ(code, ResultCode::SUCCEEDED);
 }
 
 TEST_F(ActivationRegistryActions, GoalThatFinishedBeforeDeactivationIsLeftAlone)
 {
-  auto sent = send_goal(0);
-  node_->goal(0)->succeed(std::make_shared<Fibonacci::Result>());
+  const auto code = result_of([this] {
+    auto sent = send_goal();
+    node_->latest_goal()->succeed(std::make_shared<Fibonacci::Result>());
+    EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+    return sent;
+  });
 
-  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
-
-  EXPECT_EQ(result_code(sent), ResultCode::SUCCEEDED);
+  EXPECT_EQ(code, ResultCode::SUCCEEDED);
 }
 
 TEST_F(ActivationRegistryActions, ShutdownEndsActiveGoals)
 {
-  auto sent = send_goal(0);
+  auto sent = send_goal();
 
   EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
 
-  EXPECT_EQ(result_code(sent), ResultCode::ABORTED);
+  EXPECT_FALSE(node_->latest_goal()->is_active());
+  if (std::future_status::ready == sent.result.wait_for(std::chrono::seconds(1))) {
+    EXPECT_EQ(sent.result.get().code, ResultCode::ABORTED);
+  }
 }
 
 TEST_F(ActivationRegistryActions, ReactivatedServerAcceptsAndEndsNewGoals)
 {
-  send_goal(0);
+  send_goal();
   node_->deactivate();
   ASSERT_TRUE(wait_until([this] { return !client_->action_server_is_ready(); }));
 
   node_->activate();
-  auto sent = send_goal(1);
+  send_goal();
   node_->deactivate();
 
-  EXPECT_EQ(result_code(sent), ResultCode::ABORTED);
+  EXPECT_EQ(node_->goal_count(), 2u);
+  EXPECT_FALSE(node_->latest_goal()->is_active());
+}
+
+TEST_F(ActivationRegistryActions, ResultMayStayUnansweredAndTheClientTimesOutCleanly)
+{
+  auto sent = send_goal();
+  node_->deactivate();
+
+  // Either the server took the result request before it was destroyed, or nothing answers it.
+  if (std::future_status::ready == sent.result.wait_for(std::chrono::seconds(1))) {
+    EXPECT_EQ(sent.result.get().code, ResultCode::ABORTED);
+  }
+  EXPECT_TRUE(wait_until([this] { return !client_->action_server_is_ready(); }));
+}
+
+TEST_F(ActivationRegistryActions, WorkerReportingAfterTheGoalEndedGetsAnErrorFromTheGoalHandle)
+{
+  send_goal();
+  auto goal = node_->latest_goal();
+  node_->deactivate();
+
+  EXPECT_THROW(goal->succeed(std::make_shared<Fibonacci::Result>()), rclcpp::exceptions::RCLError);
+  EXPECT_THROW(goal->abort(std::make_shared<Fibonacci::Result>()), rclcpp::exceptions::RCLError);
 }
 
 }  // namespace

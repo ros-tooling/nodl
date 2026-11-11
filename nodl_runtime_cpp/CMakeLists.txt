@@ -12,6 +12,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
@@ -21,6 +22,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>")
 target_link_libraries(${PROJECT_NAME} INTERFACE
+  ${lifecycle_msgs_TARGETS}
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   rclcpp_lifecycle::rclcpp_lifecycle)
@@ -31,7 +33,6 @@ install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME})
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(example_interfaces REQUIRED)
-  find_package(lifecycle_msgs REQUIRED)
   find_package(std_msgs REQUIRED)
   find_package(std_srvs REQUIRED)
 
@@ -51,5 +52,5 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME})
-ament_export_dependencies(rclcpp rclcpp_action rclcpp_lifecycle)
+ament_export_dependencies(lifecycle_msgs rclcpp rclcpp_action rclcpp_lifecycle)
 ament_package()

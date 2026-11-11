@@ -24,7 +24,7 @@ It provides new optional hooks for node authors to add behavior on each transiti
 Each hook takes the previous state and returns a `CallbackReturn`, and defaults to SUCCESS.
 An authored subclass defines the hook that matches the transition instead of an `on_*` method.
 
-Lifecycle publishers follow the node state on every path with no author code, because the base class runs the standard activation and deactivation of `rclcpp_lifecycle::LifecycleNode` around the hooks.
+Lifecycle publishers registered with `add_managed_entity` follow the node state on every path with no author code, because the base class runs the standard activation and deactivation of `rclcpp_lifecycle::LifecycleNode` around the hooks.
 
 #### Creating endpoints on activation
 
@@ -40,21 +40,39 @@ Register them from the constructor of the authored class, with `manage` or `add_
 Slots are created in registration order when the node activates, and destroyed in reverse order when it deactivates, shuts down or errors.
 Register the endpoints that others use first, such as publishers before the subscriptions that publish.
 A `create` that throws destroys the slots created before it, and the transition fails with an error.
-Registering while the node is active throws `std::logic_error`.
-A node that is destroyed while active destroys its members as usual, and the slots do not run.
+Registering while the node is activating or active throws `std::logic_error`.
+A node that is destroyed while active destroys its members as usual, and `destroy` does not run.
 
-A managed member is null while the node is not active.
-Use it from the endpoint callbacks of the node, `handle_activate` and `handle_deactivate`, and create and cancel timers in those two hooks.
-A thread of your own copies the `shared_ptr` and checks it for null.
+A managed member is null while the node is not active, and the transition thread resets it, so a thread must not read it while a transition runs.
+Where a member is safe to use:
+- In the endpoint callbacks of the node, and in timers, that run in the default callback group.
+  The default group is mutually exclusive, so these callbacks do not overlap the lifecycle services that request transitions.
+- In every `handle_*` hook, which runs on the transition thread.
+
+Where it is not:
+- In a callback of a reentrant callback group or of a separate mutually exclusive group, which can run while a transition resets the member.
+- In a thread of your own.
+- In any callback when the transition is requested by calling `configure()`, `activate()` or `deactivate()` from a thread that is not the executor's, because that does not serialize with the default group either.
+
+Stop that work in `handle_deactivate`, which runs before the endpoints are destroyed on deactivation, and on shutdown and error from the active state:
+cancel the timers, and stop and join the threads.
+Work that cannot be stopped from the hook, such as a callback in another callback group, takes a mutex of the authored class around every use of a member, and `handle_deactivate` takes the same mutex and sets a flag that the work checks before it uses the member.
+Once the hook returns, no use of the member is in progress or starts.
 
 | Transition | Order |
 |---|---|
 | configure | hook only |
-| activate | create the slots, standard activation, then hook, and a result other than SUCCESS runs the standard deactivation, destroys the slots and is returned |
+| activate | create the slots, standard activation, then hook, and a result other than SUCCESS, or an exception, runs the standard deactivation and destroys the slots |
 | deactivate | hook, then standard deactivation and slot destruction if the hook returned SUCCESS |
 | cleanup | hook only |
-| shutdown | destroy the slots, standard deactivation, then hook |
-| error | destroy the slots, standard deactivation, then hook |
+| shutdown from active | `handle_deactivate`, destroy the slots, standard deactivation, then `handle_shutdown` |
+| error from active | `handle_deactivate`, destroy the slots, standard deactivation, then `handle_error` |
+| shutdown or error from unconfigured or inactive | hook only |
+
+On shutdown and error from the active state `handle_deactivate` runs first, so the code that stops timers and threads there runs on every path that destroys the endpoints.
+A shutdown cannot be vetoed, so a result other than SUCCESS from `handle_deactivate` on these paths is logged and ignored, and an exception from it is logged, and the endpoints are destroyed and the shutdown or error hook runs regardless.
+An error that `handle_deactivate` caused by throwing does not run it again.
+A failed or throwing `handle_activate` destroys the slots without running `handle_deactivate`, so the hook undoes its own partial work before it fails.
 
 Destroying the slots does nothing when none is created, so a deactivation that already ran is not repeated by shutdown or error.
 Configure and cleanup run only the hooks, so an entity registered with `add_managed_entity` does not receive them.
@@ -79,8 +97,13 @@ On deactivation that is after `handle_deactivate` has returned, so the hook can 
 
 A goal accepted while the server is being destroyed ends the same way, and the accepted callback is not called.
 A goal that finishes concurrently is skipped, and a call that throws while the goal is still active is retried once.
-A worker thread of the node checks `goal_handle->is_active()` before it reports feedback or a result.
-Goals end only for requests that the server has already received: a client whose result request has not reached the server when it is destroyed does not get the result.
+A worker thread of the node checks `goal_handle->is_active()` before it reports feedback or a result, and catches `rclcpp::exceptions::RCLError` from `succeed`, `abort`, `canceled` and `publish_feedback`, because the goal can end between the check and the call.
+The goal handle throws that error once the goal has ended, and `end_all` itself never throws.
+
+A client gets the result of an ended goal only when the server has already taken its result request off the wire.
+When the node deactivates within a few milliseconds of the goal, the server is destroyed first and the request is never answered: with a result request followed at once by a deactivation, more than half of 200 trials left the client without a result, and none did when the deactivation came 20 ms later.
+The status topic disappears with the server, so the client has no other signal.
+A client uses a timeout on `async_get_result` and watches `action_server_is_ready()`.
 
 #### Example
 
@@ -101,9 +124,12 @@ The example is compiled as part of the package tests.
 - A latched publisher loses its history when it is destroyed at deactivation, so publish the latched message again in `handle_activate`.
 - A message published in `handle_activate` reaches only the peers that are already matched, since discovery is asynchronous.
   A `transient_local` publisher delivers it to the peers that match later.
-- A request or goal that a managed client has sent and not yet received a response for fails with a `std::future_error` when the node deactivates.
+- A request or goal that a managed client has sent and not yet received a response for fails with a `std::future_error` once the executor releases the client, which is shortly after `deactivate` returns.
 - Each activation creates the endpoints again, with the discovery traffic that comes with it.
 - An inactive node shows none of its registered endpoints in the graph.
+  The destroyed endpoints leave the graph once the executor releases them: `deactivate` wakes the executors that wait on the node, and a node that no executor is spinning keeps them until its next spin.
+- `LifecycleNode` wakes the executor with `trigger_notify_guard_condition()` from rclcpp 21 on, which covers Iron, Jazzy, Kilted and Rolling, and with `get_notify_guard_condition()` before that, which is Humble.
+  Rolling removed `get_notify_guard_condition()`.
 
 ## Background
 

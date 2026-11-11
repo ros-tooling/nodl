@@ -41,6 +41,7 @@ protected:
   }
 
   // The timer stops here, before the publisher it uses is destroyed.
+  // This hook also runs first on shutdown and error from the active state.
   CallbackReturn handle_deactivate(const rclcpp_lifecycle::State & /*previous_state*/) override
   {
     timer_.reset();

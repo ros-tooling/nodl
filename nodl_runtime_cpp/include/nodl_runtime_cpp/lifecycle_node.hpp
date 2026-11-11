@@ -10,8 +10,10 @@
 #include <utility>
 #include <vector>
 
+#include "lifecycle_msgs/msg/state.hpp"
 #include "nodl_runtime_cpp/goal_tracker.hpp"
 #include "rclcpp/logging.hpp"
+#include "rclcpp/version.h"
 #include "rclcpp_action/server.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
@@ -34,12 +36,6 @@ public:
   using rclcpp_lifecycle::LifecycleNode::LifecycleNode;
   using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
-  /// Drops the registered slots without destroying them, since the members they refer to are already gone.
-  ~LifecycleNode() override
-  {
-    slots_.clear();
-  }
-
   /// Runs `handle_configure`.
   CallbackReturn on_configure(const rclcpp_lifecycle::State & previous_state) final
   {
@@ -53,6 +49,7 @@ public:
    */
   CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) final
   {
+    deactivate_hook_ran_ = false;
     activate_slots();
     const auto activated = rclcpp_lifecycle::LifecycleNode::on_activate(previous_state);
     if (CallbackReturn::SUCCESS != activated) {
@@ -76,8 +73,10 @@ public:
   /// Runs `handle_deactivate`, then the standard deactivation and the slot destruction if the hook returned SUCCESS.
   CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) final
   {
+    deactivate_hook_ran_ = true;
     const auto result = handle_deactivate(previous_state);
     if (CallbackReturn::SUCCESS != result) {
+      deactivate_hook_ran_ = false;
       return result;
     }
     const auto deactivated = rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
@@ -91,19 +90,26 @@ public:
     return handle_cleanup(previous_state);
   }
 
-  /// Destroys the slots, runs the standard deactivation, then `handle_shutdown`.
+  /// Ends the active state, then runs `handle_shutdown`.
+  /**
+   * From the active state this runs `handle_deactivate`, destroys the slots and runs the standard deactivation first.
+   * A shutdown cannot be vetoed: the result of `handle_deactivate` is ignored and an exception from it is logged.
+   */
   CallbackReturn on_shutdown(const rclcpp_lifecycle::State & previous_state) final
   {
-    deactivate_slots();
-    rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
+    end_active_state(previous_state);
     return handle_shutdown(previous_state);
   }
 
-  /// Destroys the slots, runs the standard deactivation, then `handle_error`.
+  /// Ends the active state, then runs `handle_error`.
+  /**
+   * From the active state this runs `handle_deactivate` first, unless an exception from it caused the error,
+   * then destroys the slots and runs the standard deactivation.
+   * The result of `handle_deactivate` is ignored and an exception from it is logged.
+   */
   CallbackReturn on_error(const rclcpp_lifecycle::State & previous_state) final
   {
-    deactivate_slots();
-    rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
+    end_active_state(previous_state);
     return handle_error(previous_state);
   }
 
@@ -112,14 +118,14 @@ protected:
   /**
    * `create` runs at activation, in registration order.
    * `destroy` runs in reverse registration order at deactivation, shutdown and error, and when a later slot fails to activate.
-   * It must be safe to call when `create` has not run, and it must not throw.
+   * It must be safe to call when `create` has not run, it must not throw, and it does not run when the node is destroyed.
    * A `create` that throws rolls back the slots created before it.
    *
-   * \throws std::logic_error When called while the node is active.
+   * \throws std::logic_error When called while the node is activating or active.
    */
   void add_activation_slot(std::function<void()> create, std::function<void()> destroy)
   {
-    if (0 != active_slots_) {
+    if (slots_locked_) {
       throw std::logic_error("slots can be registered only while the node is not active");
     }
     slots_.push_back({std::move(create), std::move(destroy)});
@@ -132,7 +138,7 @@ protected:
    *
    * \tparam EntityT Type of the endpoint, such as `rclcpp::Subscription<MessageT>`.
    * \tparam MakeT Callable that returns the endpoint as a `std::shared_ptr`.
-   * \throws std::logic_error When called while the node is active.
+   * \throws std::logic_error When called while the node is activating or active.
    */
   template <typename EntityT, typename MakeT>
   void manage(std::shared_ptr<EntityT> & member, MakeT make)
@@ -150,7 +156,7 @@ protected:
    *
    * \tparam ActionT Action type.
    * \tparam MakeT Callable that takes a `GoalTracker<ActionT> &` and returns the server as a `std::shared_ptr`.
-   * \throws std::logic_error When called while the node is active.
+   * \throws std::logic_error When called while the node is activating or active.
    */
   template <typename ActionT, typename MakeT>
   void manage_action_server(typename rclcpp_action::Server<ActionT>::SharedPtr & member, MakeT make)
@@ -182,9 +188,10 @@ protected:
     return CallbackReturn::SUCCESS;
   }
 
-  /// Called on the deactivate transition, before the standard deactivation.
+  /// Called on the deactivate transition, before the endpoints are destroyed.
   /**
    * A result other than SUCCESS leaves the node active.
+   * It also runs before shutdown and error from the active state, where the result is ignored.
    */
   virtual CallbackReturn handle_deactivate(const rclcpp_lifecycle::State & /*previous_state*/)
   {
@@ -197,13 +204,13 @@ protected:
     return CallbackReturn::SUCCESS;
   }
 
-  /// Called on the shutdown transition, after the standard deactivation.
+  /// Called on the shutdown transition, after the endpoints are destroyed.
   virtual CallbackReturn handle_shutdown(const rclcpp_lifecycle::State & /*previous_state*/)
   {
     return CallbackReturn::SUCCESS;
   }
 
-  /// Called on the error transition, after the standard deactivation.
+  /// Called on the error transition, after the endpoints are destroyed.
   /**
    * SUCCESS takes the node to the unconfigured state, and any other result finalizes it.
    */
@@ -219,9 +226,29 @@ private:
     std::function<void()> destroy;
   };
 
+  /// Runs the deactivation that shutdown and error need: the hook when the node is active, then the slots.
+  void end_active_state(const rclcpp_lifecycle::State & previous_state)
+  {
+    if (lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE == previous_state.id() && !deactivate_hook_ran_) {
+      deactivate_hook_ran_ = true;
+      try {
+        if (CallbackReturn::SUCCESS != handle_deactivate(previous_state)) {
+          RCLCPP_WARN(get_logger(), "handle_deactivate did not succeed, and the shutdown continues");
+        }
+      } catch (const std::exception & e) {
+        RCLCPP_ERROR(get_logger(), "handle_deactivate threw, and the shutdown continues: %s", e.what());
+      } catch (...) {
+        RCLCPP_ERROR(get_logger(), "handle_deactivate threw, and the shutdown continues");
+      }
+    }
+    deactivate_slots();
+    rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
+  }
+
   /// Creates the slots in order, and destroys the created ones in reverse if one throws.
   void activate_slots()
   {
+    slots_locked_ = true;
     for (const auto & slot : slots_) {
       try {
         slot.create();
@@ -233,13 +260,13 @@ private:
     }
   }
 
-  /// Destroys the created slots in reverse, and does nothing when none is created.
-  /// An executor that waits holds the endpoints it waits on, so it is woken to release the destroyed ones.
+  /// Destroys the created slots in reverse, and does nothing when the slots are not active.
   void deactivate_slots()
   {
-    if (0 == active_slots_) {
+    if (!slots_locked_) {
       return;
     }
+    const bool destroyed_any = 0 != active_slots_;
     while (0 != active_slots_) {
       --active_slots_;
       try {
@@ -248,11 +275,33 @@ private:
         RCLCPP_ERROR(get_logger(), "Destroying an activation slot failed: %s", e.what());
       }
     }
-    get_node_base_interface()->get_notify_guard_condition().trigger();
+    slots_locked_ = false;
+    if (destroyed_any) {
+      wake_executors();
+    }
+  }
+
+  /// Wakes the executors that wait on this node, so they release the destroyed endpoints they still hold.
+  /// A node that no executor is spinning keeps them until its next spin.
+  void wake_executors()
+  {
+    try {
+#if RCLCPP_VERSION_MAJOR >= 21
+      get_node_base_interface()->trigger_notify_guard_condition();
+#else
+      get_node_base_interface()->get_notify_guard_condition().trigger();
+#endif
+    } catch (const std::exception & e) {
+      RCLCPP_ERROR(get_logger(), "Waking the executor failed: %s", e.what());
+    }
   }
 
   std::vector<Slot> slots_;
   std::size_t active_slots_ = 0;
+  /// True from the start of the activation of the slots until they are destroyed.
+  bool slots_locked_ = false;
+  /// True when `handle_deactivate` ran for the current active period.
+  bool deactivate_hook_ran_ = false;
 };
 
 }  // namespace nodl_runtime_cpp
