@@ -38,7 +38,7 @@ class CodegenBaseClass(BaseModel):
     )
     lifecycle: Optional[bool] = Field(
         False,
-        description='If the node is a lifecycle node, make the generated base class create its endpoints when the node activates\nand destroy them when it deactivates, by registering them with the ``manage`` and ``manage_action_server`` functions of the base class.\nThe endpoint members are null while the node is not active.\nAn action server ends its active goals before it is destroyed.\nThe base class named by ``class`` must provide those functions, as ``nodl_runtime_cpp::LifecycleNode`` does,\nor the generated code does not compile.\nPublishers are plain ``rclcpp::Publisher`` objects, and ``publisher_type`` is ignored.\n',
+        description='If the node is a lifecycle node, make the generated base class create its endpoints when the node activates\nand destroy them when it deactivates, by registering them with the ``manage`` and ``manage_action_server`` functions of the base class.\nThe endpoint members are null while the node is not active.\nAn action server ends its active goals before it is destroyed.\nThe base class named by ``class`` must provide those functions, as ``nodl_runtime_cpp::LifecycleNode`` does,\nor the generated code does not compile.\nPublishers are plain ``rclcpp::Publisher`` objects, so ``publisher_type`` cannot be set together with it.\n',
     )
 
 

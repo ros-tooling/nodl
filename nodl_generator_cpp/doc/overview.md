@@ -404,7 +404,7 @@ codegen:
 ```
 
 The generated class declares each publisher as `<publisher_type><MessageT>::SharedPtr`.
-`publisher_type` is ignored when `lifecycle` is true.
+`publisher_type` together with `lifecycle: true` is an error.
 
 ### The `lifecycle` field
 
@@ -472,7 +472,8 @@ The node's declared endpoints therefore exist only while it is active, and the n
 | configure, cleanup | Nothing. |
 | activate | Created, in the order below, before `handle_activate` runs. |
 | deactivate | Destroyed, in reverse order, after `handle_deactivate` returns SUCCESS. Active action goals end first. |
-| shutdown, error | Destroyed first when the node is active, then the hook runs. |
+| shutdown, error from active | `handle_deactivate` runs first, then the endpoints are destroyed, then the hook runs. |
+| shutdown, error from unconfigured or inactive | Nothing, and the hook runs. |
 
 The generated constructor registers publishers, service clients and action clients first, then subscriptions, service servers and action servers, so a callback finds every publisher and client already created.
 They are destroyed in the opposite order, so action servers, service servers and subscriptions go first.
@@ -480,7 +481,12 @@ They are destroyed in the opposite order, so action servers, service servers and
 The endpoint members are plain `SharedPtr`s that are null while the node is not active:
 - Use publishers and clients from subscription, service and action callbacks, `handle_activate` and `handle_deactivate`, where they are set.
 - Create timers in `handle_activate` and cancel them in `handle_deactivate`, instead of creating them in the constructor or `handle_configure`.
-- Own threads copy the `shared_ptr` and check it for null before using it.
+  `handle_deactivate` also runs on shutdown and error from the active state, so one place stops them on every path.
+- Use the members only where the transitions do not overlap the callback: in callbacks and timers of the default callback group, which the generated endpoints use, and in the hooks.
+  The default group is mutually exclusive with the lifecycle services that request transitions.
+- Do not use the members from a thread of your own, a callback group of another kind, or while `activate()` and `deactivate()` are called from a non-executor thread, because the transition resets them.
+  Stop such work in `handle_deactivate`, or guard every use with a mutex that `handle_deactivate` also takes.
+  See the `nodl_runtime_cpp` overview for details.
 - The publishers and clients are set in `handle_activate`, so the hook can publish an initial message and call a service or an action.
   The server must be discoverable, so wait for it with `wait_for_service` or `wait_for_action_server`, and do not call a client from `handle_configure`.
 - Publishers are plain `rclcpp::Publisher`s, not `rclcpp_lifecycle::LifecyclePublisher`s.
@@ -517,13 +523,16 @@ private:
 - A message published in `handle_activate` reaches only the peers that are already matched with the new publisher, because discovery is asynchronous.
   A `volatile` message is usually lost, and a `transient_local` message is delivered to every peer that matches later.
 - A service or action server is not discoverable while the node is inactive, so a peer's `wait_for_service` or `wait_for_action_server` waits until activation.
-- A request or goal that a client has sent and not yet received a response for fails with a `std::future_error` when the node deactivates.
+- A request or goal that a client has sent and not yet received a response for fails with a `std::future_error` once the executor releases the client, which is shortly after `deactivate` returns.
 - When the node deactivates, each goal of an action server that is still active ends before the server is destroyed:
   an executing or deferred goal is aborted and a canceling goal is canceled, with a default-constructed result.
   The goals end after `handle_deactivate` returns, so the hook can finish them first.
-  A worker thread of the authored class checks `goal_handle->is_active()` before it reports feedback or a result.
-  A client that has not yet been answered about a result request when the node deactivates never gets the result.
+  A worker thread of the authored class checks `goal_handle->is_active()` before it reports feedback or a result, and catches `rclcpp::exceptions::RCLError`, because the goal can end between the check and the call.
+- A client gets the result of an ended goal only when the server has already taken its result request.
+  When the node deactivates within a few milliseconds of the goal, the request is never answered: more than half of 200 trials of a result request followed at once by a deactivation left the client without a result, and none did when the deactivation came 20 ms later.
+  A client uses a timeout on `async_get_result` and watches `action_server_is_ready()`.
 - Each activation creates the endpoints again, with the discovery traffic and the match latency that comes with it.
+- A callback in a reentrant or separate callback group that is in flight during a transition can see null members.
 - An inactive node shows none of its declared topics in the graph, so a tool that waits for them after configuring the node waits until activation.
 - A node cannot receive anything while it is inactive, so no sample is delivered to it before activation.
 
@@ -533,6 +542,7 @@ BREAKING CHANGE: generated C++ lifecycle nodes create their publishers, subscrip
 - Their members are null while the node is not active, so publish and call clients only from endpoint callbacks, `handle_activate` and `handle_deactivate`, and create timers in `handle_activate`.
 - Active action goals end on deactivation, so a worker checks `goal_handle->is_active()`.
 - Latched publishers lose their history on deactivation, so republish in `handle_activate`.
+- Shutdown and error from the active state run `handle_deactivate` first, and then destroy the endpoints.
 - Publishers are no longer `rclcpp_lifecycle::LifecyclePublisher`s.
 
 Earlier versions derived `rclcpp_lifecycle::LifecycleNode` directly, and an author's `on_activate` had to call the base class's implementation to activate the publishers.

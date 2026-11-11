@@ -9,6 +9,7 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <type_traits>
@@ -73,6 +74,12 @@ public:
     return index < goals_.size() ? goals_[index] : nullptr;
   }
 
+  size_t accepted_goal_count()
+  {
+    std::lock_guard<std::mutex> lock(goals_mutex_);
+    return goals_.size();
+  }
+
   /// Makes `handle_activate` wait for the remote_fibonacci server and send it a goal.
   std::atomic<bool> send_goal_in_activate{false};
   std::atomic<bool> goal_accepted_in_activate{false};
@@ -82,6 +89,7 @@ public:
   /// Whether the generated publishers existed when each hook ran.
   std::atomic<bool> publishers_set_in_activate{false};
   std::atomic<bool> publishers_set_in_deactivate{false};
+  std::atomic<int> deactivate_hook_calls{0};
   std::atomic<int> cmd_vel_received{0};
   std::atomic<int> latched_received{0};
   /// The node's state when the latched sample was executed.
@@ -108,6 +116,7 @@ protected:
   CallbackReturn handle_deactivate(const rclcpp_lifecycle::State &) override
   {
     publishers_set_in_deactivate = (nullptr != pub_status_);
+    ++deactivate_hook_calls;
     return CallbackReturn::SUCCESS;
   }
 
@@ -280,7 +289,8 @@ TEST_F(GeneratedLifecycleNode, EndpointsAppearOnlyWhileActive)
   EXPECT_TRUE(spin_until([this] {
     return !graph_has_publisher("/status") && !graph_has_publisher("/latched_status") &&
            !graph_has_subscription("/cmd_vel") && !graph_has_subscription("/latched") &&
-           !graph_has_service("/trigger") && !graph_has_client("/set_bool");
+           !graph_has_service("/trigger") && !graph_has_client("/set_bool") && !graph_has_action_server("fibonacci") &&
+           !graph_has_action_client("remote_fibonacci");
   }));
   // The lifecycle interface stays.
   EXPECT_TRUE(graph_has_publisher("/cpp_lifecycle_node/transition_event"));
@@ -377,14 +387,18 @@ TEST_F(GeneratedLifecycleNode, DeactivateThenActivateRecreatesEverything)
   }
 }
 
-TEST_F(GeneratedLifecycleNode, ShutdownFromActiveDestroysTheEndpoints)
+TEST_F(GeneratedLifecycleNode, ShutdownFromActiveRunsHandleDeactivateAndDestroysTheEndpoints)
 {
   node_->configure();
   node_->activate();
 
   ASSERT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
 
-  EXPECT_TRUE(spin_until([this] { return !graph_has_publisher("/status") && !graph_has_subscription("/cmd_vel"); }));
+  EXPECT_EQ(node_->deactivate_hook_calls, 1);
+  EXPECT_TRUE(spin_until([this] {
+    return !graph_has_publisher("/status") && !graph_has_subscription("/cmd_vel") && !graph_has_service("/trigger") &&
+           !graph_has_action_server("fibonacci") && !graph_has_action_client("remote_fibonacci");
+  }));
 }
 
 /// A fixture that spins the node and a peer on background threads, so a transition can wait for a response.
@@ -473,20 +487,57 @@ TEST_F(GeneratedLifecycleNodeSpinning, GoalActiveAtDeactivationEndsAbortedAndThe
   auto client = rclcpp_action::create_client<Fibonacci>(peer_, "fibonacci");
   ASSERT_EQ(node_->configure().id(), State::PRIMARY_STATE_INACTIVE);
   EXPECT_FALSE(client->wait_for_action_server(500ms));
-  ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+
+  // The server never answers a result request that it has not taken when it is destroyed, so the scenario is repeated
+  // until the client gets the result.
+  std::optional<rclcpp_action::ResultCode> code;
+  for (int attempt = 0; attempt < 40 && !code; ++attempt) {
+    ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+    ASSERT_TRUE(client->wait_for_action_server(TIMEOUT));
+    const auto count = node_->accepted_goal_count();
+    auto sent = client->async_send_goal(Fibonacci::Goal());
+    ASSERT_EQ(std::future_status::ready, sent.wait_for(TIMEOUT));
+    auto result = client->async_get_result(sent.get());
+    const auto deadline = std::chrono::steady_clock::now() + TIMEOUT;
+    while (count == node_->accepted_goal_count() && std::chrono::steady_clock::now() < deadline) {
+      std::this_thread::sleep_for(1ms);
+    }
+    ASSERT_LT(count, node_->accepted_goal_count());
+    ASSERT_TRUE(node_->accepted_goal(count)->is_executing());
+
+    ASSERT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+
+    EXPECT_FALSE(node_->accepted_goal(count)->is_active());
+    if (std::future_status::ready == result.wait_for(500ms)) {
+      code = result.get().code;
+    }
+  }
+
+  ASSERT_TRUE(code.has_value()) << "The client never got a result";
+  EXPECT_EQ(rclcpp_action::ResultCode::ABORTED, *code);
+}
+
+TEST_F(GeneratedLifecycleNodeSpinning, ResultMayStayUnansweredAndTheClientTimesOutCleanly)
+{
+  auto client = rclcpp_action::create_client<Fibonacci>(peer_, "fibonacci");
+  node_->configure();
+  node_->activate();
   ASSERT_TRUE(client->wait_for_action_server(TIMEOUT));
   auto sent = client->async_send_goal(Fibonacci::Goal());
   ASSERT_EQ(std::future_status::ready, sent.wait_for(TIMEOUT));
   auto result = client->async_get_result(sent.get());
-  // A result request that the server has not taken yet is lost when the server is destroyed.
-  std::this_thread::sleep_for(300ms);
-  ASSERT_NE(nullptr, node_->accepted_goal(0));
-  ASSERT_TRUE(node_->accepted_goal(0)->is_executing());
 
-  ASSERT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+  node_->deactivate();
 
-  ASSERT_EQ(std::future_status::ready, result.wait_for(TIMEOUT));
-  EXPECT_EQ(rclcpp_action::ResultCode::ABORTED, result.get().code);
+  // Either the server took the result request before it was destroyed, or nothing answers it.
+  if (std::future_status::ready == result.wait_for(1000ms)) {
+    EXPECT_EQ(rclcpp_action::ResultCode::ABORTED, result.get().code);
+  }
+  const auto deadline = std::chrono::steady_clock::now() + TIMEOUT;
+  while (client->action_server_is_ready() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(10ms);
+  }
+  EXPECT_FALSE(client->action_server_is_ready());
 }
 
 TEST_F(GeneratedLifecycleNodeSpinning, ActionClientCreatedAtActivationIsUsableFromHandleActivate)

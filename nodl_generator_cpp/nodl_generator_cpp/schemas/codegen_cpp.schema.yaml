@@ -53,9 +53,19 @@ definitions:
           An action server ends its active goals before it is destroyed.
           The base class named by ``class`` must provide those functions, as ``nodl_runtime_cpp::LifecycleNode`` does,
           or the generated code does not compile.
-          Publishers are plain ``rclcpp::Publisher`` objects, and ``publisher_type`` is ignored.
+          Publishers are plain ``rclcpp::Publisher`` objects, so ``publisher_type`` cannot be set together with it.
         type: boolean
         default: false
+    if:
+      required:
+        - lifecycle
+      properties:
+        lifecycle:
+          const: true
+    then:
+      not:
+        required:
+          - publisher_type
 
   codegen_no_generate:
     description: |
