@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
 
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "lifecycle_msgs/msg/state.hpp"
 #include "nodl_runtime_cpp/lifecycle_node.hpp"
+#include "rclcpp/create_publisher.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
@@ -228,6 +231,361 @@ TEST_F(LifecycleNodeTest, FailingDeactivateKeepsNodeAndPublisherActive)
 
   EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_ACTIVE);
   EXPECT_TRUE(node_->publisher_active());
+}
+
+/// A hand-written node whose slots and hooks all record into one event log.
+class SlotNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  explicit SlotNode(std::shared_ptr<std::vector<std::string>> log = std::make_shared<std::vector<std::string>>())
+  : nodl_runtime_cpp::LifecycleNode("slot_node")
+  , log(std::move(log))
+  {}
+
+  using nodl_runtime_cpp::LifecycleNode::add_activation_slot;
+  using nodl_runtime_cpp::LifecycleNode::manage;
+
+  /// Registers a slot that logs `create <name>` and `destroy <name>`, and throws from `create` when asked to.
+  void add_logging_slot(const std::string & name, bool throw_on_create = false)
+  {
+    add_activation_slot(
+      [this, name, throw_on_create] {
+        if (throw_on_create) {
+          throw std::runtime_error("create failed");
+        }
+        log->push_back("create " + name);
+      },
+      [this, name] { log->push_back("destroy " + name); });
+  }
+
+  uint8_t state_id()
+  {
+    return get_current_state().id();
+  }
+
+  /// Registers a slot while a hook runs, to show that late registration throws.
+  bool register_in_activate = false;
+  bool late_registration_threw = false;
+  /// What each hook returns or does, by hook name without the `handle_` prefix.
+  std::map<std::string, Outcome> outcomes;
+  std::shared_ptr<std::vector<std::string>> log;
+
+protected:
+  CallbackReturn handle_configure(const rclcpp_lifecycle::State &) override
+  {
+    return record("configure");
+  }
+
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State &) override
+  {
+    if (register_in_activate) {
+      try {
+        add_logging_slot("late");
+      } catch (const std::logic_error &) {
+        late_registration_threw = true;
+      }
+    }
+    return record("activate");
+  }
+
+  CallbackReturn handle_deactivate(const rclcpp_lifecycle::State &) override
+  {
+    return record("deactivate");
+  }
+
+  CallbackReturn handle_cleanup(const rclcpp_lifecycle::State &) override
+  {
+    return record("cleanup");
+  }
+
+  CallbackReturn handle_shutdown(const rclcpp_lifecycle::State &) override
+  {
+    return record("shutdown");
+  }
+
+  CallbackReturn handle_error(const rclcpp_lifecycle::State &) override
+  {
+    return record("error");
+  }
+
+private:
+  CallbackReturn record(const std::string & name)
+  {
+    log->push_back("hook " + name);
+    switch (outcomes.count(name) ? outcomes.at(name) : Outcome::SUCCESS) {
+      case Outcome::FAILURE:
+        return CallbackReturn::FAILURE;
+      case Outcome::THROW:
+        throw std::runtime_error("hook failed");
+      case Outcome::SUCCESS:
+        break;
+    }
+    return CallbackReturn::SUCCESS;
+  }
+};
+
+using Log = std::vector<std::string>;
+
+class ActivationRegistry : public ::testing::Test
+{
+protected:
+  static void SetUpTestSuite()
+  {
+    rclcpp::init(0, nullptr);
+  }
+
+  static void TearDownTestSuite()
+  {
+    rclcpp::shutdown();
+  }
+
+  void SetUp() override
+  {
+    node_->add_logging_slot("a");
+    node_->add_logging_slot("b");
+    node_->add_logging_slot("c");
+  }
+
+  std::shared_ptr<SlotNode> node_ = std::make_shared<SlotNode>();
+};
+
+TEST_F(ActivationRegistry, SlotsAreCreatedInOrderBeforeTheHook)
+{
+  node_->configure();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+
+  EXPECT_EQ(*node_->log, (Log{"create a", "create b", "create c", "hook activate"}));
+}
+
+TEST_F(ActivationRegistry, SlotsAreDestroyedInReverseAfterTheHook)
+{
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+
+  EXPECT_EQ(*node_->log, (Log{"hook deactivate", "destroy c", "destroy b", "destroy a"}));
+}
+
+TEST_F(ActivationRegistry, ConfigureAndCleanupRunOnlyTheHooks)
+{
+  node_->configure();
+  node_->cleanup();
+
+  EXPECT_EQ(*node_->log, (Log{"hook configure", "hook cleanup"}));
+}
+
+TEST_F(ActivationRegistry, RepeatedCyclesCreateAndDestroyEverySlotEveryTime)
+{
+  node_->configure();
+  for (int cycle = 0; cycle < 3; ++cycle) {
+    EXPECT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+    EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+  }
+
+  const Log cycle{
+    "create a", "create b", "create c", "hook activate", "hook deactivate", "destroy c", "destroy b", "destroy a"};
+  Log expected{"hook configure"};
+  for (int i = 0; i < 3; ++i) {
+    expected.insert(expected.end(), cycle.begin(), cycle.end());
+  }
+  EXPECT_EQ(*node_->log, expected);
+}
+
+TEST_F(ActivationRegistry, ThrowingCreatorRollsBackTheCreatedSlotsAndRunsError)
+{
+  node_->add_logging_slot("d", true);
+  node_->add_logging_slot("e");
+  node_->configure();
+  node_->log->clear();
+
+  node_->activate();
+
+  EXPECT_EQ(
+    *node_->log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a", "hook error"}));
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
+}
+
+TEST_F(ActivationRegistry, FailingActivateHookDestroysTheSlots)
+{
+  node_->outcomes["activate"] = Outcome::FAILURE;
+  node_->configure();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->activate().id(), State::PRIMARY_STATE_INACTIVE);
+
+  EXPECT_EQ(
+    *node_->log, (Log{"create a", "create b", "create c", "hook activate", "destroy c", "destroy b", "destroy a"}));
+}
+
+TEST_F(ActivationRegistry, ThrowingActivateHookDestroysTheSlotsBeforeTheErrorHook)
+{
+  node_->outcomes["activate"] = Outcome::THROW;
+  node_->configure();
+  node_->log->clear();
+
+  node_->activate();
+
+  EXPECT_EQ(
+    *node_->log,
+    (Log{"create a", "create b", "create c", "hook activate", "destroy c", "destroy b", "destroy a", "hook error"}));
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
+}
+
+TEST_F(ActivationRegistry, FailingDeactivateHookKeepsTheSlots)
+{
+  node_->outcomes["deactivate"] = Outcome::FAILURE;
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_ACTIVE);
+
+  EXPECT_EQ(*node_->log, (Log{"hook deactivate"}));
+}
+
+TEST_F(ActivationRegistry, ThrowingDeactivateHookDestroysTheSlotsBeforeTheErrorHook)
+{
+  node_->outcomes["deactivate"] = Outcome::THROW;
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  node_->deactivate();
+
+  EXPECT_EQ(*node_->log, (Log{"hook deactivate", "destroy c", "destroy b", "destroy a", "hook error"}));
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
+}
+
+TEST_F(ActivationRegistry, ShutdownFromActiveDestroysTheSlotsBeforeTheHook)
+{
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+
+  EXPECT_EQ(*node_->log, (Log{"destroy c", "destroy b", "destroy a", "hook shutdown"}));
+}
+
+TEST_F(ActivationRegistry, ShutdownFromInactiveAndUnconfiguredDestroysNothing)
+{
+  EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+  EXPECT_EQ(*node_->log, (Log{"hook shutdown"}));
+
+  auto inactive = std::make_shared<SlotNode>();
+  inactive->add_logging_slot("a");
+  inactive->configure();
+  inactive->activate();
+  inactive->deactivate();
+  inactive->log->clear();
+
+  EXPECT_EQ(inactive->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+  EXPECT_EQ(*inactive->log, (Log{"hook shutdown"}));
+}
+
+TEST_F(ActivationRegistry, ErrorFromEveryStateDestroysTheSlotsOnlyWhenActive)
+{
+  // Unconfigured: the configure hook throws.
+  node_->outcomes["configure"] = Outcome::THROW;
+  node_->configure();
+  EXPECT_EQ(*node_->log, (Log{"hook configure", "hook error"}));
+
+  // Inactive: the cleanup hook throws.
+  auto inactive = std::make_shared<SlotNode>();
+  inactive->add_logging_slot("a");
+  inactive->outcomes["cleanup"] = Outcome::THROW;
+  inactive->configure();
+  inactive->log->clear();
+  inactive->cleanup();
+  EXPECT_EQ(*inactive->log, (Log{"hook cleanup", "hook error"}));
+
+  // Active: the deactivate hook throws, and the slots are destroyed before the error hook.
+  auto active = std::make_shared<SlotNode>();
+  active->add_logging_slot("a");
+  active->outcomes["deactivate"] = Outcome::THROW;
+  active->configure();
+  active->activate();
+  active->log->clear();
+  active->deactivate();
+  EXPECT_EQ(*active->log, (Log{"hook deactivate", "destroy a", "hook error"}));
+}
+
+TEST_F(ActivationRegistry, RegisteringWhileActiveThrows)
+{
+  node_->register_in_activate = true;
+  node_->configure();
+
+  node_->activate();
+
+  EXPECT_TRUE(node_->late_registration_threw);
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_ACTIVE);
+  node_->deactivate();
+  // The rejected slot never ran.
+  EXPECT_EQ(
+    *node_->log,
+    (Log{
+      "hook configure",
+      "create a",
+      "create b",
+      "create c",
+      "hook activate",
+      "hook deactivate",
+      "destroy c",
+      "destroy b",
+      "destroy a"}));
+}
+
+TEST(ActivationRegistryLifetime, DestroyingAnActiveNodeDoesNotCallDestroy)
+{
+  rclcpp::init(0, nullptr);
+  auto log = std::make_shared<Log>();
+  {
+    auto node = std::make_shared<SlotNode>(log);
+    node->add_logging_slot("a");
+    node->configure();
+    node->activate();
+    log->clear();
+  }
+  rclcpp::shutdown();
+
+  EXPECT_TRUE(log->empty());
+}
+
+/// Owns a member that a slot manages, to check that the member follows the node's activation.
+class ManagedNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  ManagedNode()
+  : nodl_runtime_cpp::LifecycleNode("managed_node")
+  {
+    manage(
+      publisher, [this] { return rclcpp::create_publisher<std_msgs::msg::String>(*this, "chatter", rclcpp::QoS(10)); });
+  }
+
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
+};
+
+TEST_F(ActivationRegistry, ManagedMemberIsNullUntilActivationAndAfterDeactivation)
+{
+  auto node = std::make_shared<ManagedNode>();
+  EXPECT_EQ(node->publisher, nullptr);
+
+  node->configure();
+  EXPECT_EQ(node->publisher, nullptr);
+
+  node->activate();
+  ASSERT_NE(node->publisher, nullptr);
+  EXPECT_EQ(node->publisher->get_topic_name(), std::string("/chatter"));
+
+  node->deactivate();
+  EXPECT_EQ(node->publisher, nullptr);
+
+  node->activate();
+  EXPECT_NE(node->publisher, nullptr);
 }
 
 }  // namespace

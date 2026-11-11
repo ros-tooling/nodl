@@ -45,6 +45,16 @@ definitions:
         type: string
         pattern: ^[A-Za-z_][A-Za-z0-9_:]*$
         default: rclcpp::Publisher
+      lifecycle:
+        description: |
+          If the node is a lifecycle node, make the generated base class create its publishers and subscriptions when the node activates
+          and destroy them when it deactivates, by registering them with the ``manage`` function of the base class.
+          Those members are null while the node is not active.
+          The base class named by ``class`` must provide ``manage``, as ``nodl_runtime_cpp::LifecycleNode`` does,
+          or the generated code does not compile.
+          Publishers are plain ``rclcpp::Publisher`` objects, and ``publisher_type`` is ignored.
+        type: boolean
+        default: false
 
   codegen_no_generate:
     description: |

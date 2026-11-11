@@ -1,38 +1,53 @@
 {% set has_entities = publishers or subscriptions or service_servers or service_clients or action_servers or action_clients or has_parameters %}
-// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
-#include "{{ header_include }}"
-
-{% if namespace %}
-namespace {{ namespace }}
-{
-{% endif %}
-{{ class_name }}::{{ class_name }}(const rclcpp::NodeOptions & options)
-: {{ base_class }}("{{ node_name }}", options)
-{% if has_parameters %}
-, param_listener_(this->get_node_parameters_interface(), this->get_logger())
-, params_(param_listener_.get_params())
-{% endif %}
-{% if has_entities %}
-{
+{% macro publishers_block() %}
 {% if publishers %}
 
+{% if lifecycle %}
+  // Register publishers
+{% else %}
   // Create publishers
+{% endif %}
 {% for pub in publishers %}
+{% if lifecycle %}
+  manage({{ pub.member }}, [this] {
+    return rclcpp::create_publisher<{{ pub.cpp_type }}>(*this, "{{ pub.name }}", {{ pub.qos }});
+  });
+{% else %}
   {{ pub.member }} = this->create_publisher<{{ pub.cpp_type }}>("{{ pub.name }}", {{ pub.qos }});
+{% endif %}
 {% endfor %}
 {% endif %}
+{% endmacro %}
+{% macro subscriptions_block() %}
 {% if subscriptions %}
 
+{% if lifecycle %}
+  // Register subscriptions
+{% else %}
   // Create subscriptions
+{% endif %}
 {% for sub in subscriptions %}
+{% if lifecycle %}
+  manage({{ sub.member }}, [this] {
+    return this->create_subscription<{{ sub.cpp_type }}>(
+      "{{ sub.name }}",
+      {{ sub.qos }},
+      [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
+        this->{{ sub.callback }}(msg);
+      });
+  });
+{% else %}
   {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
     "{{ sub.name }}",
     {{ sub.qos }},
     [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
       this->{{ sub.callback }}(msg);
     });
+{% endif %}
 {% endfor %}
 {% endif %}
+{% endmacro %}
+{% macro service_servers_block() %}
 {% if service_servers %}
 
   // Create service servers
@@ -44,6 +59,8 @@ namespace {{ namespace }}
     });
 {% endfor %}
 {% endif %}
+{% endmacro %}
+{% macro service_clients_block() %}
 {% if service_clients %}
 
   // Create service clients
@@ -51,6 +68,8 @@ namespace {{ namespace }}
   {{ cli.member }} = this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}");
 {% endfor %}
 {% endif %}
+{% endmacro %}
+{% macro action_servers_block() %}
 {% if action_servers %}
 
   // Create action servers
@@ -69,6 +88,8 @@ namespace {{ namespace }}
     });
 {% endfor %}
 {% endif %}
+{% endmacro %}
+{% macro action_clients_block() %}
 {% if action_clients %}
 
   // Create action clients
@@ -76,6 +97,32 @@ namespace {{ namespace }}
   {{ cli.member }} = rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}");
 {% endfor %}
 {% endif %}
+{% endmacro %}
+// GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
+#include "{{ header_include }}"
+{% if lifecycle and publishers %}
+
+#include <rclcpp/create_publisher.hpp>
+{% endif %}
+
+{% if namespace %}
+namespace {{ namespace }}
+{
+{% endif %}
+{{ class_name }}::{{ class_name }}(const rclcpp::NodeOptions & options)
+: {{ base_class }}("{{ node_name }}", options)
+{% if has_parameters %}
+, param_listener_(this->get_node_parameters_interface(), this->get_logger())
+, params_(param_listener_.get_params())
+{% endif %}
+{% if has_entities %}
+{
+{{ publishers_block() -}}
+{{ subscriptions_block() -}}
+{{ service_servers_block() -}}
+{{ service_clients_block() -}}
+{{ action_servers_block() -}}
+{{ action_clients_block() -}}
 }
 {% else %}
 {}

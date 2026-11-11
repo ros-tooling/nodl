@@ -1,0 +1,13 @@
+---
+# What nodl://nodl_common_interfaces/lifecycle_node resolves to for C++ in a real workspace:
+# the runtime base class, with endpoints created on activation.
+
+nodl_version: 2
+description: nodl_runtime_cpp::LifecycleNode interface
+
+codegen:
+  cpp:
+    role: BASE_CLASS
+    class: nodl_runtime_cpp::LifecycleNode
+    header: nodl_runtime_cpp/lifecycle_node.hpp
+    lifecycle: true

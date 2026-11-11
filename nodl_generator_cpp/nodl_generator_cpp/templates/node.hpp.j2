@@ -33,7 +33,7 @@ protected:
 {% endif %}
 {% if publishers %}
 
-  // --- Publishers ---
+  // --- Publishers{{ ' (null while the node is not active)' if lifecycle }} ---
 {% for pub in publishers %}
   {{ publisher_class }}<{{ pub.cpp_type }}>::SharedPtr {{ pub.member }};
 {% endfor %}
@@ -85,7 +85,7 @@ protected:
 private:
 {% if subscriptions %}
 
-  // --- Subscriptions ---
+  // --- Subscriptions{{ ' (null while the node is not active)' if lifecycle }} ---
 {% for sub in subscriptions %}
   rclcpp::Subscription<{{ sub.cpp_type }}>::SharedPtr {{ sub.member }};
 {% endfor %}
