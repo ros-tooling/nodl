@@ -6,6 +6,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <future>
 #include <memory>
 #include <string>
 #include <thread>
@@ -14,6 +15,8 @@
 
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "std_srvs/srv/set_bool.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include "test_nodl_generators/cpp_lifecycle_node_base.hpp"
 
 namespace
@@ -45,6 +48,15 @@ public:
     pub_status_->publish(message);
   }
 
+  /// Sends a request on the set_bool client, which must exist.
+  rclcpp::Client<std_srvs::srv::SetBool>::FutureAndRequestId send_set_bool()
+  {
+    return cli_set_bool_->async_send_request(std::make_shared<std_srvs::srv::SetBool::Request>());
+  }
+
+  /// Makes `handle_activate` wait for the set_bool service and call it.
+  std::atomic<bool> call_set_bool_in_activate{false};
+  std::atomic<bool> set_bool_answered_in_activate{false};
   /// Whether the generated publishers existed when each hook ran.
   std::atomic<bool> publishers_set_in_activate{false};
   std::atomic<bool> publishers_set_in_deactivate{false};
@@ -60,6 +72,10 @@ protected:
     std_msgs::msg::String message;
     message.data = "initial";
     pub_latched_status_->publish(message);
+    if (call_set_bool_in_activate) {
+      set_bool_answered_in_activate = cli_set_bool_->wait_for_service(TIMEOUT) &&
+                                      std::future_status::ready == send_set_bool().future.wait_for(TIMEOUT);
+    }
     return CallbackReturn::SUCCESS;
   }
 
@@ -72,6 +88,13 @@ protected:
   void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr /*msg*/) override
   {
     ++cmd_vel_received;
+  }
+
+  void on_trigger(
+    std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
+    std_srvs::srv::Trigger::Response::SharedPtr response) override
+  {
+    response->success = true;
   }
 
   void on_latched(std_msgs::msg::String::ConstSharedPtr /*msg*/) override
@@ -132,6 +155,16 @@ protected:
     return has_endpoint_of_node(peer_->get_subscriptions_info_by_topic(topic));
   }
 
+  bool graph_has_service(const std::string & name)
+  {
+    return 0 != peer_->get_service_names_and_types_by_node(NODE_NAME, "/").count(name);
+  }
+
+  bool graph_has_client(const std::string & name)
+  {
+    return 0 != peer_->get_node_graph_interface()->get_client_names_and_types_by_node(NODE_NAME, "/").count(name);
+  }
+
   /// Waits until the node's built-in endpoints are visible, so an absent endpoint is not just undiscovered.
   void wait_for_node_discovery()
   {
@@ -165,21 +198,29 @@ TEST_F(GeneratedLifecycleNode, EndpointsAppearOnlyWhileActive)
     EXPECT_FALSE(graph_has_subscription(topic)) << topic;
   }
 
+  EXPECT_FALSE(graph_has_service("/trigger"));
+  EXPECT_FALSE(graph_has_client("/set_bool"));
+  // The lifecycle and parameter services stay.
+  EXPECT_TRUE(graph_has_service("/cpp_lifecycle_node/get_state"));
+
   ASSERT_EQ(node_->configure().id(), State::PRIMARY_STATE_INACTIVE);
   spin_for(300ms);
   EXPECT_FALSE(graph_has_publisher("/status"));
   EXPECT_FALSE(graph_has_subscription("/cmd_vel"));
+  EXPECT_FALSE(graph_has_service("/trigger"));
 
   ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
   EXPECT_TRUE(spin_until([this] {
     return graph_has_publisher("/status") && graph_has_publisher("/latched_status") &&
-           graph_has_subscription("/cmd_vel") && graph_has_subscription("/latched");
+           graph_has_subscription("/cmd_vel") && graph_has_subscription("/latched") && graph_has_service("/trigger") &&
+           graph_has_client("/set_bool");
   }));
 
   ASSERT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
   EXPECT_TRUE(spin_until([this] {
     return !graph_has_publisher("/status") && !graph_has_publisher("/latched_status") &&
-           !graph_has_subscription("/cmd_vel") && !graph_has_subscription("/latched");
+           !graph_has_subscription("/cmd_vel") && !graph_has_subscription("/latched") &&
+           !graph_has_service("/trigger") && !graph_has_client("/set_bool");
   }));
   // The lifecycle interface stays.
   EXPECT_TRUE(graph_has_publisher("/cpp_lifecycle_node/transition_event"));
@@ -284,6 +325,87 @@ TEST_F(GeneratedLifecycleNode, ShutdownFromActiveDestroysTheEndpoints)
   ASSERT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
 
   EXPECT_TRUE(spin_until([this] { return !graph_has_publisher("/status") && !graph_has_subscription("/cmd_vel"); }));
+}
+
+/// A fixture that spins the node and a peer on background threads, so a transition can wait for a response.
+class GeneratedLifecycleNodeSpinning : public ::testing::Test
+{
+protected:
+  static void SetUpTestSuite()
+  {
+    rclcpp::init(0, nullptr);
+  }
+
+  static void TearDownTestSuite()
+  {
+    rclcpp::shutdown();
+  }
+
+  void SetUp() override
+  {
+    executor_.add_node(node_->get_node_base_interface());
+    executor_.add_node(peer_);
+    spinner_ = std::thread([this] { executor_.spin(); });
+  }
+
+  void TearDown() override
+  {
+    executor_.cancel();
+    spinner_.join();
+  }
+
+  std::shared_ptr<TestNode> node_ = std::make_shared<TestNode>();
+  std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
+  rclcpp::executors::MultiThreadedExecutor executor_{rclcpp::ExecutorOptions(), 4};
+  std::thread spinner_;
+};
+
+TEST_F(GeneratedLifecycleNodeSpinning, ServiceIsNotDiscoverableWhileInactiveAndAnswersWhenActive)
+{
+  auto trigger = peer_->create_client<std_srvs::srv::Trigger>("trigger");
+  EXPECT_FALSE(trigger->wait_for_service(500ms));
+  ASSERT_EQ(node_->configure().id(), State::PRIMARY_STATE_INACTIVE);
+  EXPECT_FALSE(trigger->wait_for_service(500ms));
+
+  ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+  ASSERT_TRUE(trigger->wait_for_service(TIMEOUT));
+  auto response = trigger->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>());
+  ASSERT_EQ(std::future_status::ready, response.future.wait_for(TIMEOUT));
+  EXPECT_TRUE(response.future.get()->success);
+
+  ASSERT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+  const auto deadline = std::chrono::steady_clock::now() + TIMEOUT;
+  while (trigger->service_is_ready() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(10ms);
+  }
+  EXPECT_FALSE(trigger->service_is_ready());
+}
+
+TEST_F(GeneratedLifecycleNodeSpinning, ClientCreatedAtActivationIsUsableFromHandleActivate)
+{
+  auto set_bool = peer_->create_service<std_srvs::srv::SetBool>(
+    "set_bool", [](std_srvs::srv::SetBool::Request::SharedPtr, std_srvs::srv::SetBool::Response::SharedPtr response) {
+      response->success = true;
+    });
+  node_->call_set_bool_in_activate = true;
+  ASSERT_EQ(node_->configure().id(), State::PRIMARY_STATE_INACTIVE);
+
+  ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+
+  EXPECT_TRUE(node_->set_bool_answered_in_activate);
+}
+
+TEST_F(GeneratedLifecycleNodeSpinning, PendingRequestFailsWhenTheNodeDeactivates)
+{
+  // No peer serves set_bool, so the request stays pending.
+  node_->configure();
+  node_->activate();
+  auto pending = node_->send_set_bool();
+  ASSERT_EQ(std::future_status::timeout, pending.future.wait_for(200ms));
+
+  node_->deactivate();
+
+  EXPECT_THROW(pending.future.get(), std::future_error);
 }
 
 /// The node and a publisher peer spin in a multi-threaded executor while another thread cycles the node.

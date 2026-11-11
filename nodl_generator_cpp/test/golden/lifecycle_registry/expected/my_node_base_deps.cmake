@@ -8,6 +8,7 @@ set(my_node_base_ROS_DEPS
   geometry_msgs
   nodl_runtime_cpp
   std_msgs
+  std_srvs
 )
 set(my_node_base_GENERATED_FILES
   my_node_base.hpp

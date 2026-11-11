@@ -409,7 +409,7 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 ### The `lifecycle` field
 
 `BASE_CLASS` accepts an optional boolean `lifecycle`, which defaults to false.
-When it is true, the generated class creates its publishers and subscriptions when the node activates and destroys them when it deactivates, as the next section describes.
+When it is true, the generated class creates its publishers, subscriptions, service clients and service servers when the node activates and destroys them when it deactivates, as the next section describes.
 `nodl://nodl_common_interfaces/lifecycle_node` sets it:
 
 ```yaml
@@ -436,6 +436,11 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
     return rclcpp::create_publisher<std_msgs::msg::String>(*this, "status", rclcpp::QoS(10).reliable());
   });
 
+  // Register service clients
+  manage(cli_set_bool_, [this] {
+    return this->create_client<std_srvs::srv::SetBool>("set_bool");
+  });
+
   // Register subscriptions
   manage(sub_cmd_vel_, [this] {
     return this->create_subscription<geometry_msgs::msg::Twist>(
@@ -456,9 +461,9 @@ The authored class defines the hook that matches the transition, not a transitio
 Each takes the previous state and returns a `CallbackReturn`, and defaults to SUCCESS.
 See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
 
-With `lifecycle: true` on its `BASE_CLASS` (see the `lifecycle` field above), the generated class creates its publishers and subscriptions when the node activates, and destroys them when it deactivates.
-Service servers, service clients, action servers and action clients are still created in the constructor.
-The node's declared publishers and subscriptions therefore exist only while it is active, and the node's built-in lifecycle and parameter endpoints stay.
+With `lifecycle: true` on its `BASE_CLASS` (see the `lifecycle` field above), the generated class creates its publishers, service clients, subscriptions and service servers when the node activates, and destroys them when it deactivates.
+Action servers and action clients are still created in the constructor.
+The node's declared endpoints of those kinds therefore exist only while it is active, and the node's built-in lifecycle and parameter endpoints stay.
 
 | Transition | What happens to the generated endpoints |
 |---|---|
@@ -467,14 +472,15 @@ The node's declared publishers and subscriptions therefore exist only while it i
 | deactivate | Destroyed, in reverse order, after `handle_deactivate` returns SUCCESS. |
 | shutdown, error | Destroyed first when the node is active, then the hook runs. |
 
-The generated constructor registers publishers first and subscriptions next, so a subscription callback finds every publisher already created.
-They are destroyed in the opposite order, so subscriptions go first.
+The generated constructor registers publishers and service clients first, then subscriptions and service servers, so a callback finds every publisher and client already created.
+They are destroyed in the opposite order, so service servers and subscriptions go first.
 
 The endpoint members are plain `SharedPtr`s that are null while the node is not active:
-- Use publishers from subscription callbacks, `handle_activate` and `handle_deactivate`, where they are set.
+- Use publishers and clients from subscription and service callbacks, `handle_activate` and `handle_deactivate`, where they are set.
 - Create timers in `handle_activate` and cancel them in `handle_deactivate`, instead of creating them in the constructor or `handle_configure`.
 - Own threads copy the `shared_ptr` and check it for null before using it.
-- A publisher is set in `handle_activate`, so the hook can publish an initial message.
+- The publishers and clients are set in `handle_activate`, so the hook can publish an initial message and call a service.
+  The service must be discoverable, so wait for it with `wait_for_service` and do not call a client from `handle_configure`.
 - Publishers are plain `rclcpp::Publisher`s, not `rclcpp_lifecycle::LifecyclePublisher`s.
 
 ```cpp
@@ -508,14 +514,16 @@ private:
   Publish the latched message again in `handle_activate`.
 - A message published in `handle_activate` reaches only the peers that are already matched with the new publisher, because discovery is asynchronous.
   A `volatile` message is usually lost, and a `transient_local` message is delivered to every peer that matches later.
+- A service server is not discoverable while the node is inactive, so a peer's `wait_for_service` waits until activation.
+- A request that a client has sent and not yet received a response for fails with a `std::future_error` when the node deactivates.
 - Each activation creates the endpoints again, with the discovery traffic and the match latency that comes with it.
 - An inactive node shows none of its declared topics in the graph, so a tool that waits for them after configuring the node waits until activation.
 - A node cannot receive anything while it is inactive, so no sample is delivered to it before activation.
 
 #### Migrating a generated lifecycle node to `lifecycle: true`
 
-BREAKING CHANGE: generated C++ lifecycle nodes create their publishers and subscriptions on activation and destroy them on deactivation.
-- Their members are null while the node is not active, so publish only from subscription callbacks, `handle_activate` and `handle_deactivate`, and create timers in `handle_activate`.
+BREAKING CHANGE: generated C++ lifecycle nodes create their publishers, subscriptions, service servers and service clients on activation and destroy them on deactivation.
+- Their members are null while the node is not active, so publish and call clients only from endpoint callbacks, `handle_activate` and `handle_deactivate`, and create timers in `handle_activate`.
 - Latched publishers lose their history on deactivation, so republish in `handle_activate`.
 - Publishers are no longer `rclcpp_lifecycle::LifecyclePublisher`s.
 

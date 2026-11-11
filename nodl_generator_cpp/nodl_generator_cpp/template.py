@@ -178,8 +178,8 @@ def render_templates(
     and the parameter structs are expected under ``<namespace>::<target_name>``,
     which the class reaches as ``<target_name>::``.
     Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
-    When *lifecycle* is true, the constructor registers publishers and subscriptions with the base class's ``manage``,
-    so they are created at activation, and the publisher members are plain ``rclcpp::Publisher`` pointers.
+    When *lifecycle* is true, the constructor registers publishers, subscriptions, service clients and service servers
+    with the base class's ``manage``, so they are created at activation, and the publisher members are plain ``rclcpp::Publisher`` pointers.
     """
     ctx = _build_template_context(
         target_name,

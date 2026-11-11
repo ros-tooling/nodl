@@ -6,6 +6,8 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <nodl_runtime_cpp/lifecycle_node.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_srvs/srv/set_bool.hpp>
+#include <std_srvs/srv/trigger.hpp>
 
 class MyNodeBase : public nodl_runtime_cpp::LifecycleNode
 {
@@ -22,8 +24,17 @@ protected:
   // --- Subscription callbacks ---
   virtual void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr msg) = 0;
 
+  // --- Service server callbacks ---
+  virtual void on_trigger(std_srvs::srv::Trigger::Request::SharedPtr request, std_srvs::srv::Trigger::Response::SharedPtr response) = 0;
+
+  // --- Service clients (null while the node is not active) ---
+  rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr cli_set_bool_;
+
 private:
 
   // --- Subscriptions (null while the node is not active) ---
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
+
+  // --- Service servers (null while the node is not active) ---
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_trigger_;
 };

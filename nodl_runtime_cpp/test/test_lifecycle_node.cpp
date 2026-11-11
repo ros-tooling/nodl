@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -638,6 +639,37 @@ TEST(ActivationRegistryExecutor, DeactivatingAfterAnEndpointRanWhileAnExecutorIs
     EXPECT_FALSE(client->service_is_ready());
     executor.cancel();
     spinner.join();
+  }
+  rclcpp::shutdown();
+}
+
+/// Owns a client that a slot manages.
+class ClientNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  ClientNode()
+  : nodl_runtime_cpp::LifecycleNode("client_node")
+  {
+    manage(client, [this] { return create_client<std_srvs::srv::SetBool>("set_bool"); });
+  }
+
+  rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr client;
+};
+
+TEST(ActivationRegistryClient, PendingRequestFailsWhenTheNodeDeactivates)
+{
+  rclcpp::init(0, nullptr);
+  {
+    auto node = std::make_shared<ClientNode>();
+    node->configure();
+    node->activate();
+    // No service answers, so the request stays pending.
+    auto pending = node->client->async_send_request(std::make_shared<std_srvs::srv::SetBool::Request>());
+    ASSERT_EQ(std::future_status::timeout, pending.future.wait_for(std::chrono::milliseconds(100)));
+
+    node->deactivate();
+
+    EXPECT_THROW(pending.future.get(), std::future_error);
   }
   rclcpp::shutdown();
 }

@@ -47,7 +47,7 @@ definitions:
         default: rclcpp::Publisher
       lifecycle:
         description: |
-          If the node is a lifecycle node, make the generated base class create its publishers and subscriptions when the node activates
+          If the node is a lifecycle node, make the generated base class create its publishers, subscriptions, service clients and service servers when the node activates
           and destroy them when it deactivates, by registering them with the ``manage`` function of the base class.
           Those members are null while the node is not active.
           The base class named by ``class`` must provide ``manage``, as ``nodl_runtime_cpp::LifecycleNode`` does,

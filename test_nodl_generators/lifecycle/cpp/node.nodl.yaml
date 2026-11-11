@@ -1,5 +1,5 @@
 ---
-# LifecycleNode base class with publishers and subscriptions.
+# LifecycleNode base class with publishers, subscriptions, service servers and service clients.
 # The latched publisher and subscription use TRANSIENT_LOCAL durability.
 
 nodl_version: 2
@@ -38,3 +38,11 @@ subscriptions:
       depth: 1
       reliability: RELIABLE
       durability: TRANSIENT_LOCAL
+
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger
+
+service_clients:
+  - name: set_bool
+    type: std_srvs/srv/SetBool

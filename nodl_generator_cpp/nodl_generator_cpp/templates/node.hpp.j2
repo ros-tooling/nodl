@@ -67,7 +67,7 @@ protected:
 {% endif %}
 {% if service_clients %}
 
-  // --- Service clients ---
+  // --- Service clients{{ ' (null while the node is not active)' if lifecycle }} ---
 {% for cli in service_clients %}
   rclcpp::Client<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
 {% endfor %}
@@ -92,7 +92,7 @@ private:
 {% endif %}
 {% if service_servers %}
 
-  // --- Service servers ---
+  // --- Service servers{{ ' (null while the node is not active)' if lifecycle }} ---
 {% for srv in service_servers %}
   rclcpp::Service<{{ srv.cpp_type }}>::SharedPtr {{ srv.member }};
 {% endfor %}

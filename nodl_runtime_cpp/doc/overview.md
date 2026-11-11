@@ -81,6 +81,7 @@ The example is compiled as part of the package tests.
 - A latched publisher loses its history when it is destroyed at deactivation, so publish the latched message again in `handle_activate`.
 - A message published in `handle_activate` reaches only the peers that are already matched, since discovery is asynchronous.
   A `transient_local` publisher delivers it to the peers that match later.
+- A request that a managed client has sent and not yet received a response for fails with a `std::future_error` when the node deactivates.
 - Each activation creates the endpoints again, with the discovery traffic that comes with it.
 - An inactive node shows none of its registered endpoints in the graph.
 

@@ -38,7 +38,7 @@ class CodegenBaseClass(BaseModel):
     )
     lifecycle: Optional[bool] = Field(
         False,
-        description='If the node is a lifecycle node, make the generated base class create its publishers and subscriptions when the node activates\nand destroy them when it deactivates, by registering them with the ``manage`` function of the base class.\nThose members are null while the node is not active.\nThe base class named by ``class`` must provide ``manage``, as ``nodl_runtime_cpp::LifecycleNode`` does,\nor the generated code does not compile.\nPublishers are plain ``rclcpp::Publisher`` objects, and ``publisher_type`` is ignored.\n',
+        description='If the node is a lifecycle node, make the generated base class create its publishers, subscriptions, service clients and service servers when the node activates\nand destroy them when it deactivates, by registering them with the ``manage`` function of the base class.\nThose members are null while the node is not active.\nThe base class named by ``class`` must provide ``manage``, as ``nodl_runtime_cpp::LifecycleNode`` does,\nor the generated code does not compile.\nPublishers are plain ``rclcpp::Publisher`` objects, and ``publisher_type`` is ignored.\n',
     )
 
 
