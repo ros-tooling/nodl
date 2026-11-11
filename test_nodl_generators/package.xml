@@ -17,6 +17,7 @@
   <depend>example_interfaces</depend>
   <depend>geometry_msgs</depend>
   <build_depend>lifecycle_msgs</build_depend>
+  <depend>nodl_runtime_cpp</depend>
   <depend>rclcpp</depend>
   <build_depend>rclcpp_action</build_depend>
   <depend>rclcpp_lifecycle</depend>
@@ -25,6 +26,7 @@
 
   <exec_depend>nodl_runtime_py</exec_depend>
 
+  <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_index_python</test_depend>
   <test_depend>python3-pytest</test_depend>

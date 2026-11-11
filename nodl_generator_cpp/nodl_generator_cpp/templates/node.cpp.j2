@@ -1,6 +1,166 @@
 {% set has_entities = publishers or subscriptions or service_servers or service_clients or action_servers or action_clients or has_parameters %}
+{% macro publishers_block() %}
+{% if publishers %}
+
+{% if lifecycle %}
+  // Register publishers
+{% else %}
+  // Create publishers
+{% endif %}
+{% for pub in publishers %}
+{% if lifecycle %}
+  manage({{ pub.member }}, [this] {
+    return rclcpp::create_publisher<{{ pub.cpp_type }}>(*this, "{{ pub.name }}", {{ pub.qos }});
+  });
+{% else %}
+  {{ pub.member }} = this->create_publisher<{{ pub.cpp_type }}>("{{ pub.name }}", {{ pub.qos }});
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endmacro %}
+{% macro subscriptions_block() %}
+{% if subscriptions %}
+
+{% if lifecycle %}
+  // Register subscriptions
+{% else %}
+  // Create subscriptions
+{% endif %}
+{% for sub in subscriptions %}
+{% if lifecycle %}
+  manage({{ sub.member }}, [this] {
+    return this->create_subscription<{{ sub.cpp_type }}>(
+      "{{ sub.name }}",
+      {{ sub.qos }},
+      [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
+        this->{{ sub.callback }}(msg);
+      });
+  });
+{% else %}
+  {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
+    "{{ sub.name }}",
+    {{ sub.qos }},
+    [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
+      this->{{ sub.callback }}(msg);
+    });
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endmacro %}
+{% macro service_servers_block() %}
+{% if service_servers %}
+
+{% if lifecycle %}
+  // Register service servers
+{% else %}
+  // Create service servers
+{% endif %}
+{% for srv in service_servers %}
+{% if lifecycle %}
+  manage({{ srv.member }}, [this] {
+    return this->create_service<{{ srv.cpp_type }}>(
+      "{{ srv.name }}",
+      [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
+        this->{{ srv.callback }}(req, res);
+      });
+  });
+{% else %}
+  {{ srv.member }} = this->create_service<{{ srv.cpp_type }}>(
+    "{{ srv.name }}",
+    [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
+      this->{{ srv.callback }}(req, res);
+    });
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endmacro %}
+{% macro service_clients_block() %}
+{% if service_clients %}
+
+{% if lifecycle %}
+  // Register service clients
+{% else %}
+  // Create service clients
+{% endif %}
+{% for cli in service_clients %}
+{% if lifecycle %}
+  manage({{ cli.member }}, [this] {
+    return this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}");
+  });
+{% else %}
+  {{ cli.member }} = this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}");
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endmacro %}
+{% macro action_servers_block() %}
+{% if action_servers %}
+
+{% if lifecycle %}
+  // Register action servers
+{% else %}
+  // Create action servers
+{% endif %}
+{% for action in action_servers %}
+{% if lifecycle %}
+  manage_action_server<{{ action.cpp_type }}>(
+    {{ action.member }},
+    [this](nodl_runtime_cpp::GoalTracker<{{ action.cpp_type }}> & tracker) {
+      return rclcpp_action::create_server<{{ action.cpp_type }}>(
+        this,
+        "{{ action.name }}",
+        [this](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const {{ action.cpp_type }}::Goal> goal) {
+          return this->{{ action.callback_prefix }}_goal(uuid, goal);
+        },
+        [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
+          return this->{{ action.callback_prefix }}_cancel(goal_handle);
+        },
+        tracker.accepted([this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
+          this->{{ action.callback_prefix }}_accepted(goal_handle);
+        }));
+    });
+{% else %}
+  {{ action.member }} = rclcpp_action::create_server<{{ action.cpp_type }}>(
+    this,
+    "{{ action.name }}",
+    [this](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const {{ action.cpp_type }}::Goal> goal) {
+      return this->{{ action.callback_prefix }}_goal(uuid, goal);
+    },
+    [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
+      return this->{{ action.callback_prefix }}_cancel(goal_handle);
+    },
+    [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
+      this->{{ action.callback_prefix }}_accepted(goal_handle);
+    });
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endmacro %}
+{% macro action_clients_block() %}
+{% if action_clients %}
+
+{% if lifecycle %}
+  // Register action clients
+{% else %}
+  // Create action clients
+{% endif %}
+{% for cli in action_clients %}
+{% if lifecycle %}
+  manage({{ cli.member }}, [this] {
+    return rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}");
+  });
+{% else %}
+  {{ cli.member }} = rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}");
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endmacro %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
+{% if lifecycle and publishers %}
+
+#include "rclcpp/create_publisher.hpp"
+{% endif %}
 
 {% if namespace %}
 namespace {{ namespace }}
@@ -14,67 +174,20 @@ namespace {{ namespace }}
 {% endif %}
 {% if has_entities %}
 {
-{% if publishers %}
-
-  // Create publishers
-{% for pub in publishers %}
-  {{ pub.member }} = this->create_publisher<{{ pub.cpp_type }}>("{{ pub.name }}", {{ pub.qos }});
-{% endfor %}
-{% endif %}
-{% if subscriptions %}
-
-  // Create subscriptions
-{% for sub in subscriptions %}
-  {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
-    "{{ sub.name }}",
-    {{ sub.qos }},
-    [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
-      this->{{ sub.callback }}(msg);
-    });
-{% endfor %}
-{% endif %}
-{% if service_servers %}
-
-  // Create service servers
-{% for srv in service_servers %}
-  {{ srv.member }} = this->create_service<{{ srv.cpp_type }}>(
-    "{{ srv.name }}",
-    [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
-      this->{{ srv.callback }}(req, res);
-    });
-{% endfor %}
-{% endif %}
-{% if service_clients %}
-
-  // Create service clients
-{% for cli in service_clients %}
-  {{ cli.member }} = this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}");
-{% endfor %}
-{% endif %}
-{% if action_servers %}
-
-  // Create action servers
-{% for action in action_servers %}
-  {{ action.member }} = rclcpp_action::create_server<{{ action.cpp_type }}>(
-    this,
-    "{{ action.name }}",
-    [this](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const {{ action.cpp_type }}::Goal> goal) {
-      return this->{{ action.callback_prefix }}_goal(uuid, goal);
-    },
-    [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
-      return this->{{ action.callback_prefix }}_cancel(goal_handle);
-    },
-    [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
-      this->{{ action.callback_prefix }}_accepted(goal_handle);
-    });
-{% endfor %}
-{% endif %}
-{% if action_clients %}
-
-  // Create action clients
-{% for cli in action_clients %}
-  {{ cli.member }} = rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}");
-{% endfor %}
+{% if lifecycle %}
+{{ publishers_block() -}}
+{{ service_clients_block() -}}
+{{ action_clients_block() -}}
+{{ subscriptions_block() -}}
+{{ service_servers_block() -}}
+{{ action_servers_block() -}}
+{% else %}
+{{ publishers_block() -}}
+{{ subscriptions_block() -}}
+{{ service_servers_block() -}}
+{{ service_clients_block() -}}
+{{ action_servers_block() -}}
+{{ action_clients_block() -}}
 {% endif %}
 }
 {% else %}

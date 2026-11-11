@@ -2,7 +2,7 @@
 
 `nodl_generator_cpp` generates a C++ abstract base class from a NoDL document.
 The generated class inherits from the appropriate node type (determined by includes), creates all endpoint handles
-in its constructor, and exposes pure-virtual callbacks for inbound endpoints.
+in its constructor (for a lifecycle node, when it activates), and exposes pure-virtual callbacks for inbound endpoints.
 You subclass it and write only business logic.
 
 Generated files are never edited by hand — they are regenerated whenever the `.nodl.yaml` changes.
@@ -163,7 +163,7 @@ It handles the differences in dependency target names between distributions, so 
 The generator requires that a nodl document includes exactly one spec with a codegen class type `BASE_CLASS`.
 
 The `nodl_common_interfaces` package provides shared NoDL descriptions for the standard node and lifecycle-node base types.
-Their `codegen.cpp` metadata selects `rclcpp::Node` or `rclcpp_lifecycle::LifecycleNode` as the `BASE_CLASS`.
+Their `codegen.cpp` metadata selects `rclcpp::Node` or `nodl_runtime_cpp::LifecycleNode` as the `BASE_CLASS`.
 They are registered as `nodl://nodl_common_interfaces/node` and `nodl://nodl_common_interfaces/lifecycle_node`.
 `nodl_generator_cpp` depends on `nodl_common_interfaces`, so a package that generates code does not have to explicitly declare it.
 
@@ -327,7 +327,7 @@ Entity names are sanitised for use as C++ identifiers: leading `~/` or `/` is st
 ## Base class and includes
 
 When generating a node, the generator walks the NoDL document tree to find a `BASE_CLASS` role document.
-The metadata there informs which base class (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`, or a custom class) this node implementation inherits from.
+The metadata there informs which base class (`rclcpp::Node`, `nodl_runtime_cpp::LifecycleNode`, or a custom class) this node implementation inherits from.
 
 Included documents' roles inform the generator what entities need to be generated, and which do not.
 For example, the base class already provides its interface, so those endpoints should not be created by the generator.
@@ -338,7 +338,7 @@ A NoDL document can carry a `codegen.cpp` field describing how it takes part in 
 
 | Role | Valid on | Fields | Meaning |
 |---|---|---|---|
-| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
+| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type`, `lifecycle` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
 | `NO_GENERATE` | Included documents | none | The document has an existing implementation but does not provide the generated class's base. |
 | `NODE` | The root document | `namespace` (optional) | The document is the one being generated. |
 
@@ -398,14 +398,166 @@ It defaults to `rclcpp::Publisher`, and `header` must declare it.
 codegen:
   cpp:
     role: BASE_CLASS
-    class: rclcpp_lifecycle::LifecycleNode
-    header: rclcpp_lifecycle/lifecycle_node.hpp
+    class: nodl_runtime_cpp::LifecycleNode
+    header: nodl_runtime_cpp/lifecycle_node.hpp
     publisher_type: rclcpp_lifecycle::LifecyclePublisher
 ```
 
 The generated class declares each publisher as `<publisher_type><MessageT>::SharedPtr`.
-`rclcpp_lifecycle::LifecycleNode::on_activate` and `on_deactivate` activate and deactivate its lifecycle publishers.
-A subclass that overrides those callbacks calls the base class's implementation to keep that behavior.
+`publisher_type` together with `lifecycle: true` is an error.
+
+### The `lifecycle` field
+
+`BASE_CLASS` accepts an optional boolean `lifecycle`, which defaults to false.
+When it is true, the generated class creates its endpoints when the node activates and destroys them when it deactivates, as the next section describes.
+`nodl://nodl_common_interfaces/lifecycle_node` sets it:
+
+```yaml
+codegen:
+  cpp:
+    role: BASE_CLASS
+    class: nodl_runtime_cpp::LifecycleNode
+    header: nodl_runtime_cpp/lifecycle_node.hpp
+    lifecycle: true
+```
+
+The generated constructor registers each endpoint with `manage`, a protected function of the base class, so the class named by `class` must provide it.
+`nodl_runtime_cpp::LifecycleNode` does, and a base class that does not makes the generated code fail to compile.
+`lifecycle` is valid only on `BASE_CLASS`, and the output of a base class without it is unchanged.
+For a lifecycle base, the generated source looks like this:
+
+```cpp
+MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
+: nodl_runtime_cpp::LifecycleNode("my_node", options)
+{
+
+  // Register publishers
+  manage(pub_status_, [this] {
+    return rclcpp::create_publisher<std_msgs::msg::String>(*this, "status", rclcpp::QoS(10).reliable());
+  });
+
+  // Register service clients
+  manage(cli_set_bool_, [this] {
+    return this->create_client<std_srvs::srv::SetBool>("set_bool");
+  });
+
+  // Register subscriptions
+  manage(sub_cmd_vel_, [this] {
+    return this->create_subscription<geometry_msgs::msg::Twist>(
+      "cmd_vel",
+      rclcpp::QoS(1).best_effort(),
+      [this](geometry_msgs::msg::Twist::ConstSharedPtr msg) {
+        this->on_cmd_vel(msg);
+      });
+  });
+}
+```
+
+The registrations of the other endpoint kinds follow the same pattern.
+An action server registers with `manage_action_server`, which passes the creator a `GoalTracker` that ends the active goals.
+
+### Lifecycle nodes
+
+A generated lifecycle node derives `nodl_runtime_cpp::LifecycleNode`, so a package that generates one depends on `nodl_runtime_cpp`.
+That base class implements and seals the transition callbacks (`on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` and `on_error`) and calls optional hooks instead.
+The authored class defines the hook that matches the transition, not a transition callback: `handle_configure`, `handle_activate`, `handle_deactivate`, `handle_cleanup`, `handle_shutdown` or `handle_error`.
+Each takes the previous state and returns a `CallbackReturn`, and defaults to SUCCESS.
+See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
+
+With `lifecycle: true` on its `BASE_CLASS` (see the `lifecycle` field above), the generated class creates its endpoints when the node activates, and destroys them when it deactivates.
+The node's declared endpoints therefore exist only while it is active, and the node's built-in lifecycle and parameter endpoints stay.
+
+| Transition | What happens to the generated endpoints |
+|---|---|
+| configure, cleanup | Nothing. |
+| activate | Created, in the order below, before `handle_activate` runs. |
+| deactivate | Destroyed, in reverse order, after `handle_deactivate` returns SUCCESS. Active action goals end first. |
+| shutdown, error from active | `handle_deactivate` runs first, then the endpoints are destroyed, then the hook runs. |
+| shutdown, error from unconfigured or inactive | Nothing, and the hook runs. |
+
+The generated constructor registers publishers, service clients and action clients first, then subscriptions, service servers and action servers, so a callback finds every publisher and client already created.
+They are destroyed in the opposite order, so action servers, service servers and subscriptions go first.
+
+The endpoint members are plain `SharedPtr`s that are null while the node is not active:
+- Use publishers and clients from subscription, service and action callbacks, `handle_activate` and `handle_deactivate`, where they are set.
+- Create timers in `handle_activate` and cancel them in `handle_deactivate`, instead of creating them in the constructor or `handle_configure`.
+  `handle_deactivate` also runs on shutdown and error from the active state, so one place stops them on every path.
+  Create them last in `handle_activate`, because a failing `handle_activate` destroys the endpoints without running `handle_deactivate`.
+- Use the members only where the transitions do not overlap the callback: in callbacks and timers of the default callback group, which the generated endpoints use, and in the hooks.
+  The default group is mutually exclusive with the lifecycle services that request transitions.
+- Do not use the members from a thread of your own, or a callback group of another kind, because the transition resets them.
+  Stop such work in `handle_deactivate`, or guard every use with a mutex that `handle_deactivate` also takes.
+  See the `nodl_runtime_cpp` overview for details.
+- The publishers and clients are set in `handle_activate`, so the hook can publish an initial message and call a service or an action.
+  The server must be discoverable, so wait for it with `wait_for_service` or `wait_for_action_server`, and do not call a client from `handle_configure`.
+- Publishers are plain `rclcpp::Publisher`s, not `rclcpp_lifecycle::LifecyclePublisher`s.
+
+```cpp
+class MyNode : public MyNodeBase
+{
+protected:
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/) override
+  {
+    // The publishers exist now.
+    std_msgs::msg::String message;
+    message.data = "ready";
+    pub_status_->publish(message);
+    timer_ = create_wall_timer(1s, [this] { publish_heartbeat(); });
+    return CallbackReturn::SUCCESS;
+  }
+
+  CallbackReturn handle_deactivate(const rclcpp_lifecycle::State & /*previous_state*/) override
+  {
+    timer_.reset();
+    return CallbackReturn::SUCCESS;
+  }
+
+private:
+  rclcpp::TimerBase::SharedPtr timer_;
+};
+```
+
+#### Trade-offs
+
+- A latched (`transient_local`) publisher loses its history when it is destroyed at deactivation, so a late subscriber sees nothing while the node is inactive.
+  Publish the latched message again in `handle_activate`.
+- A message published in `handle_activate` reaches only the peers that are already matched with the new publisher, because discovery is asynchronous.
+  A `volatile` message is usually lost, and a `transient_local` message is delivered to every peer that matches later.
+- A service or action server is not discoverable while the node is inactive, so a peer's `wait_for_service` or `wait_for_action_server` waits until activation.
+- A request or goal that a client has sent and not yet received a response for fails with a `std::future_error` once the executor releases the client, which is shortly after `deactivate` returns.
+- When the node deactivates, each goal of an action server that is still active ends before the server is destroyed:
+  an executing or deferred goal is aborted and a canceling goal is canceled, with a default-constructed result.
+  The goals end after `handle_deactivate` returns, so the hook can finish them first.
+  A worker thread of the authored class checks `goal_handle->is_active()` before it reports feedback or a result, and catches `rclcpp::exceptions::RCLError`, because the goal can end between the check and the call.
+- A client gets the result of an ended goal only when the server has already taken its result request.
+  When the node deactivates within a few milliseconds of the goal, the request is never answered: more than half of 200 trials of a result request followed at once by a deactivation left the client without a result, and none did when the deactivation came 20 ms later.
+  A client uses a timeout on `async_get_result` and watches `action_server_is_ready()`.
+- Each activation creates the endpoints again, with the discovery traffic and the match latency that comes with it.
+- A node with action servers or clients can hang a multi-threaded executor when it destroys them, and needs a single-threaded executor to avoid it. See the `nodl_runtime_cpp` overview.
+- A callback in a reentrant or separate callback group that is in flight during a transition can see null members.
+- An inactive node shows none of its declared topics in the graph, so a tool that waits for them after configuring the node waits until activation.
+- A node cannot receive anything while it is inactive, so no sample is delivered to it before activation.
+
+#### Migrating a generated lifecycle node to `lifecycle: true`
+
+BREAKING CHANGE: generated C++ lifecycle nodes create their publishers, subscriptions, service servers, service clients, action servers and action clients on activation and destroy them on deactivation.
+- Their members are null while the node is not active, so publish and call clients only from endpoint callbacks, `handle_activate` and `handle_deactivate`, and create timers in `handle_activate`.
+- Active action goals end on deactivation, so a worker checks `goal_handle->is_active()`.
+- Latched publishers lose their history on deactivation, so republish in `handle_activate`.
+- Shutdown and error from the active state run `handle_deactivate` first, and then destroy the endpoints.
+- Publishers are no longer `rclcpp_lifecycle::LifecyclePublisher`s.
+
+Earlier versions derived `rclcpp_lifecycle::LifecycleNode` directly, and an author's `on_activate` had to call the base class's implementation to activate the publishers.
+An authored class that defines `on_activate` or the other transition callbacks no longer compiles, because the runtime base class seals them with `final`.
+Move the logic into the matching `handle_*` hook, and drop the call to the base class's implementation.
+
+#### Rationale
+
+`rclcpp_lifecycle` offers a lifecycle publisher, and no lifecycle subscription, service, client or action type.
+A subscription created in the constructor is matched by the middleware and runs its callback in every state.
+A `transient_local` subscription then takes the publisher's history once, as soon as it matches, which is before the node is configured.
+That sample is never delivered again, so a node that subscribes to a latched topic such as a map or a robot description loses it.
+The lifecycle node design states that an inactive node does not read topics, and creating the subscription at activation delivers the latched sample then.
 
 ### Namespace
 

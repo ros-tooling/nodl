@@ -200,7 +200,8 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
         has_parameters,
         include_prefix=include_prefix,
         namespace=planner.namespace,
-        publisher_class=base.publisher_type,
+        publisher_class='rclcpp::Publisher' if base.lifecycle else base.publisher_type,
+        lifecycle=bool(base.lifecycle),
     )
     if has_parameters:
         generated_files += [generate_genparamlib_yaml(target_name, doc.parameters, namespace=planner.namespace)]

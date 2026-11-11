@@ -1,0 +1,17 @@
+type: 'rosdoc2 config'
+version: 1
+---
+settings:
+    always_run_doxygen: true
+    generate_package_index: true
+
+builders:
+    - doxygen: {
+        name: 'nodl_runtime_cpp Public C/C++ API',
+        output_dir: 'generated/doxygen'
+    }
+    - sphinx: {
+        name: 'nodl_runtime_cpp',
+        doxygen_xml_directory: 'generated/doxygen/xml',
+        output_dir: ''
+    }

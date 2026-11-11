@@ -47,6 +47,7 @@ nodl_generator_common <_generated/packages/nodl_generator_common/overview>
 nodl_generator_cpp <_generated/packages/nodl_generator_cpp/overview>
 nodl_generator_py <_generated/packages/nodl_generator_py/overview>
 nodl_observe <_generated/packages/nodl_observe/overview>
+nodl_runtime_cpp <_generated/packages/nodl_runtime_cpp/overview>
 nodl_runtime_py <_generated/packages/nodl_runtime_py/overview>
 nodl_schema <_generated/packages/nodl_schema/overview>
 ros2nodl <_generated/packages/ros2nodl/overview>

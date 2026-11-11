@@ -54,6 +54,7 @@ def _build_template_context(
     include_prefix: str | None = None,
     namespace: str | None = None,
     publisher_class: str,
+    lifecycle: bool = False,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -142,6 +143,7 @@ def _build_template_context(
         'parameters_include': prefixed(include_prefix, f'{target_name}_parameters.hpp'),
         'namespace': namespace,
         'publisher_class': publisher_class,
+        'lifecycle': lifecycle,
     }
 
 
@@ -165,6 +167,7 @@ def render_templates(
     include_prefix: str | None = None,
     namespace: str | None = None,
     publisher_class: str,
+    lifecycle: bool = False,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
@@ -175,6 +178,9 @@ def render_templates(
     and the parameter structs are expected under ``<namespace>::<target_name>``,
     which the class reaches as ``<target_name>::``.
     Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
+    When *lifecycle* is true, the constructor registers every endpoint with the base class's ``manage`` or
+    ``manage_action_server``, so they are created at activation, and the publisher members are plain ``rclcpp::Publisher`` pointers.
+    The registration order is publishers, service clients, action clients, subscriptions, service servers, action servers.
     """
     ctx = _build_template_context(
         target_name,
@@ -190,6 +196,7 @@ def render_templates(
         include_prefix=include_prefix,
         namespace=namespace,
         publisher_class=publisher_class,
+        lifecycle=lifecycle,
     )
 
     env = _get_env()
