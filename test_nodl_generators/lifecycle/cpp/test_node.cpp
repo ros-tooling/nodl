@@ -414,7 +414,7 @@ TEST_F(GeneratedLifecycleNode, ShutdownFromActiveRunsHandleDeactivateAndDestroys
   }));
 }
 
-/// A fixture that spins the node and a peer on background threads, so a transition can wait for a response.
+/// A fixture that spins the node and a peer on a background thread, so a transition can wait for a response.
 class GeneratedLifecycleNodeSpinning : public ::testing::Test
 {
 protected:
@@ -453,7 +453,8 @@ protected:
   std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
   rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr change_client_ =
     peer_->create_client<lifecycle_msgs::srv::ChangeState>("/cpp_lifecycle_node/change_state");
-  rclcpp::executors::MultiThreadedExecutor executor_{rclcpp::ExecutorOptions(), 4};
+  /// A single-threaded executor, since an action endpoint destroyed under a multi-threaded executor can deadlock in rclcpp.
+  rclcpp::executors::SingleThreadedExecutor executor_;
   std::thread spinner_;
 };
 
@@ -596,52 +597,6 @@ TEST_F(GeneratedLifecycleNodeSpinning, PendingGoalFailsWhenTheNodeDeactivates)
   ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
 
   EXPECT_THROW(pending.get(), std::future_error);
-}
-
-/// The node and a publisher peer spin in a multi-threaded executor while another thread cycles the node.
-TEST(GeneratedLifecycleNodeThreads, CyclingUnderLoadWithAMultiThreadedExecutor)
-{
-  rclcpp::init(0, nullptr);
-  {
-    auto node = std::make_shared<TestNode>();
-    auto peer = std::make_shared<rclcpp::Node>("load_peer");
-    auto cmd_vel = peer->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", rclcpp::QoS(1).best_effort());
-    auto latched =
-      peer->create_publisher<std_msgs::msg::String>("latched", rclcpp::QoS(1).reliable().transient_local());
-    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 4);
-    executor.add_node(node->get_node_base_interface());
-    executor.add_node(peer);
-    std::thread spinner([&executor] { executor.spin(); });
-    auto change_client = peer->create_client<lifecycle_msgs::srv::ChangeState>("/cpp_lifecycle_node/change_state");
-    ASSERT_TRUE(change_client->wait_for_service(TIMEOUT));
-
-    std::atomic<bool> stop{false};
-    std::thread load([&] {
-      while (!stop) {
-        cmd_vel->publish(geometry_msgs::msg::Twist{});
-        std::this_thread::sleep_for(1ms);
-      }
-    });
-
-    ASSERT_TRUE(change_state(change_client, Transition::TRANSITION_CONFIGURE));
-    for (int cycle = 0; cycle < 20; ++cycle) {
-      ASSERT_TRUE(change_state(change_client, Transition::TRANSITION_ACTIVATE));
-      std::this_thread::sleep_for(50ms);
-      ASSERT_TRUE(change_state(change_client, Transition::TRANSITION_DEACTIVATE));
-    }
-    ASSERT_TRUE(change_state(change_client, Transition::TRANSITION_ACTIVATE));
-    const auto deadline = std::chrono::steady_clock::now() + TIMEOUT;
-    while (0 == node->cmd_vel_received && std::chrono::steady_clock::now() < deadline) {
-      std::this_thread::sleep_for(10ms);
-    }
-    EXPECT_NE(0, node->cmd_vel_received);
-
-    stop = true;
-    load.join();
-    executor.cancel();
-    spinner.join();
-  }
-  rclcpp::shutdown();
 }
 
 }  // namespace

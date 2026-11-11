@@ -482,10 +482,9 @@ The endpoint members are plain `SharedPtr`s that are null while the node is not 
 - Use publishers and clients from subscription, service and action callbacks, `handle_activate` and `handle_deactivate`, where they are set.
 - Create timers in `handle_activate` and cancel them in `handle_deactivate`, instead of creating them in the constructor or `handle_configure`.
   `handle_deactivate` also runs on shutdown and error from the active state, so one place stops them on every path.
+  Create them last in `handle_activate`, because a failing `handle_activate` destroys the endpoints without running `handle_deactivate`.
 - Use the members only where the transitions do not overlap the callback: in callbacks and timers of the default callback group, which the generated endpoints use, and in the hooks.
   The default group is mutually exclusive with the lifecycle services that request transitions.
-- Request transitions through the lifecycle services, not by calling `activate()` and `deactivate()` from a non-executor thread while an executor spins:
-  that can deadlock inside rclcpp when the node has action servers or clients.
 - Do not use the members from a thread of your own, or a callback group of another kind, because the transition resets them.
   Stop such work in `handle_deactivate`, or guard every use with a mutex that `handle_deactivate` also takes.
   See the `nodl_runtime_cpp` overview for details.
@@ -534,6 +533,7 @@ private:
   When the node deactivates within a few milliseconds of the goal, the request is never answered: more than half of 200 trials of a result request followed at once by a deactivation left the client without a result, and none did when the deactivation came 20 ms later.
   A client uses a timeout on `async_get_result` and watches `action_server_is_ready()`.
 - Each activation creates the endpoints again, with the discovery traffic and the match latency that comes with it.
+- A node with action servers or clients can hang a multi-threaded executor when it destroys them, and needs a single-threaded executor to avoid it. See the `nodl_runtime_cpp` overview.
 - A callback in a reentrant or separate callback group that is in flight during a transition can see null members.
 - An inactive node shows none of its declared topics in the graph, so a tool that waits for them after configuring the node waits until activation.
 - A node cannot receive anything while it is inactive, so no sample is delivered to it before activation.

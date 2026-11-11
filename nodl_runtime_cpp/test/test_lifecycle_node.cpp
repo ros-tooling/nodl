@@ -890,6 +890,63 @@ TEST_F(ActivationRegistryServices, ShutdownFromActiveStopsTheTimerBeforeTheEndpo
   EXPECT_EQ(node->publisher, nullptr);
 }
 
+/// Manages a publisher, a subscription and a service, and counts what the subscription receives.
+class LoadedNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  LoadedNode()
+  : nodl_runtime_cpp::LifecycleNode("loaded_node")
+  {
+    manage(publisher, [this] { return rclcpp::create_publisher<std_msgs::msg::String>(*this, "out", 10); });
+    manage(subscription, [this] {
+      return create_subscription<std_msgs::msg::String>("in", 10, [this](std_msgs::msg::String::ConstSharedPtr) {
+        publisher->publish(std_msgs::msg::String());
+        ++received;
+      });
+    });
+    manage(service, [this] {
+      return create_service<std_srvs::srv::SetBool>(
+        "set_bool", [](std_srvs::srv::SetBool::Request::SharedPtr, std_srvs::srv::SetBool::Response::SharedPtr) {});
+    });
+  }
+
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription;
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr service;
+  std::atomic<int> received{0};
+};
+
+TEST_F(ActivationRegistryServices, CyclingUnderLoadWithAMultiThreadedExecutor)
+{
+  auto node = std::make_shared<LoadedNode>();
+  auto in = peer_->create_publisher<std_msgs::msg::String>("in", 10);
+  start(node);
+  std::atomic<bool> stop{false};
+  std::thread load([&] {
+    while (!stop) {
+      in->publish(std_msgs::msg::String());
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  });
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  for (int cycle = 0; cycle < 30; ++cycle) {
+    ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
+  }
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+  const auto before = node->received.load();
+  while (before == node->received && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  EXPECT_NE(before, node->received.load());
+
+  stop = true;
+  load.join();
+}
+
 using Fibonacci = example_interfaces::action::Fibonacci;
 using FibonacciGoalHandle = rclcpp_action::ServerGoalHandle<Fibonacci>;
 using ResultCode = rclcpp_action::ResultCode;
@@ -1047,7 +1104,8 @@ protected:
   rclcpp_action::Client<Fibonacci>::SharedPtr client_ = rclcpp_action::create_client<Fibonacci>(peer_, "fibonacci");
   rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr change_client_ =
     peer_->create_client<lifecycle_msgs::srv::ChangeState>("/action_server_node/change_state");
-  rclcpp::executors::MultiThreadedExecutor executor_{rclcpp::ExecutorOptions(), 4};
+  /// A single-threaded executor, since an action endpoint destroyed under a multi-threaded executor can deadlock in rclcpp.
+  rclcpp::executors::SingleThreadedExecutor executor_;
   std::thread spinner_;
 };
 

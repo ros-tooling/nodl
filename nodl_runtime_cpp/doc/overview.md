@@ -53,8 +53,6 @@ Where it is not:
 - In a callback of a reentrant callback group or of a separate mutually exclusive group, which can run while a transition resets the member.
 - In a thread of your own.
 - In any callback when the transition is requested by calling `configure()`, `activate()` or `deactivate()` from a thread that is not the executor's, because that does not serialize with the default group either.
-  Such a call can also deadlock on a node with an action server or client: rclcpp (tested on Jazzy) removes the waitable of an action endpoint from its callback group when the last reference is dropped, and an executor thread that drops it while it collects the entities of that group holds the same lock.
-  This happened about once in 40 to 100 deactivations of a node with action endpoints under a spinning four-thread executor, and not in transitions requested through the lifecycle services.
 
 Stop that work in `handle_deactivate`, which runs before the endpoints are destroyed on deactivation, and on shutdown and error from the active state:
 cancel the timers, and stop and join the threads.
@@ -75,6 +73,7 @@ On shutdown and error from the active state `handle_deactivate` runs first, so t
 A shutdown cannot be vetoed, so a result other than SUCCESS from `handle_deactivate` on these paths is logged and ignored, and an exception from it is logged, and the endpoints are destroyed and the shutdown or error hook runs regardless.
 An error that `handle_deactivate` caused by throwing does not run it again.
 A failed or throwing `handle_activate` destroys the slots without running `handle_deactivate`, so the hook undoes its own partial work before it fails.
+Create timers and start threads last in `handle_activate`, so that a failing hook leaves none of them firing on null members.
 
 Destroying the slots does nothing when none is created, so a deactivation that already ran is not repeated by shutdown or error.
 Configure and cleanup run only the hooks, so an entity registered with `add_managed_entity` does not receive them.
@@ -130,6 +129,15 @@ The example is compiled as part of the package tests.
 - Each activation creates the endpoints again, with the discovery traffic that comes with it.
 - An inactive node shows none of its registered endpoints in the graph.
   The destroyed endpoints leave the graph once the executor releases them: `deactivate` wakes the executors that wait on the node, and a node that no executor is spinning keeps them until its next spin.
+- Action servers and clients can hang a multi-threaded executor when they are destroyed, which every deactivation, shutdown and error from active does.
+  rclcpp removes the waitable of an action endpoint from its callback group when the last reference is dropped, and a thread that drops it while it holds the group's lock, as when it collects the group's entities, blocks on that lock for good.
+  Subscriptions, services, clients and timers are not affected, and the fix belongs in rclcpp.
+  Measured on a node with an action server and client under load, 300 cycles per run:
+  - transitions requested through the lifecycle services on a four-thread executor hung in 4 of 6 runs, about once per 150 cycles;
+  - the same on a single-threaded executor hung in 0 of 6 runs;
+  - transitions called directly from a thread that is not the executor's hung or crashed in 3 of 6 runs on both kinds of executor.
+
+  To reduce the exposure, spin such a node with a `SingleThreadedExecutor`, request its transitions through the lifecycle services, and shut it down instead of cycling it through activation often.
 - `LifecycleNode` wakes the executor with `trigger_notify_guard_condition()` from rclcpp 21 on, which covers Iron, Jazzy, Kilted and Rolling, and with `get_notify_guard_condition()` before that, which is Humble.
   Rolling removed `get_notify_guard_condition()`.
 
