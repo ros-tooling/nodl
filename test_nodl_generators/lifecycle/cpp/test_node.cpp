@@ -8,13 +8,16 @@
 #include <functional>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <type_traits>
 #include <vector>
 
+#include "example_interfaces/action/fibonacci.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "test_nodl_generators/cpp_lifecycle_node_base.hpp"
@@ -24,6 +27,9 @@ namespace
 
 using std::chrono_literals::operator""ms;
 using lifecycle_msgs::msg::State;
+
+using Fibonacci = example_interfaces::action::Fibonacci;
+using FibonacciGoalHandle = rclcpp_action::ServerGoalHandle<Fibonacci>;
 
 const std::chrono::seconds TIMEOUT(10);
 const char NODE_NAME[] = "cpp_lifecycle_node";
@@ -54,6 +60,22 @@ public:
     return cli_set_bool_->async_send_request(std::make_shared<std_srvs::srv::SetBool::Request>());
   }
 
+  /// Sends a goal on the remote_fibonacci client, which must exist.
+  std::shared_future<rclcpp_action::Client<Fibonacci>::GoalHandle::SharedPtr> send_remote_goal()
+  {
+    return action_cli_remote_fibonacci_->async_send_goal(Fibonacci::Goal());
+  }
+
+  /// Returns the goal that the fibonacci action server accepted at `index`, or null.
+  std::shared_ptr<FibonacciGoalHandle> accepted_goal(size_t index)
+  {
+    std::lock_guard<std::mutex> lock(goals_mutex_);
+    return index < goals_.size() ? goals_[index] : nullptr;
+  }
+
+  /// Makes `handle_activate` wait for the remote_fibonacci server and send it a goal.
+  std::atomic<bool> send_goal_in_activate{false};
+  std::atomic<bool> goal_accepted_in_activate{false};
   /// Makes `handle_activate` wait for the set_bool service and call it.
   std::atomic<bool> call_set_bool_in_activate{false};
   std::atomic<bool> set_bool_answered_in_activate{false};
@@ -72,6 +94,10 @@ protected:
     std_msgs::msg::String message;
     message.data = "initial";
     pub_latched_status_->publish(message);
+    if (send_goal_in_activate) {
+      goal_accepted_in_activate = action_cli_remote_fibonacci_->wait_for_action_server(TIMEOUT) &&
+                                  std::future_status::ready == send_remote_goal().wait_for(TIMEOUT);
+    }
     if (call_set_bool_in_activate) {
       set_bool_answered_in_activate = cli_set_bool_->wait_for_service(TIMEOUT) &&
                                       std::future_status::ready == send_set_bool().future.wait_for(TIMEOUT);
@@ -97,11 +123,32 @@ protected:
     response->success = true;
   }
 
+  rclcpp_action::GoalResponse on_fibonacci_goal(
+    const rclcpp_action::GoalUUID & /*uuid*/, std::shared_ptr<const Fibonacci::Goal> /*goal*/) override
+  {
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  }
+
+  rclcpp_action::CancelResponse on_fibonacci_cancel(std::shared_ptr<FibonacciGoalHandle> /*goal_handle*/) override
+  {
+    return rclcpp_action::CancelResponse::ACCEPT;
+  }
+
+  void on_fibonacci_accepted(std::shared_ptr<FibonacciGoalHandle> goal_handle) override
+  {
+    std::lock_guard<std::mutex> lock(goals_mutex_);
+    goals_.push_back(goal_handle);
+  }
+
   void on_latched(std_msgs::msg::String::ConstSharedPtr /*msg*/) override
   {
     state_of_latched_sample = get_current_state().id();
     ++latched_received;
   }
+
+private:
+  std::mutex goals_mutex_;
+  std::vector<std::shared_ptr<FibonacciGoalHandle>> goals_;
 };
 
 class GeneratedLifecycleNode : public ::testing::Test
@@ -165,6 +212,16 @@ protected:
     return 0 != peer_->get_node_graph_interface()->get_client_names_and_types_by_node(NODE_NAME, "/").count(name);
   }
 
+  bool graph_has_action_server(const std::string & name)
+  {
+    return graph_has_service("/" + name + "/_action/send_goal");
+  }
+
+  bool graph_has_action_client(const std::string & name)
+  {
+    return graph_has_client("/" + name + "/_action/send_goal");
+  }
+
   /// Waits until the node's built-in endpoints are visible, so an absent endpoint is not just undiscovered.
   void wait_for_node_discovery()
   {
@@ -200,6 +257,8 @@ TEST_F(GeneratedLifecycleNode, EndpointsAppearOnlyWhileActive)
 
   EXPECT_FALSE(graph_has_service("/trigger"));
   EXPECT_FALSE(graph_has_client("/set_bool"));
+  EXPECT_FALSE(graph_has_action_server("fibonacci"));
+  EXPECT_FALSE(graph_has_action_client("remote_fibonacci"));
   // The lifecycle and parameter services stay.
   EXPECT_TRUE(graph_has_service("/cpp_lifecycle_node/get_state"));
 
@@ -213,7 +272,8 @@ TEST_F(GeneratedLifecycleNode, EndpointsAppearOnlyWhileActive)
   EXPECT_TRUE(spin_until([this] {
     return graph_has_publisher("/status") && graph_has_publisher("/latched_status") &&
            graph_has_subscription("/cmd_vel") && graph_has_subscription("/latched") && graph_has_service("/trigger") &&
-           graph_has_client("/set_bool");
+           graph_has_client("/set_bool") && graph_has_action_server("fibonacci") &&
+           graph_has_action_client("remote_fibonacci");
   }));
 
   ASSERT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
@@ -406,6 +466,60 @@ TEST_F(GeneratedLifecycleNodeSpinning, PendingRequestFailsWhenTheNodeDeactivates
   node_->deactivate();
 
   EXPECT_THROW(pending.future.get(), std::future_error);
+}
+
+TEST_F(GeneratedLifecycleNodeSpinning, GoalActiveAtDeactivationEndsAbortedAndTheClientGetsItsResult)
+{
+  auto client = rclcpp_action::create_client<Fibonacci>(peer_, "fibonacci");
+  ASSERT_EQ(node_->configure().id(), State::PRIMARY_STATE_INACTIVE);
+  EXPECT_FALSE(client->wait_for_action_server(500ms));
+  ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+  ASSERT_TRUE(client->wait_for_action_server(TIMEOUT));
+  auto sent = client->async_send_goal(Fibonacci::Goal());
+  ASSERT_EQ(std::future_status::ready, sent.wait_for(TIMEOUT));
+  auto result = client->async_get_result(sent.get());
+  // A result request that the server has not taken yet is lost when the server is destroyed.
+  std::this_thread::sleep_for(300ms);
+  ASSERT_NE(nullptr, node_->accepted_goal(0));
+  ASSERT_TRUE(node_->accepted_goal(0)->is_executing());
+
+  ASSERT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+
+  ASSERT_EQ(std::future_status::ready, result.wait_for(TIMEOUT));
+  EXPECT_EQ(rclcpp_action::ResultCode::ABORTED, result.get().code);
+}
+
+TEST_F(GeneratedLifecycleNodeSpinning, ActionClientCreatedAtActivationIsUsableFromHandleActivate)
+{
+  auto server = rclcpp_action::create_server<Fibonacci>(
+    peer_,
+    "remote_fibonacci",
+    [](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal>) {
+      return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+    },
+    [](std::shared_ptr<FibonacciGoalHandle>) { return rclcpp_action::CancelResponse::ACCEPT; },
+    [](std::shared_ptr<FibonacciGoalHandle> goal_handle) {
+      std::thread([goal_handle] { goal_handle->succeed(std::make_shared<Fibonacci::Result>()); }).detach();
+    });
+  node_->send_goal_in_activate = true;
+  ASSERT_EQ(node_->configure().id(), State::PRIMARY_STATE_INACTIVE);
+
+  ASSERT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+
+  EXPECT_TRUE(node_->goal_accepted_in_activate);
+}
+
+TEST_F(GeneratedLifecycleNodeSpinning, PendingGoalFailsWhenTheNodeDeactivates)
+{
+  // No peer serves remote_fibonacci, so the goal request stays pending.
+  node_->configure();
+  node_->activate();
+  auto pending = node_->send_remote_goal();
+  ASSERT_EQ(std::future_status::timeout, pending.wait_for(200ms));
+
+  node_->deactivate();
+
+  EXPECT_THROW(pending.get(), std::future_error);
 }
 
 /// The node and a publisher peer spin in a multi-threaded executor while another thread cycles the node.

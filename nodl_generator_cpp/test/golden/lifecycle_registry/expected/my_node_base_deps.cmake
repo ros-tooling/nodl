@@ -5,8 +5,11 @@ set(my_node_base_NODL_SOURCES
   /RESOLVED/2.nodl.yaml
 )
 set(my_node_base_ROS_DEPS
+  example_interfaces
   geometry_msgs
+  nav2_msgs
   nodl_runtime_cpp
+  rclcpp_action
   std_msgs
   std_srvs
 )

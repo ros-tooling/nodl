@@ -1,5 +1,5 @@
 ---
-# LifecycleNode base class with publishers, subscriptions, service servers and service clients.
+# LifecycleNode base class with publishers, subscriptions, service servers, service clients, action servers and action clients.
 # The latched publisher and subscription use TRANSIENT_LOCAL durability.
 
 nodl_version: 2
@@ -46,3 +46,11 @@ service_servers:
 service_clients:
   - name: set_bool
     type: std_srvs/srv/SetBool
+
+action_servers:
+  - name: fibonacci
+    type: example_interfaces/action/Fibonacci
+
+action_clients:
+  - name: remote_fibonacci
+    type: example_interfaces/action/Fibonacci

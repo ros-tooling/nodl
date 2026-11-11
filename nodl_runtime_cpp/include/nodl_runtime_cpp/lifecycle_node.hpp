@@ -10,7 +10,9 @@
 #include <utility>
 #include <vector>
 
+#include "nodl_runtime_cpp/goal_tracker.hpp"
 #include "rclcpp/logging.hpp"
+#include "rclcpp_action/server.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 namespace nodl_runtime_cpp
@@ -136,6 +138,33 @@ protected:
   void manage(std::shared_ptr<EntityT> & member, MakeT make)
   {
     add_activation_slot([&member, make = std::move(make)] { member = make(); }, [&member] { member.reset(); });
+  }
+
+  /// Registers an action server slot that ends the active goals before it destroys the server.
+  /**
+   * `make` receives the `GoalTracker` of the server, and returns the server created with `rclcpp_action::create_server`.
+   * Pass `tracker.accepted(callback)` as the accepted callback of the server.
+   * At deactivation, shutdown and error, each recorded goal that is still active ends with a default-constructed result
+   * before the server is destroyed, after `handle_deactivate` has run.
+   * See `GoalTracker` for how each goal state ends.
+   *
+   * \tparam ActionT Action type.
+   * \tparam MakeT Callable that takes a `GoalTracker<ActionT> &` and returns the server as a `std::shared_ptr`.
+   * \throws std::logic_error When called while the node is active.
+   */
+  template <typename ActionT, typename MakeT>
+  void manage_action_server(typename rclcpp_action::Server<ActionT>::SharedPtr & member, MakeT make)
+  {
+    auto tracker = std::make_shared<GoalTracker<ActionT>>();
+    add_activation_slot(
+      [&member, tracker, make = std::move(make)] {
+        tracker->open();
+        member = make(*tracker);
+      },
+      [&member, tracker] {
+        tracker->end_all();
+        member.reset();
+      });
   }
 
   /// Called on the configure transition.

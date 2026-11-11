@@ -7,16 +7,19 @@
 #include <future>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
 
+#include "example_interfaces/action/fibonacci.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "nodl_runtime_cpp/lifecycle_node.hpp"
 #include "rclcpp/create_publisher.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 
@@ -672,6 +675,211 @@ TEST(ActivationRegistryClient, PendingRequestFailsWhenTheNodeDeactivates)
     EXPECT_THROW(pending.future.get(), std::future_error);
   }
   rclcpp::shutdown();
+}
+
+using Fibonacci = example_interfaces::action::Fibonacci;
+using FibonacciGoalHandle = rclcpp_action::ServerGoalHandle<Fibonacci>;
+using ResultCode = rclcpp_action::ResultCode;
+
+/// Owns an action server that a slot manages, and keeps the goals it accepts.
+class ActionServerNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  ActionServerNode()
+  : nodl_runtime_cpp::LifecycleNode("action_server_node")
+  {
+    manage_action_server<Fibonacci>(server, [this](nodl_runtime_cpp::GoalTracker<Fibonacci> & tracker) {
+      return rclcpp_action::create_server<Fibonacci>(
+        this,
+        "fibonacci",
+        [this](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal>) {
+          return defer ? rclcpp_action::GoalResponse::ACCEPT_AND_DEFER
+                       : rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+        },
+        [](std::shared_ptr<FibonacciGoalHandle>) { return rclcpp_action::CancelResponse::ACCEPT; },
+        tracker.accepted([this](std::shared_ptr<FibonacciGoalHandle> goal_handle) {
+          std::lock_guard<std::mutex> lock(mutex);
+          goals.push_back(goal_handle);
+        }));
+    });
+  }
+
+  std::shared_ptr<FibonacciGoalHandle> goal(size_t index)
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    return index < goals.size() ? goals[index] : nullptr;
+  }
+
+  rclcpp_action::Server<Fibonacci>::SharedPtr server;
+  /// Accept goals without executing them.
+  std::atomic<bool> defer{false};
+  /// Make the hook finish every goal that is still active.
+  std::atomic<bool> succeed_in_deactivate{false};
+
+protected:
+  CallbackReturn handle_deactivate(const rclcpp_lifecycle::State &) override
+  {
+    if (succeed_in_deactivate) {
+      std::lock_guard<std::mutex> lock(mutex);
+      for (const auto & goal_handle : goals) {
+        goal_handle->succeed(std::make_shared<Fibonacci::Result>());
+      }
+    }
+    return CallbackReturn::SUCCESS;
+  }
+
+private:
+  std::mutex mutex;
+  std::vector<std::shared_ptr<FibonacciGoalHandle>> goals;
+};
+
+class ActivationRegistryActions : public ::testing::Test
+{
+protected:
+  static void SetUpTestSuite()
+  {
+    rclcpp::init(0, nullptr);
+  }
+
+  static void TearDownTestSuite()
+  {
+    rclcpp::shutdown();
+  }
+
+  void SetUp() override
+  {
+    executor_.add_node(node_->get_node_base_interface());
+    executor_.add_node(peer_);
+    spinner_ = std::thread([this] { executor_.spin(); });
+    node_->configure();
+    node_->activate();
+  }
+
+  void TearDown() override
+  {
+    executor_.cancel();
+    spinner_.join();
+  }
+
+  template <typename PredicateT>
+  static bool wait_until(PredicateT predicate)
+  {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (!predicate() && std::chrono::steady_clock::now() < deadline) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return predicate();
+  }
+
+  /// A goal that a client sent, and the result it has already asked for.
+  struct SentGoal
+  {
+    rclcpp_action::ClientGoalHandle<Fibonacci>::SharedPtr goal_handle;
+    std::shared_future<rclcpp_action::ClientGoalHandle<Fibonacci>::WrappedResult> result;
+  };
+
+  /// Sends a goal, asks for its result and waits until the node accepted it as goal `index`.
+  SentGoal send_goal(size_t index)
+  {
+    EXPECT_TRUE(client_->wait_for_action_server(std::chrono::seconds(10)));
+    auto sent = client_->async_send_goal(Fibonacci::Goal());
+    EXPECT_EQ(std::future_status::ready, sent.wait_for(std::chrono::seconds(10)));
+    auto goal_handle = sent.get();
+    auto result = client_->async_get_result(goal_handle);
+    EXPECT_TRUE(wait_until([&] { return nullptr != node_->goal(index); }));
+    // A result request that the server has not taken yet is lost when the server is destroyed.
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    return {goal_handle, result};
+  }
+
+  /// Waits for the result of a goal, and returns its code.
+  static ResultCode result_code(const SentGoal & sent)
+  {
+    EXPECT_EQ(std::future_status::ready, sent.result.wait_for(std::chrono::seconds(10)));
+    return sent.result.get().code;
+  }
+
+  std::shared_ptr<ActionServerNode> node_ = std::make_shared<ActionServerNode>();
+  std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
+  rclcpp_action::Client<Fibonacci>::SharedPtr client_ = rclcpp_action::create_client<Fibonacci>(peer_, "fibonacci");
+  rclcpp::executors::MultiThreadedExecutor executor_{rclcpp::ExecutorOptions(), 4};
+  std::thread spinner_;
+};
+
+TEST_F(ActivationRegistryActions, ExecutingGoalEndsAbortedWhenTheNodeDeactivates)
+{
+  auto sent = send_goal(0);
+  ASSERT_TRUE(node_->goal(0)->is_executing());
+
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+
+  EXPECT_EQ(result_code(sent), ResultCode::ABORTED);
+  EXPECT_EQ(node_->server, nullptr);
+}
+
+TEST_F(ActivationRegistryActions, DeferredGoalEndsAbortedWhenTheNodeDeactivates)
+{
+  node_->defer = true;
+  auto sent = send_goal(0);
+  ASSERT_FALSE(node_->goal(0)->is_executing());
+
+  node_->deactivate();
+
+  EXPECT_EQ(result_code(sent), ResultCode::ABORTED);
+}
+
+TEST_F(ActivationRegistryActions, CancelingGoalEndsCanceledWhenTheNodeDeactivates)
+{
+  auto sent = send_goal(0);
+  auto canceled = client_->async_cancel_goal(sent.goal_handle);
+  ASSERT_EQ(std::future_status::ready, canceled.wait_for(std::chrono::seconds(10)));
+  ASSERT_TRUE(node_->goal(0)->is_canceling());
+
+  node_->deactivate();
+
+  EXPECT_EQ(result_code(sent), ResultCode::CANCELED);
+}
+
+TEST_F(ActivationRegistryActions, GoalSucceededByTheDeactivateHookStaysSucceeded)
+{
+  node_->succeed_in_deactivate = true;
+  auto sent = send_goal(0);
+
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+
+  EXPECT_EQ(result_code(sent), ResultCode::SUCCEEDED);
+}
+
+TEST_F(ActivationRegistryActions, GoalThatFinishedBeforeDeactivationIsLeftAlone)
+{
+  auto sent = send_goal(0);
+  node_->goal(0)->succeed(std::make_shared<Fibonacci::Result>());
+
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+
+  EXPECT_EQ(result_code(sent), ResultCode::SUCCEEDED);
+}
+
+TEST_F(ActivationRegistryActions, ShutdownEndsActiveGoals)
+{
+  auto sent = send_goal(0);
+
+  EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+
+  EXPECT_EQ(result_code(sent), ResultCode::ABORTED);
+}
+
+TEST_F(ActivationRegistryActions, ReactivatedServerAcceptsAndEndsNewGoals)
+{
+  send_goal(0);
+  node_->deactivate();
+  ASSERT_TRUE(wait_until([this] { return !client_->action_server_is_ready(); }));
+
+  node_->activate();
+  auto sent = send_goal(1);
+  node_->deactivate();
+
+  EXPECT_EQ(result_code(sent), ResultCode::ABORTED);
 }
 
 }  // namespace

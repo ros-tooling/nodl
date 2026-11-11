@@ -96,8 +96,30 @@
 {% macro action_servers_block() %}
 {% if action_servers %}
 
+{% if lifecycle %}
+  // Register action servers
+{% else %}
   // Create action servers
+{% endif %}
 {% for action in action_servers %}
+{% if lifecycle %}
+  manage_action_server<{{ action.cpp_type }}>(
+    {{ action.member }},
+    [this](nodl_runtime_cpp::GoalTracker<{{ action.cpp_type }}> & tracker) {
+      return rclcpp_action::create_server<{{ action.cpp_type }}>(
+        this,
+        "{{ action.name }}",
+        [this](const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const {{ action.cpp_type }}::Goal> goal) {
+          return this->{{ action.callback_prefix }}_goal(uuid, goal);
+        },
+        [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
+          return this->{{ action.callback_prefix }}_cancel(goal_handle);
+        },
+        tracker.accepted([this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
+          this->{{ action.callback_prefix }}_accepted(goal_handle);
+        }));
+    });
+{% else %}
   {{ action.member }} = rclcpp_action::create_server<{{ action.cpp_type }}>(
     this,
     "{{ action.name }}",
@@ -110,15 +132,26 @@
     [this](std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ action.cpp_type }}>> goal_handle) {
       this->{{ action.callback_prefix }}_accepted(goal_handle);
     });
+{% endif %}
 {% endfor %}
 {% endif %}
 {% endmacro %}
 {% macro action_clients_block() %}
 {% if action_clients %}
 
+{% if lifecycle %}
+  // Register action clients
+{% else %}
   // Create action clients
+{% endif %}
 {% for cli in action_clients %}
+{% if lifecycle %}
+  manage({{ cli.member }}, [this] {
+    return rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}");
+  });
+{% else %}
   {{ cli.member }} = rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}");
+{% endif %}
 {% endfor %}
 {% endif %}
 {% endmacro %}
@@ -144,10 +177,10 @@ namespace {{ namespace }}
 {% if lifecycle %}
 {{ publishers_block() -}}
 {{ service_clients_block() -}}
+{{ action_clients_block() -}}
 {{ subscriptions_block() -}}
 {{ service_servers_block() -}}
 {{ action_servers_block() -}}
-{{ action_clients_block() -}}
 {% else %}
 {{ publishers_block() -}}
 {{ subscriptions_block() -}}

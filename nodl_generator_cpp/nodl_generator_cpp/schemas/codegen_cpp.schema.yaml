@@ -47,10 +47,11 @@ definitions:
         default: rclcpp::Publisher
       lifecycle:
         description: |
-          If the node is a lifecycle node, make the generated base class create its publishers, subscriptions, service clients and service servers when the node activates
-          and destroy them when it deactivates, by registering them with the ``manage`` function of the base class.
-          Those members are null while the node is not active.
-          The base class named by ``class`` must provide ``manage``, as ``nodl_runtime_cpp::LifecycleNode`` does,
+          If the node is a lifecycle node, make the generated base class create its endpoints when the node activates
+          and destroy them when it deactivates, by registering them with the ``manage`` and ``manage_action_server`` functions of the base class.
+          The endpoint members are null while the node is not active.
+          An action server ends its active goals before it is destroyed.
+          The base class named by ``class`` must provide those functions, as ``nodl_runtime_cpp::LifecycleNode`` does,
           or the generated code does not compile.
           Publishers are plain ``rclcpp::Publisher`` objects, and ``publisher_type`` is ignored.
         type: boolean

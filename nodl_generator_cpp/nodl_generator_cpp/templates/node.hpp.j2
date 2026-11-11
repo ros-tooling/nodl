@@ -74,7 +74,7 @@ protected:
 {% endif %}
 {% if action_clients %}
 
-  // --- Action clients ---
+  // --- Action clients{{ ' (null while the node is not active)' if lifecycle }} ---
 {% for cli in action_clients %}
   rclcpp_action::Client<{{ cli.cpp_type }}>::SharedPtr {{ cli.member }};
 {% endfor %}
@@ -99,7 +99,7 @@ private:
 {% endif %}
 {% if action_servers %}
 
-  // --- Action servers ---
+  // --- Action servers{{ ' (null while the node is not active)' if lifecycle }} ---
 {% for action in action_servers %}
   rclcpp_action::Server<{{ action.cpp_type }}>::SharedPtr {{ action.member }};
 {% endfor %}

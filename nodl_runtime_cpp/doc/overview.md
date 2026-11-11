@@ -3,7 +3,7 @@
 `nodl_runtime_cpp` provides shared utilities for C++ nodes, especially those that `nodl_generator_cpp` generates.
 It currently provides `rclcpp_lifecycle` wrapper classes to enable a reusable pattern for consistently managing the state and behavior of entities in Lifecycle nodes.
 
-The package is header-only, and depends on `rclcpp` and `rclcpp_lifecycle`, which it exports.
+The package is header-only, and depends on `rclcpp`, `rclcpp_action` and `rclcpp_lifecycle`, which it exports.
 
 ```xml
 <depend>nodl_runtime_cpp</depend>
@@ -34,6 +34,7 @@ Register them from the constructor of the authored class, with `manage` or `add_
 | Function | Registers |
 |---|---|
 | `manage(member, make)` | A `std::shared_ptr` member. `make` returns the endpoint at activation, and the member is reset at deactivation. |
+| `manage_action_server<ActionT>(member, make)` | An action server member. `make` receives a `GoalTracker` and returns the server, and the active goals end before the server is reset. |
 | `add_activation_slot(create, destroy)` | A pair of functions, for anything that is not a single member. `destroy` must be safe to call when `create` has not run. |
 
 Slots are created in registration order when the node activates, and destroyed in reverse order when it deactivates, shuts down or errors.
@@ -62,6 +63,25 @@ Only activation and deactivation reach managed entities, which includes the deac
 A hook that throws is turned into ERROR by `rclcpp_lifecycle`, which runs `on_error`.
 When `handle_error` returns SUCCESS, the node ends unconfigured.
 
+#### Ending action goals
+
+A server registered with `manage_action_server` records the goals it accepts.
+Pass `tracker.accepted(callback)` as its accepted callback, and the tracker records each goal before it calls `callback`.
+When the node deactivates, shuts down or errors, every recorded goal that is still active ends with a default-constructed result, before the server is destroyed.
+On deactivation that is after `handle_deactivate` has returned, so the hook can finish goals first:
+
+| Goal state | Ends as |
+|---|---|
+| executing | aborted |
+| deferred (accepted, not executing) | executed, then aborted |
+| canceling | canceled |
+| succeeded, aborted or canceled | left alone |
+
+A goal accepted while the server is being destroyed ends the same way, and the accepted callback is not called.
+A goal that finishes concurrently is skipped, and a call that throws while the goal is still active is retried once.
+A worker thread of the node checks `goal_handle->is_active()` before it reports feedback or a result.
+Goals end only for requests that the server has already received: a client whose result request has not reached the server when it is destroyed does not get the result.
+
 #### Example
 
 This example shows a hand-written (non-generated) node using `nodl_runtime_cpp::LifecycleNode` to illustrate registering endpoints that exist only while the node is active, and using the lifecycle hooks to add custom behavior on state transitions.
@@ -81,7 +101,7 @@ The example is compiled as part of the package tests.
 - A latched publisher loses its history when it is destroyed at deactivation, so publish the latched message again in `handle_activate`.
 - A message published in `handle_activate` reaches only the peers that are already matched, since discovery is asynchronous.
   A `transient_local` publisher delivers it to the peers that match later.
-- A request that a managed client has sent and not yet received a response for fails with a `std::future_error` when the node deactivates.
+- A request or goal that a managed client has sent and not yet received a response for fails with a `std::future_error` when the node deactivates.
 - Each activation creates the endpoints again, with the discovery traffic that comes with it.
 - An inactive node shows none of its registered endpoints in the graph.
 

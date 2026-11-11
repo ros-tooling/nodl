@@ -409,7 +409,7 @@ The generated class declares each publisher as `<publisher_type><MessageT>::Shar
 ### The `lifecycle` field
 
 `BASE_CLASS` accepts an optional boolean `lifecycle`, which defaults to false.
-When it is true, the generated class creates its publishers, subscriptions, service clients and service servers when the node activates and destroys them when it deactivates, as the next section describes.
+When it is true, the generated class creates its endpoints when the node activates and destroys them when it deactivates, as the next section describes.
 `nodl://nodl_common_interfaces/lifecycle_node` sets it:
 
 ```yaml
@@ -453,6 +453,9 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 }
 ```
 
+The registrations of the other endpoint kinds follow the same pattern.
+An action server registers with `manage_action_server`, which passes the creator a `GoalTracker` that ends the active goals.
+
 ### Lifecycle nodes
 
 A generated lifecycle node derives `nodl_runtime_cpp::LifecycleNode`, so a package that generates one depends on `nodl_runtime_cpp`.
@@ -461,26 +464,25 @@ The authored class defines the hook that matches the transition, not a transitio
 Each takes the previous state and returns a `CallbackReturn`, and defaults to SUCCESS.
 See the `nodl_runtime_cpp` overview for the order of the standard behavior and each hook.
 
-With `lifecycle: true` on its `BASE_CLASS` (see the `lifecycle` field above), the generated class creates its publishers, service clients, subscriptions and service servers when the node activates, and destroys them when it deactivates.
-Action servers and action clients are still created in the constructor.
-The node's declared endpoints of those kinds therefore exist only while it is active, and the node's built-in lifecycle and parameter endpoints stay.
+With `lifecycle: true` on its `BASE_CLASS` (see the `lifecycle` field above), the generated class creates its endpoints when the node activates, and destroys them when it deactivates.
+The node's declared endpoints therefore exist only while it is active, and the node's built-in lifecycle and parameter endpoints stay.
 
 | Transition | What happens to the generated endpoints |
 |---|---|
 | configure, cleanup | Nothing. |
 | activate | Created, in the order below, before `handle_activate` runs. |
-| deactivate | Destroyed, in reverse order, after `handle_deactivate` returns SUCCESS. |
+| deactivate | Destroyed, in reverse order, after `handle_deactivate` returns SUCCESS. Active action goals end first. |
 | shutdown, error | Destroyed first when the node is active, then the hook runs. |
 
-The generated constructor registers publishers and service clients first, then subscriptions and service servers, so a callback finds every publisher and client already created.
-They are destroyed in the opposite order, so service servers and subscriptions go first.
+The generated constructor registers publishers, service clients and action clients first, then subscriptions, service servers and action servers, so a callback finds every publisher and client already created.
+They are destroyed in the opposite order, so action servers, service servers and subscriptions go first.
 
 The endpoint members are plain `SharedPtr`s that are null while the node is not active:
-- Use publishers and clients from subscription and service callbacks, `handle_activate` and `handle_deactivate`, where they are set.
+- Use publishers and clients from subscription, service and action callbacks, `handle_activate` and `handle_deactivate`, where they are set.
 - Create timers in `handle_activate` and cancel them in `handle_deactivate`, instead of creating them in the constructor or `handle_configure`.
 - Own threads copy the `shared_ptr` and check it for null before using it.
-- The publishers and clients are set in `handle_activate`, so the hook can publish an initial message and call a service.
-  The service must be discoverable, so wait for it with `wait_for_service` and do not call a client from `handle_configure`.
+- The publishers and clients are set in `handle_activate`, so the hook can publish an initial message and call a service or an action.
+  The server must be discoverable, so wait for it with `wait_for_service` or `wait_for_action_server`, and do not call a client from `handle_configure`.
 - Publishers are plain `rclcpp::Publisher`s, not `rclcpp_lifecycle::LifecyclePublisher`s.
 
 ```cpp
@@ -514,16 +516,22 @@ private:
   Publish the latched message again in `handle_activate`.
 - A message published in `handle_activate` reaches only the peers that are already matched with the new publisher, because discovery is asynchronous.
   A `volatile` message is usually lost, and a `transient_local` message is delivered to every peer that matches later.
-- A service server is not discoverable while the node is inactive, so a peer's `wait_for_service` waits until activation.
-- A request that a client has sent and not yet received a response for fails with a `std::future_error` when the node deactivates.
+- A service or action server is not discoverable while the node is inactive, so a peer's `wait_for_service` or `wait_for_action_server` waits until activation.
+- A request or goal that a client has sent and not yet received a response for fails with a `std::future_error` when the node deactivates.
+- When the node deactivates, each goal of an action server that is still active ends before the server is destroyed:
+  an executing or deferred goal is aborted and a canceling goal is canceled, with a default-constructed result.
+  The goals end after `handle_deactivate` returns, so the hook can finish them first.
+  A worker thread of the authored class checks `goal_handle->is_active()` before it reports feedback or a result.
+  A client that has not yet been answered about a result request when the node deactivates never gets the result.
 - Each activation creates the endpoints again, with the discovery traffic and the match latency that comes with it.
 - An inactive node shows none of its declared topics in the graph, so a tool that waits for them after configuring the node waits until activation.
 - A node cannot receive anything while it is inactive, so no sample is delivered to it before activation.
 
 #### Migrating a generated lifecycle node to `lifecycle: true`
 
-BREAKING CHANGE: generated C++ lifecycle nodes create their publishers, subscriptions, service servers and service clients on activation and destroy them on deactivation.
+BREAKING CHANGE: generated C++ lifecycle nodes create their publishers, subscriptions, service servers, service clients, action servers and action clients on activation and destroy them on deactivation.
 - Their members are null while the node is not active, so publish and call clients only from endpoint callbacks, `handle_activate` and `handle_deactivate`, and create timers in `handle_activate`.
+- Active action goals end on deactivation, so a worker checks `goal_handle->is_active()`.
 - Latched publishers lose their history on deactivation, so republish in `handle_activate`.
 - Publishers are no longer `rclcpp_lifecycle::LifecyclePublisher`s.
 

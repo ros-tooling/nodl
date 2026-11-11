@@ -30,3 +30,11 @@ service_servers:
 service_clients:
   - name: set_bool
     type: std_srvs/srv/SetBool
+
+action_servers:
+  - name: fibonacci
+    type: example_interfaces/action/Fibonacci
+
+action_clients:
+  - name: navigate
+    type: nav2_msgs/action/NavigateToPose
