@@ -3,7 +3,6 @@
 `nodl_runtime_cpp` is a header-only package providing shared utilities for C++ nodes, especially those that `nodl_generator_cpp` generates.
 
 It currently provides a wrapper class for `rclcpp_lifecycle::LifecycleNode` to enable a reusable pattern for consistently managing the state and behavior of endpoint entities.
-Subscriptions are created when the node activates and destroyed when it deactivates.
 
 ```xml
 <depend>nodl_runtime_cpp</depend>
@@ -32,13 +31,13 @@ The node creates the registered endpoints when it activates and destroys them wh
 The member is null while the node is not active, and the type of the endpoint is the type of the member.
 `add_activation_slot(create, destroy)` is the general form, for an endpoint that is not held in a single `std::shared_ptr` member.
 
-A generated node derived from this class registers its subscriptions with `manage` in its constructor.
-An authored node registers its own endpoints the same way:
+An authored node registers its endpoints from its constructor, as the example below does for a subscription:
 
-```cpp
-manage(sub_name_, [this] {
-  return create_subscription<std_msgs::msg::String>("name", rclcpp::QoS(10), std::bind(&Greeter::on_name, this, std::placeholders::_1));
-});
+```{literalinclude} examples/lifecycle_node.cpp
+:language: cpp
+:dedent: 4
+:start-at: manage(sub_name_
+:end-at: });
 ```
 
 Slots follow these rules:
@@ -52,7 +51,9 @@ Slots follow these rules:
 
 A subscription member is null while the node is inactive, so use it only where the node is active:
 callbacks in the default callback group, timers that `handle_activate` creates, and the hooks.
-Other threads must not read the member, since the transition resets it.
+That holds when transitions are requested through the lifecycle services, which an executor serializes with the default callback group.
+A transition that another thread requests by calling `activate()` or `deactivate()` directly is not serialized with the callbacks, and the member is reset while a callback may read it.
+Other threads must not read the member.
 
 Creating endpoints on activation has these costs:
 
@@ -88,7 +89,7 @@ Some behavior specifics:
 
 This example shows a hand-written (non-generated) node using `nodl_runtime_cpp::LifecycleNode` to illustrate using the lifecycle hooks to add custom behavior on state transitions.
 It registers a subscription with `manage`, greets from `handle_activate` and from a timer that it creates there, and stops the timer in `handle_deactivate`.
-Generated nodes derive the same class and register their subscriptions with `manage`, so an authored implementation of a generated node defines the same hooks.
+An authored implementation of a generated node derives from the same class and defines the same hooks.
 
 ```{literalinclude} examples/lifecycle_node.cpp
 :language: cpp

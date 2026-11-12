@@ -424,7 +424,7 @@ codegen:
 
 A generated node with a `lifecycle: true` base creates its subscriptions when the node activates and destroys them when it deactivates.
 Its constructor registers each subscription with the `manage` function of the base class instead of creating it,
-using the same QoS, callback group and `on_<name>` callback binding as a node that is not a lifecycle node.
+using the same QoS and `on_<name>` callback binding as a node that is not a lifecycle node.
 The `sub_<name>_` members are plain `std::shared_ptr`s that are null while the node is not active.
 They are private, so only the generated class touches them.
 
@@ -436,6 +436,7 @@ For now subscriptions are the only endpoints created on activation.
 Publishers, service servers, service clients, action servers and action clients are created in the constructor as for any other node.
 
 A `transient_local` subscription of a lifecycle node receives its latched messages after the node activates, and not while it is unconfigured or inactive.
+While the node is unconfigured or inactive its subscriptions are absent from the graph, so conformance of such a node needs it configured and activated first.
 
 Migration: `BREAKING CHANGE:` a node derived from `nodl://nodl_common_interfaces/lifecycle_node` no longer has its subscriptions while it is unconfigured or inactive.
 Messages published in those states, including latched messages, are not delivered to the `on_<name>` callbacks until the node activates.

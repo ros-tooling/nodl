@@ -116,7 +116,8 @@ protected:
    * `create` runs at activation in registration order, after the standard activation and before `handle_activate`.
    * `destroy` runs in reverse registration order at deactivation, shutdown and error,
    * and when `handle_activate` fails or a later slot throws.
-   * It must be safe to call when `create` has not run, it must not throw, and it does not run when the node is destroyed.
+   * `destroy` runs only for a slot whose `create` returned, it must not throw, and it does not run when the node is destroyed.
+   * A `create` that throws must leave nothing behind.
    *
    * \throws std::logic_error When called while the node is activating or active.
    */
@@ -128,7 +129,7 @@ protected:
     slots_.push_back({std::move(create), std::move(destroy)});
   }
 
-  /// Registers a slot that assigns `member` with the result of `make` at activation, and resets it at destruction.
+  /// Registers a slot that assigns `member` with the result of `make` at activation, and resets it when the slot is destroyed.
   /**
    * The member is null while the node is not active, and must outlive the registration, so register from the constructor.
    *
@@ -150,7 +151,7 @@ protected:
 
   /// Called on the activate transition, after the standard activation and the creation of the slots.
   /**
-   * A result other than SUCCESS leaves the node inactive.
+   * FAILURE leaves the node inactive, and ERROR runs `handle_error`.
    */
   virtual CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/)
   {
@@ -159,7 +160,7 @@ protected:
 
   /// Called on the deactivate transition, before the slots are destroyed.
   /**
-   * A result other than SUCCESS leaves the node active.
+   * FAILURE leaves the node active, and ERROR runs `handle_error`.
    * It also runs before shutdown and error from the active state, where the result is ignored.
    */
   virtual CallbackReturn handle_deactivate(const rclcpp_lifecycle::State & /*previous_state*/)
@@ -250,8 +251,7 @@ private:
     }
   }
 
-  /// Wakes the executors that wait on this node, so they release the destroyed endpoints they still hold.
-  /// A node that no executor is spinning keeps them until its next spin.
+  /// Wakes the executors that wait on this node.
   void wake_executors()
   {
     try {

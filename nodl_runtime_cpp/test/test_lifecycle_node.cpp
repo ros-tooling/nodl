@@ -726,7 +726,7 @@ public:
   std::atomic<int> received{0};
 };
 
-/// Publishes from a timer that it creates in `handle_activate` and resets in `handle_deactivate`.
+/// Counts the ticks of a timer that it creates in `handle_activate` and resets in `handle_deactivate`.
 class TimerNode : public nodl_runtime_cpp::LifecycleNode
 {
 public:
@@ -734,22 +734,22 @@ public:
   : nodl_runtime_cpp::LifecycleNode("timer_node")
   {
     manage(subscription, [this] {
-      return create_subscription<std_msgs::msg::String>(
-        "in", 10, [this](std_msgs::msg::String::ConstSharedPtr) { ++received; });
+      return create_subscription<std_msgs::msg::String>("in", 10, [](std_msgs::msg::String::ConstSharedPtr) {});
     });
   }
 
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription;
   std::atomic<int> ticks{0};
-  std::atomic<int> received{0};
+  /// Ticks that found the subscription null.
+  std::atomic<int> ticks_without_subscription{0};
 
 protected:
   CallbackReturn handle_activate(const rclcpp_lifecycle::State &) override
   {
     timer_ = create_wall_timer(std::chrono::milliseconds(5), [this] {
-      // The subscription exists for as long as the timer does.
-      if (nullptr != subscription) {
-        ++ticks;
+      ++ticks;
+      if (nullptr == subscription) {
+        ++ticks_without_subscription;
       }
     });
     return CallbackReturn::SUCCESS;
@@ -889,11 +889,12 @@ TEST(ActivationRegistryExecutor, DeactivatingAfterASubscriptionRanWhileAnExecuto
   rclcpp::shutdown();
 }
 
-TEST_F(ActivationRegistryServices, TimerCreatedInTheActivateHookSeesTheSubscriptionAndStopsBeforeItIsDestroyed)
+TEST_F(ActivationRegistryServices, TimerCreatedInTheActivateHookNeverSeesANullSubscription)
 {
   auto node = std::make_shared<TimerNode>();
   start(node);
   ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  EXPECT_EQ(0, node->ticks);
   ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
   ASSERT_TRUE(wait_for([&] { return 0 != node->ticks; }));
 
@@ -902,6 +903,7 @@ TEST_F(ActivationRegistryServices, TimerCreatedInTheActivateHookSeesTheSubscript
   const auto ticks = node->ticks.load();
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   EXPECT_EQ(ticks, node->ticks);
+  EXPECT_EQ(0, node->ticks_without_subscription);
   EXPECT_EQ(nullptr, node->subscription);
 }
 

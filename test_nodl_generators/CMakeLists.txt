@@ -59,7 +59,8 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_pytest REQUIRED)
 
-  # The generated lifecycle node runs, since its behavior comes from the nodl_runtime_cpp base class.
+  # Runs the generated lifecycle node against its subscriptions and publishers.
+  # The behavior comes from the nodl_runtime_cpp base class.
   ament_add_gtest(test_cpp_lifecycle lifecycle/cpp/test_node.cpp TIMEOUT 60)
   target_link_libraries(test_cpp_lifecycle cpp_lifecycle_node_base)
 
