@@ -42,7 +42,7 @@ public:
     if (CallbackReturn::SUCCESS != hook_result) {
       rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
     }
-    return CallbackReturn::SUCCESS;
+    return hook_result;
   }
 
   /// Move node from active to inactive. Calls `handle_deactivate`.
