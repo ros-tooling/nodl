@@ -11,8 +11,8 @@ description: Standard ROS 2 lifecycle node base interface
 codegen:
   cpp:
     role: BASE_CLASS
-    class: rclcpp_lifecycle::LifecycleNode
-    header: rclcpp_lifecycle/lifecycle_node.hpp
+    class: nodl_runtime_cpp::LifecycleNode
+    header: nodl_runtime_cpp/lifecycle_node.hpp
     publisher_type: rclcpp_lifecycle::LifecyclePublisher
   python:
     role: BASE_CLASS
