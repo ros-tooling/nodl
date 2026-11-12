@@ -1,5 +1,5 @@
 ---
-# LifecycleNode base class with publishers and subscriptions.
+# LifecycleNode base class with a publisher and subscriptions, one of them latched.
 
 nodl_version: 2
 
@@ -21,3 +21,11 @@ subscriptions:
       history: KEEP_LAST
       depth: 1
       reliability: BEST_EFFORT
+
+  - name: latched
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE
+      durability: TRANSIENT_LOCAL

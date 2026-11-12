@@ -1,0 +1,36 @@
+---
+# Tests a lifecycle base class whose codegen.cpp sets lifecycle: true.
+# The generator should register subscriptions with manage() instead of creating them in the constructor,
+# and leave the other endpoints as they are.
+
+nodl_version: 2
+
+include:
+  - ref: test://runtime_lifecycle_node
+
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+
+subscriptions:
+  - name: cmd_vel
+    type: geometry_msgs/msg/Twist
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: BEST_EFFORT
+  - name: latched
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE
+      durability: TRANSIENT_LOCAL
+
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger

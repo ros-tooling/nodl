@@ -85,7 +85,7 @@ protected:
 private:
 {% if subscriptions %}
 
-  // --- Subscriptions ---
+  // --- Subscriptions{{ ' (null while the node is not active)' if lifecycle }} ---
 {% for sub in subscriptions %}
   rclcpp::Subscription<{{ sub.cpp_type }}>::SharedPtr {{ sub.member }};
 {% endfor %}

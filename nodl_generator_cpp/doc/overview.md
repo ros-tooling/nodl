@@ -163,7 +163,7 @@ It handles the differences in dependency target names between distributions, so 
 The generator requires that a nodl document includes exactly one spec with a codegen class type `BASE_CLASS`.
 
 The `nodl_common_interfaces` package provides shared NoDL descriptions for the standard node and lifecycle-node base types.
-Their `codegen.cpp` metadata selects `rclcpp::Node` or `rclcpp_lifecycle::LifecycleNode` as the `BASE_CLASS`.
+Their `codegen.cpp` metadata selects `rclcpp::Node` or `nodl_runtime_cpp::LifecycleNode` as the `BASE_CLASS`.
 They are registered as `nodl://nodl_common_interfaces/node` and `nodl://nodl_common_interfaces/lifecycle_node`.
 `nodl_generator_cpp` depends on `nodl_common_interfaces`, so a package that generates code does not have to explicitly declare it.
 
@@ -327,7 +327,7 @@ Entity names are sanitised for use as C++ identifiers: leading `~/` or `/` is st
 ## Base class and includes
 
 When generating a node, the generator walks the NoDL document tree to find a `BASE_CLASS` role document.
-The metadata there informs which base class (`rclcpp::Node`, `rclcpp_lifecycle::LifecycleNode`, or a custom class) this node implementation inherits from.
+The metadata there informs which base class (`rclcpp::Node`, `nodl_runtime_cpp::LifecycleNode`, or a custom class) this node implementation inherits from.
 
 Included documents' roles inform the generator what entities need to be generated, and which do not.
 For example, the base class already provides its interface, so those endpoints should not be created by the generator.
@@ -338,7 +338,7 @@ A NoDL document can carry a `codegen.cpp` field describing how it takes part in 
 
 | Role | Valid on | Fields | Meaning |
 |---|---|---|---|
-| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
+| `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type` and `lifecycle` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
 | `NO_GENERATE` | Included documents | none | The document has an existing implementation but does not provide the generated class's base. |
 | `NODE` | The root document | `namespace` (optional) | The document is the one being generated. |
 
@@ -392,7 +392,7 @@ A root without `codegen.cpp` is also valid.
 
 `BASE_CLASS` accepts an optional `publisher_type`, the C++ publisher class template that the base class's `create_publisher` returns.
 It defaults to `rclcpp::Publisher`, and `header` must declare it.
-`nodl://nodl_common_interfaces/lifecycle_node` sets it to `rclcpp_lifecycle::LifecyclePublisher`:
+A base class whose `create_publisher` returns `rclcpp_lifecycle::LifecyclePublisher` sets it that way:
 
 ```yaml
 codegen:
@@ -406,6 +406,40 @@ codegen:
 The generated class declares each publisher as `<publisher_type><MessageT>::SharedPtr`.
 `rclcpp_lifecycle::LifecycleNode::on_activate` and `on_deactivate` activate and deactivate its lifecycle publishers.
 A subclass that overrides those callbacks calls the base class's implementation to keep that behavior.
+
+### Lifecycle nodes
+
+`BASE_CLASS` accepts an optional `lifecycle` boolean, false by default.
+`nodl://nodl_common_interfaces/lifecycle_node` sets it to true:
+
+```yaml
+codegen:
+  cpp:
+    role: BASE_CLASS
+    class: nodl_runtime_cpp::LifecycleNode
+    header: nodl_runtime_cpp/lifecycle_node.hpp
+    publisher_type: rclcpp_lifecycle::LifecyclePublisher
+    lifecycle: true
+```
+
+A generated node with a `lifecycle: true` base creates its subscriptions when the node activates and destroys them when it deactivates.
+Its constructor registers each subscription with the `manage` function of the base class instead of creating it,
+using the same QoS and `on_<name>` callback binding as a node that is not a lifecycle node.
+The `sub_<name>_` members are plain `std::shared_ptr`s that are null while the node is not active.
+They are private, so only the generated class touches them.
+
+The base class named by `class` must provide `manage`, as `nodl_runtime_cpp::LifecycleNode` does.
+Otherwise the generated code does not compile.
+See the `nodl_runtime_cpp` overview for when the subscriptions are created and destroyed relative to the lifecycle hooks.
+
+For now subscriptions are the only endpoints created on activation.
+Publishers, service servers, service clients, action servers and action clients are created in the constructor as for any other node.
+
+A `transient_local` subscription of a lifecycle node receives its latched messages after the node activates, and not while it is unconfigured or inactive.
+While the node is unconfigured or inactive its subscriptions are absent from the graph, so conformance of such a node needs it configured and activated first.
+
+Migration: `BREAKING CHANGE:` a node derived from `nodl://nodl_common_interfaces/lifecycle_node` no longer has its subscriptions while it is unconfigured or inactive.
+Messages published in those states, including latched messages, are not delivered to the `on_<name>` callbacks until the node activates.
 
 ### Namespace
 

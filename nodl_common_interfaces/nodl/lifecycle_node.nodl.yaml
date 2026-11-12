@@ -14,6 +14,7 @@ codegen:
     class: nodl_runtime_cpp::LifecycleNode
     header: nodl_runtime_cpp/lifecycle_node.hpp
     publisher_type: rclcpp_lifecycle::LifecyclePublisher
+    lifecycle: true
   python:
     role: BASE_CLASS
     module: rclpy.lifecycle
