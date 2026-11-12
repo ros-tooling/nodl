@@ -33,19 +33,26 @@ public:
   /// Move node from inactive to active. Calls `handle_activate`.
   CallbackReturn on_activate(const rclcpp_lifecycle::State & previous_state) final
   {
+    deactivate_hook_ran_ = false;
     const auto base_result = rclcpp_lifecycle::LifecycleNode::on_activate(previous_state);
     if (CallbackReturn::SUCCESS != base_result) {
       return base_result;
     }
-    return handle_activate(previous_state);
+    const auto hook_result = handle_activate(previous_state);
+    if (CallbackReturn::SUCCESS != hook_result) {
+      rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
+    }
+    return CallbackReturn::SUCCESS;
   }
 
   /// Move node from active to inactive. Calls `handle_deactivate`.
   CallbackReturn on_deactivate(const rclcpp_lifecycle::State & previous_state) final
   {
-    const auto handle_result = handle_deactivate(previous_state);
-    if (CallbackReturn::SUCCESS != handle_result) {
-      return handle_result;
+    deactivate_hook_ran_ = true;
+    const auto hook_result = handle_deactivate(previous_state);
+    if (CallbackReturn::SUCCESS != hook_result) {
+      deactivate_hook_ran_ = false;
+      return hook_result;
     }
     return rclcpp_lifecycle::LifecycleNode::on_deactivate(previous_state);
   }
