@@ -23,6 +23,19 @@ namespace {{ namespace }}
 {% endif %}
 {% if subscriptions %}
 
+{% if lifecycle %}
+  // Register subscriptions
+{% for sub in subscriptions %}
+  manage({{ sub.member }}, [this] {
+    return this->create_subscription<{{ sub.cpp_type }}>(
+      "{{ sub.name }}",
+      {{ sub.qos }},
+      [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
+        this->{{ sub.callback }}(msg);
+      });
+  });
+{% endfor %}
+{% else %}
   // Create subscriptions
 {% for sub in subscriptions %}
   {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
@@ -32,6 +45,7 @@ namespace {{ namespace }}
       this->{{ sub.callback }}(msg);
     });
 {% endfor %}
+{% endif %}
 {% endif %}
 {% if service_servers %}
 
