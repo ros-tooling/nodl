@@ -26,7 +26,9 @@
         "test_nodl_generators/package.xml",
         "test_nodl_generators_downstream/package.xml",
         "examples/nodl_tutorials/basics/package.xml",
-        "examples/nodl_tutorials/dummy_robot/package.xml"
+        "examples/nodl_tutorials/dummy_robot/package.xml",
+        "examples/nodl_tutorials/lifecycle_action/cpp/package.xml",
+        "examples/nodl_tutorials/lifecycle_action/python/package.xml"
       ]
     }
   }
