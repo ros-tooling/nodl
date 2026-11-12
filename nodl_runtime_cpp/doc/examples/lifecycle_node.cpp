@@ -11,9 +11,9 @@
 
 /// Example of a non-generated node that uses `nodl_runtime_cpp::LifecycleNode`.
 /**
- * It registers a latched publisher and a subscription, which exist only while the node is active,
+ * It holds a latched publisher, registers a subscription that exists only while the node is active,
  * and greets on a timer that runs between `handle_activate` and `handle_deactivate`.
- * The endpoints are registered by hand to keep the example self-contained, where a generated node registers its own.
+ * The subscription is registered by hand to keep the example self-contained, where a generated node registers its own.
  */
 class Greeter : public nodl_runtime_cpp::LifecycleNode
 {
@@ -21,12 +21,15 @@ public:
   Greeter()
   : nodl_runtime_cpp::LifecycleNode("greeter")
   , pub_greeting_(create_publisher<std_msgs::msg::String>("greeting", rclcpp::QoS(1).transient_local()))
-  , sub_name_(create_subscription<std_msgs::msg::String>(
-      "name", rclcpp::QoS(10), std::bind(&Greeter::on_name, this, std::placeholders::_1)))
-  {}
+  {
+    manage(sub_name_, [this] {
+      return create_subscription<std_msgs::msg::String>(
+        "name", rclcpp::QoS(10), std::bind(&Greeter::on_name, this, std::placeholders::_1));
+    });
+  }
 
 protected:
-  // The publisher and the subscription exist here.
+  // The subscription exists here, and is null in every other state.
   CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/) override
   {
     greet("everyone");
