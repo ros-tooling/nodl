@@ -14,11 +14,13 @@
   <buildtool_export_depend>nodl_generator_cpp</buildtool_export_depend>
   <buildtool_depend>nodl_generator_py</buildtool_depend>
 
+  <build_depend>lifecycle_msgs</build_depend>
+  <build_depend>rclcpp_action</build_depend>
+
   <depend>example_interfaces</depend>
   <depend>geometry_msgs</depend>
-  <build_depend>lifecycle_msgs</build_depend>
+  <depend>nodl_runtime_cpp</depend>
   <depend>rclcpp</depend>
-  <build_depend>rclcpp_action</build_depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
