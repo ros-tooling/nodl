@@ -158,6 +158,12 @@ def _generate(
     text = output.read_text(encoding='utf-8')
     text = _strip_orphan_root_classes(text)
     text = _rewrite_pydantic_import(text)
+    if schema == NODL_SCHEMA:
+        # datamodel-codegen does not retain patternProperties alongside explicit properties.
+        # The loader validates namespace-qualified custom validator keys against the schema.
+        start = text.index('class Validation(BaseModel):')
+        end = text.index('\nclass ParameterDefinition', start)
+        text = text[:start] + text[start:end].replace('Extra.forbid', 'Extra.allow') + text[end:]
     output.write_text(_copyright_header() + text)
     subprocess.run(['ruff', 'format', *_RUFF_CONFIG_ARGS, str(output)], check=True)
     subprocess.run(['ruff', 'check', '--fix', *_RUFF_CONFIG_ARGS, str(output)], check=False)

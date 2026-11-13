@@ -3,11 +3,13 @@
 """The arguments, defaults and launch description of ``conformance_test``, with no ROS graph."""
 
 import unittest
+from types import SimpleNamespace
 
 import pytest
 from launch_testing.actions import ReadyToTest
 
 from nodl_schema import IgnoreRule, composition
+from nodl_schema.models import NodlDocument, ParameterDefinition
 from ros2nodl import testing
 
 
@@ -58,7 +60,14 @@ def test_defaults_match_the_cmake_macro(document, recorded, monkeypatch):
     ]
     assert isinstance(description.entities[-1], ReadyToTest)
     assert recorded['assert_conforms'] == [
-        {'nodl_file': str(document), 'node_fqn': '/node_exe', 'timeout_sec': 15, 'ignore': []}
+        {
+            'nodl_file': str(document),
+            'node_fqn': '/node_exe',
+            'timeout_sec': 15,
+            'ignore': [],
+            'params_files': [],
+            'parameters': [],
+        }
     ]
 
 
@@ -100,6 +109,8 @@ def test_passes_every_option(document, tmp_path, recorded, monkeypatch):
             'nodl_file': str(document),
             'node_fqn': '/robot/fixture',
             'timeout_sec': 40,
+            'params_files': [str(first), str(second)],
+            'parameters': ['limit:=5', 'path:=a:=b'],
             'ignore': [
                 IgnoreRule.parse('subscription:/it/*'),
                 'publisher:/topic_statistics',
@@ -107,6 +118,39 @@ def test_passes_every_option(document, tmp_path, recorded, monkeypatch):
             ],
         }
     ]
+
+
+@pytest.mark.parametrize('item,kind', [('limit:=6', 'value_mismatch'), ('limit:=20', 'constraint_mismatch')])
+def test_helper_checks_deployment_values(document, tmp_path, monkeypatch, item, kind):
+    import ros2nodl.describe
+
+    document.write_text(
+        """nodl_version: 2
+parameters:
+  limit:
+    type: int
+    default_value: 1
+    validation:
+      bounds: [1, 10]
+""",
+        encoding='utf-8',
+    )
+    parameters = tmp_path / 'deployment.yaml'
+    parameters.write_text('/**:\n  ros__parameters:\n    limit: 5\n', encoding='utf-8')
+    observed = NodlDocument(parameters={'limit': ParameterDefinition(type='int', default_value=5)})
+    monkeypatch.setattr(
+        ros2nodl.describe, 'describe_node', lambda *args, **kwargs: SimpleNamespace(doc=observed, gaps=[])
+    )
+    _, test_case = testing.conformance_test(
+        package='pkg',
+        executable='node_exe',
+        nodl=document,
+        parameters_files=[parameters],
+        parameters=[item],
+    )
+
+    with pytest.raises(AssertionError, match=kind):
+        _run_test_case(test_case)
 
 
 def test_resolves_a_reference_with_the_registered_resolvers(tmp_path, recorded):

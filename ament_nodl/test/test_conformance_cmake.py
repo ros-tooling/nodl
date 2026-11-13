@@ -262,6 +262,8 @@ def test_macro_passes_parameters_and_files_to_node(tmp_path):
         'list:=[1, 2]',
         'nested.name:=a:=b',
     ]
+    assert 'parameters_files=_PARAMETERS_FILES' in generated
+    assert 'parameters=_PARAMETERS' in generated
 
 
 @pytest.mark.skipif(shutil.which('cmake') is None, reason='cmake not on PATH')

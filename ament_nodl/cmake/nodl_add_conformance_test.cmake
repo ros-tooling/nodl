@@ -35,11 +35,12 @@ endfunction()
 # :param TIMEOUT: positive integer number of seconds to wait for the node.
 #   Defaults to 15.
 # :type TIMEOUT: integer
-# :param PARAMETERS: ``name:=value`` items passed to the node as ``-p`` arguments, for nodes with required parameters that have no default.
+# :param PARAMETERS: ``name:=value`` items passed to the node as ``-p`` arguments and checked as deployment expectations.
 #   Items use the syntax of ``ros2 run -p``, so name and value must be non-empty.
-#   Items are applied after ``PARAMETERS_FILE`` and override the same parameter set there.
+#   Items follow ``PARAMETERS_FILE`` in the ROS arguments.
+#   Native ROS selector precedence applies; node-specific file entries can override unqualified inline items.
 # :type PARAMETERS: list of strings
-# :param PARAMETERS_FILE: YAML parameter files passed to the node as ``--params-file`` arguments.
+# :param PARAMETERS_FILE: YAML parameter files passed to the node as ``--params-file`` arguments and checked as deployment expectations.
 #   Each is absolute or relative to ``CMAKE_CURRENT_SOURCE_DIR``.
 # :type PARAMETERS_FILE: list of strings
 # :param IGNORE: ignore rules, each ``KIND:NAME[:TYPE]``, such as ``publisher:/topic_statistics``.

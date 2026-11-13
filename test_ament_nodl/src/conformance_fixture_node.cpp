@@ -6,6 +6,7 @@
 #include <string>
 
 #include "rcl_interfaces/msg/parameter_descriptor.hpp"
+#include "rclcpp/qos_overriding_options.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/empty.hpp"
@@ -17,7 +18,9 @@ public:
   : Node("fixture")
   {
     const auto qos = rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile();
-    publisher_ = create_publisher<std_msgs::msg::String>("state", qos);
+    rclcpp::PublisherOptions publisher_options;
+    publisher_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
+    publisher_ = create_publisher<std_msgs::msg::String>("state", qos, publisher_options);
     subscription_ =
       create_subscription<std_msgs::msg::String>("command", qos, [](std_msgs::msg::String::ConstSharedPtr) {});
     service_ = create_service<std_srvs::srv::Empty>(
