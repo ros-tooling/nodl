@@ -83,6 +83,13 @@ protected:
 {% if has_private %}
 
 private:
+{% if callback_groups %}
+
+  // Retain groups until after their endpoints are destroyed.
+{% for group in callback_groups %}
+  rclcpp::CallbackGroup::SharedPtr {{ group.member }};
+{% endfor %}
+{% endif %}
 {% if subscriptions %}
 
   // --- Subscriptions ---

@@ -57,6 +57,18 @@ endif()
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  foreach(variant defaults shared separate reentrant lifecycle)
+    nodl_generate_cpp(callback_${variant}_base STATIC NO_INDEX
+      callback_groups/cpp/${variant}.nodl.yaml)
+  endforeach()
+  ament_add_gtest(test_cpp_callback_groups callback_groups/cpp/test_node.cpp TIMEOUT 60)
+  if(TARGET test_cpp_callback_groups)
+    target_link_libraries(test_cpp_callback_groups
+      callback_defaults_base callback_shared_base callback_separate_base
+      callback_reentrant_base callback_lifecycle_base)
+  endif()
 
   # These tests read the install manifests in the build directory, so files left by earlier builds in the install prefix do not matter.
   # Checks which fixtures are installed and exported.

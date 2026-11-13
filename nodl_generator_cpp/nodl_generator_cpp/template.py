@@ -5,6 +5,7 @@ import jinja2
 from nodl_generator_common.generated_file import GeneratedFile
 from nodl_generator_common.naming import to_member_name
 from nodl_generator_cpp.include_prefix import prefixed
+from nodl_generator_cpp.models import CallbackGroup1, CallbackGroup2
 from nodl_generator_cpp.ros_to_cpp import (
     qos_to_cpp,
     ros_type_to_cpp,
@@ -54,6 +55,7 @@ def _build_template_context(
     include_prefix: str | None = None,
     namespace: str | None = None,
     publisher_class: str,
+    callback_groups: dict[str, CallbackGroup1 | CallbackGroup2] | None = None,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -61,6 +63,15 @@ def _build_template_context(
     templates contain no conversion logic.
     """
     has_actions = bool(action_servers or action_clients)
+    groups = callback_groups or {}
+    assignments = {
+        category: {
+            name: f'nodl_callback_group_{group_name}_'
+            for group_name, group in groups.items()
+            for name in getattr(group, category) or []
+        }
+        for category in ('subscriptions', 'service_servers')
+    }
 
     # -- Collect includes (sorted, deduped) --
     headers: set[str] = {base_header}
@@ -82,6 +93,13 @@ def _build_template_context(
         'target_name': target_name,
         'node_name': to_node_name(target_name),
         'class_name': to_class_name(target_name),
+        'callback_groups': [
+            {
+                'member': f'nodl_callback_group_{name}_',
+                'type': 'MutuallyExclusive' if group.type.value == 'MUTUALLY_EXCLUSIVE' else 'Reentrant',
+            }
+            for name, group in sorted(groups.items())
+        ],
         'base_class': base_class,
         'includes': sorted(headers),
         'publishers': [
@@ -100,6 +118,7 @@ def _build_template_context(
                 'member': f'sub_{to_member_name(e.name)}_',
                 'callback': f'on_{to_member_name(e.name)}',
                 'qos': qos_to_cpp(e.qos),
+                'callback_group': assignments['subscriptions'].get(e.name),
             }
             for e in subscriptions
         ],
@@ -109,6 +128,7 @@ def _build_template_context(
                 'cpp_type': ros_type_to_cpp(e.type),
                 'member': f'srv_{to_member_name(e.name)}_',
                 'callback': f'on_{to_member_name(e.name)}',
+                'callback_group': assignments['service_servers'].get(e.name),
             }
             for e in service_servers
         ],
@@ -165,6 +185,7 @@ def render_templates(
     include_prefix: str | None = None,
     namespace: str | None = None,
     publisher_class: str,
+    callback_groups: dict[str, CallbackGroup1 | CallbackGroup2] | None = None,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
@@ -190,6 +211,7 @@ def render_templates(
         include_prefix=include_prefix,
         namespace=namespace,
         publisher_class=publisher_class,
+        callback_groups=callback_groups,
     )
 
     env = _get_env()
