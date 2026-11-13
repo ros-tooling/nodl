@@ -13,6 +13,25 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  editor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pytest pyyaml jsonschema
+      - run: python -m pytest -q tools/editor/test_export.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/editor/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: tools/editor
+      - run: npm test
+        working-directory: tools/editor
+
   changes:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

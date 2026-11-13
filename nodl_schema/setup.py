@@ -11,7 +11,7 @@ setup(
     name=package_name,
     version=ET.parse(Path(__file__).with_name('package.xml')).findtext('version'),
     packages=find_packages(exclude=['test', 'test.*']),
-    package_data={package_name: ['schemas/*.yaml']},
+    package_data={package_name: ['schemas/*.yaml', 'schemas/*.json']},
     # colcon uses test extras to select pytest instead of unittest.
     extras_require={'test': ['pytest', 'pyright']},
     data_files=[
@@ -22,6 +22,8 @@ setup(
             [
                 'nodl_schema/schemas/nodl.schema.yaml',
                 'nodl_schema/schemas/parameter.schema.yaml',
+                'nodl_schema/schemas/nodl.schema.json',
+                'nodl_schema/schemas/parameter.schema.json',
             ],
         ),
     ],

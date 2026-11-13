@@ -1,0 +1,414 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "parameter.schema.json",
+  "title": "ROS 2 Parameter Definition Schema",
+  "description": "Schema for a single ROS 2 parameter definition. Shape mirrors\n``generate_parameter_library`` so the same definition can drive both\ndocumentation and code generation. Validates one parameter at a time\n(``type``, ``default_value``, ``validation``, etc.); composing many parameters\ninto a node-level document is left to the consumer.\n",
+  "definitions": {
+    "parameter_definition": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/parameter_type"
+        },
+        "default_value": {
+          "$ref": "#/definitions/default_value"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description displayed by ``ros2 param describe``",
+          "default": ""
+        },
+        "read_only": {
+          "type": "boolean",
+          "description": "If true, parameter can only be set at launch, not dynamically",
+          "default": false
+        },
+        "additional_constraints": {
+          "type": "string",
+          "description": "Custom constraint metadata (e.g., JSON schema) - not validated by the library",
+          "default": ""
+        },
+        "validation": {
+          "$ref": "#/definitions/validation"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "byte_array"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default_value": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "parameter_type": {
+      "description": "The parameter data type",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/scalar_type"
+        },
+        {
+          "$ref": "#/definitions/array_type"
+        },
+        {
+          "$ref": "#/definitions/fixed_size_type"
+        }
+      ]
+    },
+    "scalar_type": {
+      "type": "string",
+      "enum": [
+        "bool",
+        "int",
+        "double",
+        "string",
+        "none"
+      ],
+      "description": "Scalar types:\n- ``bool``: C++ ``bool``, Python ``bool``\n- ``int``: C++ ``int64_t``, Python ``int``\n- ``double``: C++ ``double``, Python ``float``\n- ``string``: C++ ``std::string``, Python ``str``\n- ``none``: No code generated (used for structure-only nodes)\n"
+    },
+    "array_type": {
+      "type": "string",
+      "enum": [
+        "bool_array",
+        "byte_array",
+        "int_array",
+        "double_array",
+        "string_array"
+      ],
+      "description": "Array types:\n- ``bool_array``: C++ ``std::vector<bool>``, Python ``[bool]``\n- ``byte_array``: Sequence of byte integers (``0`` through ``255``)\n- ``int_array``: C++ ``std::vector<int64_t>``, Python ``[int]``\n- ``double_array``: C++ ``std::vector<double>``, Python ``[float]``\n- ``string_array``: C++ ``std::vector<std::string>``, Python ``[str]``\n"
+    },
+    "fixed_size_type": {
+      "type": "string",
+      "pattern": "^(string_fixed_[1-9][0-9]*|int_array_fixed_[1-9][0-9]*|double_array_fixed_[1-9][0-9]*|string_array_fixed_[1-9][0-9]*)$",
+      "description": "Fixed-size types with pattern ``<base_type>_fixed_<size>``:\n- ``string_fixed_XX``: C++ ``rsl::StaticString<XX>``, Python ``str`` (max XX chars)\n- ``int_array_fixed_XX``: C++ ``rsl::StaticVector<int64_t, XX>``, Python ``[int]`` (max XX elements)\n- ``double_array_fixed_XX``: C++ ``rsl::StaticVector<double, XX>``, Python ``[float]`` (max XX elements)\n- ``string_array_fixed_XX``: C++ ``rsl::StaticVector<std::string, XX>``, Python ``[str]`` (max XX elements)\n\nNote: ``bool_array_fixed`` is NOT supported.\nFixed-size types automatically get a ``size_lt<>`` validator with value size+1.\n",
+      "examples": [
+        "string_fixed_25",
+        "int_array_fixed_5",
+        "double_array_fixed_10",
+        "string_array_fixed_3"
+      ]
+    },
+    "default_value": {
+      "description": "Initial value for the parameter. Type must match the declared parameter type.\nIf omitted, the parameter becomes required at initialization.\nSupports: ``bool``, ``int``, ``double`` (including ``NaN``, ``Inf``, scientific notation), ``string``,\nand arrays of these types. A ``byte_array`` default is a sequence of\ninteger byte values from ``0`` through ``255``.\n"
+    },
+    "validation": {
+      "type": "object",
+      "description": "Dictionary of validation function names and their arguments.\nValidators can be specified with or without the ``<>`` suffix (both are equivalent).\nFor example: ``bounds<>: [0, 100]`` is the same as ``bounds: [0, 100]``\n",
+      "additionalProperties": false,
+      "properties": {
+        "bounds<>": {
+          "$ref": "#/definitions/bounds_validator"
+        },
+        "lt<>": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "gt<>": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "lt_eq<>": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "gt_eq<>": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "one_of<>": {
+          "$ref": "#/definitions/one_of_validator"
+        },
+        "bounds": {
+          "$ref": "#/definitions/bounds_validator"
+        },
+        "lt": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "gt": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "lt_eq": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "gt_eq": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "one_of": {
+          "$ref": "#/definitions/one_of_validator"
+        },
+        "not_empty<>": {
+          "$ref": "#/definitions/no_arg_validator"
+        },
+        "not_empty": {
+          "$ref": "#/definitions/no_arg_validator"
+        },
+        "fixed_size<>": {
+          "$ref": "#/definitions/size_validator"
+        },
+        "size_gt<>": {
+          "$ref": "#/definitions/size_validator"
+        },
+        "size_lt<>": {
+          "$ref": "#/definitions/size_validator"
+        },
+        "fixed_size": {
+          "$ref": "#/definitions/size_validator"
+        },
+        "size_gt": {
+          "$ref": "#/definitions/size_validator"
+        },
+        "size_lt": {
+          "$ref": "#/definitions/size_validator"
+        },
+        "unique<>": {
+          "$ref": "#/definitions/no_arg_validator"
+        },
+        "subset_of<>": {
+          "$ref": "#/definitions/subset_of_validator"
+        },
+        "element_bounds<>": {
+          "$ref": "#/definitions/bounds_validator"
+        },
+        "lower_element_bounds<>": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "upper_element_bounds<>": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "unique": {
+          "$ref": "#/definitions/no_arg_validator"
+        },
+        "subset_of": {
+          "$ref": "#/definitions/subset_of_validator"
+        },
+        "element_bounds": {
+          "$ref": "#/definitions/bounds_validator"
+        },
+        "lower_element_bounds": {
+          "$ref": "#/definitions/comparison_validator"
+        },
+        "upper_element_bounds": {
+          "$ref": "#/definitions/comparison_validator"
+        }
+      },
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)+$": {
+          "$ref": "#/definitions/custom_validator"
+        }
+      }
+    },
+    "numeric_value": {
+      "description": "An integer or floating-point value.\nBoth forms are explicit so generated models preserve the authored YAML type.\n",
+      "type": [
+        "integer",
+        "number"
+      ]
+    },
+    "bounds_validator": {
+      "description": "Inclusive bounds checking: ``[lower, upper]``",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/numeric_value"
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "examples": [
+        [
+          0,
+          100
+        ],
+        [
+          0.0,
+          1.0
+        ],
+        [
+          -1.0,
+          1.0
+        ]
+      ]
+    },
+    "comparison_validator": {
+      "description": "Single value comparison: ``[value]`` or bare value",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/numeric_value"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        {
+          "$ref": "#/definitions/numeric_value",
+          "description": "Can also be specified as a bare number"
+        }
+      ],
+      "examples": [
+        [
+          0
+        ],
+        [
+          100
+        ],
+        [
+          0.001
+        ],
+        15,
+        0.5
+      ]
+    },
+    "size_validator": {
+      "description": "Size/length constraint: ``[length]``",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Can also be specified as a bare integer"
+        }
+      ],
+      "examples": [
+        [
+          6
+        ],
+        [
+          10
+        ],
+        6
+      ]
+    },
+    "one_of_validator": {
+      "description": "Parameter must be one of the specified values: ``[[val1, val2, ...]]``",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 1
+      },
+      "minItems": 1,
+      "maxItems": 1,
+      "examples": [
+        [
+          [
+            "spline",
+            "linear"
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            2,
+            -1
+          ]
+        ],
+        [
+          [
+            true,
+            false
+          ]
+        ]
+      ]
+    },
+    "subset_of_validator": {
+      "description": "All array elements must be in the specified set: ``[[val1, val2, ...]]``",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 1
+      },
+      "minItems": 1,
+      "maxItems": 1,
+      "examples": [
+        [
+          [
+            "x",
+            "y",
+            "z"
+          ]
+        ],
+        [
+          [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        ]
+      ]
+    },
+    "no_arg_validator": {
+      "description": "Validator that takes no arguments",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "maxItems": 0
+        }
+      ],
+      "examples": [
+        null,
+        []
+      ]
+    },
+    "custom_validator": {
+      "description": "Custom validator with namespace-qualified function name.\nThe function must:\n- Accept ``rclcpp::Parameter const&`` as first argument\n- Accept additional arguments matching the YAML specification\n- Return ``tl::expected<void, std::string>`` type\n- Be defined in a header file passed to the code generator\n",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array"
+        },
+        {
+          "$ref": "#/definitions/numeric_value"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean"
+        }
+      ],
+      "examples": [
+        null,
+        [
+          1.0,
+          2.0
+        ],
+        [
+          "arg1",
+          "arg2"
+        ]
+      ]
+    }
+  }
+}
