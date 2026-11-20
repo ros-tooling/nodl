@@ -50,8 +50,10 @@ Slots follow these rules:
 - A `create` that throws destroys the slots created before it, and the activation ends in ERROR.
 - Registering a slot or constructing a `Managed` while the node is activating or active throws `std::logic_error`, including from a `create`.
 - Destroying a `Managed` while the node is not active unregisters its slot.
-- Destroying a `Managed` while the node is active and alive is an error: it logs an error, destroys the endpoint and unregisters the slot.
+- Destroying a `Managed` while the node is activating or active and owned by a `std::shared_ptr` that is not being released is an error: it logs an error, destroys the endpoint and unregisters the slot.
 - Destroying a node while it is active is not an error. It destroys its members, and no `destroy` runs.
+- The error is detected only for a node owned by a `std::shared_ptr`, as a node created with `std::make_shared` or by a component container is. A node on the stack is always treated as being destroyed.
+- Create and destroy `Managed` objects from the thread that requests the transitions.
 - Destroying the slots wakes the executor that spins the node, so the executor releases the endpoints it still holds.
 
 A subscription exists only while the node is active, so use it only where the node is active:

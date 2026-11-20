@@ -18,8 +18,13 @@ namespace nodl_runtime_cpp
  * `Managed` members register in declaration order, so reordering them changes the order of creation.
  *
  * Destroy it only while the node is not active, which unregisters the slot.
- * Destroying it while the node is active and alive is an error: it is logged, and the endpoint and the slot are removed.
- * A node that is destroyed while active destroys its members silently.
+ * Destroying it while the node is activating or active and owned by a `std::shared_ptr` that is not being released is an error:
+ * it is logged, and the endpoint and the slot are removed.
+ * A node that is destroyed while active destroys its members, and that is not an error.
+ * The error is detected only for a node owned by a `std::shared_ptr`, as a node created with `std::make_shared` or by a component container is.
+ * A node on the stack is always treated as being destroyed: no error is logged and the executors are not woken.
+ *
+ * Create and destroy `Managed` objects from the thread that requests the transitions.
  *
  * Not to be confused with `rclcpp_lifecycle::ManagedEntityInterface`, which `rclcpp_lifecycle` uses to activate its own entities.
  *
@@ -48,17 +53,16 @@ public:
 
   ~Managed()
   {
-    if (!node_.slots_locked_) {
-      node_.remove_activation_slot(slot_id_);
-      return;
-    }
-    const bool node_alive = !node_.weak_from_this().expired();
-    if (node_alive) {
-      RCLCPP_ERROR(node_.get_logger(), "A Managed member was destroyed while its node is active");
+    const bool misused = node_.slots_locked_ && !node_.weak_from_this().expired();
+    if (misused) {
+      RCLCPP_ERROR(
+        node_.get_logger(),
+        "A Managed member was destroyed while its node is activating or active, "
+        "create dynamic Managed members only while the node is not active and destroy them before it activates");
     }
     entity_.reset();
     node_.discard_activation_slot(slot_id_);
-    if (node_alive) {
+    if (misused) {
       node_.wake_executors();
     }
   }

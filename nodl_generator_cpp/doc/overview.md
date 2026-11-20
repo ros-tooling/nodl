@@ -427,7 +427,7 @@ Each `sub_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Subscription<M
 The members are private, so only the generated class touches them.
 Subscriptions are created in the order they appear in the NoDL document, ahead of the members of an authored subclass.
 
-The base class named by `class` must derive from `nodl_runtime_cpp::LifecycleNode`, as `nodl_runtime_cpp::LifecycleNode` itself does.
+The base class named by `class` must be or derive from `nodl_runtime_cpp::LifecycleNode`, as the node in `nodl://nodl_common_interfaces/lifecycle_node` is.
 Otherwise the generated code does not compile.
 See the `nodl_runtime_cpp` overview for when the subscriptions are created and destroyed relative to the lifecycle hooks.
 

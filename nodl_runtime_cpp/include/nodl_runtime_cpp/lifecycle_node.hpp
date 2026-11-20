@@ -198,19 +198,7 @@ private:
     std::function<void()> destroy;
   };
 
-  /// Unregisters a slot without calling `destroy`, keeping the order of the others.
-  /**
-   * \throws std::logic_error When called while the node is activating or active.
-   */
-  void remove_activation_slot(SlotId id)
-  {
-    if (slots_locked_) {
-      throw std::logic_error("slots can be removed only while the node is not active");
-    }
-    discard_activation_slot(id);
-  }
-
-  /// Unregisters a slot at any time, and counts it out of the created slots if it was created.
+  /// Unregisters a slot without calling `destroy`, keeping the order of the others, and counts it out of the created slots if it was created.
   void discard_activation_slot(SlotId id) noexcept
   {
     const auto it = std::find_if(slots_.begin(), slots_.end(), [id](const Slot & slot) { return id == slot.id; });

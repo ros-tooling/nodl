@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
+#include <functional>
 #include <future>
 #include <map>
 #include <memory>
@@ -21,6 +22,7 @@
 #include "nodl_runtime_cpp/lifecycle_node.hpp"
 #include "nodl_runtime_cpp/managed.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_components/node_factory_template.hpp"
 #include "rcutils/logging.h"
 #include "std_msgs/msg/string.hpp"
 
@@ -669,8 +671,9 @@ TEST(ActivationRegistryLifetime, DestroyingAnActiveNodeDoesNotCallDestroy)
 }
 
 /// An endpoint stand-in that logs when it is destroyed.
-struct Probe
+class Probe
 {
+public:
   Probe(std::shared_ptr<Log> log, std::string name)
   : log(std::move(log))
   , name(std::move(name))
@@ -681,6 +684,7 @@ struct Probe
     log->push_back("destroy " + name);
   }
 
+private:
   std::shared_ptr<Log> log;
   std::string name;
 };
@@ -737,8 +741,9 @@ private:
 class ProbeNode : public nodl_runtime_cpp::LifecycleNode
 {
 public:
-  explicit ProbeNode(std::shared_ptr<Log> log = std::make_shared<Log>())
-  : nodl_runtime_cpp::LifecycleNode("probe_node")
+  explicit ProbeNode(
+    std::shared_ptr<Log> log = std::make_shared<Log>(), const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
+  : nodl_runtime_cpp::LifecycleNode("probe_node", options)
   , log(std::move(log))
   , a_(*this, [this] { return make("a"); })
   , b_(*this, [this] { return make("b"); })
@@ -774,6 +779,8 @@ public:
   std::map<std::string, std::unique_ptr<nodl_runtime_cpp::Managed<Probe>>> dynamic;
   /// Creating this member throws when the node activates.
   std::string throwing_name;
+  /// Runs at the start of each creation, with the name of the member.
+  std::function<void(const std::string &)> before_create = [](const std::string &) {};
   Outcome activate_outcome = Outcome::SUCCESS;
   Outcome deactivate_outcome = Outcome::SUCCESS;
   /// Registering a `Managed` from `handle_activate` throws `std::logic_error`.
@@ -814,6 +821,7 @@ private:
 
   std::shared_ptr<Probe> make(const std::string & name)
   {
+    before_create(name);
     if (throwing_name == name) {
       throw std::runtime_error("create failed");
     }
@@ -1044,6 +1052,66 @@ TEST_F(ManagedHandle, ANodeOnTheStackDestroyedWhileActiveLogsNoError)
   EXPECT_EQ(*log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"}));
 }
 
+TEST_F(ManagedHandle, DestroyingAnEarlierMemberWhileALaterOneIsCreatedKeepsTheActivationConsistent)
+{
+  node_->add_dynamic("d");
+  node_->add_dynamic("e");
+  node_->add_dynamic("f");
+  node_->before_create = [this](const std::string & name) {
+    if ("e" == name) {
+      node_->dynamic.erase("d");
+    }
+  };
+  node_->configure();
+
+  EXPECT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+
+  EXPECT_EQ(ErrorLogCapture::messages().size(), 1u);
+  EXPECT_EQ(*node_->log, (Log{"create a", "create b", "create c", "create d", "destroy d", "create e", "create f"}));
+  EXPECT_TRUE(node_->exists("e"));
+  EXPECT_TRUE(node_->exists("f"));
+  node_->log->clear();
+
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+  EXPECT_EQ(*node_->log, (Log{"destroy f", "destroy e", "destroy c", "destroy b", "destroy a"}));
+  node_->log->clear();
+
+  node_->activate();
+  EXPECT_EQ(*node_->log, (Log{"create a", "create b", "create c", "create e", "create f"}));
+  EXPECT_EQ(ErrorLogCapture::messages().size(), 1u);
+}
+
+/// A component that a container creates from node options.
+class ComponentProbeNode : public ProbeNode
+{
+public:
+  explicit ComponentProbeNode(const rclcpp::NodeOptions & options)
+  : ProbeNode(log_for_next_instance, options)
+  {}
+
+  static std::shared_ptr<Log> log_for_next_instance;
+};
+
+std::shared_ptr<Log> ComponentProbeNode::log_for_next_instance;
+
+TEST_F(ManagedHandle, ANodeCreatedByAComponentFactoryAndReleasedWhileActiveLogsNoError)
+{
+  auto log = std::make_shared<Log>();
+  ComponentProbeNode::log_for_next_instance = log;
+  {
+    rclcpp_components::NodeFactoryTemplate<ComponentProbeNode> factory;
+    // Releasing the wrapper is what a component container does to unload the component.
+    auto wrapper = factory.create_node_instance(rclcpp::NodeOptions());
+    auto node = std::static_pointer_cast<ComponentProbeNode>(wrapper.get_node_instance());
+    node->configure();
+    node->activate();
+    node.reset();
+  }
+
+  EXPECT_TRUE(ErrorLogCapture::messages().empty());
+  EXPECT_EQ(*log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"}));
+}
+
 template <typename PredicateT>
 bool wait_for(PredicateT predicate)
 {
@@ -1264,6 +1332,52 @@ TEST(ActivationRegistryExecutor, DeactivatingAfterASubscriptionRanWhileAnExecuto
     // An idle executor thread still holds the subscription it executed last, until something wakes it.
     node->deactivate();
 
+    EXPECT_TRUE(wait_for([&] { return 0u == in->get_subscription_count(); }));
+    executor.cancel();
+    spinner.join();
+  }
+  rclcpp::shutdown();
+}
+
+/// Holds a subscription in a `Managed` that the test destroys.
+class DynamicSubscriberNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  DynamicSubscriberNode()
+  : nodl_runtime_cpp::LifecycleNode("dynamic_subscriber_node")
+  , subscription(
+      std::make_unique<nodl_runtime_cpp::Managed<rclcpp::Subscription<std_msgs::msg::String>>>(*this, [this] {
+        return create_subscription<std_msgs::msg::String>(
+          "in", 10, [this](std_msgs::msg::String::ConstSharedPtr) { ++received; });
+      }))
+  {}
+
+  std::unique_ptr<nodl_runtime_cpp::Managed<rclcpp::Subscription<std_msgs::msg::String>>> subscription;
+  std::atomic<int> received{0};
+};
+
+TEST(ManagedHandleExecutor, DestroyingAMemberWhileActiveWakesAnIdleExecutor)
+{
+  rclcpp::init(0, nullptr);
+  {
+    ErrorLogCapture errors;
+    auto node = std::make_shared<DynamicSubscriberNode>();
+    auto peer = std::make_shared<rclcpp::Node>("peer_node");
+    auto in = peer->create_publisher<std_msgs::msg::String>("in", 10);
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 4);
+    executor.add_node(node->get_node_base_interface());
+    executor.add_node(peer);
+    std::thread spinner([&executor] { executor.spin(); });
+    node->configure();
+    node->activate();
+    ASSERT_TRUE(wait_for([&] { return 1u == in->get_subscription_count(); }));
+    in->publish(std_msgs::msg::String());
+    ASSERT_TRUE(wait_for([&] { return 1 == node->received; }));
+
+    // An idle executor thread still holds the subscription it executed last, until something wakes it.
+    node->subscription.reset();
+
+    EXPECT_EQ(1u, errors.messages().size());
     EXPECT_TRUE(wait_for([&] { return 0u == in->get_subscription_count(); }));
     executor.cancel();
     spinner.join();
