@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <functional>
 #include <memory>
@@ -18,12 +20,15 @@
 namespace nodl_runtime_cpp
 {
 
+template <typename EntityT>
+class Managed;
+
 /// A lifecycle node with sealed transition callbacks, optional `handle_*` hooks and an activation registry.
 /**
  * Derive it and override the `handle_*` hooks that need custom behavior.
  * The `on_*` transition callbacks are `final`, and run the standardized lifecycle management for endpoints.
  *
- * The registry (`manage` and `add_activation_slot`) creates endpoints when the node activates and destroys them when it deactivates.
+ * The registry (`manage`, `add_activation_slot` and the `Managed` handle) creates endpoints when the node activates and destroys them when it deactivates.
  * Register from the constructor, in the order the endpoints must be created.
  *
  * See the `nodl_runtime_cpp` overview for the order on each transition.
@@ -111,6 +116,9 @@ public:
   }
 
 protected:
+  /// Opaque identifier of a registered slot.
+  using SlotId = std::uint64_t;
+
   /// Registers a pair of functions that create and destroy an endpoint with the node's activation.
   /**
    * `create` runs at activation in registration order, after the standard activation and before `handle_activate`.
@@ -119,14 +127,17 @@ protected:
    * `destroy` runs only for a slot whose `create` returned, it must not throw, and it does not run when the node is destroyed.
    * A `create` that throws must leave nothing behind.
    *
+   * \return The id of the slot, for `remove_activation_slot`.
    * \throws std::logic_error When called while the node is activating or active.
    */
-  void add_activation_slot(std::function<void()> create, std::function<void()> destroy)
+  SlotId add_activation_slot(std::function<void()> create, std::function<void()> destroy)
   {
     if (slots_locked_) {
       throw std::logic_error("slots can be registered only while the node is not active");
     }
-    slots_.push_back({std::move(create), std::move(destroy)});
+    const SlotId id = next_slot_id_++;
+    slots_.push_back({id, std::move(create), std::move(destroy)});
+    return id;
   }
 
   /// Registers a slot that assigns `member` with the result of `make` at activation, and resets it when the slot is destroyed.
@@ -190,11 +201,40 @@ protected:
   }
 
 private:
+  template <typename EntityT>
+  friend class Managed;
+
   struct Slot
   {
+    SlotId id;
     std::function<void()> create;
     std::function<void()> destroy;
   };
+
+  /// Unregisters a slot without calling `destroy`, keeping the order of the others.
+  /**
+   * \throws std::logic_error When called while the node is activating or active.
+   */
+  void remove_activation_slot(SlotId id)
+  {
+    if (slots_locked_) {
+      throw std::logic_error("slots can be removed only while the node is not active");
+    }
+    discard_activation_slot(id);
+  }
+
+  /// Unregisters a slot at any time, and counts it out of the created slots if it was created.
+  void discard_activation_slot(SlotId id) noexcept
+  {
+    const auto it = std::find_if(slots_.begin(), slots_.end(), [id](const Slot & slot) { return id == slot.id; });
+    if (slots_.end() == it) {
+      return;
+    }
+    if (static_cast<std::size_t>(it - slots_.begin()) < active_slots_) {
+      --active_slots_;
+    }
+    slots_.erase(it);
+  }
 
   /// Runs the deactivation that shutdown and error need: the authored hook if the node is active, then the slots.
   void end_active_state(const rclcpp_lifecycle::State & previous_state)
@@ -219,9 +259,9 @@ private:
   void activate_slots()
   {
     slots_locked_ = true;
-    for (const auto & slot : slots_) {
+    while (active_slots_ < slots_.size()) {
       try {
-        slot.create();
+        slots_[active_slots_].create();
       } catch (...) {
         deactivate_slots();
         throw;
@@ -266,6 +306,7 @@ private:
   }
 
   std::vector<Slot> slots_;
+  SlotId next_slot_id_ = 0;
   std::size_t active_slots_ = 0;
   /// True from the start of the activation of the slots until they are destroyed.
   bool slots_locked_ = false;

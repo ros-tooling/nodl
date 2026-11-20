@@ -4,6 +4,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdarg>
+#include <cstdio>
 #include <future>
 #include <map>
 #include <memory>
@@ -17,7 +19,9 @@
 #include "lifecycle_msgs/msg/transition.hpp"
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "nodl_runtime_cpp/lifecycle_node.hpp"
+#include "nodl_runtime_cpp/managed.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rcutils/logging.h"
 #include "std_msgs/msg/string.hpp"
 
 namespace
@@ -663,6 +667,382 @@ TEST(ActivationRegistryLifetime, DestroyingAnActiveNodeDoesNotCallDestroy)
   rclcpp::shutdown();
 
   EXPECT_TRUE(log->empty());
+}
+
+/// An endpoint stand-in that logs when it is destroyed.
+struct Probe
+{
+  Probe(std::shared_ptr<Log> log, std::string name)
+  : log(std::move(log))
+  , name(std::move(name))
+  {}
+
+  ~Probe()
+  {
+    log->push_back("destroy " + name);
+  }
+
+  std::shared_ptr<Log> log;
+  std::string name;
+};
+
+/// Collects the ERROR logs of the process while it is alive.
+class ErrorLogCapture
+{
+public:
+  ErrorLogCapture()
+  {
+    messages().clear();
+    previous_ = rcutils_logging_get_output_handler();
+    rcutils_logging_set_output_handler(&ErrorLogCapture::handle);
+  }
+
+  ~ErrorLogCapture()
+  {
+    rcutils_logging_set_output_handler(previous_);
+  }
+
+  ErrorLogCapture(const ErrorLogCapture &) = delete;
+  ErrorLogCapture & operator=(const ErrorLogCapture &) = delete;
+
+  static std::vector<std::string> & messages()
+  {
+    static std::vector<std::string> storage;
+    return storage;
+  }
+
+private:
+  static void handle(
+    const rcutils_log_location_t *,
+    int severity,
+    const char *,
+    rcutils_time_point_value_t,
+    const char * format,
+    va_list * args)
+  {
+    if (RCUTILS_LOG_SEVERITY_ERROR > severity) {
+      return;
+    }
+    va_list copy;
+    va_copy(copy, *args);
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), format, copy);
+    va_end(copy);
+    messages().emplace_back(buffer);
+  }
+
+  rcutils_logging_output_handler_t previous_;
+};
+
+/// A node whose `Managed` members log their creation, and whose hooks and extra members are controlled by the test.
+class ProbeNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  explicit ProbeNode(std::shared_ptr<Log> log = std::make_shared<Log>())
+  : nodl_runtime_cpp::LifecycleNode("probe_node")
+  , log(std::move(log))
+  , a_(*this, [this] { return make("a"); })
+  , b_(*this, [this] { return make("b"); })
+  , c_(*this, [this] { return make("c"); })
+  {}
+
+  /// Adds a member after construction, to be destroyed by the test.
+  void add_dynamic(const std::string & name)
+  {
+    dynamic[name] = std::make_unique<nodl_runtime_cpp::Managed<Probe>>(*this, [this, name] { return make(name); });
+  }
+
+  uint8_t state_id()
+  {
+    return get_current_state().id();
+  }
+
+  bool exists(const std::string & name) const
+  {
+    if ("a" == name) {
+      return static_cast<bool>(a_);
+    }
+    if ("b" == name) {
+      return static_cast<bool>(b_);
+    }
+    if ("c" == name) {
+      return static_cast<bool>(c_);
+    }
+    return static_cast<bool>(*dynamic.at(name));
+  }
+
+  std::shared_ptr<Log> log;
+  std::map<std::string, std::unique_ptr<nodl_runtime_cpp::Managed<Probe>>> dynamic;
+  /// Creating this member throws when the node activates.
+  std::string throwing_name;
+  Outcome activate_outcome = Outcome::SUCCESS;
+  Outcome deactivate_outcome = Outcome::SUCCESS;
+  /// Registering a `Managed` from `handle_activate` throws `std::logic_error`.
+  bool late_registration_threw = false;
+  bool register_in_activate = false;
+
+protected:
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State &) override
+  {
+    if (register_in_activate) {
+      try {
+        add_dynamic("late");
+      } catch (const std::logic_error &) {
+        late_registration_threw = true;
+      }
+    }
+    return result(activate_outcome);
+  }
+
+  CallbackReturn handle_deactivate(const rclcpp_lifecycle::State &) override
+  {
+    return result(deactivate_outcome);
+  }
+
+private:
+  static CallbackReturn result(Outcome outcome)
+  {
+    switch (outcome) {
+      case Outcome::FAILURE:
+        return CallbackReturn::FAILURE;
+      case Outcome::THROW:
+        throw std::runtime_error("hook failed");
+      case Outcome::SUCCESS:
+        break;
+    }
+    return CallbackReturn::SUCCESS;
+  }
+
+  std::shared_ptr<Probe> make(const std::string & name)
+  {
+    if (throwing_name == name) {
+      throw std::runtime_error("create failed");
+    }
+    log->push_back("create " + name);
+    return std::make_shared<Probe>(log, name);
+  }
+
+  nodl_runtime_cpp::Managed<Probe> a_;
+  nodl_runtime_cpp::Managed<Probe> b_;
+  nodl_runtime_cpp::Managed<Probe> c_;
+};
+
+class ManagedHandle : public ::testing::Test
+{
+protected:
+  static void SetUpTestSuite()
+  {
+    rclcpp::init(0, nullptr);
+  }
+
+  static void TearDownTestSuite()
+  {
+    rclcpp::shutdown();
+  }
+
+  ErrorLogCapture errors_;
+  std::shared_ptr<ProbeNode> node_ = std::make_shared<ProbeNode>();
+};
+
+TEST_F(ManagedHandle, MembersAreCreatedInDeclarationOrderAtActivationAndDestroyedInReverse)
+{
+  node_->configure();
+  EXPECT_FALSE(node_->exists("a"));
+  EXPECT_TRUE(node_->log->empty());
+
+  EXPECT_EQ(node_->activate().id(), State::PRIMARY_STATE_ACTIVE);
+  EXPECT_EQ(*node_->log, (Log{"create a", "create b", "create c"}));
+  EXPECT_TRUE(node_->exists("a"));
+  EXPECT_TRUE(node_->exists("c"));
+
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+  EXPECT_EQ(*node_->log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"}));
+  EXPECT_FALSE(node_->exists("a"));
+  EXPECT_TRUE(ErrorLogCapture::messages().empty());
+}
+
+TEST_F(ManagedHandle, RepeatedCyclesCreateAndDestroyEveryMemberEveryTime)
+{
+  node_->configure();
+  for (int cycle = 0; cycle < 3; ++cycle) {
+    node_->activate();
+    node_->deactivate();
+  }
+
+  const Log cycle{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"};
+  Log expected;
+  for (int i = 0; i < 3; ++i) {
+    expected.insert(expected.end(), cycle.begin(), cycle.end());
+  }
+  EXPECT_EQ(*node_->log, expected);
+}
+
+TEST_F(ManagedHandle, ThrowingCreatorRollsBackTheCreatedMembersAndRunsError)
+{
+  node_->throwing_name = "c";
+  node_->configure();
+
+  node_->activate();
+
+  EXPECT_EQ(*node_->log, (Log{"create a", "create b", "destroy b", "destroy a"}));
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
+  EXPECT_FALSE(node_->exists("a"));
+}
+
+TEST_F(ManagedHandle, FailingActivateHookDestroysTheMembers)
+{
+  node_->activate_outcome = Outcome::FAILURE;
+  node_->configure();
+
+  EXPECT_EQ(node_->activate().id(), State::PRIMARY_STATE_INACTIVE);
+
+  EXPECT_EQ(*node_->log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"}));
+}
+
+TEST_F(ManagedHandle, ThrowingDeactivateHookDestroysTheMembersAndEndsUnconfigured)
+{
+  node_->deactivate_outcome = Outcome::THROW;
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  node_->deactivate();
+
+  EXPECT_EQ(*node_->log, (Log{"destroy c", "destroy b", "destroy a"}));
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_UNCONFIGURED);
+}
+
+TEST_F(ManagedHandle, FailingDeactivateHookKeepsTheMembers)
+{
+  node_->deactivate_outcome = Outcome::FAILURE;
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_ACTIVE);
+
+  EXPECT_TRUE(node_->log->empty());
+  EXPECT_TRUE(node_->exists("a"));
+}
+
+TEST_F(ManagedHandle, ShutdownFromActiveDestroysTheMembers)
+{
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  EXPECT_EQ(node_->shutdown().id(), State::PRIMARY_STATE_FINALIZED);
+
+  EXPECT_EQ(*node_->log, (Log{"destroy c", "destroy b", "destroy a"}));
+}
+
+TEST_F(ManagedHandle, ShutdownFromInactiveAndUnconfiguredDestroysNothing)
+{
+  node_->shutdown();
+  EXPECT_TRUE(node_->log->empty());
+
+  auto inactive = std::make_shared<ProbeNode>();
+  inactive->configure();
+  inactive->activate();
+  inactive->deactivate();
+  inactive->log->clear();
+  inactive->shutdown();
+  EXPECT_TRUE(inactive->log->empty());
+}
+
+TEST_F(ManagedHandle, CreatingAMemberWhileActiveThrows)
+{
+  node_->register_in_activate = true;
+  node_->configure();
+
+  node_->activate();
+
+  EXPECT_TRUE(node_->late_registration_threw);
+  EXPECT_EQ(node_->state_id(), State::PRIMARY_STATE_ACTIVE);
+  node_->deactivate();
+  EXPECT_EQ(*node_->log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"}));
+}
+
+TEST_F(ManagedHandle, DestroyingAMemberWhileInactiveUnregistersIt)
+{
+  node_->add_dynamic("d");
+  node_->add_dynamic("e");
+  node_->configure();
+
+  node_->dynamic.erase("d");
+
+  node_->activate();
+  node_->deactivate();
+  EXPECT_EQ(
+    *node_->log,
+    (Log{"create a", "create b", "create c", "create e", "destroy e", "destroy c", "destroy b", "destroy a"}));
+  EXPECT_TRUE(ErrorLogCapture::messages().empty());
+}
+
+TEST_F(ManagedHandle, DestroyingAMemberWhileActiveLogsAnErrorAndLeavesTheOthersConsistent)
+{
+  node_->add_dynamic("d");
+  node_->add_dynamic("e");
+  node_->configure();
+  node_->activate();
+  node_->log->clear();
+
+  node_->dynamic.erase("d");
+
+  EXPECT_EQ(ErrorLogCapture::messages().size(), 1u);
+  EXPECT_EQ(*node_->log, (Log{"destroy d"}));
+  EXPECT_TRUE(node_->exists("e"));
+  node_->log->clear();
+
+  node_->deactivate();
+  EXPECT_EQ(*node_->log, (Log{"destroy e", "destroy c", "destroy b", "destroy a"}));
+  node_->log->clear();
+
+  node_->activate();
+  node_->deactivate();
+  EXPECT_EQ(
+    *node_->log,
+    (Log{"create a", "create b", "create c", "create e", "destroy e", "destroy c", "destroy b", "destroy a"}));
+  EXPECT_EQ(ErrorLogCapture::messages().size(), 1u);
+}
+
+TEST_F(ManagedHandle, DestroyingTheLastMemberWhileActiveKeepsTheOthersCreated)
+{
+  node_->add_dynamic("d");
+  node_->configure();
+  node_->activate();
+
+  node_->dynamic.erase("d");
+
+  EXPECT_EQ(ErrorLogCapture::messages().size(), 1u);
+  EXPECT_TRUE(node_->exists("c"));
+  EXPECT_EQ(node_->deactivate().id(), State::PRIMARY_STATE_INACTIVE);
+}
+
+TEST_F(ManagedHandle, ANodeOwnedBySharedPtrDestroyedWhileActiveLogsNoError)
+{
+  auto log = std::make_shared<Log>();
+  {
+    auto node = std::make_shared<ProbeNode>(log);
+    node->configure();
+    node->activate();
+  }
+
+  EXPECT_TRUE(ErrorLogCapture::messages().empty());
+  EXPECT_EQ(*log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"}));
+}
+
+TEST_F(ManagedHandle, ANodeOnTheStackDestroyedWhileActiveLogsNoError)
+{
+  auto log = std::make_shared<Log>();
+  {
+    ProbeNode node(log);
+    node.configure();
+    node.activate();
+  }
+
+  EXPECT_TRUE(ErrorLogCapture::messages().empty());
+  EXPECT_EQ(*log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"}));
 }
 
 /// Owns a member that a slot manages, to check that the member follows the node's activation.
