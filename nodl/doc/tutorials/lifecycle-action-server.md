@@ -3,9 +3,10 @@
 Define a Fibonacci action once, generate a lifecycle base for either language, then add the application behavior.
 
 :::{warning}
-This follow-up targets the proposed lifecycle runtimes in [C++ PR 275](https://github.com/ros-tooling/nodl/pull/275) and
-[Python PR 277](https://github.com/ros-tooling/nodl/pull/277), including their prerequisite stacks.
-Build against both dependencies; this behavior is not yet available on `main`.
+This example uses the managed action servers from two closed prototypes,
+[C++ PR 275](https://github.com/ros-tooling/nodl/pull/275) and [Python PR 277](https://github.com/ros-tooling/nodl/pull/277).
+The build commands below require a source workspace containing those prototypes and their prerequisites.
+Upstream `main` does not provide these managed action servers.
 :::
 
 > **Shared contract → Generated base → Lifecycle subclass → Conform**
@@ -151,6 +152,7 @@ For example, `{order: 5}` produces `[0, 1, 1, 2, 3, 5]`.
 In C++, `on_fibonacci_accepted` starts the `execute` worker thread and returns.
 Python dispatches to `execute_fibonacci`.
 Execution calculates the sequence, publishes feedback, and checks for client cancellation.
+Check for cancellation once more after the final feedback, before reporting success.
 Because deactivation can end the goal independently, check its active state before working or finishing.
 While ROS is running, suppress feedback/finish exceptions only if the goal has already ended.
 

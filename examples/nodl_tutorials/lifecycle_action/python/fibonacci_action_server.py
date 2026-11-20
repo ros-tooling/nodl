@@ -29,18 +29,16 @@ class FibonacciActionServer(FibonacciActionServerPyBase):
     def execute_fibonacci(self, goal_handle):
         feedback = Fibonacci.Feedback(sequence=[0, 1])
         try:
-            for index in range(1, goal_handle.request.order):
-                if not goal_handle.is_active:
-                    return Fibonacci.Result(sequence=feedback.sequence)
+            while goal_handle.is_active:
                 if goal_handle.is_cancel_requested:
                     goal_handle.canceled()
-                    return Fibonacci.Result(sequence=feedback.sequence)
-                feedback.sequence.append(feedback.sequence[index] + feedback.sequence[index - 1])
+                    break
+                if len(feedback.sequence) > goal_handle.request.order:
+                    goal_handle.succeed()
+                    break
+                feedback.sequence.append(feedback.sequence[-1] + feedback.sequence[-2])
                 goal_handle.publish_feedback(feedback)
                 time.sleep(0.1)
-
-            if goal_handle.is_active:
-                goal_handle.succeed()
         except RuntimeError:
             # Deactivation can end the goal between the active check and a feedback/finish call.
             if goal_handle.is_active:

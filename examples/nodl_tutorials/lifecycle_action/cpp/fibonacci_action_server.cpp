@@ -51,7 +51,7 @@ private:
     auto result = std::make_shared<Fibonacci::Result>();
 
     try {
-      for (int i = 1; i < goal->order && rclcpp::ok(); ++i) {
+      for (int i = 1; rclcpp::ok(); ++i) {
         if (!goal_handle->is_active()) {
           return;
         }
@@ -60,15 +60,15 @@ private:
           goal_handle->canceled(result);
           return;
         }
+        if (i >= goal->order) {
+          result->sequence = feedback->sequence;
+          goal_handle->succeed(result);
+          return;
+        }
         feedback->sequence.push_back(
           feedback->sequence[static_cast<std::size_t>(i)] + feedback->sequence[static_cast<std::size_t>(i - 1)]);
         goal_handle->publish_feedback(feedback);
         std::this_thread::sleep_for(100ms);
-      }
-
-      if (rclcpp::ok() && goal_handle->is_active()) {
-        result->sequence = feedback->sequence;
-        goal_handle->succeed(result);
       }
     } catch (const rclcpp::exceptions::RCLError &) {
       // Deactivation can end the goal between the active check and a feedback/finish call.

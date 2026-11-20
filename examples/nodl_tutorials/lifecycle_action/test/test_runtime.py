@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 import rclpy
 from action_msgs.msg import GoalStatus
+from action_msgs.srv import CancelGoal
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 from example_interfaces.action import Fibonacci
 from lifecycle_msgs.msg import Transition
@@ -160,6 +161,29 @@ def test_lifecycle_action_server(executable, node_name):
             canceled_result = cancel_goal.get_result_async()
             _spin_until(executor, canceled_result.done)
             assert canceled_result.result().status == GoalStatus.STATUS_CANCELED
+
+            for _ in range(3):
+                final_feedback = []
+                final_goal = _send_goal(
+                    executor, client, 2, lambda message: final_feedback.append(list(message.feedback.sequence))
+                )
+                assert final_goal.accepted
+                _spin_until(executor, lambda: bool(final_feedback))
+                assert final_feedback == [[0, 1, 1]]
+                final_cancel = final_goal.cancel_goal_async()
+                _spin_until(executor, final_cancel.done)
+                final_result = final_goal.get_result_async()
+                _spin_until(executor, final_result.done)
+                if final_cancel.result().return_code == CancelGoal.Response.ERROR_GOAL_TERMINATED:
+                    # Scheduling delayed the request until the server had already finished.
+                    assert final_result.result().status == GoalStatus.STATUS_SUCCEEDED
+                    continue
+                assert final_cancel.result().goals_canceling
+                assert final_result.result().status == GoalStatus.STATUS_CANCELED
+                assert list(final_result.result().result.sequence) == [0, 1, 1]
+                break
+            else:
+                pytest.fail('all final-feedback cancellations arrived after completion')
 
             # Request deactivation directly after feedback, without CLI startup consuming the goal's work time.
             for _ in range(3):
