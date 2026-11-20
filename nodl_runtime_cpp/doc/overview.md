@@ -23,37 +23,41 @@ An authored subclass defines the hook that matches the transition instead of an 
 
 ### Endpoints created on activation
 
-The node keeps a registry of activation slots, each a pair of functions that create and destroy one endpoint.
-Register slots from the constructor, in the order the endpoints must be created.
-The node creates the registered endpoints when it activates and destroys them when it deactivates, so the endpoint does not exist in any other state.
-
-`manage(member, make)` registers a `std::shared_ptr` member and a function that returns the endpoint to assign to it.
-The member is null while the node is not active, and the type of the endpoint is the type of the member.
-`add_activation_slot(create, destroy)` is the general form, for an endpoint that is not held in a single `std::shared_ptr` member.
-
-An authored node registers its endpoints from its constructor, as the example below does for a subscription:
+A `nodl_runtime_cpp::Managed<EntityT>` member holds an endpoint that exists only while the node is active.
+The node creates it when it activates and destroys it when it deactivates.
+Declare it as a member of the node and construct it in the member initializer list with the node and a function that returns the endpoint:
 
 ```{literalinclude} examples/lifecycle_node.cpp
 :language: cpp
-:dedent: 4
-:start-at: manage(sub_name_
-:end-at: });
+:dedent: 2
+:start-at: nodl_runtime_cpp::Managed<
+:end-at: }};
 ```
 
+A default member initializer, as above, keeps the declaration and the creation together.
+A mixin that adds endpoints takes the node in its constructor and initializes its `Managed` members the same way.
+`explicit operator bool` is true while the endpoint exists.
+`nodl_runtime_cpp::Managed` is not `rclcpp_lifecycle::ManagedEntityInterface`, which `rclcpp_lifecycle` uses for its own entities.
+
+Each `Managed` member registers an activation slot, a pair of functions that create and destroy one endpoint.
+`add_activation_slot(create, destroy)` is the underlying primitive, for an endpoint that `Managed` does not fit.
 Slots follow these rules:
 
-- Slots are created in registration order and destroyed in reverse order.
+- Slots are created in declaration order, which is registration order, and destroyed in reverse order.
+  Reordering `Managed` members changes the order of creation.
+  Members of a base class register before members of a subclass.
 - `destroy` runs on deactivation, shutdown and error from the active state, and when `handle_activate` fails or a later slot throws.
 - A `create` that throws destroys the slots created before it, and the activation ends in ERROR.
-- Registering a slot while the node is activating or active throws `std::logic_error`, including from a `create`.
-- The node's destructor never calls `destroy`.
+- Registering a slot or constructing a `Managed` while the node is activating or active throws `std::logic_error`, including from a `create`.
+- Destroying a `Managed` while the node is not active unregisters its slot.
+- Destroying a `Managed` while the node is active and alive is an error: it logs an error, destroys the endpoint and unregisters the slot.
+- Destroying a node while it is active is not an error. It destroys its members, and no `destroy` runs.
 - Destroying the slots wakes the executor that spins the node, so the executor releases the endpoints it still holds.
 
-A subscription member is null while the node is inactive, so use it only where the node is active:
+A subscription exists only while the node is active, so use it only where the node is active:
 callbacks in the default callback group, timers that `handle_activate` creates, and the hooks.
 That holds when transitions are requested through the lifecycle services, which an executor serializes with the default callback group.
-A transition that another thread requests by calling `activate()` or `deactivate()` directly is not serialized with the callbacks, and the member is reset while a callback may read it.
-Other threads must not read the member.
+A transition that another thread requests by calling `activate()` or `deactivate()` directly is not serialized with the callbacks, and the subscription is destroyed while a callback may use it.
 
 Creating endpoints on activation has these costs:
 
@@ -81,14 +85,14 @@ Some behavior specifics:
 - A failed or throwing `handle_activate` does not run `handle_deactivate`.
 - `handle_activate` can rely on the slots having been created, and a failing hook leaves the node inactive with the slots destroyed.
 - A failing `handle_deactivate` leaves the node active and keeps the slots.
-- Create timers and start threads last in `handle_activate`, so that a failing hook leaves none of them firing on null members.
+- Create timers and start threads last in `handle_activate`, so that a failing hook leaves none of them firing on missing endpoints.
 - A hook that throws is turned into ERROR by `rclcpp_lifecycle`, which runs `on_error`.
 - When `handle_error` returns SUCCESS, the node ends unconfigured.
 
 ### Example
 
 This example shows a hand-written (non-generated) node using `nodl_runtime_cpp::LifecycleNode` to illustrate using the lifecycle hooks to add custom behavior on state transitions.
-It registers a subscription with `manage`, greets from `handle_activate` and from a timer that it creates there, and stops the timer in `handle_deactivate`.
+It holds a `Managed` subscription, greets from `handle_activate` and from a timer that it creates there, and stops the timer in `handle_deactivate`.
 An authored implementation of a generated node derives from the same class and defines the same hooks.
 
 ```{literalinclude} examples/lifecycle_node.cpp

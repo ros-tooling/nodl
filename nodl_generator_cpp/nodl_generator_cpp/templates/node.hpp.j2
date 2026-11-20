@@ -85,9 +85,13 @@ protected:
 private:
 {% if subscriptions %}
 
-  // --- Subscriptions{{ ' (null while the node is not active)' if lifecycle }} ---
+  // --- Subscriptions ---
 {% for sub in subscriptions %}
+{% if lifecycle %}
+  nodl_runtime_cpp::Managed<rclcpp::Subscription<{{ sub.cpp_type }}>> {{ sub.member }};
+{% else %}
   rclcpp::Subscription<{{ sub.cpp_type }}>::SharedPtr {{ sub.member }};
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if service_servers %}

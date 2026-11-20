@@ -5,15 +5,15 @@
 #include <chrono>
 #include <string>
 
+#include "nodl_runtime_cpp/managed.hpp"
 #include "rclcpp/create_publisher.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
 /// Example of a non-generated node that uses `nodl_runtime_cpp::LifecycleNode`.
 /**
- * It holds a latched publisher, registers a subscription that exists only while the node is active,
+ * It holds a latched publisher, a subscription that exists only while the node is active,
  * and greets on a timer that runs between `handle_activate` and `handle_deactivate`.
- * The subscription is registered by hand to keep the example self-contained, where a generated node registers its own.
  */
 class Greeter : public nodl_runtime_cpp::LifecycleNode
 {
@@ -21,15 +21,10 @@ public:
   Greeter()
   : nodl_runtime_cpp::LifecycleNode("greeter")
   , pub_greeting_(create_publisher<std_msgs::msg::String>("greeting", rclcpp::QoS(1).transient_local()))
-  {
-    manage(sub_name_, [this] {
-      return create_subscription<std_msgs::msg::String>(
-        "name", rclcpp::QoS(10), std::bind(&Greeter::on_name, this, std::placeholders::_1));
-    });
-  }
+  {}
 
 protected:
-  // The subscription exists here, and is null in every other state.
+  // The subscription exists here, and in no other state.
   CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/) override
   {
     greet("everyone");
@@ -60,7 +55,11 @@ private:
   }
 
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_greeting_;
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_name_;
+  nodl_runtime_cpp::Managed<rclcpp::Subscription<std_msgs::msg::String>> sub_name_{
+    *this, [this] {
+      return create_subscription<std_msgs::msg::String>(
+        "name", rclcpp::QoS(10), std::bind(&Greeter::on_name, this, std::placeholders::_1));
+    }};
   rclcpp::TimerBase::SharedPtr timer_;
 };
 

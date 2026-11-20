@@ -423,12 +423,11 @@ codegen:
 ```
 
 A generated node with a `lifecycle: true` base creates its subscriptions when the node activates and destroys them when it deactivates.
-Its constructor registers each subscription with the `manage` function of the base class instead of creating it,
-using the same QoS and `on_<name>` callback binding as a node that is not a lifecycle node.
-The `sub_<name>_` members are plain `std::shared_ptr`s that are null while the node is not active.
-They are private, so only the generated class touches them.
+Each `sub_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Subscription<MessageT>>`, which the constructor initializes with the same QoS and `on_<name>` callback binding as a node that is not a lifecycle node.
+The members are private, so only the generated class touches them.
+Subscriptions are created in the order they appear in the NoDL document, ahead of the members of an authored subclass.
 
-The base class named by `class` must provide `manage`, as `nodl_runtime_cpp::LifecycleNode` does.
+The base class named by `class` must derive from `nodl_runtime_cpp::LifecycleNode`, as `nodl_runtime_cpp::LifecycleNode` itself does.
 Otherwise the generated code does not compile.
 See the `nodl_runtime_cpp` overview for when the subscriptions are created and destroyed relative to the lifecycle hooks.
 

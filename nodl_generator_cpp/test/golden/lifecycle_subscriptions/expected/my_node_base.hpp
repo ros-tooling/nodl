@@ -5,6 +5,7 @@
 
 #include <geometry_msgs/msg/twist.hpp>
 #include <nodl_runtime_cpp/lifecycle_node.hpp>
+#include <nodl_runtime_cpp/managed.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
@@ -29,9 +30,9 @@ protected:
 
 private:
 
-  // --- Subscriptions (null while the node is not active) ---
-  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_cmd_vel_;
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_latched_;
+  // --- Subscriptions ---
+  nodl_runtime_cpp::Managed<rclcpp::Subscription<geometry_msgs::msg::Twist>> sub_cmd_vel_;
+  nodl_runtime_cpp::Managed<rclcpp::Subscription<std_msgs::msg::String>> sub_latched_;
 
   // --- Service servers ---
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_trigger_;

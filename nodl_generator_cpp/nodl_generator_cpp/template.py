@@ -67,6 +67,8 @@ def _build_template_context(
     headers: set[str] = {base_header}
     if has_actions:
         headers.add('rclcpp_action/rclcpp_action.hpp')
+    if lifecycle and subscriptions:
+        headers.add('nodl_runtime_cpp/managed.hpp')
 
     type_sources: list[str] = (
         [e.type for e in publishers]
@@ -178,8 +180,8 @@ def render_templates(
     and the parameter structs are expected under ``<namespace>::<target_name>``,
     which the class reaches as ``<target_name>::``.
     Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
-    When *lifecycle* is true, the constructor registers every subscription with the base class's ``manage``,
-    so it is created at activation.
+    When *lifecycle* is true, every subscription is a ``nodl_runtime_cpp::Managed`` member
+    that the constructor initializes, so it is created at activation.
     """
     ctx = _build_template_context(
         target_name,

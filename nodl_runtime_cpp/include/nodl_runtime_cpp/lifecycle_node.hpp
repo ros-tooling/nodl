@@ -28,8 +28,9 @@ class Managed;
  * Derive it and override the `handle_*` hooks that need custom behavior.
  * The `on_*` transition callbacks are `final`, and run the standardized lifecycle management for endpoints.
  *
- * The registry (`manage`, `add_activation_slot` and the `Managed` handle) creates endpoints when the node activates and destroys them when it deactivates.
- * Register from the constructor, in the order the endpoints must be created.
+ * The registry creates endpoints when the node activates and destroys them when it deactivates.
+ * Declare a `Managed` member for each endpoint, in the order the endpoints must be created.
+ * `add_activation_slot` is the underlying primitive.
  *
  * See the `nodl_runtime_cpp` overview for the order on each transition.
  */
@@ -127,7 +128,7 @@ protected:
    * `destroy` runs only for a slot whose `create` returned, it must not throw, and it does not run when the node is destroyed.
    * A `create` that throws must leave nothing behind.
    *
-   * \return The id of the slot, for `remove_activation_slot`.
+   * \return The id of the slot.
    * \throws std::logic_error When called while the node is activating or active.
    */
   SlotId add_activation_slot(std::function<void()> create, std::function<void()> destroy)
@@ -138,20 +139,6 @@ protected:
     const SlotId id = next_slot_id_++;
     slots_.push_back({id, std::move(create), std::move(destroy)});
     return id;
-  }
-
-  /// Registers a slot that assigns `member` with the result of `make` at activation, and resets it when the slot is destroyed.
-  /**
-   * The member is null while the node is not active, and must outlive the registration, so register from the constructor.
-   *
-   * \tparam EntityT Type of the endpoint, such as `rclcpp::Subscription<MessageT>`.
-   * \tparam MakeT Callable that returns the endpoint as a `std::shared_ptr`.
-   * \throws std::logic_error When called while the node is activating or active.
-   */
-  template <typename EntityT, typename MakeT>
-  void manage(std::shared_ptr<EntityT> & member, MakeT make)
-  {
-    add_activation_slot([&member, make = std::move(make)] { member = make(); }, [&member] { member.reset(); });
   }
 
   /// Called on the configure transition.

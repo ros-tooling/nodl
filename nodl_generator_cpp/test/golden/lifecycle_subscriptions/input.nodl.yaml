@@ -1,6 +1,6 @@
 ---
 # Tests a lifecycle base class whose codegen.cpp sets lifecycle: true.
-# The generator should register subscriptions with manage() instead of creating them in the constructor,
+# The generator should declare subscriptions as Managed members instead of creating them in the constructor,
 # and leave the other endpoints as they are.
 
 nodl_version: 2

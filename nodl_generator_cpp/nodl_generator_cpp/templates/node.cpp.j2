@@ -1,4 +1,4 @@
-{% set has_entities = publishers or subscriptions or service_servers or service_clients or action_servers or action_clients or has_parameters %}
+{% set has_body = publishers or (subscriptions and not lifecycle) or service_servers or service_clients or action_servers or action_clients or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
 
@@ -12,7 +12,19 @@ namespace {{ namespace }}
 , param_listener_(this->get_node_parameters_interface(), this->get_logger())
 , params_(param_listener_.get_params())
 {% endif %}
-{% if has_entities %}
+{% if lifecycle %}
+{% for sub in subscriptions %}
+, {{ sub.member }}(*this, [this] {
+    return this->create_subscription<{{ sub.cpp_type }}>(
+      "{{ sub.name }}",
+      {{ sub.qos }},
+      [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
+        this->{{ sub.callback }}(msg);
+      });
+  })
+{% endfor %}
+{% endif %}
+{% if has_body %}
 {
 {% if publishers %}
 
@@ -21,21 +33,8 @@ namespace {{ namespace }}
   {{ pub.member }} = this->create_publisher<{{ pub.cpp_type }}>("{{ pub.name }}", {{ pub.qos }});
 {% endfor %}
 {% endif %}
-{% if subscriptions %}
+{% if subscriptions and not lifecycle %}
 
-{% if lifecycle %}
-  // Register subscriptions
-{% for sub in subscriptions %}
-  manage({{ sub.member }}, [this] {
-    return this->create_subscription<{{ sub.cpp_type }}>(
-      "{{ sub.name }}",
-      {{ sub.qos }},
-      [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
-        this->{{ sub.callback }}(msg);
-      });
-  });
-{% endfor %}
-{% else %}
   // Create subscriptions
 {% for sub in subscriptions %}
   {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
@@ -45,7 +44,6 @@ namespace {{ namespace }}
       this->{{ sub.callback }}(msg);
     });
 {% endfor %}
-{% endif %}
 {% endif %}
 {% if service_servers %}
 

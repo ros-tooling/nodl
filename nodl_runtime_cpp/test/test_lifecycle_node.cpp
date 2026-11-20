@@ -253,7 +253,6 @@ public:
   {}
 
   using nodl_runtime_cpp::LifecycleNode::add_activation_slot;
-  using nodl_runtime_cpp::LifecycleNode::manage;
 
   /// Registers a slot that logs `create <name>` and `destroy <name>`, and throws from `create` when asked to.
   void add_logging_slot(const std::string & name, bool throw_on_create = false)
@@ -1045,40 +1044,6 @@ TEST_F(ManagedHandle, ANodeOnTheStackDestroyedWhileActiveLogsNoError)
   EXPECT_EQ(*log, (Log{"create a", "create b", "create c", "destroy c", "destroy b", "destroy a"}));
 }
 
-/// Owns a member that a slot manages, to check that the member follows the node's activation.
-class ManagedNode : public nodl_runtime_cpp::LifecycleNode
-{
-public:
-  ManagedNode()
-  : nodl_runtime_cpp::LifecycleNode("managed_node")
-  {
-    manage(subscription, [this] {
-      return create_subscription<std_msgs::msg::String>("chatter", 10, [](std_msgs::msg::String::ConstSharedPtr) {});
-    });
-  }
-
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription;
-};
-
-TEST_F(ActivationRegistry, ManagedMemberIsNullUntilActivationAndAfterDeactivation)
-{
-  auto node = std::make_shared<ManagedNode>();
-  EXPECT_EQ(node->subscription, nullptr);
-
-  node->configure();
-  EXPECT_EQ(node->subscription, nullptr);
-
-  node->activate();
-  ASSERT_NE(node->subscription, nullptr);
-  EXPECT_EQ(node->subscription->get_topic_name(), std::string("/chatter"));
-
-  node->deactivate();
-  EXPECT_EQ(node->subscription, nullptr);
-
-  node->activate();
-  EXPECT_NE(node->subscription, nullptr);
-}
-
 template <typename PredicateT>
 bool wait_for(PredicateT predicate)
 {
@@ -1089,21 +1054,59 @@ bool wait_for(PredicateT predicate)
   return predicate();
 }
 
+/// Owns a subscription that follows the node's activation.
+class SubscriptionNode : public nodl_runtime_cpp::LifecycleNode
+{
+public:
+  SubscriptionNode()
+  : nodl_runtime_cpp::LifecycleNode("subscription_node")
+  , subscription(*this, [this] {
+    return create_subscription<std_msgs::msg::String>("chatter", 10, [](std_msgs::msg::String::ConstSharedPtr) {});
+  })
+  {}
+
+  nodl_runtime_cpp::Managed<rclcpp::Subscription<std_msgs::msg::String>> subscription;
+};
+
+TEST_F(ActivationRegistry, ManagedSubscriptionExistsOnlyWhileActive)
+{
+  auto node = std::make_shared<SubscriptionNode>();
+  auto peer = std::make_shared<rclcpp::Node>("peer_node");
+  auto chatter = peer->create_publisher<std_msgs::msg::String>("chatter", 10);
+  EXPECT_FALSE(node->subscription);
+
+  node->configure();
+  EXPECT_FALSE(node->subscription);
+  EXPECT_EQ(0u, chatter->get_subscription_count());
+
+  node->activate();
+  EXPECT_TRUE(node->subscription);
+  EXPECT_TRUE(wait_for([&] { return 1u == chatter->get_subscription_count(); }));
+
+  node->deactivate();
+  EXPECT_FALSE(node->subscription);
+  EXPECT_TRUE(wait_for([&] { return 0u == chatter->get_subscription_count(); }));
+
+  node->activate();
+  EXPECT_TRUE(node->subscription);
+}
+
 /// Creates a subscription at activation with the given QoS, and counts what it receives.
 class SubscriberNode : public nodl_runtime_cpp::LifecycleNode
 {
 public:
   explicit SubscriberNode(const rclcpp::QoS & qos)
   : nodl_runtime_cpp::LifecycleNode("subscriber_node")
-  {
-    manage(subscription, [this, qos] {
-      return create_subscription<std_msgs::msg::String>(
-        "in", qos, [this](std_msgs::msg::String::ConstSharedPtr) { ++received; });
-    });
-  }
+  , subscription_(*this, [this, qos] {
+    return create_subscription<std_msgs::msg::String>(
+      "in", qos, [this](std_msgs::msg::String::ConstSharedPtr) { ++received; });
+  })
+  {}
 
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription;
   std::atomic<int> received{0};
+
+private:
+  nodl_runtime_cpp::Managed<rclcpp::Subscription<std_msgs::msg::String>> subscription_;
 };
 
 /// Counts the ticks of a timer that it creates in `handle_activate` and resets in `handle_deactivate`.
@@ -1112,13 +1115,12 @@ class TimerNode : public nodl_runtime_cpp::LifecycleNode
 public:
   TimerNode()
   : nodl_runtime_cpp::LifecycleNode("timer_node")
-  {
-    manage(subscription, [this] {
-      return create_subscription<std_msgs::msg::String>("in", 10, [](std_msgs::msg::String::ConstSharedPtr) {});
-    });
-  }
+  , subscription(*this, [this] {
+    return create_subscription<std_msgs::msg::String>("in", 10, [](std_msgs::msg::String::ConstSharedPtr) {});
+  })
+  {}
 
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription;
+  nodl_runtime_cpp::Managed<rclcpp::Subscription<std_msgs::msg::String>> subscription;
   std::atomic<int> ticks{0};
   /// Ticks that found the subscription null.
   std::atomic<int> ticks_without_subscription{0};
@@ -1128,7 +1130,7 @@ protected:
   {
     timer_ = create_wall_timer(std::chrono::milliseconds(5), [this] {
       ++ticks;
-      if (nullptr == subscription) {
+      if (!subscription) {
         ++ticks_without_subscription;
       }
     });
@@ -1284,7 +1286,7 @@ TEST_F(ActivationRegistryServices, TimerCreatedInTheActivateHookNeverSeesANullSu
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   EXPECT_EQ(ticks, node->ticks);
   EXPECT_EQ(0, node->ticks_without_subscription);
-  EXPECT_EQ(nullptr, node->subscription);
+  EXPECT_FALSE(node->subscription);
 }
 
 TEST_F(ActivationRegistryServices, CyclingUnderLoadWithAMultiThreadedExecutor)
