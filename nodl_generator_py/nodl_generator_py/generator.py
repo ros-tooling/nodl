@@ -15,7 +15,7 @@ import jinja2
 import yaml
 from jsonschema import ValidationError
 
-from nodl_generator_common.naming import to_member_name
+from nodl_generator_common.naming import to_member_name, validate_generated_names
 from nodl_generator_common.parameters import nest_dotted_parameters
 from nodl_generator_common.plan import CodegenError, CodegenPlanner, CodegenSchema, Walk, plan
 from nodl_generator_py.models import CodegenPython, Role
@@ -126,7 +126,7 @@ def _endpoints(
     result = []
     for endpoint in items or []:
         imports.add(_ros_type_to_import(endpoint.type, kind))
-        identifier = to_member_name(endpoint.name)
+        identifier = to_member_name(endpoint.name, endpoint.alias)
         item = {
             'identifier': identifier,
             'name': endpoint.name,
@@ -230,6 +230,14 @@ def _render_python(
     service_clients = _endpoints(doc.service_clients, imports, 'srv', 'cli_')
     action_servers = _endpoints(doc.action_servers, imports, 'action', 'action_srv_', 'execute_')
     action_clients = _endpoints(doc.action_clients, imports, 'action', 'action_cli_')
+    names = [
+        item['member_name']
+        for items in (publishers, subscriptions, service_servers, service_clients, action_servers, action_clients)
+        for item in items
+    ]
+    names.extend(item['callback_name'] for items in (subscriptions, service_servers, action_servers) for item in items)
+    names.extend(f'on_{item["identifier"]}{suffix}' for item in action_servers for suffix in ('_goal', '_cancel'))
+    validate_generated_names(names)
     if subscriptions or service_servers or action_servers:
         imports.add('import abc')
     if action_servers or action_clients:

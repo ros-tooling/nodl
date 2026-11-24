@@ -8,14 +8,14 @@ from std_msgs.msg import String
 
 
 class KitchenSinkNode(KitchenSinkNodeBase):
-    def on_echo_in(self, msg):
-        self.pub_echo_out.publish(String(data=f'{self.params_.greeting}: {msg.data}'))
+    def on_input(self, msg):
+        self.pub_output.publish(String(data=f'{self.params_.greeting}: {msg.data}'))
 
-    def on_add(self, request, response):
+    def on_sum(self, request, response):
         response.sum = request.a + request.b
         return response
 
-    def execute_fibonacci(self, goal_handle):
+    def execute_sequence(self, goal_handle):
         sequence = [0, 1]
         for _ in range(2, goal_handle.request.order):
             sequence.append(sequence[-1] + sequence[-2])

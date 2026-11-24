@@ -559,3 +559,31 @@ package.
 `nodl_common_interfaces` registers the shared base-type descriptions (`nodl://nodl_common_interfaces/node`
 and `nodl://nodl_common_interfaces/lifecycle_node`) that the generator's include references resolve against.
 For registering a NoDL document with the ament index, see the `ament_nodl` package.
+
+## Endpoint aliases
+
+Set `alias` on a publisher, subscription, service server/client, or action server/client to shorten its generated member and callback names.
+The ROS graph name remains `name`.
+Without an alias, generation keeps its existing naming.
+
+```yaml
+nodl_version: 2
+subscriptions:
+  - name: /whatever/my/topic/is
+    alias: good_name
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+```
+
+This generates `sub_good_name_` and `on_good_name` in C++, or `self.sub_good_name` and `on_good_name` in Python.
+The subscription still listens on `/whatever/my/topic/is`.
+Aliases start with a lowercase ASCII letter and contain only ASCII letters, digits, and underscores.
+Existing prefixes (`pub_`, `sub_`, `srv_`, `cli_`, `action_srv_`, `action_cli_`) and C++ trailing underscores remain.
+Callbacks use the alias too, including action goal, cancel, accepted (C++), and execute (Python) callbacks.
+Prefixes make language keywords such as `class` safe aliases.
+Generators reject duplicate generated members, including collisions with endpoints that have no alias.
+Python also rejects duplicate callback names; C++ callbacks can overload.
+C++ also rejects aliases with double underscores or a trailing underscore, which would produce reserved identifiers.

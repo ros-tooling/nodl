@@ -45,8 +45,11 @@ def test_generated_interfaces(ros_context):
     executor.add_node(harness)
     try:
         assert node.get_parameter('greeting').value == 'hello'
-        assert hasattr(node, 'cli_delegate_add')
-        assert hasattr(node, 'action_cli_delegate_fibonacci')
+        assert node.pub_output.topic_name == '/echo_out'
+        assert node.sub_input.topic_name == '/echo_in'
+        assert node.srv_sum.srv_name == '/add'
+        assert node.cli_delegate.srv_name == '/delegate_add'
+        assert hasattr(node, 'action_cli_remote_sequence')
 
         _spin_until(executor, lambda: publisher.get_subscription_count() > 0)
         publisher.publish(String(data='world'))

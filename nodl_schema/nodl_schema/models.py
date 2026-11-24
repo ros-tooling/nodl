@@ -154,6 +154,10 @@ class TopicEndpoint(BaseModel):
         extra = Extra.forbid
 
     name: constr(regex=r'^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$') = Field(..., description='Topic name.')
+    alias: Optional[constr(regex=r'^[a-z][a-zA-Z0-9_]*$')] = Field(
+        None,
+        description='Short name used for generated members and callbacks, preserving their type prefixes.\nDoes not change the ROS endpoint name.\n',
+    )
     type: constr(regex=r'^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$') = Field(
         ...,
         description='ROS interface type, format ``package/(msg|srv|action)?/TypeName``.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies ``msg``).\n',
@@ -185,6 +189,10 @@ class ServiceEndpoint(BaseModel):
         extra = Extra.forbid
 
     name: constr(regex=r'^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$') = Field(..., description='Service name.')
+    alias: Optional[constr(regex=r'^[a-z][a-zA-Z0-9_]*$')] = Field(
+        None,
+        description='Short name used for generated members and callbacks, preserving their type prefixes.\nDoes not change the ROS endpoint name.\n',
+    )
     type: constr(regex=r'^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$') = Field(
         ...,
         description='ROS interface type, format ``package/(msg|srv|action)?/TypeName``.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies ``msg``).\n',
@@ -216,6 +224,10 @@ class ActionEndpoint(BaseModel):
         extra = Extra.forbid
 
     name: constr(regex=r'^[A-Za-z]$|^[/~A-Za-z][A-Za-z0-9_/]*[A-Za-z0-9_]$') = Field(..., description='Action name.')
+    alias: Optional[constr(regex=r'^[a-z][a-zA-Z0-9_]*$')] = Field(
+        None,
+        description='Short name used for generated members and callbacks, preserving their type prefixes.\nDoes not change the ROS endpoint name.\n',
+    )
     type: constr(regex=r'^[a-zA-Z][a-zA-Z0-9_]*(/(msg|srv|action))?/[A-Z][a-zA-Z0-9]*$') = Field(
         ...,
         description='ROS interface type, format ``package/(msg|srv|action)?/TypeName``.\nMiddle namespace is optional and may be determined by usage\ncontext (e.g. a publisher type implies ``msg``).\n',
