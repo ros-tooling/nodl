@@ -70,6 +70,44 @@ Creating endpoints on activation has these costs:
 - A service request sent while the node is inactive is not served, and the service is not discoverable.
 - Activation fails if an endpoint cannot be created.
 
+### Outgoing entities handed out while active
+
+A `nodl_runtime_cpp::Gated<EntityT>` member holds an entity that the node uses to initiate traffic, such as a service client or an action client.
+The entity exists for the lifetime of the node, and `get()` returns it only while the node is active.
+Declare it as a member and construct it in the member initializer list with the node and the entity:
+
+```{literalinclude} examples/lifecycle_node.cpp
+:language: cpp
+:dedent: 2
+:start-at: nodl_runtime_cpp::Gated<
+:end-at: ("notify")};
+```
+
+Check the result of `get()` at each use:
+
+```{literalinclude} examples/lifecycle_node.cpp
+:language: cpp
+:dedent: 4
+:start-at: if (auto client = cli_notify_.get())
+:end-at: }
+```
+
+`get()` follows these rules:
+
+- It returns null until the node activates, and again after it deactivates, shuts down or fails to activate.
+- It returns the entity in `handle_activate` and in `handle_deactivate`, and everywhere between them.
+- It is lock-free and safe to call from any thread.
+- A pointer obtained while the node is active stays usable after it deactivates, as a `LifecyclePublisher` pointer does.
+- A response, feedback or result for a call made while the node was active can arrive after it deactivates, and runs its callback.
+
+`Gated` registers an activation slot like `Managed`, so the slot rules for registration and destruction apply to it, and `Gated` and `Managed` members register in declaration order together.
+Constructing a `Gated` while the node is activating or active throws `std::logic_error`.
+
+Together with `Managed`, this gives the rule for a lifecycle node: while it is not active, it sends no outgoing traffic and serves no incoming traffic.
+Publishers are created in the constructor as `rclcpp_lifecycle::LifecyclePublisher`, which blocks publishing while the node is inactive.
+
+An entity that exists while the node is inactive is discovered and matched from construction, so `wait_for_service` in `handle_activate` usually returns at once.
+
 ### State transitions
 
 | Transition | Order |
