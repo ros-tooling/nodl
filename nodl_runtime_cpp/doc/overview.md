@@ -100,7 +100,8 @@ Check the result of `get()` at each use:
 - A pointer obtained while the node is active stays usable after it deactivates, as a `LifecyclePublisher` pointer does.
 - A response, feedback or result for a call made while the node was active can arrive after it deactivates, and runs its callback.
 
-`Gated` registers an activation slot like `Managed`, so the slot rules for registration and destruction apply to it, and `Gated` and `Managed` members register in declaration order together.
+`Gated` registers an activation slot like `Managed`, and `Gated` and `Managed` members register in declaration order together.
+Destroying a `Gated` unregisters its slot in any state and logs no error, a pointer obtained earlier stays usable.
 Constructing a `Gated` while the node is activating or active throws `std::logic_error`.
 
 Together with `Managed`, this gives the rule for a lifecycle node: while it is not active, it sends no outgoing traffic and serves no incoming traffic.
