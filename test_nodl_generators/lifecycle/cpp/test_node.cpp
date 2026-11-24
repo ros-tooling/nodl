@@ -12,10 +12,12 @@
 #include <type_traits>
 #include <vector>
 
+#include "example_interfaces/action/fibonacci.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "lifecycle_msgs/msg/transition.hpp"
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "test_nodl_generators/cpp_lifecycle_node_base.hpp"
 
@@ -29,7 +31,10 @@ using lifecycle_msgs::msg::Transition;
 const std::chrono::seconds TIMEOUT(10);
 const char NODE_NAME[] = "cpp_lifecycle_node";
 
-/// Implements only what the generated base requires, records what the subscriptions receive, and answers the service.
+using Fibonacci = example_interfaces::action::Fibonacci;
+
+/// Implements only what the generated base requires, records what the subscriptions receive, answers the service,
+/// and calls the ping service from `handle_activate`.
 class TestNode : public CppLifecycleNodeBase
 {
   static_assert(
@@ -46,12 +51,38 @@ public:
     return pub_status_->is_activated();
   }
 
+  /// The service client member, as handed out now.
+  rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr ping_client() const
+  {
+    return cli_ping_.get();
+  }
+
+  /// The action client member, as handed out now.
+  rclcpp_action::Client<Fibonacci>::SharedPtr count_client() const
+  {
+    return action_cli_count_.get();
+  }
+
+  /// Whether the ping client was handed out in `handle_activate`.
+  std::atomic<bool> ping_client_in_activate{false};
+  std::atomic<int> ping_responses{0};
   std::atomic<int> cmd_vel_received{0};
   std::atomic<int> latched_received{0};
   /// The node's state when the latched sample was executed.
   std::atomic<int> state_of_latched_sample{-1};
 
 protected:
+  CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/) override
+  {
+    if (auto client = cli_ping_.get()) {
+      ping_client_in_activate = true;
+      client->async_send_request(
+        std::make_shared<std_srvs::srv::Trigger::Request>(),
+        [this](rclcpp::Client<std_srvs::srv::Trigger>::SharedFuture) { ++ping_responses; });
+    }
+    return CallbackReturn::SUCCESS;
+  }
+
   void on_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr /*msg*/) override
   {
     ++cmd_vel_received;
@@ -159,6 +190,22 @@ protected:
     peer_->create_client<lifecycle_msgs::srv::ChangeState>("/cpp_lifecycle_node/change_state");
   rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr trigger_client_ =
     peer_->create_client<std_srvs::srv::Trigger>("/trigger");
+  std::atomic<int> ping_requests_{0};
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr ping_server_ = peer_->create_service<std_srvs::srv::Trigger>(
+    "/ping", [this](std_srvs::srv::Trigger::Request::SharedPtr, std_srvs::srv::Trigger::Response::SharedPtr response) {
+      ++ping_requests_;
+      response->success = true;
+    });
+  rclcpp_action::Server<Fibonacci>::SharedPtr count_server_ = rclcpp_action::create_server<Fibonacci>(
+    peer_,
+    "/count",
+    [](const rclcpp_action::GoalUUID &, std::shared_ptr<const Fibonacci::Goal>) {
+      return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+    },
+    [](std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>>) { return rclcpp_action::CancelResponse::ACCEPT; },
+    [](std::shared_ptr<rclcpp_action::ServerGoalHandle<Fibonacci>> goal_handle) {
+      goal_handle->succeed(std::make_shared<Fibonacci::Result>());
+    });
   rclcpp::executors::SingleThreadedExecutor executor_;
   std::thread spinner_;
 };
@@ -207,6 +254,51 @@ TEST_F(GeneratedLifecycleNode, ServiceServerIsServedOnlyWhileActive)
   EXPECT_TRUE(wait_for([this] { return graph_has_service("/trigger"); }));
   ASSERT_TRUE(trigger_client_->wait_for_service(TIMEOUT));
   EXPECT_TRUE(trigger_answers());
+}
+
+TEST_F(GeneratedLifecycleNode, ServiceClientIsHandedOutOnlyWhileActive)
+{
+  EXPECT_EQ(nullptr, node_->ping_client());
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  EXPECT_EQ(nullptr, node_->ping_client());
+  EXPECT_FALSE(node_->ping_client_in_activate);
+
+  // The client is handed out in handle_activate, and its call reaches the server.
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
+  EXPECT_NE(nullptr, node_->ping_client());
+  EXPECT_TRUE(node_->ping_client_in_activate);
+  EXPECT_TRUE(wait_for([this] { return 1 == ping_requests_ && 1 == node_->ping_responses; }));
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
+  EXPECT_EQ(nullptr, node_->ping_client());
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
+  EXPECT_NE(nullptr, node_->ping_client());
+  EXPECT_TRUE(wait_for([this] { return 2 == ping_requests_ && 2 == node_->ping_responses; }));
+}
+
+TEST_F(GeneratedLifecycleNode, ActionClientSendsGoalsOnlyWhileActive)
+{
+  EXPECT_EQ(nullptr, node_->count_client());
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  EXPECT_EQ(nullptr, node_->count_client());
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
+  auto client = node_->count_client();
+  ASSERT_NE(nullptr, client);
+  ASSERT_TRUE(client->wait_for_action_server(TIMEOUT));
+  auto accepted = client->async_send_goal(Fibonacci::Goal{});
+  ASSERT_EQ(std::future_status::ready, accepted.wait_for(TIMEOUT));
+  auto goal_handle = accepted.get();
+  ASSERT_NE(nullptr, goal_handle);
+  auto result = client->async_get_result(goal_handle);
+  ASSERT_EQ(std::future_status::ready, result.wait_for(TIMEOUT));
+  EXPECT_EQ(rclcpp_action::ResultCode::SUCCEEDED, result.get().code);
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
+  EXPECT_EQ(nullptr, node_->count_client());
 }
 
 TEST_F(GeneratedLifecycleNode, PublishersAndLifecycleServicesExistInEveryState)

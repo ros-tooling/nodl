@@ -1,0 +1,25 @@
+---
+# Tests a lifecycle base class whose codegen.cpp sets lifecycle: true.
+# The generator should declare service clients and action clients as Gated members that the constructor initializes,
+# ahead of the Managed subscriptions.
+
+nodl_version: 2
+
+include:
+  - ref: test://runtime_lifecycle_node
+
+subscriptions:
+  - name: cmd_vel
+    type: geometry_msgs/msg/Twist
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: BEST_EFFORT
+
+service_clients:
+  - name: set_bool
+    type: std_srvs/srv/SetBool
+
+action_clients:
+  - name: navigate
+    type: nav2_msgs/action/NavigateToPose

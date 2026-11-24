@@ -69,6 +69,8 @@ def _build_template_context(
         headers.add('rclcpp_action/rclcpp_action.hpp')
     if lifecycle and (subscriptions or service_servers):
         headers.add('nodl_runtime_cpp/managed.hpp')
+    if lifecycle and (service_clients or action_clients):
+        headers.add('nodl_runtime_cpp/gated.hpp')
 
     type_sources: list[str] = (
         [e.type for e in publishers]
@@ -181,7 +183,9 @@ def render_templates(
     which the class reaches as ``<target_name>::``.
     Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
     When *lifecycle* is true, every subscription and service server is a ``nodl_runtime_cpp::Managed`` member
-    that the constructor initializes, so it is created at activation.
+    that the constructor initializes, so it is created at activation,
+    and every service client and action client is a ``nodl_runtime_cpp::Gated`` member
+    that the constructor initializes, so it is handed out only while the node is active.
     """
     ctx = _build_template_context(
         target_name,

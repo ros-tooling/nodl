@@ -38,7 +38,7 @@ class CodegenBaseClass(BaseModel):
     )
     lifecycle: Optional[bool] = Field(
         False,
-        description='If the node is a lifecycle node, make the generated base class create its subscriptions and service servers when the node activates\nand destroy them when it deactivates, by declaring each as a ``nodl_runtime_cpp::Managed`` member.\nThe base class named by ``class`` must be or derive from ``nodl_runtime_cpp::LifecycleNode``,\nor the generated code does not compile.\n',
+        description='If the node is a lifecycle node, make the generated base class create its subscriptions and service servers when the node activates\nand destroy them when it deactivates, by declaring each as a ``nodl_runtime_cpp::Managed`` member.\nIts service clients and action clients are ``nodl_runtime_cpp::Gated`` members, handed out only while the node is active.\nThe base class named by ``class`` must be or derive from ``nodl_runtime_cpp::LifecycleNode``,\nor the generated code does not compile.\n',
     )
 
 
