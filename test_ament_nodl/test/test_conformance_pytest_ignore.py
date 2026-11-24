@@ -15,5 +15,6 @@ generate_test_description, TestNodlConformance = conformance_test(
     node_name='fixture',
     node_namespace='/conformance_pytest_ignore',
     parameters_files=[_FIXTURES / 'conformance_fixture_parameters.yaml'],
+    parameters=['qos_overrides./conformance_pytest_ignore/state.publisher.reliability:=best_effort'],
     ignore=['publisher:/topic_statistics'],
 )

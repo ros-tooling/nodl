@@ -120,7 +120,10 @@ def test_passes_every_option(document, tmp_path, recorded, monkeypatch):
     ]
 
 
-@pytest.mark.parametrize('item,kind', [('limit:=6', 'value_mismatch'), ('limit:=true', 'type_mismatch')])
+@pytest.mark.parametrize(
+    'item,kind',
+    [('limit:=6', 'value_mismatch'), ('limit:=true', 'type_mismatch'), ('limit:=20', 'constraint_mismatch')],
+)
 def test_helper_checks_deployment_values(document, tmp_path, monkeypatch, item, kind):
     import ros2nodl.describe
 
@@ -130,6 +133,8 @@ parameters:
   limit:
     type: int
     default_value: 1
+    validation:
+      bounds: [1, 10]
 """,
         encoding='utf-8',
     )

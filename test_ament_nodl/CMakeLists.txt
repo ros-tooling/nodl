@@ -97,6 +97,14 @@ if(BUILD_TESTING)
     PARAMETERS limit:=5 mode:=1_000
   )
 
+  nodl_add_conformance_test(conformance_fixture_qos_override
+    EXECUTABLE conformance_fixture_node
+    NODL_FILE test/fixtures/conformance_fixture.nodl.yaml
+    NODE_NAMESPACE /conformance
+    PARAMETERS limit:=5 mode:=1_000
+      qos_overrides./conformance/state.publisher.reliability:=best_effort
+  )
+
   nodl_add_conformance_test(conformance_injected
     EXECUTABLE conformance_injected_node
     NODL_FILE test/fixtures/conformance_fixture.nodl.yaml

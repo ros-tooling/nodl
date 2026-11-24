@@ -241,7 +241,7 @@ class Validation(BaseModel):
     """
 
     class Config:
-        extra = Extra.forbid
+        extra = Extra.allow
 
     bounds__: Optional[list[Union[StrictInt, StrictFloat]]] = Field(
         None,

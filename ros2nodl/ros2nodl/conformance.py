@@ -58,7 +58,8 @@ def conformance_report(
     and list them in ``ignored``.
     See :class:`nodl_schema.IgnoreRule` for the rule syntax.
     ``params_files`` and ``parameters`` describe explicit deployment expectations, resolved by ROS.
-    When supplied, current parameter types and values are checked without changing contract defaults.
+    When supplied, current parameter values and supported constraints are checked,
+    and permitted QoS overrides adjust endpoint expectations without changing the contract defaults.
     """
     from ros2nodl.infrastructure import strip_infrastructure
 
@@ -86,6 +87,7 @@ def conformance_report(
             expected,
             result.doc,
             expectations,
+            node_fqn=node_fqn,
         )
         differences.extend(deployment_differences)
     observed = strip_infrastructure(result.doc) if configured else result.doc

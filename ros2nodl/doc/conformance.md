@@ -44,27 +44,41 @@ Unselected nodes' configuration does not become an expectation for the target.
 An undeclared deployment parameter fails even if an ignore rule matches it.
 Explicit framework parameters such as `use_sim_time` can also be checked.
 
-Without explicit configuration inputs, existing interface-only checks continue to ignore parameter values.
-Parameter constraints and QoS override policies are not evaluated by this value comparison.
+With configuration inputs, the checker evaluates the contract's built-in value validators and fixed-size capacities against explicit values and observed values.
+Opaque `additional_constraints` and custom validators are reported as `unverifiable`; they are never executed.
+Without configuration inputs, existing interface-only checks continue to ignore parameter values and validators.
 
-### CLI example
+### QoS overrides
 
-The executable fixture in `test_ament_nodl/test/test_deployment_conformance.py` runs equivalent startup and checking inputs:
+An explicit `qos_overrides.<absolute-topic>.<publisher|subscription>.<policy>` expectation can replace that policy in the expected endpoint QoS.
+The running node must expose that exact parameter as read-only, and the topic must select one declared endpoint.
+This uses the node's enabled ROS QoS overrides as permission; it does not enable overrides in generated nodes.
+Both the override parameter value and the actual endpoint QoS are checked.
+A node that stores the parameter without applying its QoS still fails.
+
+Supported policies are `history`, `depth`, `reliability`, `durability`, `liveliness`, `deadline`, `lifespan` (publishers only), and `liveliness_lease_duration`.
+Policy strings use ROS lowercase names such as `best_effort`; durations are integer nanoseconds.
+Unknown policies, policies absent from the node's read-only parameters, unknown targets, endpoint identifiers, and the unobservable `avoid_ros_namespace_conventions` policy fail with `configuration_error`.
+
+The executable fixture in `test_ament_nodl/test/test_deployment_conformance.py` runs these equivalent startup and checking inputs:
 
 ```console
 ros2 run test_ament_nodl conformance_fixture_node --ros-args \
   -r __ns:=/deployment -r __node:=fixture \
-  --params-file test_ament_nodl/test/fixtures/conformance_fixture_parameters.yaml
+  --params-file test_ament_nodl/test/fixtures/conformance_fixture_parameters.yaml \
+  -p qos_overrides./deployment/state.publisher.reliability:=best_effort
 ```
 
 ```console
 ros2 nodl conform /deployment/fixture \
   --file test_ament_nodl/test/fixtures/conformance_fixture.nodl.yaml \
-  --params-file test_ament_nodl/test/fixtures/conformance_fixture_parameters.yaml
+  --params-file test_ament_nodl/test/fixtures/conformance_fixture_parameters.yaml \
+  -p qos_overrides./deployment/state.publisher.reliability:=best_effort
 ```
 
-Adding `-p limit:=6` to the check fails because the node's current value is `5`.
-The fixture executes both the successful check and this failure case.
+Adding `-p limit:=6` to the check fails because the node's value is `5`.
+Adding `-p limit:=20` also violates the declared bounds.
+The fixture executes both failure cases and checks unapplied and unpermitted QoS overrides.
 
 ## Ignoring endpoints
 

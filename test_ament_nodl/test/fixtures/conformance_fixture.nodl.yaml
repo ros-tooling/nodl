@@ -27,6 +27,8 @@ parameters:
     type: int
     default_value: 1
     read_only: true
+    validation:
+      bounds: [1, 10]
   mode:
     type: string
     read_only: true
