@@ -6,6 +6,12 @@ NoDL (Node Definition Language) is a schema and toolkit to describe a ROS 2 node
 
 Find complete documentation at https://nodl.readthedocs.io/en/latest/
 
+## Getting started
+
+Follow the [ROS 2 basics tutorial](https://nodl.readthedocs.io/en/latest/tutorials/basics.html) to define a node interface, generate bindings, and check conformance.
+Set up [editor completion and validation](https://nodl.readthedocs.io/en/latest/editor.html) for `*.nodl.yaml` and `*.nodl.yml` before authoring your first document.
+The [workspace settings](./tools/editor/examples/settings.json) are ready to copy into `.vscode/settings.json`.
+
 ## Repository structure
 
 NoDL is split into packages for the schema, code generators, documentation generation, and ROS 2 integration.
