@@ -22,7 +22,7 @@ Required outcomes:
 - Assigned endpoints must use the declared group; unassigned endpoints must use the ROS default group.
 - Invalid or duplicate assignments must fail generation before outputs are written.
 - Lifecycle gates must retain their existing behavior independently of group assignment.
-- A runtime fixture must prove separate-group concurrency, shared-group serialization, and reentrant overlap.
+- A runtime fixture must prove separate-group concurrency, shared-group serialization, and overlap between distinct endpoints in one reentrant group.
 
 ## Critical boundary and readiness
 
@@ -138,7 +138,7 @@ Parameter locking does not make other application state thread-safe.
 | Syntax and failure rules | Schema/model tests for both types, malformed IDs, empty groups, unknown fields/categories, and duplicate assignments. |
 | Ownership and exact names | Include-tree tests for owned/provider endpoints, root-only metadata, category distinctions, and relative/absolute/private names. |
 | Construction and defaults | Golden output plus compilation; group initialization before endpoints, retained references, both QoS/group arguments forwarded, unchanged no-metadata output. |
-| Scheduling | Coordinated runtime barriers: separate groups permit a status response during blocked work; a shared group serializes; reentrant callbacks overlap. |
+| Scheduling | Coordinated runtime barriers: separate groups permit a status response during blocked work; a shared group serializes; distinct endpoints in the same reentrant group overlap. |
 | Lifecycle | Assigned handlers are gated when inactive, deliver when active, and retain assignments after repeated transitions; explicitly exercise possible hook/handler overlap. |
 | Compatibility | Supported-distribution builds and existing generator tests; tested documentation uses the checked-in fixture. |
 
@@ -214,3 +214,19 @@ Updated verification results:
 - Isolated #292 composition: eight runtime cases completed with seven passed and the historical gate case skipped, including group registration through reactivation and a subscription-only lifecycle node.
 - Negative control: replacing the managed factory's configured group with `nullptr` failed the new nondefault-group assertion; restoring the assignment passed.
 - Required formatting/lint checks passed after the regression addition.
+
+## Accepted reentrant test contract update
+
+The user accepted testing overlap between distinct endpoints in one reentrant group instead of requiring repeated invocations of a subscription to overlap on every supported ROS version.
+The runtime fixture checks the actual group type, verifies that its work subscription and status service are registered in the same nondefault reentrant group, and requires the status response while the work handler is blocked.
+The existing shared mutually exclusive fixture checks the opposite scheduling result.
+No timeouts are increased and no new tests or distributions are skipped.
+
+This separates NoDL's group assignment contract from ROS's per-endpoint dispatch implementation.
+ROS PR [ros2/rclcpp#2985](https://github.com/ros2/rclcpp/pull/2985) intentionally locks callback dispatch so disabling callbacks can wait for application work to finish safely.
+Whether the resulting same-subscription serialization should change the documented reentrant semantics is a separate upstream/WG question.
+The Lyrical/Rolling limitation is documented in the author guide; NoDL does not patch or bypass the upstream mutex.
+
+Verification after the accepted update: the seven-case runtime target passed on Jazzy and unmodified Lyrical, with only the existing historical gate case skipped.
+The new distinct-endpoint reentrant test also passed 100 repeated runs on Lyrical with Cyclone DDS.
+The isolated #292 composition passed its eight runtime cases with the same historical gate skip, including the managed registration and subscription-only lifecycle checks.

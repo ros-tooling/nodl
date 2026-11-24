@@ -31,7 +31,6 @@ namespace
 struct WorkState
 {
   std::promise<void> entered;
-  std::promise<void> entered_twice;
   std::promise<void> release;
   std::shared_future<void> released = release.get_future().share();
   std::atomic<int> calls{0};
@@ -66,8 +65,6 @@ private:
     const auto calls = state_->calls.fetch_add(1);
     if (calls == 0) {
       state_->entered.set_value();
-    } else if (calls == 1) {
-      state_->entered_twice.set_value();
     }
     state_->released.wait_for(10s);
   }
@@ -134,14 +131,13 @@ protected:
   }
 
   template <typename Base>
-  void check(bool concurrent, bool reentrant = false)
+  void check(bool concurrent)
   {
     auto state = std::make_shared<WorkState>();
     auto entered = state->entered.get_future();
-    auto entered_twice = state->entered_twice.get_future();
     auto options = node_options();
     auto processor = std::make_shared<Processor<Base>>(options, state);
-    exercise(processor, options, state, entered, entered_twice, concurrent, reentrant);
+    exercise(processor, options, state, entered, concurrent);
   }
 
   template <typename Node>
@@ -150,9 +146,7 @@ protected:
     const rclcpp::NodeOptions & options,
     const std::shared_ptr<WorkState> & state,
     std::future<void> & entered,
-    std::future<void> & entered_twice,
-    bool concurrent,
-    bool reentrant = false)
+    bool concurrent)
   {
     auto driver = std::make_shared<rclcpp::Node>("driver", options);
     auto publisher = driver->create_publisher<Work>("work", 10);
@@ -169,17 +163,12 @@ protected:
     publisher->publish(Work{});
     ASSERT_EQ(entered.wait_for(5s), std::future_status::ready);
 
-    if (reentrant) {
-      publisher->publish(Work{});
-      ASSERT_EQ(entered_twice.wait_for(3s), std::future_status::ready);
-    } else {
-      auto response = client->async_send_request(std::make_shared<Status::Request>());
-      const auto ready = response.wait_for(concurrent ? 3s : 300ms);
-      EXPECT_EQ(ready == std::future_status::ready, concurrent);
-      state->release_work();
-      ASSERT_EQ(response.wait_for(3s), std::future_status::ready);
-      EXPECT_TRUE(response.get()->success);
-    }
+    auto response = client->async_send_request(std::make_shared<Status::Request>());
+    const auto ready = response.wait_for(concurrent ? 3s : 300ms);
+    EXPECT_EQ(ready == std::future_status::ready, concurrent);
+    state->release_work();
+    ASSERT_EQ(response.wait_for(3s), std::future_status::ready);
+    EXPECT_TRUE(response.get()->success);
   }
 };
 
@@ -198,11 +187,6 @@ TEST_F(CallbackGroups, SeparateGroupsAllowProgress)
   check<CallbackSeparateBase>(true);
 }
 
-TEST_F(CallbackGroups, ReentrantSubscriptionOverlapsItself)
-{
-  check<CallbackReentrantBase>(true, true);
-}
-
 // Inspect actual endpoint registration, independently of executor timing.
 template <typename Node>
 rclcpp::CallbackGroup::SharedPtr work_group(const std::shared_ptr<Node> & node)
@@ -218,6 +202,24 @@ rclcpp::CallbackGroup::SharedPtr work_group(const std::shared_ptr<Node> & node)
     }
   });
   return result;
+}
+
+TEST_F(CallbackGroups, ReentrantGroupAllowsDistinctEndpointsToOverlap)
+{
+  auto options = node_options();
+  auto state = std::make_shared<WorkState>();
+  auto entered = state->entered.get_future();
+  auto processor = std::make_shared<Processor<CallbackReentrantBase>>(options, state);
+  const auto group = work_group(processor);
+  ASSERT_NE(group, nullptr);
+  EXPECT_EQ(group->type(), rclcpp::CallbackGroupType::Reentrant);
+  EXPECT_NE(group, processor->get_node_base_interface()->get_default_callback_group());
+  const auto status_name = std::string(processor->get_namespace()) + "/status";
+  ASSERT_NE(
+    group->find_service_ptrs_if(
+      [&status_name](const auto & service) { return service->get_service_name() == status_name; }),
+    nullptr);
+  exercise(processor, options, state, entered, true);
 }
 
 TEST_F(CallbackGroups, LifecycleSubscriptionRetainsItsConfiguredGroup)
@@ -239,7 +241,6 @@ TEST_F(CallbackGroups, LifecycleKeepsGroupsAcrossTransitions)
   auto options = node_options();
   auto state = std::make_shared<WorkState>();
   auto entered = state->entered.get_future();
-  auto entered_twice = state->entered_twice.get_future();
   auto processor = std::make_shared<Processor<CallbackLifecycleBase>>(options, state);
   ASSERT_EQ(processor->configure().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
   ASSERT_EQ(processor->activate().id(), LifecycleState::PRIMARY_STATE_ACTIVE);
@@ -247,7 +248,7 @@ TEST_F(CallbackGroups, LifecycleKeepsGroupsAcrossTransitions)
   ASSERT_EQ(processor->cleanup().id(), LifecycleState::PRIMARY_STATE_UNCONFIGURED);
   ASSERT_EQ(processor->configure().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
   ASSERT_EQ(processor->activate().id(), LifecycleState::PRIMARY_STATE_ACTIVE);
-  exercise(processor, options, state, entered, entered_twice, true);
+  exercise(processor, options, state, entered, true);
 }
 
 TEST_F(CallbackGroups, LifecycleHonorsActivationGate)

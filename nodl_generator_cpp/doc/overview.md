@@ -496,7 +496,10 @@ Its included interface declares the endpoints:
 
 When registering the generated contract, also register `interface.nodl.yaml` with `ament_nodl_register()`, as required for `local://` includes.
 
-Each group requires a `type`: `MUTUALLY_EXCLUSIVE` serializes callbacks within that group; `REENTRANT` permits overlap, including repeated invocations of the same handler.
+Each group requires a `type`: `MUTUALLY_EXCLUSIVE` serializes callbacks within that group; `REENTRANT` permits overlap between distinct endpoints in the group.
+Overlap between repeated invocations of one subscription also depends on the ROS implementation.
+The tested Lyrical and Rolling versions hold an internal per-subscription lock during callback dispatch, so those invocations serialize even in a reentrant group.
+NoDL preserves the requested ROS group type and does not bypass this lock.
 The generator creates and retains groups before constructing the endpoints.
 Groups do not create threads: the application must choose a multithreaded executor to permit concurrent execution.
 Protect shared application state whenever handlers can overlap.
@@ -515,7 +518,7 @@ Callback groups govern scheduling, not lifecycle admission.
 They do not bypass an activation gate, stop an already-running handler, or make lifecycle hooks mutually exclusive with handlers in other groups.
 Groups remain attached across lifecycle transitions.
 
-The executable fixture covers defaults, shared groups, separate groups, reentrant subscriptions, and lifecycle transitions:
+The executable fixture covers defaults, shared groups, separate groups, distinct endpoints in a reentrant group, and lifecycle transitions:
 
 ```bash
 colcon test --packages-select test_nodl_generators --ctest-args -R test_cpp_callback_groups
