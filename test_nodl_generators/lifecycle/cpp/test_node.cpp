@@ -16,6 +16,7 @@
 #include "lifecycle_msgs/msg/transition.hpp"
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include "test_nodl_generators/cpp_lifecycle_node_base.hpp"
 
 namespace
@@ -28,7 +29,7 @@ using lifecycle_msgs::msg::Transition;
 const std::chrono::seconds TIMEOUT(10);
 const char NODE_NAME[] = "cpp_lifecycle_node";
 
-/// Implements only what the generated base requires, and records what the subscriptions receive.
+/// Implements only what the generated base requires, records what the subscriptions receive, and answers the service.
 class TestNode : public CppLifecycleNodeBase
 {
   static_assert(
@@ -60,6 +61,13 @@ protected:
   {
     state_of_latched_sample = get_current_state().id();
     ++latched_received;
+  }
+
+  void on_trigger(
+    std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
+    std_srvs::srv::Trigger::Response::SharedPtr response) override
+  {
+    response->success = true;
   }
 };
 
@@ -138,10 +146,19 @@ protected:
     return 0 != peer_->get_service_names_and_types_by_node(NODE_NAME, "/").count(name);
   }
 
+  /// Calls the trigger service, and returns whether the node answered within the timeout.
+  bool trigger_answers(std::chrono::milliseconds timeout = TIMEOUT)
+  {
+    auto response = trigger_client_->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>());
+    return std::future_status::ready == response.future.wait_for(timeout) && response.future.get()->success;
+  }
+
   std::shared_ptr<TestNode> node_ = std::make_shared<TestNode>();
   std::shared_ptr<rclcpp::Node> peer_ = std::make_shared<rclcpp::Node>("peer_node");
   rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedPtr change_client_ =
     peer_->create_client<lifecycle_msgs::srv::ChangeState>("/cpp_lifecycle_node/change_state");
+  rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr trigger_client_ =
+    peer_->create_client<std_srvs::srv::Trigger>("/trigger");
   rclcpp::executors::SingleThreadedExecutor executor_;
   std::thread spinner_;
 };
@@ -165,6 +182,31 @@ TEST_F(GeneratedLifecycleNode, SubscriptionsAppearInTheGraphOnlyWhileActive)
 
   ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
   EXPECT_TRUE(wait_for([this] { return graph_has_subscription("/cmd_vel") && graph_has_subscription("/latched"); }));
+}
+
+TEST_F(GeneratedLifecycleNode, ServiceServerIsServedOnlyWhileActive)
+{
+  ASSERT_TRUE(wait_for([this] { return graph_has_service("/cpp_lifecycle_node/get_state"); }));
+  EXPECT_FALSE(graph_has_service("/trigger"));
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_CONFIGURE));
+  wait_for_a_while();
+  EXPECT_FALSE(graph_has_service("/trigger"));
+  EXPECT_FALSE(trigger_client_->service_is_ready());
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
+  ASSERT_TRUE(wait_for([this] { return graph_has_service("/trigger"); }));
+  ASSERT_TRUE(trigger_client_->wait_for_service(TIMEOUT));
+  EXPECT_TRUE(trigger_answers());
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_DEACTIVATE));
+  EXPECT_TRUE(wait_for([this] { return !graph_has_service("/trigger"); }));
+  EXPECT_TRUE(wait_for([this] { return !trigger_client_->service_is_ready(); }));
+
+  ASSERT_TRUE(change_state(Transition::TRANSITION_ACTIVATE));
+  EXPECT_TRUE(wait_for([this] { return graph_has_service("/trigger"); }));
+  ASSERT_TRUE(trigger_client_->wait_for_service(TIMEOUT));
+  EXPECT_TRUE(trigger_answers());
 }
 
 TEST_F(GeneratedLifecycleNode, PublishersAndLifecycleServicesExistInEveryState)

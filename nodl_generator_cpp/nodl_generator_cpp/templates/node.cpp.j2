@@ -1,4 +1,4 @@
-{% set has_body = publishers or (subscriptions and not lifecycle) or service_servers or service_clients or action_servers or action_clients or has_parameters %}
+{% set has_body = publishers or (subscriptions and not lifecycle) or (service_servers and not lifecycle) or service_clients or action_servers or action_clients or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
 
@@ -20,6 +20,15 @@ namespace {{ namespace }}
       {{ sub.qos }},
       [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
         this->{{ sub.callback }}(msg);
+      });
+  })
+{% endfor %}
+{% for srv in service_servers %}
+, {{ srv.member }}(*this, [this] {
+    return this->create_service<{{ srv.cpp_type }}>(
+      "{{ srv.name }}",
+      [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
+        this->{{ srv.callback }}(req, res);
       });
   })
 {% endfor %}
@@ -45,7 +54,7 @@ namespace {{ namespace }}
     });
 {% endfor %}
 {% endif %}
-{% if service_servers %}
+{% if service_servers and not lifecycle %}
 
   // Create service servers
 {% for srv in service_servers %}

@@ -19,15 +19,15 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
         this->on_latched(msg);
       });
   })
+, srv_trigger_(*this, [this] {
+    return this->create_service<std_srvs::srv::Trigger>(
+      "trigger",
+      [this](std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
+        this->on_trigger(req, res);
+      });
+  })
 {
 
   // Create publishers
   pub_status_ = this->create_publisher<std_msgs::msg::String>("status", rclcpp::QoS(10).reliable());
-
-  // Create service servers
-  srv_trigger_ = this->create_service<std_srvs::srv::Trigger>(
-    "trigger",
-    [this](std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
-      this->on_trigger(req, res);
-    });
 }

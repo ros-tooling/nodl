@@ -23,7 +23,9 @@ An authored subclass defines the hook that matches the transition instead of an 
 
 ### Endpoints created on activation
 
-A `nodl_runtime_cpp::Managed<EntityT>` member holds an endpoint that exists only while the node is active.
+While the node is not active it serves no incoming traffic.
+Incoming endpoints, which a peer initiates (subscriptions and service servers), therefore exist only while the node is active.
+A `nodl_runtime_cpp::Managed<EntityT>` member holds such an endpoint.
 The node creates it when it activates and destroys it when it deactivates.
 Declare it as a member of the node and construct it in the member initializer list with the node and a function that returns the endpoint:
 
@@ -56,15 +58,16 @@ Slots follow these rules:
 - Create and destroy `Managed` objects from the thread that requests the transitions.
 - Destroying the slots wakes the executor that spins the node, so the executor releases the endpoints it still holds.
 
-A subscription exists only while the node is active, so use it only where the node is active:
+A subscription or service server exists only while the node is active, so use it only where the node is active:
 callbacks in the default callback group, timers that `handle_activate` creates, and the hooks.
 That holds when transitions are requested through the lifecycle services, which an executor serializes with the default callback group.
-A transition that another thread requests by calling `activate()` or `deactivate()` directly is not serialized with the callbacks, and the subscription is destroyed while a callback may use it.
+A transition that another thread requests by calling `activate()` or `deactivate()` directly is not serialized with the callbacks, and the endpoint is destroyed while a callback may use it.
 
 Creating endpoints on activation has these costs:
 
 - A message published while the node is inactive is not received by a volatile subscription.
-- Discovery of the new subscription starts at activation, so a publisher may take a moment to match it.
+- Discovery of the new endpoint starts at activation, so a publisher or a service client may take a moment to match it.
+- A service request sent while the node is inactive is not served, and the service is not discoverable.
 - Activation fails if an endpoint cannot be created.
 
 ### State transitions
