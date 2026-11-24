@@ -31,6 +31,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_lifecycle_node test/test_lifecycle_node.cpp TIMEOUT 60)
   target_link_libraries(test_lifecycle_node
     ${PROJECT_NAME}
+    rclcpp_components::component
     std_msgs::std_msgs
   )
 

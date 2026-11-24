@@ -36,6 +36,10 @@ class CodegenBaseClass(BaseModel):
         'rclcpp::Publisher',
         description="Fully-qualified C++ publisher class template that the base class's ``create_publisher`` returns,\ndeclared by ``header`` (e.g. ``rclcpp_lifecycle::LifecyclePublisher``).\n",
     )
+    lifecycle: Optional[bool] = Field(
+        False,
+        description='If the node is a lifecycle node, make the generated base class create its subscriptions when the node activates\nand destroy them when it deactivates, by declaring each as a ``nodl_runtime_cpp::Managed`` member.\nThe base class named by ``class`` must be or derive from ``nodl_runtime_cpp::LifecycleNode``,\nor the generated code does not compile.\n',
+    )
 
 
 class CodegenNoGenerate(BaseModel):

@@ -54,6 +54,7 @@ def _build_template_context(
     include_prefix: str | None = None,
     namespace: str | None = None,
     publisher_class: str,
+    lifecycle: bool = False,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -66,6 +67,8 @@ def _build_template_context(
     headers: set[str] = {base_header}
     if has_actions:
         headers.add('rclcpp_action/rclcpp_action.hpp')
+    if lifecycle and subscriptions:
+        headers.add('nodl_runtime_cpp/managed.hpp')
 
     type_sources: list[str] = (
         [e.type for e in publishers]
@@ -142,6 +145,7 @@ def _build_template_context(
         'parameters_include': prefixed(include_prefix, f'{target_name}_parameters.hpp'),
         'namespace': namespace,
         'publisher_class': publisher_class,
+        'lifecycle': lifecycle,
     }
 
 
@@ -165,6 +169,7 @@ def render_templates(
     include_prefix: str | None = None,
     namespace: str | None = None,
     publisher_class: str,
+    lifecycle: bool = False,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 
@@ -175,6 +180,8 @@ def render_templates(
     and the parameter structs are expected under ``<namespace>::<target_name>``,
     which the class reaches as ``<target_name>::``.
     Publisher members are declared as ``<publisher_class><MessageT>::SharedPtr``.
+    When *lifecycle* is true, every subscription is a ``nodl_runtime_cpp::Managed`` member
+    that the constructor initializes, so it is created at activation.
     """
     ctx = _build_template_context(
         target_name,
@@ -190,6 +197,7 @@ def render_templates(
         include_prefix=include_prefix,
         namespace=namespace,
         publisher_class=publisher_class,
+        lifecycle=lifecycle,
     )
 
     env = _get_env()

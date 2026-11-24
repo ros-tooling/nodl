@@ -23,7 +23,7 @@ add_cpp_fixture(minimal cpp_minimal_node_base SHARED EXPORT)
 add_cpp_fixture(pub_sub cpp_pub_sub_node_base EXPORT RESOURCE_NAME cpp_pub_sub_node)
 add_cpp_fixture(services cpp_services_node_base EXPORT)
 add_cpp_fixture(parameters cpp_params_node_base EXPORT)
-add_cpp_fixture(lifecycle cpp_lifecycle_node_base EXPORT)
+nodl_generate_cpp(cpp_lifecycle_node_base EXPORT lifecycle/cpp/node.nodl.yaml)
 
 # Without EXPORT, a SHARED library is installed for runtime only, with no headers.
 add_cpp_fixture(kitchen_sink cpp_kitchen_sink_node_base)
@@ -56,7 +56,13 @@ else()
 endif()
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_pytest REQUIRED)
+
+  # Runs the generated lifecycle node against its subscriptions and publishers.
+  # The behavior comes from the nodl_runtime_cpp base class.
+  ament_add_gtest(test_cpp_lifecycle lifecycle/cpp/test_node.cpp TIMEOUT 60)
+  target_link_libraries(test_cpp_lifecycle cpp_lifecycle_node_base)
 
   # These tests read the install manifests in the build directory, so files left by earlier builds in the install prefix do not matter.
   # Checks which fixtures are installed and exported.

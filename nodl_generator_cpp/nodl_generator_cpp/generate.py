@@ -201,6 +201,7 @@ def generate_cpp(source: Path, target_name: str, *, include_prefix: str | None =
         include_prefix=include_prefix,
         namespace=planner.namespace,
         publisher_class=base.publisher_type,
+        lifecycle=bool(base.lifecycle),
     )
     if has_parameters:
         generated_files += [generate_genparamlib_yaml(target_name, doc.parameters, namespace=planner.namespace)]
