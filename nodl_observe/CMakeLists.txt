@@ -44,6 +44,9 @@ ament_auto_add_executable(observe
 )
 target_link_libraries(observe ${PROJECT_NAME} CLI11::CLI11)
 
+# Offline ROS configuration resolution, shared by the CLI and generated tests.
+ament_auto_add_executable(resolve_parameters src/resolve_parameters_main.cpp)
+
 # ament_auto_add_library / _executable already install and export their targets
 # via ament_auto_package() below (lib -> lib, executable -> lib/${PROJECT_NAME}),
 # which also installs and exports the public headers.

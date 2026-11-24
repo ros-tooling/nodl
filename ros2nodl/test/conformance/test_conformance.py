@@ -393,3 +393,53 @@ def test_environment_rules_are_not_read_by_the_core(monkeypatch):
     differences = check_conformance(nodl_file=str(FIXTURES / 'minimal.nodl.yaml'), node_fqn='/fixture')
 
     assert [d.name for d in differences] == ['/topic_statistics']
+
+
+@pytest.mark.parametrize('entry', [check_conformance, conformance_report, assert_conforms])
+def test_deployment_inputs_reach_shared_checker(monkeypatch, tmp_path, entry):
+    import ros2nodl.configuration
+    import ros2nodl.describe
+    from nodl_schema.models import ParameterDefinition
+    from ros2nodl.configuration import ParameterValue
+
+    contract = NodlDocument(parameters={'rate': ParameterDefinition(type='int', default_value=1)})
+    path = tmp_path / 'node.nodl.yaml'
+    path.write_text(dump_nodl(contract))
+    calls = []
+
+    def resolve(**kwargs):
+        calls.append(kwargs)
+        return {'rate': ParameterValue('int', 20)}
+
+    monkeypatch.setattr(ros2nodl.configuration, 'resolve_configuration', resolve)
+
+    def describe(*args, **kwargs):
+        assert kwargs['options'].keep_hidden is True
+        return SimpleNamespace(
+            doc=NodlDocument(
+                parameters={
+                    'rate': ParameterDefinition(type='int', default_value=20),
+                    'use_sim_time': ParameterDefinition(type='bool', default_value=False),
+                }
+            ),
+            gaps=[],
+        )
+
+    monkeypatch.setattr(ros2nodl.describe, 'describe_node', describe)
+    result = entry(nodl_file=str(path), node_fqn='/node', params_files=['deployment.yaml'], parameters=['rate:=20'])
+    assert (result if isinstance(result, list) else result.differences) == []
+    assert calls == [{'node_fqn': '/node', 'params_files': ['deployment.yaml'], 'parameters': ['rate:=20']}]
+
+
+def test_invalid_configuration_fails_before_observation(monkeypatch):
+    import ros2nodl.configuration
+
+    calls = _track_describe_calls(monkeypatch)
+
+    def fail(**kwargs):
+        raise ValueError('invalid ROS input')
+
+    monkeypatch.setattr(ros2nodl.configuration, 'resolve_configuration', fail)
+    with pytest.raises(ValueError, match='invalid ROS input'):
+        check_conformance(nodl_file=str(FIXTURES / 'minimal.nodl.yaml'), node_fqn='/node', parameters=['bad'])
+    assert calls == []

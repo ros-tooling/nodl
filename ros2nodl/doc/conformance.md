@@ -18,6 +18,29 @@ the check before runtime observation. A description failure stops comparison.
 Description gaps become `unverifiable` differences with their original path and
 reason. Semantic differences are aggregated and sorted for stable diagnostics.
 
+## Deployment expectations
+
+Python callers pass `params_files=[...]` and `parameters=['name:=value', ...]` to `conformance_report`, `check_conformance`, or `assert_conforms` to check explicit parameter expectations.
+These inputs describe expectations and do not modify the running node.
+
+Configuration is resolved by ROS itself, including YAML types, nested parameter names, node selectors, and wildcard selectors.
+It does not use PyYAML's interpretation of inline strings: for example, ROS reads `1_000` as a string.
+Invalid configuration fails before live observation.
+Files are passed in order, followed by inline items.
+Native ROS selector precedence applies: a node-specific file entry can win over an unqualified inline item even when the inline item appears last.
+Later values replace earlier values within the same selector.
+
+The contract's `default_value`, an explicit deployment expectation, and the observed current value have separate meanings.
+A deployment may differ from a contract default.
+All explicitly selected values, including mutable parameters, must match their type and value at the moment of observation.
+This checks a snapshot; it does not prove what value a mutable parameter had at startup.
+Unselected nodes' configuration does not become an expectation for the target.
+An undeclared deployment parameter fails even if an ignore rule matches it.
+Explicit framework parameters such as `use_sim_time` can also be checked.
+
+Without explicit configuration inputs, existing interface-only checks continue to ignore parameter values.
+Parameter constraints and QoS override policies are not evaluated by this value comparison.
+
 ## Ignoring endpoints
 
 The check fails on any endpoint that the document does not declare.
