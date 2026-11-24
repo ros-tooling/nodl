@@ -29,3 +29,7 @@ subscriptions:
       depth: 1
       reliability: RELIABLE
       durability: TRANSIENT_LOCAL
+
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger

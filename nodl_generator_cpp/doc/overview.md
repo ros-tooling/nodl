@@ -422,23 +422,24 @@ codegen:
     lifecycle: true
 ```
 
-A generated node with a `lifecycle: true` base creates its subscriptions when the node activates and destroys them when it deactivates.
-Each `sub_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Subscription<MessageT>>`, which the constructor initializes with the same QoS and `on_<name>` callback binding as a node that is not a lifecycle node.
+A generated node with a `lifecycle: true` base creates its subscriptions and service servers when the node activates and destroys them when it deactivates.
+Each `sub_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Subscription<MessageT>>`, and each `srv_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Service<ServiceT>>`.
+The constructor initializes them with the same QoS and `on_<name>` callback binding as a node that is not a lifecycle node.
 The members are private, so only the generated class touches them.
-Subscriptions are created in the order they appear in the NoDL document, ahead of the members of an authored subclass.
+Subscriptions are created in the order they appear in the NoDL document, then service servers, ahead of the members of an authored subclass.
 
 The base class named by `class` must be or derive from `nodl_runtime_cpp::LifecycleNode`, as the node in `nodl://nodl_common_interfaces/lifecycle_node` is.
 Otherwise the generated code does not compile.
-See the `nodl_runtime_cpp` overview for when the subscriptions are created and destroyed relative to the lifecycle hooks.
+See the `nodl_runtime_cpp` overview for when these endpoints are created and destroyed relative to the lifecycle hooks.
 
-For now subscriptions are the only endpoints created on activation.
-Publishers, service servers, service clients, action servers and action clients are created in the constructor as for any other node.
+Publishers, service clients, action servers and action clients are created in the constructor as for any other node.
 
 A `transient_local` subscription of a lifecycle node receives its latched messages after the node activates, and not while it is unconfigured or inactive.
-While the node is unconfigured or inactive its subscriptions are absent from the graph, so conformance of such a node needs it configured and activated first.
+While the node is unconfigured or inactive its subscriptions and service servers are absent from the graph, so conformance of such a node needs it configured and activated first.
 
-Migration: `BREAKING CHANGE:` a node derived from `nodl://nodl_common_interfaces/lifecycle_node` no longer has its subscriptions while it is unconfigured or inactive.
+Migration: `BREAKING CHANGE:` a node derived from `nodl://nodl_common_interfaces/lifecycle_node` no longer has its subscriptions or service servers while it is unconfigured or inactive.
 Messages published in those states, including latched messages, are not delivered to the `on_<name>` callbacks until the node activates.
+Service requests sent in those states are not served, and the services are not discoverable.
 
 ### Namespace
 

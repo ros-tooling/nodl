@@ -98,7 +98,11 @@ private:
 
   // --- Service servers ---
 {% for srv in service_servers %}
+{% if lifecycle %}
+  nodl_runtime_cpp::Managed<rclcpp::Service<{{ srv.cpp_type }}>> {{ srv.member }};
+{% else %}
   rclcpp::Service<{{ srv.cpp_type }}>::SharedPtr {{ srv.member }};
+{% endif %}
 {% endfor %}
 {% endif %}
 {% if action_servers %}

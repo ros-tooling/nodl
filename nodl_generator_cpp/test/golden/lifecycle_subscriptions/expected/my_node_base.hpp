@@ -35,5 +35,5 @@ private:
   nodl_runtime_cpp::Managed<rclcpp::Subscription<std_msgs::msg::String>> sub_latched_;
 
   // --- Service servers ---
-  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr srv_trigger_;
+  nodl_runtime_cpp::Managed<rclcpp::Service<std_srvs::srv::Trigger>> srv_trigger_;
 };
