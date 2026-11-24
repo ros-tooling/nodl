@@ -27,9 +27,11 @@ include:
 publishers:
   - name: ~/transition_event
     type: lifecycle_msgs/msg/TransitionEvent
+    # The history is left to the system default because some RMW implementations
+    # do not report the history or depth of a remote publisher, so a KEEP_LAST
+    # declaration could never be verified in a conformance check.
     qos:
-      history: KEEP_LAST
-      depth: 10
+      history: SYSTEM_DEFAULT
       reliability: RELIABLE
 
 service_servers:
