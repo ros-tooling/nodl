@@ -426,7 +426,7 @@ A generated node with a `lifecycle: true` base creates its subscriptions and ser
 Each `sub_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Subscription<MessageT>>`, and each `srv_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Service<ServiceT>>`.
 The constructor initializes them with the same `on_<name>` callback binding as a node that is not a lifecycle node, and each subscription with the same QoS.
 The members are private, so only the generated class touches them.
-Subscriptions are created in the order they appear in the NoDL document, then service servers, ahead of the members of an authored subclass.
+Within each kind, endpoints are created in the order they appear in the NoDL document.
 
 Each service client and action client exists for the lifetime of the node, and the node hands it out only while it is active.
 The `cli_<name>_` member is a protected `nodl_runtime_cpp::Gated<rclcpp::Client<ServiceT>>`, and the `action_cli_<name>_` member is a protected `nodl_runtime_cpp::Gated<rclcpp_action::Client<ActionT>>`.
@@ -440,7 +440,7 @@ if (auto client = cli_trigger_.get()) {
 ```
 
 Because the client exists from construction, it is discoverable and matches its server while the node is inactive.
-Service clients are initialized first, then action clients, ahead of the subscriptions.
+Service clients are created first, then action clients, then subscriptions, then service servers, ahead of the members of an authored subclass.
 
 The base class named by `class` must be or derive from `nodl_runtime_cpp::LifecycleNode`, as the node in `nodl://nodl_common_interfaces/lifecycle_node` is.
 Otherwise the generated code does not compile.
