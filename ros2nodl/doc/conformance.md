@@ -20,13 +20,15 @@ reason. Semantic differences are aggregated and sorted for stable diagnostics.
 
 ## Deployment expectations
 
-Python callers pass `params_files=[...]` and `parameters=['name:=value', ...]` to `conformance_report`, `check_conformance`, or `assert_conforms` to check explicit parameter expectations.
-These inputs describe expectations and do not modify the running node.
+`nodl_add_conformance_test` and `ros2nodl.testing.conformance_test` check the explicit parameters they pass to node startup.
+This works with both C++ and Python node executables.
+The CMake helper passes its existing `PARAMETERS_FILE` and `PARAMETERS` inputs both to the executable and to the checker.
+Python callers pass `params_files=[...]` and `parameters=['name:=value', ...]` to `conformance_report`, `check_conformance`, or `assert_conforms`.
 
 Configuration is resolved by ROS itself, including YAML types, nested parameter names, node selectors, and wildcard selectors.
 It does not use PyYAML's interpretation of inline strings: for example, ROS reads `1_000` as a string.
 Invalid configuration fails before live observation.
-Files are passed in order, followed by inline items.
+Files are passed in order, followed by inline items, exactly as in the CMake launch helper.
 Native ROS selector precedence applies: a node-specific file entry can win over an unqualified inline item even when the inline item appears last.
 Later values replace earlier values within the same selector.
 
@@ -151,8 +153,9 @@ All arguments are keywords.
 :`node_name`: Node name passed to the executable and used to construct its fully qualified name. Defaults to `executable`, which must then be a valid node name.
 :`node_namespace`: Namespace passed to the executable. Defaults to `/`.
 :`timeout`: Maximum time in seconds for the conformance check, a positive integer. Defaults to 15.
-:`parameters`: List of `name:=value` items passed to the node as `-p` arguments, applied after `parameters_files`.
-:`parameters_files`: List of absolute paths of YAML parameter files passed to the node.
+:`parameters`: List of `name:=value` items passed to the node as `-p` arguments and checked as explicit expectations.
+  Items follow `parameters_files`; native ROS selector precedence applies.
+:`parameters_files`: List of absolute paths of YAML parameter files passed to the node and checked as explicit expectations.
 :`ignore`: List of ignore rules, as for `--ignore`.
   Rules in `NODL_CONFORMANCE_IGNORE` apply as well, after these.
 

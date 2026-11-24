@@ -124,6 +124,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_conformance_pytest
     "${CMAKE_CURRENT_SOURCE_DIR}/../ros2nodl/doc/examples/conformance_example.py"
     TIMEOUT 60)
+  ament_add_pytest_test(test_parameter_expectations test/test_parameter_expectations.py TIMEOUT 90)
   ament_add_pytest_test(test_conformance_pytest_ignore test/test_conformance_pytest_ignore.py TIMEOUT 60)
   ament_add_pytest_test(test_conformance_pytest_mismatch test/test_conformance_pytest_mismatch.py TIMEOUT 60)
 

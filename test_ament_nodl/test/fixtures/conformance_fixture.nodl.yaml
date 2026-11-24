@@ -25,6 +25,7 @@ service_clients:
 parameters:
   limit:
     type: int
+    default_value: 1
     read_only: true
   mode:
     type: string
