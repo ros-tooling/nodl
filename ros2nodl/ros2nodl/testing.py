@@ -20,9 +20,10 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch_testing.actions import ReadyToTest
 
-from nodl_schema import IgnoreRule
+from nodl_schema import IgnoreRule, load_nodl
 from nodl_schema.composition import resolve, resolver_for
 from ros2nodl.conformance import assert_conforms, ignore_from_environment
+from ros2nodl.lifecycle import LifecycleError, activate_node, declares_lifecycle
 
 _NODE_NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 
@@ -83,6 +84,9 @@ def conformance_test(
     Both names are what ``launch_testing`` looks for in a test module.
     ``generate_test_description`` is marked ``launch_test`` so that pytest launches the executable before it runs the test case.
     The test case waits for the node, describes it, and fails with every difference from the document.
+    When the document declares the ``~/change_state`` service of ``lifecycle_msgs/srv/ChangeState``,
+    the test case first brings the node to active, so that endpoints created on activation are present.
+    A failed transition or a timeout fails the test with a message naming the node and its state.
     Both belong to the calling module, so reports name that module.
     Rules in the ``NODL_CONFORMANCE_IGNORE`` environment variable apply when the test runs, after ``ignore``.
 
@@ -126,6 +130,11 @@ def conformance_test(
 
     class TestNodlConformance(unittest.TestCase):
         def test_conformance(self):
+            if declares_lifecycle(load_nodl(Path(document))):
+                try:
+                    activate_node(node_fqn, timeout_sec=timeout)
+                except LifecycleError as error:
+                    self.fail(str(error))
             assert_conforms(
                 nodl_file=document,
                 node_fqn=node_fqn,

@@ -87,6 +87,9 @@ if(BUILD_TESTING)
 endif()
 ```
 
+A node whose document declares the lifecycle services is configured and activated before the check, so endpoints created on activation are present.
+See the `ros2nodl` conformance guide.
+
 Nodes with required parameters that have no default need them passed to start:
 
 ```cmake
