@@ -29,7 +29,7 @@ using lifecycle_msgs::msg::Transition;
 const std::chrono::seconds TIMEOUT(10);
 const char NODE_NAME[] = "cpp_lifecycle_node";
 
-/// Implements only what the generated base requires, and records what the subscriptions receive, and answers the service.
+/// Implements only what the generated base requires, records what the subscriptions receive, and answers the service.
 class TestNode : public CppLifecycleNodeBase
 {
   static_assert(

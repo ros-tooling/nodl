@@ -424,7 +424,7 @@ codegen:
 
 A generated node with a `lifecycle: true` base creates its subscriptions and service servers when the node activates and destroys them when it deactivates.
 Each `sub_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Subscription<MessageT>>`, and each `srv_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Service<ServiceT>>`.
-The constructor initializes them with the same QoS and `on_<name>` callback binding as a node that is not a lifecycle node.
+The constructor initializes them with the same `on_<name>` callback binding as a node that is not a lifecycle node, and each subscription with the same QoS.
 The members are private, so only the generated class touches them.
 Subscriptions are created in the order they appear in the NoDL document, then service servers, ahead of the members of an authored subclass.
 
