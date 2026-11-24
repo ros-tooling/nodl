@@ -116,6 +116,7 @@ def conformance_test(
         *(argument for item in items for argument in ('-p', item)),
     ]
     node_fqn = _node_fqn(node_namespace, node_name)
+    is_lifecycle = declares_lifecycle(load_nodl(Path(document)))
 
     def generate_test_description() -> LaunchDescription:
         node = Node(
@@ -130,7 +131,7 @@ def conformance_test(
 
     class TestNodlConformance(unittest.TestCase):
         def test_conformance(self):
-            if declares_lifecycle(load_nodl(Path(document))):
+            if is_lifecycle:
                 try:
                     activate_node(node_fqn, timeout_sec=timeout)
                 except LifecycleError as error:

@@ -107,11 +107,9 @@ def activate_node(node_fqn: str, *, timeout_sec: float = 15.0) -> None:
     def remaining() -> float:
         return max(0.0, deadline - time.monotonic())
 
-    try:
+    owns_context = not rclpy.ok()
+    if owns_context:
         rclpy.init()
-        owns_context = True
-    except RuntimeError:
-        owns_context = False
     try:
         node = rclpy.create_node(f'_ros2nodl_activate_{os.getpid()}', start_parameter_services=False)
         try:

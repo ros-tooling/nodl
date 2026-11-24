@@ -128,7 +128,7 @@ When the document declares the `~/change_state` service of type `lifecycle_msgs/
 A lifecycle node that creates its endpoints on activation then conforms without a launch-side transition.
 The test calls `<node>/get_state` and `<node>/change_state`.
 It configures the node only if it is unconfigured, activates it if it is inactive, and leaves an active node alone.
-The `timeout` argument bounds the transitions, and the check that follows has its own `timeout`.
+The `timeout` argument bounds the transitions, and the check that follows has its own `timeout`, so a test can take up to twice that long.
 
 The test fails, naming the node and the state it reached, if a transition fails or the services do not answer in time.
 `ros2nodl.lifecycle.activate_node` does the same for any node, from your own code.
