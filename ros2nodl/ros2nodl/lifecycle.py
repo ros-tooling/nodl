@@ -100,6 +100,7 @@ def activate_node(node_fqn: str, *, timeout_sec: float = 15.0) -> None:
     """
     import rclpy
     from lifecycle_msgs.srv import ChangeState, GetState
+    from rclpy.utilities import ok
 
     deadline = time.monotonic() + timeout_sec
     last_label = 'none'
@@ -107,7 +108,7 @@ def activate_node(node_fqn: str, *, timeout_sec: float = 15.0) -> None:
     def remaining() -> float:
         return max(0.0, deadline - time.monotonic())
 
-    owns_context = not rclpy.ok()
+    owns_context = not ok()
     if owns_context:
         rclpy.init()
     try:
@@ -124,7 +125,10 @@ def activate_node(node_fqn: str, *, timeout_sec: float = 15.0) -> None:
                     raise LifecycleError(
                         f'cannot activate {node_fqn}: no answer within {timeout_sec} s, the last state it reported was {last_label}'
                     )
-                return future.result()
+                result = future.result()
+                if result is None:
+                    raise LifecycleError(f'cannot activate {node_fqn}: {client.srv_name} returned no response')
+                return result
 
             def get_state() -> NodeState:
                 nonlocal last_label
