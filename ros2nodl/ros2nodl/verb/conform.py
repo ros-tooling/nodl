@@ -31,6 +31,23 @@ class ConformVerb(VerbExtension):
             help='Live discovery timeout in seconds (default: %(default)s).',
         )
         parser.add_argument(
+            '--params-file',
+            action='append',
+            default=[],
+            type=Path,
+            metavar='FILE',
+            help='ROS parameter file describing deployment expectations. Repeatable.',
+        )
+        parser.add_argument(
+            '-p',
+            '--param',
+            action='append',
+            default=[],
+            metavar='NAME:=VALUE',
+            help='Expected ROS parameter value. Repeatable; native ROS selector precedence applies.'
+            ' Does not modify the node.',
+        )
+        parser.add_argument(
             '--ignore',
             action='append',
             default=[],
@@ -49,6 +66,8 @@ class ConformVerb(VerbExtension):
                 node_fqn=args.node_name,
                 timeout_sec=args.timeout,
                 ignore=[*ignore_from_environment(os.environ), *args.ignore],
+                params_files=args.params_file,
+                parameters=args.param,
             )
         except Exception as exc:
             print(f'ros2 nodl conform: {exc}', file=sys.stderr)

@@ -15,6 +15,8 @@ def _args(**overrides):
         'file': Path('nodl/controller.nodl.yaml'),
         'timeout': 15.0,
         'ignore': [],
+        'params_file': [],
+        'param': [],
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -39,6 +41,8 @@ def test_conform_passes_runtime_arguments(monkeypatch, capsys):
             'node_fqn': '/robot/controller',
             'timeout_sec': 2.5,
             'ignore': ['publisher:/stats'],
+            'params_files': [],
+            'parameters': [],
         }
     ]
     assert capsys.readouterr().out == '/robot/controller: conforms\n'
@@ -127,3 +131,28 @@ def test_conform_ignore_is_repeatable_and_defaults_to_empty():
 
     assert args.ignore == ['publisher:/a', 'parameter:b.*']
     assert default.ignore == []
+
+
+def test_conform_configuration_inputs_are_repeatable_and_forwarded(monkeypatch):
+    parser = argparse.ArgumentParser()
+    ConformVerb().add_arguments(parser, 'ros2 nodl conform')
+    args = parser.parse_args([
+        '/node',
+        '--file',
+        'node.nodl.yaml',
+        '--params-file',
+        'base.yaml',
+        '--params-file',
+        'deployment.yaml',
+        '-p',
+        'rate:=20.0',
+        '--param',
+        'mode:=1_000',
+    ])
+    calls = []
+    import ros2nodl.conformance
+
+    monkeypatch.setattr(ros2nodl.conformance, 'assert_conforms', lambda **kwargs: calls.append(kwargs) or DiffReport())
+    assert ConformVerb().main(args=args) == 0
+    assert calls[0]['params_files'] == [Path('base.yaml'), Path('deployment.yaml')]
+    assert calls[0]['parameters'] == ['rate:=20.0', 'mode:=1_000']

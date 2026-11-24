@@ -3,7 +3,7 @@
 Check whether a running node conforms to an explicit NoDL document:
 
 ```console
-ros2 nodl conform NODE_NAME --file FILE [--timeout SEC] [--ignore RULE ...]
+ros2 nodl conform NODE_NAME --file FILE [--params-file FILE ...] [-p NAME:=VALUE ...] [--timeout SEC] [--ignore RULE ...]
 ```
 
 ```console
@@ -19,6 +19,10 @@ Description gaps become `unverifiable` differences with their original path and
 reason. Semantic differences are aggregated and sorted for stable diagnostics.
 
 ## Deployment expectations
+
+Repeat `--params-file` and `-p` / `--param` to check explicit configuration through `ros2 nodl conform`.
+These CLI inputs describe expectations and do not modify the running node.
+The CLI and test helpers use the same resolver and checker.
 
 `nodl_add_conformance_test` and `ros2nodl.testing.conformance_test` check the explicit parameters they pass to node startup.
 This works with both C++ and Python node executables.
@@ -42,6 +46,25 @@ Explicit framework parameters such as `use_sim_time` can also be checked.
 
 Without explicit configuration inputs, existing interface-only checks continue to ignore parameter values.
 Parameter constraints and QoS override policies are not evaluated by this value comparison.
+
+### CLI example
+
+The executable fixture in `test_ament_nodl/test/test_deployment_conformance.py` runs equivalent startup and checking inputs:
+
+```console
+ros2 run test_ament_nodl conformance_fixture_node --ros-args \
+  -r __ns:=/deployment -r __node:=fixture \
+  --params-file test_ament_nodl/test/fixtures/conformance_fixture_parameters.yaml
+```
+
+```console
+ros2 nodl conform /deployment/fixture \
+  --file test_ament_nodl/test/fixtures/conformance_fixture.nodl.yaml \
+  --params-file test_ament_nodl/test/fixtures/conformance_fixture_parameters.yaml
+```
+
+Adding `-p limit:=6` to the check fails because the node's current value is `5`.
+The fixture executes both the successful check and this failure case.
 
 ## Ignoring endpoints
 

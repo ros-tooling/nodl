@@ -119,6 +119,7 @@ if(BUILD_TESTING)
 
   find_package(launch_testing_ament_cmake REQUIRED)
   add_launch_test(test/test_conformance_ignore.py TIMEOUT 60)
+  add_launch_test(test/test_deployment_conformance.py TIMEOUT 90)
 
   # The documented example of ros2nodl.testing.conformance_test lives in the ros2nodl docs, so it stays tested.
   ament_add_pytest_test(test_conformance_pytest
