@@ -1,6 +1,9 @@
 {% set has_body = callback_groups or publishers or (subscriptions and not lifecycle) or (service_servers and not lifecycle) or (service_clients and not lifecycle) or action_servers or (action_clients and not lifecycle) or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
+{% if service_servers | selectattr("callback_group") | list %}
+#include <rclcpp/version.h>
+{% endif %}
 
 {% if namespace %}
 namespace {{ namespace }}
@@ -83,7 +86,13 @@ namespace {{ namespace }}
     "{{ srv.name }}",
     [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
       this->{{ srv.callback }}(req, res);
-    }{% if srv.callback_group %}, rmw_qos_profile_services_default, {{ srv.callback_group }}{% endif %});
+    }{% if srv.callback_group %},
+#if RCLCPP_VERSION_GTE(28, 0, 0)
+    rclcpp::ServicesQoS(),
+#else
+    rmw_qos_profile_services_default,
+#endif
+    {{ srv.callback_group }}{% endif %});
 {% endfor %}
 {% endif %}
 {% if service_clients and not lifecycle %}

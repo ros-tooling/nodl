@@ -203,6 +203,37 @@ TEST_F(CallbackGroups, ReentrantSubscriptionOverlapsItself)
   check<CallbackReentrantBase>(true, true);
 }
 
+// Inspect actual endpoint registration, independently of executor timing.
+template <typename Node>
+rclcpp::CallbackGroup::SharedPtr work_group(const std::shared_ptr<Node> & node)
+{
+  rclcpp::CallbackGroup::SharedPtr result;
+  node->get_node_base_interface()->for_each_callback_group([&result](rclcpp::CallbackGroup::SharedPtr group) {
+    if (group->find_subscription_ptrs_if([](const auto & subscription) {
+          const std::string topic = subscription->get_topic_name();
+          return topic.size() >= 5 && topic.compare(topic.size() - 5, 5, "/work") == 0;
+        }))
+    {
+      result = group;
+    }
+  });
+  return result;
+}
+
+TEST_F(CallbackGroups, LifecycleSubscriptionRetainsItsConfiguredGroup)
+{
+  auto processor = std::make_shared<Processor<CallbackLifecycleBase>>(node_options(), std::make_shared<WorkState>());
+  ASSERT_EQ(processor->configure().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
+  ASSERT_EQ(processor->activate().id(), LifecycleState::PRIMARY_STATE_ACTIVE);
+  const auto configured = work_group(processor);
+  ASSERT_NE(configured, nullptr);
+  EXPECT_NE(configured, processor->get_node_base_interface()->get_default_callback_group());
+  EXPECT_EQ(configured->type(), rclcpp::CallbackGroupType::MutuallyExclusive);
+  ASSERT_EQ(processor->deactivate().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
+  ASSERT_EQ(processor->activate().id(), LifecycleState::PRIMARY_STATE_ACTIVE);
+  EXPECT_EQ(work_group(processor), configured);
+}
+
 TEST_F(CallbackGroups, LifecycleKeepsGroupsAcrossTransitions)
 {
   auto options = node_options();

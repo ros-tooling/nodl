@@ -1,5 +1,6 @@
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "my_node_base.hpp"
+#include <rclcpp/version.h>
 
 MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
 : rclcpp::Node("my_node", options)
@@ -24,5 +25,11 @@ MyNodeBase::MyNodeBase(const rclcpp::NodeOptions & options)
     "status",
     [this](std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res) {
       this->on_status(req, res);
-    }, rmw_qos_profile_services_default, nodl_callback_group_control_);
+    },
+#if RCLCPP_VERSION_GTE(28, 0, 0)
+    rclcpp::ServicesQoS(),
+#else
+    rmw_qos_profile_services_default,
+#endif
+    nodl_callback_group_control_);
 }

@@ -180,3 +180,37 @@ Verification:
 No accepted metadata or ownership semantics were changed.
 Lyrical/Rolling remain CI verification, and final gated integration requires reconciliation with whichever lifecycle revisions merge.
 The draft PR must state those limits and must not claim the lifecycle stack has merged or close #232 on partial integration evidence.
+
+## Integration update: merged wrapper and managed subscriptions
+
+The feature branch is rebased onto main at `03c3b491e829d2491a61bf8edaa1fe83bf915e23`, which includes the merged #290 lifecycle wrapper.
+The earlier #270 gate composition above is historical evidence, not verification of the current managed-subscription design.
+PR #292 remains a separate draft dependency at `faaba7ddefec69293b3c0cac68d84175c0186a1e`.
+No #292 runtime, schema flag, or managed endpoint implementation is imported into this main-based feature.
+
+Lyrical and Rolling exposed a service creation API difference in the initial feature commit.
+Assigned service servers now use `rclcpp::ServicesQoS()` with rclcpp 28 and newer and the equivalent default RMW profile on older versions.
+Both calls preserve default service QoS and pass the configured group explicitly.
+Unassigned service creation remains unchanged.
+
+`LifecycleSubscriptionRetainsItsConfiguredGroup` inspects ROS endpoint registration, checks that the work subscription uses a nondefault mutually exclusive group, and checks the same group identity after deactivate/reactivate.
+The isolated #292 composition additionally asserts that no work subscription is registered while inactive, so the second assertion observes a recreated endpoint.
+
+Two integration edits are required when combining the templates with #292:
+
+- Forward `SubscriptionOptions.callback_group` inside the managed subscription creation lambda on every activation.
+  Capturing `this` accesses the retained group handle; do not capture constructor-local options by reference.
+- Include `callback_groups` in #292's `has_body` condition, so a lifecycle node containing only subscriptions still creates its groups in its constructor body.
+
+These edits belong to the eventual combined templates and are tested in the isolated composition.
+They cannot be applied to main's current constructor-only generation path without importing the draft implementation.
+Retain group members before managed endpoint members, so group handles outlive endpoint destruction and unregistration.
+The managed-subscription proposal leaves service servers unchanged; the historical gate-specific test is not a claim that services are gated by #292.
+
+Updated verification results:
+
+- Main-based Jazzy full suite: 843 reported checks with no failures and four existing skips, followed by a rebuilt runtime target that includes the new registration regression (seven cases, six passed and the historical gate case skipped).
+- Humble: regenerated outputs compiled and the same seven runtime cases completed with six passed and the historical gate case skipped.
+- Isolated #292 composition: eight runtime cases completed with seven passed and the historical gate case skipped, including group registration through reactivation and a subscription-only lifecycle node.
+- Negative control: replacing the managed factory's configured group with `nullptr` failed the new nondefault-group assertion; restoring the assignment passed.
+- Required formatting/lint checks passed after the regression addition.
