@@ -28,7 +28,8 @@ class ConformVerb(VerbExtension):
             metavar='SEC',
             type=float,
             default=_DEFAULT_TIMEOUT,
-            help='Live discovery timeout in seconds (default: %(default)s).',
+            help='Seconds to observe the node, and to wait for declared endpoints to be discovered.'
+            ' An observation takes about 4 s whatever the timeout, so the command can run longer (default: %(default)s).',
         )
         parser.add_argument(
             '--ignore',

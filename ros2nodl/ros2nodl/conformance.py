@@ -4,12 +4,18 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from nodl_schema import Difference, DiffReport, IgnoreRule, diff_report, load_nodl
 
 IGNORE_ENVIRONMENT_VARIABLE = 'NODL_CONFORMANCE_IGNORE'
+_RETRY_INTERVAL_SEC = 0.5
+# An observation given less time than this drops the parameters it did not reach in time.
+# Parameters complete within about 0.8 s on an idle machine, so this allows for a loaded one.
+_MIN_ATTEMPT_SEC = 2.0
+_PARAMETERS_SECTION = 'parameters'
 
 
 def ignore_from_environment(environ: Mapping[str, str]) -> list[str]:
@@ -43,6 +49,12 @@ def _sort_key(difference: Difference) -> tuple[str, str, str, str]:
     return difference.section, difference.name, difference.kind, difference.detail
 
 
+def _only_missing_endpoints(differences: list[Difference]) -> bool:
+    return bool(differences) and all(
+        'missing' == difference.kind and _PARAMETERS_SECTION != difference.section for difference in differences
+    )
+
+
 def conformance_report(
     *,
     nodl_file: str,
@@ -55,6 +67,11 @@ def conformance_report(
     ``ignore`` rules leave observed entities that the document does not declare out of the differences,
     and list them in ``ignored``.
     See :class:`nodl_schema.IgnoreRule` for the rule syntax.
+
+    While the only differences are expected endpoints that were not observed, the node is observed again,
+    until they are discovered or fewer than two seconds of ``timeout_sec`` remain for another observation.
+    An observation takes about four seconds of wall time whatever its timeout, so the call can outlast ``timeout_sec``.
+    The report of the last complete observation is returned.
     """
     from ros2nodl.infrastructure import strip_infrastructure
 
@@ -62,16 +79,30 @@ def conformance_report(
     expected = strip_infrastructure(_load_document(nodl_file))
 
     from ros2nodl.describe import DescribeOptions, describe_node
+    from ros2nodl.describe._source import SourceError
 
-    result = describe_node(
-        node_fqn,
-        timeout_sec=timeout_sec,
-        options=DescribeOptions(include_parameters=True, keep_hidden=False),
-    )
-    report = diff_report(expected, result.doc, node_fqn=node_fqn, ignore=rules)
-    differences = [_gap_difference(gap) for gap in result.gaps]
-    differences.extend(report.differences)
-    return DiffReport(sorted(differences, key=_sort_key), report.ignored)
+    options = DescribeOptions(include_parameters=True, keep_hidden=False)
+    deadline = time.monotonic() + timeout_sec
+    remaining = timeout_sec
+    report = None
+    while True:
+        try:
+            result = describe_node(node_fqn, timeout_sec=remaining, options=options)
+        except SourceError:
+            if report is None:
+                raise
+            return report
+        compared = diff_report(expected, result.doc, node_fqn=node_fqn, ignore=rules)
+        differences = [_gap_difference(gap) for gap in result.gaps]
+        differences.extend(compared.differences)
+        report = DiffReport(sorted(differences, key=_sort_key), compared.ignored)
+        if (
+            not _only_missing_endpoints(report.differences)
+            or deadline - time.monotonic() - _RETRY_INTERVAL_SEC < _MIN_ATTEMPT_SEC
+        ):
+            return report
+        time.sleep(_RETRY_INTERVAL_SEC)
+        remaining = deadline - time.monotonic()
 
 
 def check_conformance(
