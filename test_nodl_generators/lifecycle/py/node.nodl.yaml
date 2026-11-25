@@ -9,3 +9,17 @@ publishers:
       history: KEEP_LAST
       depth: 10
       reliability: RELIABLE
+subscriptions:
+  - name: cmd
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: BEST_EFFORT
+  - name: latched
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 1
+      reliability: RELIABLE
+      durability: TRANSIENT_LOCAL

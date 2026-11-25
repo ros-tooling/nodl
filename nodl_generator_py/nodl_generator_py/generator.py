@@ -32,11 +32,7 @@ class PythonGeneration:
     sources: list[Path]
 
 
-_DEFAULT_BASE = CodegenPython(
-    role=Role.BASE_CLASS,
-    module='rclpy.node',
-    **{'class': 'Node'},
-)
+_DEFAULT_BASE = CodegenPython.parse_obj({'role': Role.BASE_CLASS, 'module': 'rclpy.node', 'class': 'Node'})
 
 
 def _snake_to_pascal(name: str) -> str:
@@ -232,6 +228,8 @@ def _render_python(
     action_clients = _endpoints(doc.action_clients, imports, 'action', 'action_cli_')
     if subscriptions or service_servers or action_servers:
         imports.add('import abc')
+    if base.lifecycle and subscriptions:
+        imports.add('from nodl_runtime_py.managed import Managed')
     if action_servers or action_clients:
         imports.add('import rclpy.action')
     qos_endpoints = (
@@ -254,6 +252,7 @@ def _render_python(
         class_name=_snake_to_pascal(target_name),
         base_class=base.class_,
         publisher_method=base.publisher_method,
+        lifecycle=bool(base.lifecycle),
         node_name=_target_to_node_name(target_name),
         imports=sorted(imports, key=lambda value: (value.startswith('from '), value)),
         params_module=f'{target_name}_parameters' if doc.parameters else None,

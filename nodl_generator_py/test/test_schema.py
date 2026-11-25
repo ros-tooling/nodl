@@ -32,6 +32,15 @@ def test_load_base_class_defaults_publisher_method():
     assert config.publisher_method == 'create_publisher'
 
 
+def test_lifecycle_defaults_to_false():
+    assert load(_base()).lifecycle is False
+
+
+@pytest.mark.parametrize('lifecycle', [True, False])
+def test_load_lifecycle(lifecycle):
+    assert load(_base(lifecycle=lifecycle)).lifecycle is lifecycle
+
+
 def test_load_no_generate():
     config = load(_no_generate())
     assert isinstance(config, CodegenPython)
@@ -50,6 +59,7 @@ def test_load_no_generate():
         _base(**{'class': 'class'}),
         _base(publisher_method='not-valid'),
         _base(publisher_method='for'),
+        _base(lifecycle='yes'),
         _base(extra=True),
         {'python': {'role': 'BASE_CLASS', 'module': 'rclpy.node'}},
     ],
@@ -65,6 +75,7 @@ def test_invalid_metadata_fails(codegen):
         ('module', 'rclpy.node'),
         ('class', 'Node'),
         ('publisher_method', 'create_publisher'),
+        ('lifecycle', True),
     ],
 )
 def test_no_generate_rejects_base_class_fields(field, value):

@@ -25,6 +25,14 @@ properties:
     type: string
     pattern: ^[A-Za-z_][A-Za-z0-9_]*$
     default: create_publisher
+  lifecycle:
+    description: |
+      If the node is a lifecycle node, make the generated base class create its subscriptions when the node activates
+      and destroy them when it deactivates, by declaring each as a ``nodl_runtime_py.managed.Managed`` member.
+      The base class named by ``class`` must be or derive from ``nodl_runtime_py.lifecycle.LifecycleNode``,
+      or the generated module fails when the node is constructed.
+    type: boolean
+    default: false
 
 allOf:
   - if:
@@ -39,3 +47,4 @@ allOf:
           - required: [module]
           - required: [class]
           - required: [publisher_method]
+          - required: [lifecycle]

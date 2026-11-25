@@ -208,3 +208,88 @@ def test_root_python_provider_metadata_is_rejected(tmp_path, role):
 
     with pytest.raises(CodegenError, match=f'root document has codegen.python role {role}'):
         generate_python(root, 'example_node_base')
+
+
+_LIFECYCLE_ROOT = """nodl_version: 2
+include:
+  - ref: local://base.nodl.yaml
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos: {history: KEEP_LAST, depth: 10, reliability: RELIABLE}
+subscriptions:
+  - name: cmd
+    type: std_msgs/msg/String
+    qos: {history: KEEP_LAST, depth: 1, reliability: BEST_EFFORT}
+  - name: latched
+    type: std_msgs/msg/String
+    qos: {history: KEEP_LAST, depth: 1, reliability: RELIABLE, durability: TRANSIENT_LOCAL}
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger
+"""
+
+
+def _lifecycle_base(path: Path, lifecycle: str) -> Path:
+    return _write(
+        path,
+        f"""nodl_version: 2
+codegen:
+  python:
+    role: BASE_CLASS
+    module: nodl_runtime_py.lifecycle
+    class: LifecycleNode
+    publisher_method: create_lifecycle_publisher
+{lifecycle}
+""",
+    )
+
+
+def test_lifecycle_base_declares_subscriptions_as_managed(tmp_path):
+    _lifecycle_base(tmp_path / 'base.nodl.yaml', '    lifecycle: true')
+    root = _write(tmp_path / 'root.nodl.yaml', _LIFECYCLE_ROOT)
+
+    module = generate_python(root, 'lifecycle_node_base').module
+
+    assert 'from nodl_runtime_py.managed import Managed' in module
+    for name in ('cmd', 'latched'):
+        assert f'self.sub_{name} = Managed(' in module
+        assert f'self.sub_{name} = self.create_subscription(' not in module
+        assert 'lambda: self.create_subscription(' in module
+        assert f'self.on_{name},' in module
+    assert module.count('self.destroy_subscription,') == 2
+    assert 'durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL' in module
+    assert module.index('self.sub_cmd = ') < module.index('self.sub_latched = ')
+    assert 'self.pub_status = self.create_lifecycle_publisher(' in module
+    assert 'self.srv_trigger = self.create_service(' in module
+    compile(module, 'lifecycle_node_base.py', 'exec')
+
+
+@pytest.mark.parametrize('lifecycle', ['', '    lifecycle: false'])
+def test_non_lifecycle_base_creates_subscriptions_directly(tmp_path, lifecycle):
+    _lifecycle_base(tmp_path / 'base.nodl.yaml', lifecycle)
+    root = _write(tmp_path / 'root.nodl.yaml', _LIFECYCLE_ROOT)
+
+    module = generate_python(root, 'lifecycle_node_base').module
+
+    assert 'Managed' not in module
+    assert 'destroy_subscription' not in module
+    assert 'self.sub_cmd = self.create_subscription(' in module
+    assert 'self.sub_latched = self.create_subscription(' in module
+
+
+def test_lifecycle_base_without_subscriptions_does_not_import_managed(tmp_path):
+    _lifecycle_base(tmp_path / 'base.nodl.yaml', '    lifecycle: true')
+    root = _write(
+        tmp_path / 'root.nodl.yaml',
+        """nodl_version: 2
+include:
+  - ref: local://base.nodl.yaml
+publishers:
+  - name: status
+    type: std_msgs/msg/String
+    qos: {history: KEEP_LAST, depth: 10, reliability: RELIABLE}
+""",
+    )
+
+    assert 'Managed' not in generate_python(root, 'lifecycle_node_base').module

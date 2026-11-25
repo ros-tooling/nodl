@@ -24,12 +24,25 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
         )
     {% endfor %}
     {% for sub in subscriptions %}
+    {% if lifecycle %}
+        self.{{ sub.member_name }} = Managed(
+            self,
+            lambda: self.create_subscription(
+                {{ sub.py_type }},
+                '{{ sub.name }}',
+                self.{{ sub.callback_name }},
+                {{ sub.qos_py | indent(16) }},
+            ),
+            self.destroy_subscription,
+        )
+    {% else %}
         self.{{ sub.member_name }} = self.create_subscription(
             {{ sub.py_type }},
             '{{ sub.name }}',
             self.{{ sub.callback_name }},
             {{ sub.qos_py | indent(12) }},
         )
+    {% endif %}
     {% endfor %}
     {% for service in service_servers %}
         self.{{ service.member_name }} = self.create_service(
