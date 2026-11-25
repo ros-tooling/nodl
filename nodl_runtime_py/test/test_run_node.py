@@ -242,6 +242,7 @@ def test_lifecycle_example_notifies_through_its_gated_client(run_script):
         deadline = time.monotonic() + 15
         while not requests and time.monotonic() < deadline:
             rclpy.spin_once(probe, timeout_sec=0.1)
+        # The example's first call, from handle_activate, may precede discovery, so this is the timer call.
         assert requests, 'the example did not call the notify service'
     finally:
         probe.destroy_node()

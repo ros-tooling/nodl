@@ -15,7 +15,7 @@ from nodl_runtime_py.lifecycle import LifecycleNode
 class Greeter(LifecycleNode):
     """Greet from a timer that runs between handle_activate and handle_deactivate, and greet each name received while active.
 
-    It also calls a service from handle_activate and from the timer, through a client that is handed out only while the node is active.
+    It also calls a service from handle_activate, once the service is discovered, and from the timer, through a client that is handed out only while the node is active.
     """
 
     def __init__(self):
@@ -34,7 +34,9 @@ class Greeter(LifecycleNode):
 
     def handle_activate(self, state: LifecycleState) -> TransitionCallbackReturn:
         self._greet('everyone')
-        self._notify()
+        # Discovery takes time, so a call right after startup can be lost, and this one only goes out if the service is already matched.
+        if (client := self._cli_notify.get()) is not None and client.wait_for_service(timeout_sec=0.0):
+            client.call_async(Trigger.Request())
         # Create timers last, so that a failing hook leaves none of them firing.
         self._timer = self.create_timer(1.0, self._on_timer)
         return TransitionCallbackReturn.SUCCESS

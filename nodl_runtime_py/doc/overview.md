@@ -110,7 +110,7 @@ Construct it in `__init__` with the node and the entity:
 ```{literalinclude} examples/lifecycle_node.py
 :language: python
 :dedent: 8
-:start-at: if (client := self._cli_notify.get())
+:start-at: # The client is None while
 :end-at: client.call_async
 ```
 
@@ -123,11 +123,13 @@ Construct it in `__init__` with the node and the entity:
 
 `Gated` registers an activation slot like `Managed`, and `Gated` and `Managed` members register in construction order together.
 Constructing a `Gated` while the node is activating or active raises `RuntimeError`.
+A slot cannot be unregistered, so construct `Gated` members for the lifetime of the node.
 
 Together with `Managed`, this gives the rule for a lifecycle node: while it is not active, it sends no outgoing traffic and serves no incoming traffic.
 Publishers are created in `__init__` as `rclpy` lifecycle publishers, which block publishing while the node is inactive.
 
-An entity that exists while the node is inactive is discovered and matched from construction, so `wait_for_service` in `handle_activate` usually returns at once.
+An entity that exists while the node is inactive is discovered and matched from construction, but discovery takes time, so a call made from `handle_activate` right after startup can be sent before the service is matched and is lost.
+Call `wait_for_service` first, or call from a timer or a callback that runs later.
 
 ### State transitions
 
