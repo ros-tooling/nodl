@@ -1,4 +1,4 @@
-{% set has_body = publishers or (subscriptions and not lifecycle) or (service_servers and not lifecycle) or service_clients or action_servers or action_clients or has_parameters %}
+{% set has_body = publishers or (subscriptions and not lifecycle) or (service_servers and not lifecycle) or (service_clients and not lifecycle) or action_servers or (action_clients and not lifecycle) or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
 
@@ -13,6 +13,12 @@ namespace {{ namespace }}
 , params_(param_listener_.get_params())
 {% endif %}
 {% if lifecycle %}
+{% for cli in service_clients %}
+, {{ cli.member }}(*this, this->create_client<{{ cli.cpp_type }}>("{{ cli.name }}"))
+{% endfor %}
+{% for cli in action_clients %}
+, {{ cli.member }}(*this, rclcpp_action::create_client<{{ cli.cpp_type }}>(this, "{{ cli.name }}"))
+{% endfor %}
 {% for sub in subscriptions %}
 , {{ sub.member }}(*this, [this] {
     return this->create_subscription<{{ sub.cpp_type }}>(
@@ -65,7 +71,7 @@ namespace {{ namespace }}
     });
 {% endfor %}
 {% endif %}
-{% if service_clients %}
+{% if service_clients and not lifecycle %}
 
   // Create service clients
 {% for cli in service_clients %}
@@ -90,7 +96,7 @@ namespace {{ namespace }}
     });
 {% endfor %}
 {% endif %}
-{% if action_clients %}
+{% if action_clients and not lifecycle %}
 
   // Create action clients
 {% for cli in action_clients %}

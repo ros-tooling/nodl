@@ -426,13 +426,27 @@ A generated node with a `lifecycle: true` base creates its subscriptions and ser
 Each `sub_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Subscription<MessageT>>`, and each `srv_<name>_` member is a `nodl_runtime_cpp::Managed<rclcpp::Service<ServiceT>>`.
 The constructor initializes them with the same `on_<name>` callback binding as a node that is not a lifecycle node, and each subscription with the same QoS.
 The members are private, so only the generated class touches them.
-Subscriptions are created in the order they appear in the NoDL document, then service servers, ahead of the members of an authored subclass.
+Within each kind, endpoints are created in the order they appear in the NoDL document.
+
+Each service client and action client exists for the lifetime of the node, and the node hands it out only while it is active.
+The `cli_<name>_` member is a protected `nodl_runtime_cpp::Gated<rclcpp::Client<ServiceT>>`, and the `action_cli_<name>_` member is a protected `nodl_runtime_cpp::Gated<rclcpp_action::Client<ActionT>>`.
+The constructor creates the client with the same name as a node that is not a lifecycle node.
+`get()` returns the client while the node is active and null otherwise, so the authored class checks the result before it calls:
+
+```cpp
+if (auto client = cli_trigger_.get()) {
+  client->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>());
+}
+```
+
+Because the client exists from construction, it is discoverable and matches its server while the node is inactive.
+Service clients are created first, then action clients, then subscriptions, then service servers, ahead of the members of an authored subclass.
 
 The base class named by `class` must be or derive from `nodl_runtime_cpp::LifecycleNode`, as the node in `nodl://nodl_common_interfaces/lifecycle_node` is.
 Otherwise the generated code does not compile.
 See the `nodl_runtime_cpp` overview for when these endpoints are created and destroyed relative to the lifecycle hooks.
 
-Publishers, service clients, action servers and action clients are created in the constructor as for any other node.
+Publishers and action servers are created in the constructor as for any other node.
 
 A `transient_local` subscription of a lifecycle node receives its latched messages after the node activates, and not while it is unconfigured or inactive.
 While the node is unconfigured or inactive its subscriptions and service servers are absent from the graph, so conformance of such a node needs it configured and activated first.
@@ -440,6 +454,10 @@ While the node is unconfigured or inactive its subscriptions and service servers
 Migration: `BREAKING CHANGE:` a node derived from `nodl://nodl_common_interfaces/lifecycle_node` no longer has its subscriptions or service servers while it is unconfigured or inactive.
 Messages published in those states, including latched messages, are not delivered to the `on_<name>` callbacks until the node activates.
 Service requests sent in those states are not served, and the services are not discoverable.
+
+Migration: `BREAKING CHANGE:` the service clients and action clients of such a node are `Gated` members and no longer `SharedPtr` members.
+Replace `cli_x_->call(...)` with `if (auto client = cli_x_.get()) { client->call(...); }`, and the same for `action_cli_x_`.
+`get()` is null while the node is unconfigured or inactive, so calls are not sent in those states.
 
 ### Namespace
 

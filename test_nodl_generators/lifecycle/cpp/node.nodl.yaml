@@ -1,5 +1,5 @@
 ---
-# LifecycleNode base class with a publisher and subscriptions, one of them latched.
+# LifecycleNode base class with a publisher, subscriptions (one of them latched), a service server and clients.
 
 nodl_version: 2
 
@@ -33,3 +33,11 @@ subscriptions:
 service_servers:
   - name: trigger
     type: std_srvs/srv/Trigger
+
+service_clients:
+  - name: ping
+    type: std_srvs/srv/Trigger
+
+action_clients:
+  - name: count
+    type: example_interfaces/action/Fibonacci
