@@ -9,6 +9,8 @@ import rclpy
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.node import Node
 
+from nodl_runtime_py.lifecycle import LifecycleNode as HookLifecycleNode
+
 READY = 'ready'
 SHUTDOWN = 'on_shutdown called'
 CONTEXT_SHUTDOWN = 'context shutdown'
@@ -161,3 +163,18 @@ class ParameterNode(Node):
     def _on_timer(self, greeting):
         self._timer.cancel()
         print(f'{READY} {greeting}', flush=True)
+
+
+class HookedNode(HookLifecycleNode):
+    """Print READY once activated, and print when shut down, using the hooks."""
+
+    def __init__(self):
+        super().__init__('hooked_node')
+
+    def handle_activate(self, state):
+        print(READY, flush=True)
+        return TransitionCallbackReturn.SUCCESS
+
+    def handle_shutdown(self, state):
+        print(SHUTDOWN, flush=True)
+        return TransitionCallbackReturn.SUCCESS

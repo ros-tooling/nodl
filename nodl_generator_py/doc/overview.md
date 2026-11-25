@@ -319,20 +319,23 @@ publishers:
       reliability: RELIABLE
 ```
 
-This generates a subclass of `rclpy.lifecycle.LifecycleNode`.
+This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
 The constructor still creates all parameters and entities.
 Subscriptions, services, clients, and actions do not become lifecycle-managed.
 
 The generator does not emit transition callbacks.
-The default `rclpy` callbacks activate and deactivate managed publishers.
-If an application subclass overrides a transition callback and wants that default behavior, it must call and return the corresponding `super()` callback:
+The base class seals the `on_*` callbacks, so an authored subclass that defines one raises `TypeError`.
+It overrides the `handle_*` hooks instead, and the base class keeps the standard behavior, such as activating the lifecycle publishers:
 
 ```python
-def on_activate(self, state):
-    # Add application-specific activation work before or after this call.
-    return super().on_activate(state)
+def handle_activate(self, state):
+    # Add application-specific activation work.
+    return TransitionCallbackReturn.SUCCESS
 ```
+
+The `nodl_runtime_py` overview describes the hooks and the order of the transitions.
+A package that generates a lifecycle node declares `nodl_runtime_py` as an `exec_depend`, as for any generated Python node.
 
 ## Parameters
 
