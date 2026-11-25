@@ -65,6 +65,14 @@ def test_lifecycle_node_is_activated(start_node):
     assert 0 == code, output
 
 
+def test_nodl_lifecycle_node_is_activated_and_shut_down_on_exit(start_node):
+    node = start_node('HookedNode')
+    node.wait_ready()
+    code, output = node.stop()
+    assert 0 == code, output
+    assert fixture_nodes.SHUTDOWN in output
+
+
 def test_lifecycle_node_is_shut_down_on_exit(start_node):
     node = start_node('ShutdownHookNode')
     node.wait_ready()
@@ -210,3 +218,12 @@ def test_handler_not_installed_from_python_is_restored_as_default(monkeypatch):
     finally:
         for sig, handler in original.items():
             install(sig, handler)
+
+
+def test_lifecycle_example_greets_while_active(run_script):
+    node = run_script(EXAMPLES_DIR / 'lifecycle_node.py')
+    node.wait_ready('greeted everyone')
+    node.wait_ready('greeted again')
+    code, output = node.stop()
+    assert 0 == code, output
+    assert 'goodbye' in output

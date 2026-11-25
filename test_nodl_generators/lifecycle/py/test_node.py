@@ -12,6 +12,8 @@ from rclpy.lifecycle import LifecycleNode, LifecyclePublisher, TransitionCallbac
 from rclpy.node import Node
 from std_msgs.msg import String
 
+from nodl_runtime_py.lifecycle import LifecycleNode as NodlLifecycleNode
+
 
 @pytest.fixture
 def ros_context():
@@ -40,6 +42,7 @@ def test_generated_publisher_follows_lifecycle_transitions(ros_context):
     executor.add_node(harness)
     try:
         assert isinstance(node, LifecycleNode)
+        assert isinstance(node, NodlLifecycleNode)
         assert isinstance(node.pub_lifecycle_status, LifecyclePublisher)
         assert _spin_until(executor, lambda: node.pub_lifecycle_status.get_subscription_count() > 0)
 
@@ -48,6 +51,7 @@ def test_generated_publisher_follows_lifecycle_transitions(ros_context):
 
         assert node.trigger_configure() == TransitionCallbackReturn.SUCCESS
         assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+        assert node.activations == 1
         node.pub_lifecycle_status.publish(String(data='active'))
         assert _spin_until(executor, lambda: received == ['active'])
 
