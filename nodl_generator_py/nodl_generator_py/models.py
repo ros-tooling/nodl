@@ -43,5 +43,5 @@ class CodegenPython(BaseModel):
     publisher_method: Optional[constr(regex=r'^[A-Za-z_][A-Za-z0-9_]*$')] = 'create_publisher'
     lifecycle: Optional[bool] = Field(
         False,
-        description='If the node is a lifecycle node, make the generated base class create its subscriptions when the node activates\nand destroy them when it deactivates, by declaring each as a ``nodl_runtime_py.managed.Managed`` member.\nThe base class named by ``class`` must be or derive from ``nodl_runtime_py.lifecycle.LifecycleNode``,\nor the generated module fails when the node is constructed.\n',
+        description='If the node is a lifecycle node, make the generated base class create its subscriptions and service servers when the node activates\nand destroy them when it deactivates, by declaring each as a ``nodl_runtime_py.managed.Managed`` member.\nThe base class named by ``class`` must be or derive from ``nodl_runtime_py.lifecycle.LifecycleNode``,\nor the generated module fails when the node is constructed.\n',
     )

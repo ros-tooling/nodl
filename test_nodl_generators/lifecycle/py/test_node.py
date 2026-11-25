@@ -1,11 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""Runtime test for generated managed lifecycle publishers."""
+"""Runtime test for generated lifecycle publishers, subscriptions and service servers."""
 
 import time
 
 import pytest
 import rclpy
+from example_interfaces.srv import AddTwoInts
 from node_impl import GeneratedLifecycleNode
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, LifecyclePublisher, TransitionCallbackReturn
@@ -154,3 +155,29 @@ def test_generated_subscription_receives_only_while_active(lifecycle_rig):
     assert _spin_until(executor, lambda: cmd.get_subscription_count() == 0)
     cmd.publish(String(data='inactive'))
     assert not _spin_until(executor, lambda: len(node.cmd_received) > 1, timeout=0.3)
+
+
+def test_service_server_is_served_only_while_active(lifecycle_rig):
+    node, harness, executor = lifecycle_rig
+    client = harness.create_client(AddTwoInts, '/lifecycle_add')
+
+    def served():
+        future = client.call_async(AddTwoInts.Request(a=2, b=3))
+        return _spin_until(executor, future.done, timeout=2.0) and future.result().sum == 5
+
+    assert not _spin_until(executor, client.service_is_ready, timeout=0.3)
+    assert node.trigger_configure() == TransitionCallbackReturn.SUCCESS
+    assert not _spin_until(executor, client.service_is_ready, timeout=0.3)
+
+    assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+    assert _spin_until(executor, client.service_is_ready)
+    assert node.srv_lifecycle_add
+    assert served()
+
+    assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS
+    assert _spin_until(executor, lambda: not client.service_is_ready())
+    assert not node.srv_lifecycle_add
+
+    assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+    assert _spin_until(executor, client.service_is_ready)
+    assert served()

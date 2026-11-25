@@ -245,7 +245,7 @@ codegen:
     )
 
 
-def test_lifecycle_base_declares_subscriptions_as_managed(tmp_path):
+def test_lifecycle_base_declares_subscriptions_and_service_servers_as_managed(tmp_path):
     _lifecycle_base(tmp_path / 'base.nodl.yaml', '    lifecycle: true')
     root = _write(tmp_path / 'root.nodl.yaml', _LIFECYCLE_ROOT)
 
@@ -261,12 +261,17 @@ def test_lifecycle_base_declares_subscriptions_as_managed(tmp_path):
     assert 'durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL' in module
     assert module.index('self.sub_cmd = ') < module.index('self.sub_latched = ')
     assert 'self.pub_status = self.create_lifecycle_publisher(' in module
-    assert 'self.srv_trigger = self.create_service(' in module
+    assert 'self.srv_trigger = Managed(' in module
+    assert 'lambda: self.create_service(' in module
+    assert 'self.on_trigger,' in module
+    assert module.count('self.destroy_service,') == 1
+    assert 'self.srv_trigger = self.create_service(' not in module
+    assert module.index('self.sub_latched = ') < module.index('self.srv_trigger = ')
     compile(module, 'lifecycle_node_base.py', 'exec')
 
 
 @pytest.mark.parametrize('lifecycle', ['', '    lifecycle: false'])
-def test_non_lifecycle_base_creates_subscriptions_directly(tmp_path, lifecycle):
+def test_non_lifecycle_base_creates_endpoints_directly(tmp_path, lifecycle):
     _lifecycle_base(tmp_path / 'base.nodl.yaml', lifecycle)
     root = _write(tmp_path / 'root.nodl.yaml', _LIFECYCLE_ROOT)
 
@@ -274,6 +279,8 @@ def test_non_lifecycle_base_creates_subscriptions_directly(tmp_path, lifecycle):
 
     assert 'Managed' not in module
     assert 'destroy_subscription' not in module
+    assert 'destroy_service' not in module
+    assert 'self.srv_trigger = self.create_service(' in module
     assert 'self.sub_cmd = self.create_subscription(' in module
     assert 'self.sub_latched = self.create_subscription(' in module
 
@@ -293,3 +300,25 @@ publishers:
     )
 
     assert 'Managed' not in generate_python(root, 'lifecycle_node_base').module
+
+
+def test_lifecycle_base_with_only_service_servers_imports_managed(tmp_path):
+    _lifecycle_base(tmp_path / 'base.nodl.yaml', '    lifecycle: true')
+    root = _write(
+        tmp_path / 'root.nodl.yaml',
+        """nodl_version: 2
+include:
+  - ref: local://base.nodl.yaml
+service_servers:
+  - name: trigger
+    type: std_srvs/srv/Trigger
+    qos: {history: KEEP_LAST, depth: 5, reliability: RELIABLE}
+""",
+    )
+
+    module = generate_python(root, 'lifecycle_node_base').module
+
+    assert 'from nodl_runtime_py.managed import Managed' in module
+    assert 'self.srv_trigger = Managed(' in module
+    assert 'qos_profile=rclpy.qos.QoSProfile(' in module
+    compile(module, 'lifecycle_node_base.py', 'exec')

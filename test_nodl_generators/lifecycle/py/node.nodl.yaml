@@ -23,3 +23,6 @@ subscriptions:
       depth: 1
       reliability: RELIABLE
       durability: TRANSIENT_LOCAL
+service_servers:
+  - name: /lifecycle_add
+    type: example_interfaces/srv/AddTwoInts
