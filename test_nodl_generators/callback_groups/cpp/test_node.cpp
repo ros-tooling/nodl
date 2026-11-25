@@ -7,7 +7,6 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <type_traits>
 #include <utility>
 
 #include "gtest/gtest.h"
@@ -45,15 +44,7 @@ struct WorkState
 template <typename Base>
 class Processor : public Base
 {
-  template <typename T>
-  static auto detect_gate(int) -> decltype(std::declval<T &>().gate(), std::true_type{});
-  template <typename>
-  static auto detect_gate(...) -> std::false_type;
-
 public:
-  // The upstream gated base is optional until its lifecycle stack merges.
-  static constexpr bool activation_gated = decltype(detect_gate<Processor>(0))::value;
-
   Processor(const rclcpp::NodeOptions & options, std::shared_ptr<WorkState> state)
   : Base(options)
   , state_(std::move(state))
@@ -222,18 +213,40 @@ TEST_F(CallbackGroups, ReentrantGroupAllowsDistinctEndpointsToOverlap)
   exercise(processor, options, state, entered, true);
 }
 
-TEST_F(CallbackGroups, LifecycleSubscriptionRetainsItsConfiguredGroup)
+TEST_F(CallbackGroups, ManagedEndpointsReuseTheirConfiguredGroups)
 {
   auto processor = std::make_shared<Processor<CallbackLifecycleBase>>(node_options(), std::make_shared<WorkState>());
+  const auto status_name = std::string(processor->get_namespace()) + "/status";
+  const auto status_group = [&] {
+    rclcpp::CallbackGroup::SharedPtr result;
+    processor->get_node_base_interface()->for_each_callback_group([&](rclcpp::CallbackGroup::SharedPtr group) {
+      if (group->find_service_ptrs_if([&](const auto & service) { return service->get_service_name() == status_name; }))
+      {
+        result = group;
+      }
+    });
+    return result;
+  };
   ASSERT_EQ(processor->configure().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
+  EXPECT_EQ(work_group(processor), nullptr);
+  EXPECT_EQ(status_group(), nullptr);
   ASSERT_EQ(processor->activate().id(), LifecycleState::PRIMARY_STATE_ACTIVE);
-  const auto configured = work_group(processor);
-  ASSERT_NE(configured, nullptr);
-  EXPECT_NE(configured, processor->get_node_base_interface()->get_default_callback_group());
-  EXPECT_EQ(configured->type(), rclcpp::CallbackGroupType::MutuallyExclusive);
+  const auto work = work_group(processor);
+  const auto status = status_group();
+  ASSERT_NE(work, nullptr);
+  ASSERT_NE(status, nullptr);
+  const auto default_group = processor->get_node_base_interface()->get_default_callback_group();
+  EXPECT_NE(work, default_group);
+  EXPECT_NE(status, default_group);
+  EXPECT_NE(work, status);
+  EXPECT_EQ(work->type(), rclcpp::CallbackGroupType::MutuallyExclusive);
+  EXPECT_EQ(status->type(), rclcpp::CallbackGroupType::MutuallyExclusive);
   ASSERT_EQ(processor->deactivate().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
+  EXPECT_EQ(work_group(processor), nullptr);
+  EXPECT_EQ(status_group(), nullptr);
   ASSERT_EQ(processor->activate().id(), LifecycleState::PRIMARY_STATE_ACTIVE);
-  EXPECT_EQ(work_group(processor), configured);
+  EXPECT_EQ(work_group(processor), work);
+  EXPECT_EQ(status_group(), status);
 }
 
 TEST_F(CallbackGroups, LifecycleKeepsGroupsAcrossTransitions)
@@ -249,49 +262,6 @@ TEST_F(CallbackGroups, LifecycleKeepsGroupsAcrossTransitions)
   ASSERT_EQ(processor->configure().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
   ASSERT_EQ(processor->activate().id(), LifecycleState::PRIMARY_STATE_ACTIVE);
   exercise(processor, options, state, entered, true);
-}
-
-TEST_F(CallbackGroups, LifecycleHonorsActivationGate)
-{
-  if constexpr (!Processor<CallbackLifecycleBase>::activation_gated) {
-    GTEST_SKIP() << "The selected lifecycle provider does not have an activation gate";
-  }
-
-  auto options = node_options();
-  auto state = std::make_shared<WorkState>();
-  auto entered = state->entered.get_future();
-  auto processor = std::make_shared<Processor<CallbackLifecycleBase>>(options, state);
-  auto driver = std::make_shared<rclcpp::Node>("driver", options);
-  auto publisher = driver->create_publisher<Work>("work", 10);
-  auto client = driver->create_client<Status>("status");
-  RunningExecutor running(state);
-  running.start(processor, driver);
-  ASSERT_TRUE(client->wait_for_service(5s));
-  const auto deadline = std::chrono::steady_clock::now() + 5s;
-  while (publisher->get_subscription_count() == 0 && std::chrono::steady_clock::now() < deadline) {
-    std::this_thread::sleep_for(10ms);
-  }
-  ASSERT_EQ(publisher->get_subscription_count(), 1u);
-
-  publisher->publish(Work{});
-  EXPECT_EQ(entered.wait_for(300ms), std::future_status::timeout);
-  auto inactive = client->async_send_request(std::make_shared<Status::Request>());
-  EXPECT_EQ(inactive.wait_for(300ms), std::future_status::timeout);
-  client->remove_pending_request(inactive.request_id);
-
-  ASSERT_EQ(processor->configure().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
-  ASSERT_EQ(processor->activate().id(), LifecycleState::PRIMARY_STATE_ACTIVE);
-  publisher->publish(Work{});
-  ASSERT_EQ(entered.wait_for(5s), std::future_status::ready);
-  auto active = client->async_send_request(std::make_shared<Status::Request>());
-  ASSERT_EQ(active.wait_for(3s), std::future_status::ready);
-  EXPECT_TRUE(active.get()->success);
-
-  // Deactivation may overlap admitted work; it must not wait for this handler.
-  ASSERT_EQ(processor->deactivate().id(), LifecycleState::PRIMARY_STATE_INACTIVE);
-  auto deactivated = client->async_send_request(std::make_shared<Status::Request>());
-  EXPECT_EQ(deactivated.wait_for(300ms), std::future_status::timeout);
-  client->remove_pending_request(deactivated.request_id);
 }
 
 }  // namespace

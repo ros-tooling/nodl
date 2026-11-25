@@ -514,9 +514,8 @@ Unassigned endpoints retain the node's default callback group.
 Omitting the metadata preserves the existing generated code.
 This first version does not assign clients, actions, lifecycle infrastructure, or parameter infrastructure, and does not expose the generated groups to subclasses.
 
-Callback groups govern scheduling, not lifecycle admission.
-They do not bypass an activation gate, stop an already-running handler, or make lifecycle hooks mutually exclusive with handlers in other groups.
-Groups remain attached across lifecycle transitions.
+For lifecycle nodes, the generated base reuses the same callback groups each time it creates its managed subscriptions and service servers on activation.
+Callbacks in separate groups may overlap lifecycle hooks, so synchronize shared application state when required.
 
 The executable fixture covers defaults, shared groups, separate groups, distinct endpoints in a reentrant group, and lifecycle transitions:
 

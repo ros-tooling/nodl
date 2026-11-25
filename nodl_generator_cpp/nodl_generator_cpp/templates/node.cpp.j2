@@ -42,7 +42,13 @@ namespace {{ namespace }}
       "{{ srv.name }}",
       [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
         this->{{ srv.callback }}(req, res);
-      });
+      }{% if srv.callback_group %},
+#if RCLCPP_VERSION_GTE(28, 0, 0)
+      rclcpp::ServicesQoS(),
+#else
+      rmw_qos_profile_services_default,
+#endif
+      {{ srv.callback_group }}{% endif %});
   })
 {% endfor %}
 {% endif %}

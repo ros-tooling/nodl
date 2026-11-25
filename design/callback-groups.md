@@ -230,3 +230,10 @@ The Lyrical/Rolling limitation is documented in the author guide; NoDL does not 
 Verification after the accepted update: the seven-case runtime target passed on Jazzy and unmodified Lyrical, with only the existing historical gate case skipped.
 The new distinct-endpoint reentrant test also passed 100 repeated runs on Lyrical with Cyclone DDS.
 The isolated #292 composition passed its eight runtime cases with the same historical gate skip, including the managed registration and subscription-only lifecycle checks.
+
+## Rebase onto merged lifecycle support
+
+Main at `c5fcb9e` includes managed subscriptions (#292) and managed service servers (#305).
+The earlier isolated composition and gate results are historical.
+The generator creates each configured group once and forwards it every time a managed endpoint is created.
+The runtime test checks that both endpoints disappear on deactivation and reappear in their original groups on reactivation.

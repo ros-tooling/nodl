@@ -58,7 +58,6 @@ endif()
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_pytest REQUIRED)
-  find_package(ament_cmake_gtest REQUIRED)
 
   foreach(variant defaults shared separate reentrant lifecycle)
     nodl_generate_cpp(callback_${variant}_base STATIC NO_INDEX
