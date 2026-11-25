@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """A lifecycle node with sealed transition callbacks and optional ``handle_*`` hooks."""
 
-from typing import Any, final
+from dataclasses import dataclass
+from typing import Any, Callable, final
 
 from rclpy.lifecycle import LifecycleNode as RclpyLifecycleNode
 from rclpy.lifecycle import LifecycleState, TransitionCallbackReturn
@@ -18,19 +19,41 @@ _SEALED_CALLBACKS = (
 )
 
 
+@dataclass(frozen=True)
+class _Slot:
+    """A pair of functions that create and destroy one endpoint."""
+
+    id: int
+    create: Callable[[], None]
+    destroy: Callable[[], None]
+
+
 class LifecycleNode(RclpyLifecycleNode):
-    """A lifecycle node with sealed ``on_*`` transition callbacks and ``handle_*`` hooks.
+    """A lifecycle node with sealed ``on_*`` transition callbacks, ``handle_*`` hooks and an activation registry.
 
     Derive it and override the ``handle_*`` hooks that need custom behavior.
     Each hook takes the previous ``LifecycleState`` and returns a ``TransitionCallbackReturn``.
     The ``on_*`` transition callbacks run the standard lifecycle management of ``rclpy``, for example activating lifecycle publishers, and call the hooks.
     A subclass that defines an ``on_*`` callback raises ``TypeError`` naming the hook to define instead when the class is defined.
 
+    The registry creates endpoints when the node activates and destroys them when it deactivates.
+    Create a ``Managed`` member for each endpoint, in the order the endpoints must be created.
+    ``add_activation_slot`` is the underlying primitive.
+
     See the ``nodl_runtime_py`` overview for the order on each transition.
     """
 
     # True from a successful activation until ``handle_deactivate`` runs, so shutdown and error know whether it is still owed.
     _nodl_deactivate_pending = False
+    # True from the start of the creation of the slots until they are destroyed.
+    _nodl_slots_locked = False
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # The registry exists before the base class constructor, which a subclass may extend with slots of its own.
+        self._nodl_slots: list[_Slot] = []
+        self._nodl_next_slot_id = 0
+        self._nodl_created_slots = 0
+        super().__init__(*args, **kwargs)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -49,20 +72,25 @@ class LifecycleNode(RclpyLifecycleNode):
 
     @final
     def on_activate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """Move from inactive to active. Runs the standard activation, then calls ``handle_activate``.
+        """Move from inactive to active. Runs the standard activation, creates the slots, then calls ``handle_activate``.
 
-        When ``handle_activate`` does not return SUCCESS or raises, the standard deactivation runs.
+        When ``handle_activate`` does not return SUCCESS or raises, the slots are destroyed and the standard deactivation runs.
         A result other than SUCCESS is returned, and an exception propagates.
+        A slot that raises rolls back the slots created before it, and the exception propagates.
         """
+        self._nodl_deactivate_pending = False
         base_result = super().on_activate(state)
         if TransitionCallbackReturn.SUCCESS != base_result:
             return base_result
         try:
+            self._activate_slots()
             hook_result = self.handle_activate(state)
         except BaseException:
+            self._deactivate_slots()
             super().on_deactivate(state)
             raise
         if TransitionCallbackReturn.SUCCESS != hook_result:
+            self._deactivate_slots()
             super().on_deactivate(state)
         else:
             self._nodl_deactivate_pending = True
@@ -70,12 +98,13 @@ class LifecycleNode(RclpyLifecycleNode):
 
     @final
     def on_deactivate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """Move from active to inactive. Calls ``handle_deactivate``, then runs the standard deactivation if it succeeded."""
+        """Move from active to inactive. Calls ``handle_deactivate``, then destroys the slots and runs the standard deactivation if it succeeded."""
         self._nodl_deactivate_pending = False
         hook_result = self.handle_deactivate(state)
         if TransitionCallbackReturn.SUCCESS != hook_result:
             self._nodl_deactivate_pending = True
             return hook_result
+        self._deactivate_slots()
         return super().on_deactivate(state)
 
     @final
@@ -87,7 +116,7 @@ class LifecycleNode(RclpyLifecycleNode):
     def on_shutdown(self, state: LifecycleState) -> TransitionCallbackReturn:
         """End the active state, then call ``handle_shutdown``.
 
-        From the active state this runs ``handle_deactivate`` and the standard deactivation first.
+        From the active state this runs ``handle_deactivate``, destroys the slots and runs the standard deactivation first.
         A shutdown cannot be vetoed, so the result of ``handle_deactivate`` is ignored and an exception from it is logged.
         """
         self._end_active_state(state)
@@ -98,25 +127,44 @@ class LifecycleNode(RclpyLifecycleNode):
         """End the active state, then call ``handle_error``.
 
         From the active state this runs ``handle_deactivate`` first, unless an exception from it caused the error,
-        then the standard deactivation.
+        then destroys the slots and runs the standard deactivation.
         The result of ``handle_deactivate`` is ignored and an exception from it is logged.
         """
         self._end_active_state(state)
         return self.handle_error(state)
+
+    def add_activation_slot(self, create: Callable[[], None], destroy: Callable[[], None]) -> int:
+        """Register a pair of functions that create and destroy an endpoint with the node's activation.
+
+        ``create`` runs at activation in registration order, after the standard activation and before ``handle_activate``.
+        ``destroy`` runs in reverse registration order at deactivation, shutdown and error,
+        and when ``handle_activate`` fails or a later slot raises.
+        ``destroy`` runs only for a slot whose ``create`` returned, and an exception from it is logged.
+        A ``create`` that raises must leave nothing behind.
+
+        :return: The opaque id of the slot.
+        :raises RuntimeError: When called while the node is activating or active.
+        """
+        if self._nodl_slots_locked:
+            raise RuntimeError('slots can be registered only while the node is not active')
+        slot = _Slot(self._nodl_next_slot_id, create, destroy)
+        self._nodl_next_slot_id += 1
+        self._nodl_slots.append(slot)
+        return slot.id
 
     def handle_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
         """Called on the configure transition."""
         return TransitionCallbackReturn.SUCCESS
 
     def handle_activate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """Called on the activate transition, after the standard activation.
+        """Called on the activate transition, after the standard activation and the creation of the slots.
 
         FAILURE leaves the node inactive, and ERROR runs ``handle_error``.
         """
         return TransitionCallbackReturn.SUCCESS
 
     def handle_deactivate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """Called on the deactivate transition, before the standard deactivation.
+        """Called on the deactivate transition, before the slots are destroyed.
 
         FAILURE leaves the node active, and ERROR runs ``handle_error``.
         It also runs before shutdown and error from the active state, where the result is ignored.
@@ -128,18 +176,18 @@ class LifecycleNode(RclpyLifecycleNode):
         return TransitionCallbackReturn.SUCCESS
 
     def handle_shutdown(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """Called on the shutdown transition, after the standard deactivation."""
+        """Called on the shutdown transition, after the slots are destroyed."""
         return TransitionCallbackReturn.SUCCESS
 
     def handle_error(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """Called on the error transition, after the standard deactivation.
+        """Called on the error transition, after the slots are destroyed.
 
         SUCCESS takes the node to the unconfigured state, and any other result finalizes it.
         """
         return TransitionCallbackReturn.SUCCESS
 
     def _end_active_state(self, state: LifecycleState) -> None:
-        """Run the deactivation that shutdown and error need: the authored hook if the node is active, then the standard one."""
+        """Run the deactivation that shutdown and error need: the authored hook if the node is active, then the slots and the standard deactivation."""
         if self._nodl_deactivate_pending:
             self._nodl_deactivate_pending = False
             try:
@@ -147,4 +195,31 @@ class LifecycleNode(RclpyLifecycleNode):
                     self.get_logger().warning('handle_deactivate did not succeed, and the shutdown continues')
             except Exception as error:
                 self.get_logger().error(f'handle_deactivate raised, and the shutdown continues: {error!r}')
+        self._deactivate_slots()
         super().on_deactivate(state)
+
+    def _activate_slots(self) -> None:
+        """Create the slots in order, and destroy the created ones in reverse if one raises."""
+        self._nodl_slots_locked = True
+        while self._nodl_created_slots < len(self._nodl_slots):
+            try:
+                self._nodl_slots[self._nodl_created_slots].create()
+            except BaseException:
+                self._deactivate_slots()
+                raise
+            self._nodl_created_slots += 1
+
+    def _deactivate_slots(self) -> None:
+        """Destroy the created slots in reverse, and do nothing when the slots are not active.
+
+        Destroying an entity wakes the executor that spins the node, so the executor releases the entity.
+        """
+        if not self._nodl_slots_locked:
+            return
+        while self._nodl_created_slots:
+            self._nodl_created_slots -= 1
+            try:
+                self._nodl_slots[self._nodl_created_slots].destroy()
+            except Exception as error:
+                self.get_logger().error(f'Destroying an activation slot failed: {error!r}')
+        self._nodl_slots_locked = False
