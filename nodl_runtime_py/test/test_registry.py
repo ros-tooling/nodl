@@ -10,6 +10,7 @@ import pytest
 import rclpy
 from lifecycle_msgs.msg import Transition
 from lifecycle_msgs.srv import ChangeState
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.lifecycle import TransitionCallbackReturn as Result
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -192,6 +193,24 @@ def test_a_raising_destroyer_is_logged_and_the_others_still_run(node):
     assert ['deactivate', *DESTROYED] == node.events
 
 
+def test_add_activation_slot_returns_increasing_ids(rclpy_context):
+    node = RegistryNode()
+    try:
+        assert [0, 1, 2] == [node.add_slot(name) for name in 'abc']
+    finally:
+        node.destroy_node()
+
+
+def test_a_raising_managed_destroy_is_logged_and_the_others_still_run(node):
+    node.add_activation_slot(lambda: node.events.append('create d'), lambda: node.events.append('destroy d'))
+    managed = Managed(node, lambda: object(), lambda entity: 1 / 0)
+    node.add_slot('e')
+    activate(node)
+    assert managed
+    assert SUCCESS == node.trigger_deactivate()
+    assert ['deactivate', 'destroy e', 'destroy d', *DESTROYED] == node.events
+
+
 def test_a_slot_registered_while_inactive_is_created_at_the_next_activation(node):
     activate(node)
     assert SUCCESS == node.trigger_deactivate()
@@ -239,6 +258,18 @@ def test_managed_creates_and_destroys_its_entity(rclpy_context):
     node.destroy_node()
 
 
+def test_managed_is_false_after_a_rolled_back_activation(rclpy_context):
+    node = RegistryNode()
+    managed = Managed(node, lambda: object(), lambda entity: None)
+    node.add_activation_slot(lambda: 1 / 0, lambda: None)
+    try:
+        assert SUCCESS == node.trigger_configure()
+        assert ERROR == node.trigger_activate()
+        assert not managed
+    finally:
+        node.destroy_node()
+
+
 def test_managed_members_register_in_construction_order(rclpy_context):
     node = RegistryNode()
     events = []
@@ -248,6 +279,70 @@ def test_managed_members_register_in_construction_order(rclpy_context):
     assert SUCCESS == node.trigger_activate()
     assert ['create first', 'create second'] == events
     node.destroy_node()
+
+
+class Mixin:
+    """Registers a slot after its own `super().__init__()` call, as a cooperative mixin does."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.events = []
+        self.add_activation_slot(lambda: self.events.append('create mixin'), lambda: None)
+
+
+class Derived(Mixin, LifecycleNode):
+    def __init__(self):
+        super().__init__('derived_node')
+        self.add_activation_slot(lambda: self.events.append('create derived'), lambda: None)
+
+
+class MixinBase(LifecycleNode):
+    def __init__(self, name):
+        super().__init__(name)
+        self.events = []
+        self.add_activation_slot(lambda: self.events.append('create base'), lambda: None)
+
+
+class Subclass(MixinBase):
+    def __init__(self):
+        super().__init__('subclass_node')
+        self.add_activation_slot(lambda: self.events.append('create subclass'), lambda: None)
+
+
+def test_a_mixin_ahead_of_the_base_registers_after_the_base_constructor(rclpy_context):
+    node = Derived()
+    try:
+        assert SUCCESS == node.trigger_configure()
+        assert SUCCESS == node.trigger_activate()
+        assert ['create mixin', 'create derived'] == node.events
+    finally:
+        node.destroy_node()
+
+
+def test_base_class_slots_are_created_before_subclass_slots(rclpy_context):
+    node = Subclass()
+    try:
+        assert SUCCESS == node.trigger_configure()
+        assert SUCCESS == node.trigger_activate()
+        assert ['create base', 'create subclass'] == node.events
+    finally:
+        node.destroy_node()
+
+
+class EarlyNode(LifecycleNode):
+    def __init__(self, register):
+        register(self)
+        super().__init__('early_node')
+
+
+def test_registering_a_slot_before_the_base_constructor_raises():
+    with pytest.raises(AttributeError):
+        EarlyNode(lambda node: node.add_activation_slot(lambda: None, lambda: None))
+
+
+def test_constructing_managed_before_the_base_constructor_raises():
+    with pytest.raises(AttributeError):
+        EarlyNode(lambda node: Managed(node, lambda: object(), lambda entity: None))
 
 
 class SubscribingNode(LifecycleNode):
@@ -315,6 +410,114 @@ def test_a_transient_local_sample_published_before_configure_is_delivered_after_
     finally:
         executor.shutdown()
         publisher_node.destroy_node()
+        node.destroy_node()
+
+
+class RecordingNode(LifecycleNode):
+    """Receives strings in a reentrant callback group, and records when each callback runs and when the subscription was destroyed."""
+
+    def __init__(self, name, topic):
+        super().__init__(name)
+        self.group = ReentrantCallbackGroup()
+        self.entries = []
+        self.destroyed_at = []
+        self.sub = Managed(
+            self,
+            lambda: self.create_subscription(
+                String, topic, lambda msg: self.entries.append(time.monotonic()), LATCHED, callback_group=self.group
+            ),
+            self.destroy_sub,
+        )
+
+    def destroy_sub(self, subscription):
+        self.destroy_subscription(subscription)
+        self.destroyed_at.append(time.monotonic())
+
+
+class Spinner:
+    """Spins an executor in a thread, and keeps an exception that ends the spin."""
+
+    def __init__(self, executor):
+        self.executor = executor
+        self.error = None
+        self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self):
+        try:
+            self.executor.spin()
+        except BaseException as error:  # noqa: BLE001
+            self.error = error
+
+    def start(self):
+        self.thread.start()
+
+    def stop(self):
+        self.executor.shutdown()
+        self.thread.join(TIMEOUT_S)
+        assert not self.thread.is_alive()
+        assert self.error is None
+
+
+def test_deactivation_under_a_multithreaded_executor_with_a_reentrant_callback_group(rclpy_context):
+    """Transitions requested over the service run on one executor thread while others run subscription callbacks.
+
+    The test cannot prove the absence of every race.
+    It fails when a destroyed subscription is used, which shows as an exception in the spinner or a crash.
+    A callback that is already running when `destroy_subscription` returns may still complete.
+    """
+    topic = f'reentrant_{uuid.uuid4().hex}'
+    name = f'reentrant_node_{uuid.uuid4().hex}'
+    node = RecordingNode(name, topic)
+    client_node = rclpy.create_node('reentrant_client')
+    publisher = client_node.create_publisher(String, topic, LATCHED)
+    client = client_node.create_client(ChangeState, f'/{name}/change_state')
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
+    client_executor = SingleThreadedExecutor()
+    client_executor.add_node(client_node)
+    spinner = Spinner(executor)
+    spinner.start()
+    stop_publishing = threading.Event()
+
+    def publish_continuously():
+        while not stop_publishing.is_set():
+            publisher.publish(String(data='sample'))
+            time.sleep(0.0005)
+
+    publishing = threading.Thread(target=publish_continuously, daemon=True)
+
+    def request(transition_id):
+        future = client.call_async(ChangeState.Request(transition=Transition(id=transition_id)))
+        assert spin_until(client_executor, future.done), f'transition {transition_id} did not complete'
+        assert future.result().success, f'transition {transition_id} failed'
+
+    try:
+        assert client.wait_for_service(timeout_sec=TIMEOUT_S)
+        request(Transition.TRANSITION_CONFIGURE)
+        publishing.start()
+        for _ in range(20):
+            request(Transition.TRANSITION_ACTIVATE)
+            assert node.sub
+            assert spin_until(
+                client_executor, lambda: len(node.entries) > 0 and node.entries[-1] > time.monotonic() - 0.1, 2.0
+            )
+            request(Transition.TRANSITION_DEACTIVATE)
+            assert not node.sub
+            destroyed_at = node.destroyed_at[-1]
+            # Let a callback that was already running finish, then watch for one that starts later.
+            time.sleep(0.05)
+            late = [entry for entry in node.entries if entry > destroyed_at + 0.05]
+            assert [] == late
+            node.entries.clear()
+            assert spinner.error is None
+        request(Transition.TRANSITION_ACTIVATE)
+        request(Transition.TRANSITION_ACTIVE_SHUTDOWN)
+        assert not node.sub
+    finally:
+        stop_publishing.set()
+        publishing.join(TIMEOUT_S)
+        spinner.stop()
+        client_node.destroy_node()
         node.destroy_node()
 
 

@@ -40,6 +40,9 @@ class LifecycleNode(RclpyLifecycleNode):
     Create a ``Managed`` member for each endpoint, in the order the endpoints must be created.
     ``add_activation_slot`` is the underlying primitive.
 
+    Call ``super().__init__()`` before constructing a ``Managed`` or calling ``add_activation_slot``, which raise ``AttributeError`` before it.
+
+    Transitions take no lock, and a timer that ``handle_activate`` creates is destroyed only if ``handle_deactivate`` destroys it.
     See the ``nodl_runtime_py`` overview for the order on each transition.
     """
 
@@ -49,7 +52,7 @@ class LifecycleNode(RclpyLifecycleNode):
     _nodl_slots_locked = False
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        # The registry exists before the base class constructor, which a subclass may extend with slots of its own.
+        # The registry exists before the rclpy constructor runs, so a cooperative mixin that registers a slot after its own super().__init__() call finds it.
         self._nodl_slots: list[_Slot] = []
         self._nodl_next_slot_id = 0
         self._nodl_created_slots = 0
@@ -199,20 +202,17 @@ class LifecycleNode(RclpyLifecycleNode):
         super().on_deactivate(state)
 
     def _activate_slots(self) -> None:
-        """Create the slots in order, and destroy the created ones in reverse if one raises."""
+        """Create the slots in order, and leave the destruction of the created ones to the caller if one raises."""
         self._nodl_slots_locked = True
         while self._nodl_created_slots < len(self._nodl_slots):
-            try:
-                self._nodl_slots[self._nodl_created_slots].create()
-            except BaseException:
-                self._deactivate_slots()
-                raise
+            self._nodl_slots[self._nodl_created_slots].create()
             self._nodl_created_slots += 1
 
     def _deactivate_slots(self) -> None:
         """Destroy the created slots in reverse, and do nothing when the slots are not active.
 
         Destroying an entity wakes the executor that spins the node, so the executor releases the entity.
+        This is rclpy behavior, verified on Jazzy only.
         """
         if not self._nodl_slots_locked:
             return

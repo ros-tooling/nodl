@@ -69,11 +69,20 @@ Slots follow these rules:
 - An exception from `destroy` is logged and the other slots are still destroyed.
 - A slot cannot be unregistered, so construct `Managed` members for the lifetime of the node.
 - Destroying a node while it is active destroys its endpoints through `destroy_node`, and no `destroy` runs.
-- Destroying an entity wakes the executor that spins the node, so the executor releases the entity.
+- Call `super().__init__()` before constructing a `Managed` or calling `add_activation_slot`, which raise `AttributeError` before it.
 
+`destroy` should be the `destroy_*` method of the node, for example `destroy_subscription`, which `rclpy` defers while an executor holds the entity.
+That `rclpy` behavior is verified on Jazzy only.
+
+A `Managed` does not expose its endpoint, because an incoming endpoint reaches the node through its callback.
+Pass the callback to `create`, as the example does with `create_subscription`.
+
+Transitions take no lock.
 A subscription or service server exists only while the node is active, so use it only where the node is active:
-callbacks in the default callback group, timers that `handle_activate` creates, and the hooks.
-That holds when transitions are requested through the lifecycle services, which an executor serializes with the default callback group.
+callbacks in the default callback group, and the hooks.
+A timer that `handle_activate` creates is destroyed only if `handle_deactivate` destroys it, because the registry does not.
+Transitions requested through the lifecycle services are serialized with callbacks in the default callback group, which is mutually exclusive.
+A callback in another callback group, such as a reentrant one, may run on another executor thread while a transition destroys its endpoint, and one that already started may finish after the transition returns.
 A transition that another thread requests by calling `trigger_activate()` or `trigger_deactivate()` directly is not serialized with the callbacks, and the endpoint is destroyed while a callback may use it.
 
 Creating endpoints on activation has these costs:
