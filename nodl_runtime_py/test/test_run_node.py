@@ -3,11 +3,14 @@
 
 import signal
 import threading
+import time
 from pathlib import Path
 
 import fixture_nodes
 import pytest
+import rclpy
 from rclpy.utilities import ok
+from std_srvs.srv import Trigger
 
 from nodl_runtime_py import run_node
 
@@ -227,3 +230,22 @@ def test_lifecycle_example_greets_while_active(run_script):
     code, output = node.stop()
     assert 0 == code, output
     assert 'goodbye' in output
+
+
+def test_lifecycle_example_notifies_through_its_gated_client(run_script):
+    requests = []
+    rclpy.init()
+    probe = rclpy.create_node('notify_probe')
+    probe.create_service(Trigger, 'notify', lambda request, response: requests.append(request) or response)
+    node = run_script(EXAMPLES_DIR / 'lifecycle_node.py')
+    try:
+        deadline = time.monotonic() + 15
+        while not requests and time.monotonic() < deadline:
+            rclpy.spin_once(probe, timeout_sec=0.1)
+        # The example's first call, from handle_activate, may precede discovery, so this is the timer call.
+        assert requests, 'the example did not call the notify service'
+    finally:
+        probe.destroy_node()
+        rclpy.shutdown()
+    code, output = node.stop()
+    assert 0 == code, output
