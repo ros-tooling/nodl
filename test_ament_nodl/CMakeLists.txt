@@ -117,6 +117,36 @@ if(BUILD_TESTING)
   set_property(TEST conformance_injected_environment APPEND PROPERTY
     ENVIRONMENT "NODL_CONFORMANCE_IGNORE=publisher:/topic_statistics")
 
+  find_package(rclcpp_lifecycle REQUIRED)
+  foreach(variant IN ITEMS "" "_autostart" "_failing")
+    add_executable(conformance_lifecycle${variant}_node src/conformance_lifecycle_node.cpp)
+    target_link_libraries(
+      conformance_lifecycle${variant}_node
+      PRIVATE
+        rclcpp::rclcpp
+        rclcpp_lifecycle::rclcpp_lifecycle
+        ${std_msgs_TARGETS})
+    install(TARGETS conformance_lifecycle${variant}_node DESTINATION lib/${PROJECT_NAME})
+  endforeach()
+  target_compile_definitions(conformance_lifecycle_autostart_node PRIVATE AUTOSTART)
+  target_compile_definitions(conformance_lifecycle_failing_node PRIVATE CONFIGURE_FAILS)
+
+  # The nodes start unconfigured and create their subscription on activation, so these pass only if the test activates them.
+  nodl_add_conformance_test(conformance_lifecycle
+    EXECUTABLE conformance_lifecycle_node
+    NODL_FILE test/fixtures/conformance_lifecycle.nodl.yaml
+    NODE_NAME lifecycle_fixture
+    NODE_NAMESPACE /conformance
+  )
+
+  # A node that is already active is not transitioned again.
+  nodl_add_conformance_test(conformance_lifecycle_active
+    EXECUTABLE conformance_lifecycle_autostart_node
+    NODL_FILE test/fixtures/conformance_lifecycle.nodl.yaml
+    NODE_NAME lifecycle_fixture
+    NODE_NAMESPACE /conformance_active
+  )
+
   find_package(launch_testing_ament_cmake REQUIRED)
   add_launch_test(test/test_conformance_ignore.py TIMEOUT 60)
 
@@ -126,6 +156,7 @@ if(BUILD_TESTING)
     TIMEOUT 60)
   ament_add_pytest_test(test_conformance_pytest_ignore test/test_conformance_pytest_ignore.py TIMEOUT 60)
   ament_add_pytest_test(test_conformance_pytest_mismatch test/test_conformance_pytest_mismatch.py TIMEOUT 60)
+  ament_add_pytest_test(test_conformance_pytest_lifecycle_failure test/test_conformance_pytest_lifecycle_failure.py TIMEOUT 60)
 
   ament_add_pytest_test(test_register_node test/test_register_node.py)
   ament_add_pytest_test(test_macro_rejection test/test_macro_rejection.py)

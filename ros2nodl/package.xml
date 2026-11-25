@@ -18,6 +18,8 @@
        ament_index_python to locate the binary.  (Previously transitive via the
        Python nodl_observe, which is now C++.) -->
   <depend>rclpy</depend>
+  <!-- activate_node brings a lifecycle node to active before a conformance test describes it. -->
+  <depend>lifecycle_msgs</depend>
   <depend>rosidl_runtime_py</depend>
   <depend>ament_index_python</depend>
   <!-- The conformance test helper ros2nodl.testing. -->

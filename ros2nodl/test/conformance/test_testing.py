@@ -24,6 +24,8 @@ def recorded(monkeypatch):
     calls = {'node': [], 'assert_conforms': []}
     monkeypatch.setattr(testing, 'Node', lambda **kwargs: calls['node'].append(kwargs) or kwargs)
     monkeypatch.setattr(testing, 'assert_conforms', lambda **kwargs: calls['assert_conforms'].append(kwargs))
+    calls['activate'] = []
+    monkeypatch.setattr(testing, 'activate_node', lambda *args, **kwargs: calls['activate'].append((args, kwargs)))
     return calls
 
 
@@ -200,3 +202,49 @@ def test_the_test_case_belongs_to_the_calling_module(document):
 def test_rejects_one_string_for_a_list(document, option):
     with pytest.raises(TypeError, match=f'{option} must be a list of strings'):
         testing.conformance_test(package='pkg', executable='node_exe', nodl=document, **{option: 'a:=1'})  # pyright: ignore[reportArgumentType]
+
+
+@pytest.fixture
+def lifecycle_document(tmp_path):
+    path = tmp_path / 'lifecycle.nodl.yaml'
+    path.write_text(
+        'nodl_version: 2\nservice_servers:\n  - name: ~/change_state\n    type: lifecycle_msgs/srv/ChangeState\n',
+        encoding='utf-8',
+    )
+    return path
+
+
+def test_a_lifecycle_document_activates_the_node_before_the_check(lifecycle_document, recorded, monkeypatch):
+    order = []
+    monkeypatch.setattr(testing, 'activate_node', lambda *args, **kwargs: order.append(('activate', args, kwargs)))
+    monkeypatch.setattr(testing, 'assert_conforms', lambda **kwargs: order.append(('assert_conforms',)))
+    _, test_case = testing.conformance_test(
+        package='pkg', executable='node_exe', nodl=lifecycle_document, node_namespace='/robot', timeout=40
+    )
+
+    _run_test_case(test_case)
+
+    assert order == [('activate', ('/robot/node_exe',), {'timeout_sec': 40}), ('assert_conforms',)]
+
+
+def test_a_document_without_the_lifecycle_services_activates_nothing(document, recorded):
+    _, test_case = testing.conformance_test(package='pkg', executable='node_exe', nodl=document)
+
+    _run_test_case(test_case)
+
+    assert recorded['activate'] == []
+
+
+def test_a_failed_activation_fails_the_test_without_checking(lifecycle_document, recorded, monkeypatch):
+    def fail(*args, **kwargs):
+        raise testing.LifecycleError(
+            'cannot activate /node_exe: the configure transition failed, and the node is unconfigured'
+        )
+
+    monkeypatch.setattr(testing, 'activate_node', fail)
+    _, test_case = testing.conformance_test(package='pkg', executable='node_exe', nodl=lifecycle_document)
+
+    with pytest.raises(AssertionError, match='/node_exe: the configure transition failed'):
+        _run_test_case(test_case)
+
+    assert recorded['assert_conforms'] == []

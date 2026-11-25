@@ -15,6 +15,10 @@ recursively through the standard `nodl_schema` resolvers before the node is
 described. An unresolved reference, invalid document, or merge collision stops
 the check before runtime observation. A description failure stops comparison.
 
+The node must be active for the check to see endpoints that it creates on activation, such as those of a lifecycle node.
+The command does not change the state of a node, so bring a lifecycle node to active first, for example with `ros2 lifecycle set`.
+A node that creates its endpoints on activation and is checked while inactive is reported with those endpoints `missing`.
+
 Description gaps become `unverifiable` differences with their original path and
 reason. Semantic differences are aggregated and sorted for stable diagnostics.
 
@@ -117,6 +121,17 @@ The document must be installed before the test runs, and it can come from a diff
 
 The call checks its arguments, the files they name, and the reference when the module is imported.
 A mistake raises there, and `pytest` reports a collection error that interrupts the whole test session of that package, not only this test.
+
+### Lifecycle nodes
+
+When the document declares the `~/change_state` service of type `lifecycle_msgs/srv/ChangeState`, as documents that include `nodl://nodl_common_interfaces/lifecycle_node` do, the test brings the node to active before it describes it.
+A lifecycle node that creates its endpoints on activation then conforms without a launch-side transition.
+The test calls `<node>/get_state` and `<node>/change_state`.
+It configures the node only if it is unconfigured, activates it if it is inactive, and leaves an active node alone.
+The `timeout` argument bounds the transitions, and the check that follows has its own `timeout`, so a test can take up to twice that long.
+
+The test fails, naming the node and the state it reached, if a transition fails or the services do not answer in time.
+`ros2nodl.lifecycle.activate_node` does the same for any node, from your own code.
 
 ### Arguments
 
