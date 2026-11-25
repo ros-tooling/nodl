@@ -63,8 +63,9 @@ jobs:
               selected = documented
           else:
               diff = subprocess.run(
-                  ["git", "diff", "--name-only", "HEAD^1", "HEAD"], check=True, capture_output=True, text=True
-              ).stdout.split()
+                  ["git", "diff", "-z", "--name-only", "HEAD^1", "HEAD"], check=True, capture_output=True, text=True
+              ).stdout.split("\0")
+              diff = [f for f in diff if f]
               if WORKFLOW in diff:
                   selected = documented
               else:
