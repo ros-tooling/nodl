@@ -5,14 +5,17 @@
 #include <chrono>
 #include <string>
 
+#include "nodl_runtime_cpp/gated.hpp"
 #include "nodl_runtime_cpp/managed.hpp"
 #include "rclcpp/create_publisher.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_srvs/srv/trigger.hpp"
 
 /// Example of a non-generated node that uses `nodl_runtime_cpp::LifecycleNode`.
 /**
  * It holds a latched publisher, a subscription that exists only while the node is active,
+ * a service client that is handed out only while the node is active,
  * and greets on a timer that runs between `handle_activate` and `handle_deactivate`.
  */
 class Greeter : public nodl_runtime_cpp::LifecycleNode
@@ -28,6 +31,9 @@ protected:
   CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/) override
   {
     greet("everyone");
+    if (auto client = cli_notify_.get()) {
+      client->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>());
+    }
     timer_ = create_wall_timer(std::chrono::seconds(1), [this] { greet("again"); });
     return CallbackReturn::SUCCESS;
   }
@@ -60,6 +66,8 @@ private:
       return create_subscription<std_msgs::msg::String>(
         "name", rclcpp::QoS(10), std::bind(&Greeter::on_name, this, std::placeholders::_1));
     }};
+  nodl_runtime_cpp::Gated<rclcpp::Client<std_srvs::srv::Trigger>> cli_notify_{
+    *this, create_client<std_srvs::srv::Trigger>("notify")};
   rclcpp::TimerBase::SharedPtr timer_;
 };
 

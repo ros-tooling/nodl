@@ -23,6 +23,9 @@ namespace nodl_runtime_cpp
 template <typename EntityT>
 class Managed;
 
+template <typename EntityT>
+class Gated;
+
 /// A lifecycle node with sealed transition callbacks, optional `handle_*` hooks and an activation registry.
 /**
  * Derive it and override the `handle_*` hooks that need custom behavior.
@@ -190,6 +193,8 @@ protected:
 private:
   template <typename EntityT>
   friend class Managed;
+  template <typename EntityT>
+  friend class Gated;
 
   struct Slot
   {

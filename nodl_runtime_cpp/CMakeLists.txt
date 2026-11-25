@@ -35,9 +35,12 @@ if(BUILD_TESTING)
     std_msgs::std_msgs
   )
 
+  ament_add_gtest(test_gated test/test_gated.cpp TIMEOUT 60)
+  target_link_libraries(test_gated ${PROJECT_NAME})
+
   # The documentation example is compiled but not installed or run.
   add_executable(lifecycle_node_example doc/examples/lifecycle_node.cpp)
-  target_link_libraries(lifecycle_node_example ${PROJECT_NAME} std_msgs::std_msgs)
+  target_link_libraries(lifecycle_node_example ${PROJECT_NAME} std_msgs::std_msgs std_srvs::std_srvs)
 endif()
 
 
