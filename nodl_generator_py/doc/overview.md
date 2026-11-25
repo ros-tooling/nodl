@@ -321,7 +321,7 @@ publishers:
 
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
-The constructor creates all parameters, publishers, services, clients and actions.
+The constructor creates all parameters, publishers, clients and actions, and creates or registers the subscriptions and services as described below.
 
 ### Subscriptions and service servers of lifecycle nodes
 
