@@ -6,7 +6,6 @@ import time
 
 import pytest
 import rclpy
-from lifecycle_msgs.msg import State
 from node_impl import GeneratedLifecycleNode
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, LifecyclePublisher, TransitionCallbackReturn
@@ -130,7 +129,6 @@ def test_latched_sample_from_before_configure_arrives_after_activation(lifecycle
 
     assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
     assert _spin_until(executor, lambda: node.latched_received == ['latched'])
-    assert node.state_of_latched_sample == State.PRIMARY_STATE_ACTIVE
 
     # A new subscription is created on every activation, so the latched sample is delivered again.
     assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS

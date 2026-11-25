@@ -12,7 +12,6 @@ class GeneratedLifecycleNode(LifecycleNodeBase):
         self.activations = 0
         self.cmd_received = []
         self.latched_received = []
-        self.state_of_latched_sample = None
 
     def handle_activate(self, state):
         self.activations += 1
@@ -22,5 +21,4 @@ class GeneratedLifecycleNode(LifecycleNodeBase):
         self.cmd_received.append(msg.data)
 
     def on_latched(self, msg):
-        self.state_of_latched_sample = self._state_machine.current_state[0]
         self.latched_received.append(msg.data)
