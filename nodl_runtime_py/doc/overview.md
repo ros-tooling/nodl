@@ -110,7 +110,7 @@ Construct it in `__init__` with the node and the entity:
 ```{literalinclude} examples/lifecycle_node.py
 :language: python
 :dedent: 8
-:start-at: # The client is None while
+:start-at: if (client := self._cli_notify.get
 :end-at: client.call_async
 ```
 
