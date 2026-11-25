@@ -20,6 +20,7 @@ It implements and marks as `final` the standard lifecycle methods (`on_configure
 It provides new optional hooks for node authors to add custom behavior on each transition: `handle_configure`, `handle_activate`, `handle_deactivate`, `handle_cleanup`, `handle_shutdown` and `handle_error`.
 Each hook takes the previous state and returns a `CallbackReturn` -- the default implementations just return `SUCCESS`.
 An authored subclass defines the hook that matches the transition instead of an `on_*` method.
+To move a handwritten lifecycle node to this class, see [Migrating a handwritten lifecycle node](https://nodl.readthedocs.io/en/latest/migrating-lifecycle-nodes.html).
 
 ### Endpoints created on activation
 

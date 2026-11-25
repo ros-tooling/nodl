@@ -445,6 +445,7 @@ Service clients are created first, then action clients, then subscriptions, then
 The base class named by `class` must be or derive from `nodl_runtime_cpp::LifecycleNode`, as the node in `nodl://nodl_common_interfaces/lifecycle_node` is.
 Otherwise the generated code does not compile.
 See the `nodl_runtime_cpp` overview for when these endpoints are created and destroyed relative to the lifecycle hooks.
+To move a handwritten lifecycle node to a generated one, see [Migrating a handwritten lifecycle node](https://nodl.readthedocs.io/en/latest/migrating-lifecycle-nodes.html).
 
 Publishers and action servers are created in the constructor as for any other node.
 

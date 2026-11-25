@@ -1,0 +1,24 @@
+---
+nodl_version: 2
+description: A lifecycle node that greets each name it receives while it is active.
+include:
+  - ref: nodl://nodl_common_interfaces/lifecycle_node
+publishers:
+  - name: greeting
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+      durability: VOLATILE
+subscriptions:
+  - name: name
+    type: std_msgs/msg/String
+    qos:
+      history: KEEP_LAST
+      depth: 10
+      reliability: RELIABLE
+      durability: VOLATILE
+service_clients:
+  - name: notify
+    type: std_srvs/srv/Trigger
