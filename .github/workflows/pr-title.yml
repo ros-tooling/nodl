@@ -1,0 +1,40 @@
+---
+name: PR title
+
+# Runs again when the title is edited or the PR leaves draft,
+# so a check that failed on a stale title is replaced.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+# Supersede obsolete runs for the same PR.
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            refactor
+            perf
+            docs
+            test
+            build
+            ci
+            style
+            chore
+            revert
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |-
+            The subject "{subject}" must start with a lowercase letter.
