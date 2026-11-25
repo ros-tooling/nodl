@@ -19,8 +19,77 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Computes the packages to document. A pull request builds the packages it changes plus every package
+  # that depends on one of them, since rosdoc2 imports a package and its dependencies to autodoc it.
+  # Pushes to main, manual runs and changes to this workflow build every package.
+  # A "documented package" is any package directory holding a rosdoc2.yaml.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.matrix.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull request ref is a merge commit, so its first parent is the base the diff is taken against.
+          fetch-depth: 2
+      - id: matrix
+        shell: python
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          import json, os, pathlib, subprocess, xml.etree.ElementTree as ET
+
+          WORKFLOW = ".github/workflows/rosdoc2.yml"
+          DEPEND_TAGS = {
+              "build_depend", "build_export_depend", "buildtool_depend", "buildtool_export_depend",
+              "depend", "doc_depend", "exec_depend",
+          }
+
+          # Test dependencies are left out, since documenting a package never runs its tests.
+          # Package directory -> name, skipping packages under a COLCON_IGNORE (such as doc examples).
+          ignored = [p.parent for p in pathlib.Path(".").rglob("COLCON_IGNORE")]
+          packages = {}
+          for manifest in sorted(pathlib.Path(".").rglob("package.xml")):
+              if not any(i in manifest.parents for i in ignored):
+                  packages[manifest.parent] = ET.parse(manifest).getroot().findtext("name")
+          names = set(packages.values())
+          dependencies = {
+              name: {e.text.strip() for e in ET.parse(d / "package.xml").getroot() if e.tag in DEPEND_TAGS} & names
+              for d, name in packages.items()
+          }
+          documented = {name for d, name in packages.items() if (d / "rosdoc2.yaml").is_file()}
+
+          if os.environ["EVENT_NAME"] != "pull_request":
+              selected = documented
+          else:
+              diff = subprocess.run(
+                  ["git", "diff", "--name-only", "HEAD^1", "HEAD"], check=True, capture_output=True, text=True
+              ).stdout.split()
+              if WORKFLOW in diff:
+                  selected = documented
+              else:
+                  # The innermost package directory owns a changed file. Dependents are added until a fixed point.
+                  selected = set()
+                  for f in diff:
+                      owners = [(d, n) for d, n in packages.items() if pathlib.Path(f).is_relative_to(d)]
+                      if owners:
+                          selected.add(max(owners, key=lambda o: len(o[0].parts))[1])
+                  size = -1
+                  while size != len(selected):
+                      size = len(selected)
+                      selected |= {n for n, deps in dependencies.items() if deps & selected}
+                  selected &= documented
+
+          result = json.dumps(sorted(selected))
+          print(f"packages: {result}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"packages={result}\n")
+
   rosdoc2:
     name: rosdoc2 build (${{ matrix.package }})
+    needs: changes
+    # An empty matrix fails the workflow, so a run with nothing to document skips this job instead.
+    if: needs.changes.outputs.packages != '[]'
     runs-on: ubuntu-latest
     # The jazzy image ships Python >= 3.11, so PEP 668 marks the system environment as externally managed.
     # rosdep installs pip dependencies globally as root, which pip then refuses; this opts those installs in.
@@ -30,21 +99,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # One job per documented package.
-        # A ROS-distro axis could be added here later to mirror the per-distro buildfarm.
-        package:
-          - nodl
-          - ament_nodl
-          - nodl_common_interfaces
-          - nodl_docgen
-          - nodl_generator_common
-          - nodl_generator_cpp
-          - nodl_generator_py
-          - nodl_observe
-          - nodl_runtime_cpp
-          - nodl_runtime_py
-          - nodl_schema
-          - ros2nodl
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
     container:
       # A ROS base image gives us ros2cli (ros2nodl imports it) and the ament build tooling already installed.
       image: ros:jazzy-ros-base
