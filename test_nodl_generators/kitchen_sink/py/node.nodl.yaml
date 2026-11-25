@@ -8,6 +8,7 @@ parameters:
     description: Prefix for echoed messages
 publishers:
   - name: /echo_out
+    alias: output
     type: std_msgs/msg/String
     qos:
       history: KEEP_LAST
@@ -15,6 +16,7 @@ publishers:
       reliability: RELIABLE
 subscriptions:
   - name: /echo_in
+    alias: input
     type: std_msgs/msg/String
     qos:
       history: KEEP_LAST
@@ -22,16 +24,20 @@ subscriptions:
       reliability: RELIABLE
 service_servers:
   - name: /add
+    alias: sum
     type: example_interfaces/srv/AddTwoInts
 service_clients:
   - name: /delegate_add
+    alias: delegate
     type: example_interfaces/srv/AddTwoInts
     qos:
       history: SYSTEM_DEFAULT
       reliability: SYSTEM_DEFAULT
 action_servers:
   - name: /fibonacci
+    alias: sequence
     type: example_interfaces/action/Fibonacci
 action_clients:
   - name: /delegate_fibonacci
+    alias: remote_sequence
     type: example_interfaces/action/Fibonacci

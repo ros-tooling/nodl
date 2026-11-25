@@ -34,9 +34,10 @@ def camel_to_snake(name: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def to_member_name(name: str) -> str:
+def to_member_name(name: str, alias: str | None = None) -> str:
     """Sanitise a ROS entity name for use as an identifier fragment.
 
+    An explicit alias is returned unchanged.
     Strips leading ``~/`` or ``/``, replaces remaining ``/`` with ``_``.
 
     >>> to_member_name('/rosout')
@@ -46,5 +47,16 @@ def to_member_name(name: str) -> str:
     >>> to_member_name('cmd_vel')
     'cmd_vel'
     """
+    if alias is not None:
+        return alias
     name = name.removeprefix('~/').lstrip('/')
     return name.replace('/', '_')
+
+
+def validate_generated_names(names: list[str]) -> None:
+    """Reject duplicate symbols before emitting a generated class."""
+    seen: set[str] = set()
+    for name in names:
+        if name in seen:
+            raise ValueError(f'generated endpoint name collision: {name!r}')
+        seen.add(name)

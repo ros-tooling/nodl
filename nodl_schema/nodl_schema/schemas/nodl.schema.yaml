@@ -201,6 +201,13 @@ definitions:
           required:
             - depth
 
+  endpointAlias:
+    type: string
+    description: |
+      Short name used for generated members and callbacks, preserving their type prefixes.
+      Does not change the ROS endpoint name.
+    pattern: ^[a-z][a-zA-Z0-9_]*$
+
   topic_endpoint:
     type: object
     description: |
@@ -215,6 +222,8 @@ definitions:
       name:
         $ref: '#/definitions/rosName'
         description: Topic name.
+      alias:
+        $ref: '#/definitions/endpointAlias'
       type:
         $ref: '#/definitions/rosType'
       qos:
@@ -238,6 +247,8 @@ definitions:
       name:
         $ref: '#/definitions/rosName'
         description: Service name.
+      alias:
+        $ref: '#/definitions/endpointAlias'
       type:
         $ref: '#/definitions/rosType'
       qos:
@@ -261,6 +272,8 @@ definitions:
       name:
         $ref: '#/definitions/rosName'
         description: Action name.
+      alias:
+        $ref: '#/definitions/endpointAlias'
       type:
         $ref: '#/definitions/rosType'
       description:

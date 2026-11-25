@@ -3,7 +3,7 @@
 import jinja2
 
 from nodl_generator_common.generated_file import GeneratedFile
-from nodl_generator_common.naming import to_member_name
+from nodl_generator_common.naming import to_member_name, validate_generated_names
 from nodl_generator_cpp.include_prefix import prefixed
 from nodl_generator_cpp.ros_to_cpp import (
     qos_to_cpp,
@@ -83,7 +83,7 @@ def _build_template_context(
     for ros_type in type_sources:
         headers.add(ros_type_to_header(ros_type))
 
-    return {
+    context = {
         'target_name': target_name,
         'node_name': to_node_name(target_name),
         'class_name': to_class_name(target_name),
@@ -93,7 +93,7 @@ def _build_template_context(
             {
                 'name': e.name,
                 'cpp_type': ros_type_to_cpp(e.type),
-                'member': f'pub_{to_member_name(e.name)}_',
+                'member': f'pub_{to_member_name(e.name, e.alias)}_',
                 'qos': qos_to_cpp(e.qos),
             }
             for e in publishers
@@ -102,8 +102,8 @@ def _build_template_context(
             {
                 'name': e.name,
                 'cpp_type': ros_type_to_cpp(e.type),
-                'member': f'sub_{to_member_name(e.name)}_',
-                'callback': f'on_{to_member_name(e.name)}',
+                'member': f'sub_{to_member_name(e.name, e.alias)}_',
+                'callback': f'on_{to_member_name(e.name, e.alias)}',
                 'qos': qos_to_cpp(e.qos),
             }
             for e in subscriptions
@@ -112,8 +112,8 @@ def _build_template_context(
             {
                 'name': e.name,
                 'cpp_type': ros_type_to_cpp(e.type),
-                'member': f'srv_{to_member_name(e.name)}_',
-                'callback': f'on_{to_member_name(e.name)}',
+                'member': f'srv_{to_member_name(e.name, e.alias)}_',
+                'callback': f'on_{to_member_name(e.name, e.alias)}',
             }
             for e in service_servers
         ],
@@ -121,7 +121,7 @@ def _build_template_context(
             {
                 'name': e.name,
                 'cpp_type': ros_type_to_cpp(e.type),
-                'member': f'cli_{to_member_name(e.name)}_',
+                'member': f'cli_{to_member_name(e.name, e.alias)}_',
             }
             for e in service_clients
         ],
@@ -129,8 +129,8 @@ def _build_template_context(
             {
                 'name': e.name,
                 'cpp_type': ros_type_to_cpp(e.type),
-                'member': f'action_srv_{to_member_name(e.name)}_',
-                'callback_prefix': f'on_{to_member_name(e.name)}',
+                'member': f'action_srv_{to_member_name(e.name, e.alias)}_',
+                'callback_prefix': f'on_{to_member_name(e.name, e.alias)}',
             }
             for e in action_servers
         ],
@@ -138,7 +138,7 @@ def _build_template_context(
             {
                 'name': e.name,
                 'cpp_type': ros_type_to_cpp(e.type),
-                'member': f'action_cli_{to_member_name(e.name)}_',
+                'member': f'action_cli_{to_member_name(e.name, e.alias)}_',
             }
             for e in action_clients
         ],
@@ -149,6 +149,23 @@ def _build_template_context(
         'publisher_class': publisher_class,
         'lifecycle': lifecycle,
     }
+
+    names: list[str] = []
+    for kind in (
+        'publishers',
+        'subscriptions',
+        'service_servers',
+        'service_clients',
+        'action_servers',
+        'action_clients',
+    ):
+        for endpoint in context[kind]:
+            names.append(endpoint['member'])
+    endpoints = publishers + subscriptions + service_servers + service_clients + action_servers + action_clients
+    if any(e.alias is not None and ('__' in e.alias or e.alias.endswith('_')) for e in endpoints):
+        raise ValueError('generated endpoint names must not contain C++ reserved double underscores')
+    validate_generated_names(names)
+    return context
 
 
 # ---------------------------------------------------------------------------
