@@ -29,6 +29,8 @@ properties:
     description: |
       If the node is a lifecycle node, make the generated base class create its subscriptions and service servers when the node activates
       and destroy them when it deactivates, by declaring each as a ``nodl_runtime_py.managed.Managed`` member.
+      It declares each service client and action client as a ``nodl_runtime_py.gated.Gated`` member,
+      whose ``get()`` returns the client only while the node is active.
       The base class named by ``class`` must be or derive from ``nodl_runtime_py.lifecycle.LifecycleNode``,
       or the generated module fails when the node is constructed.
     type: boolean

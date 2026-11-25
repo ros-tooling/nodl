@@ -230,6 +230,8 @@ def _render_python(
         imports.add('import abc')
     if base.lifecycle and (subscriptions or service_servers):
         imports.add('from nodl_runtime_py.managed import Managed')
+    if base.lifecycle and (service_clients or action_clients):
+        imports.add('from nodl_runtime_py.gated import Gated')
     if action_servers or action_clients:
         imports.add('import rclpy.action')
     qos_endpoints = (
