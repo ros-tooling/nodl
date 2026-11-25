@@ -32,11 +32,18 @@ Do not include it together with `nodl://nodl_common_interfaces/node`, because a 
 The package that generates C++ declares `nodl_runtime_cpp` as a dependency, because the generated base derives `nodl_runtime_cpp::LifecycleNode`.
 The package that generates Python declares `nodl_runtime_py` as an `exec_depend`.
 See the {doc}`nodl_generator_cpp <_generated/packages/nodl_generator_cpp/overview>` and {doc}`nodl_generator_py <_generated/packages/nodl_generator_py/overview>` pages for the CMake macros.
+An `ament_python` package cannot call the CMake macro, and opts in from `setup.py` with `nodl_generate_py()` and `nodl_cmdclass()`, which the `nodl_generator_py` page describes under "ament_python integration".
+The Python example ends with `rclpy.spin`, so that a test can drive the transitions.
+`nodl_runtime_py.run_node(Greeter)` is the main loop that a generated node usually uses, and it configures and activates the node after construction.
 
 ## Derive the generated base class
 
 The generated base class takes the node name from the generation target, without a trailing `_base`.
 The C++ base class constructor takes `rclcpp::NodeOptions`, and the Python one takes keyword arguments for the `rclpy` base class.
+The authored class uses the generated members in place of the ones the handwritten class named itself, so rename each use.
+In C++ they are protected `pub_<name>_` and `cli_<name>_` (`action_cli_<name>_` for an action client), and the private `sub_<name>_` and `srv_<name>_`.
+In Python they are `pub_<name>`, `cli_<name>` and `action_cli_<name>`, and `sub_<name>` and `srv_<name>`, which only hold the endpoint.
+The generator overviews list the members of each kind.
 The authored class does not call `create_publisher`, `create_subscription`, `create_service`, `create_client` or `declare_parameter` for what the document declares.
 
 The base class owns:
@@ -80,14 +87,18 @@ The base class does this on every transition, and a hook contains only the node'
 The hook returns a result and the base class acts on it:
 
 - `handle_activate` runs after the lifecycle publishers are active and the endpoints are created.
-  A result other than `SUCCESS`, or an exception, destroys the endpoints again and leaves the node inactive.
-  `handle_deactivate` does not run in that case.
+  A `FAILURE` result destroys the endpoints again and leaves the node inactive.
+  An `ERROR` result or an exception also destroys them, then runs `handle_error`.
+  `handle_deactivate` does not run in either case.
 - `handle_deactivate` runs before the endpoints are destroyed and while the lifecycle publishers are still active, so it can publish a last message.
-  A result other than `SUCCESS` leaves the node active.
+  A `FAILURE` result leaves the node active and keeps the endpoints.
+  An `ERROR` result runs `handle_error`, which runs `handle_deactivate` once more first, and an exception runs `handle_error` without repeating it.
 - Shutdown and error from the active state run `handle_deactivate` first, then the shutdown or error hook.
   Cleanup that the node does when it deactivates therefore runs on every path out of the active state, and does not need to be repeated in `handle_shutdown` and `handle_error`.
   The result of `handle_deactivate` on these paths is ignored, since a shutdown cannot be vetoed.
 - A hook that throws or raises moves the node to the error processing, which runs `handle_error`.
+  When `handle_error` returns `SUCCESS` the node ends unconfigured, and any other result finalizes it.
+  A node that threw in a handwritten `on_activate` ended up in the same processing, so migrated code that did not define `on_error` now ends unconfigured by default.
 
 The `nodl_runtime_cpp` and `nodl_runtime_py` overviews give the order of every transition.
 
@@ -140,6 +151,9 @@ if (client := self.cli_notify.get()) is not None:
 ::::
 
 `get()` returns the client in `handle_activate` and `handle_deactivate`.
+For a node that follows the other rules in this guide, `get()` is null when the call runs in `handle_configure` or `handle_cleanup`, in a thread that outlives deactivation, or in a callback that was already running when the node deactivated.
+The example calls the client from `handle_configure` to show it, and its test asserts that no request is sent while the node is inactive.
+Without the check, that call dereferences null in C++ and fails the transition in Python.
 A call from `handle_activate` right after startup can be sent before discovery has matched the server and be lost, so call `wait_for_service` (`wait_for_server` for an action client) first, or call from a timer or a callback that runs later.
 `wait_for_service` blocks the thread that runs the transition, so keep the timeout short.
 A response to a call made while the node was active can arrive after the node deactivates, and runs its callback.
@@ -226,6 +240,13 @@ The CMake file builds all four nodes, and registers the conformance tests of the
 :language: cmake
 :start-at: nodl_add_conformance_test(greeter_cpp_conformance
 :end-at: NODL_FILE nodl/greeter.nodl.yaml)
+```
+
+Run the tests of the package, and read the result, with:
+
+```bash
+colcon test --packages-select <package>
+colcon test-result --verbose
 ```
 
 Pass `NODE_NAME` when the node name differs from the test name, as the generation target determines it here.

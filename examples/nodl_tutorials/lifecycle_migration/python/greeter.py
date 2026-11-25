@@ -16,6 +16,11 @@ class Greeter(GreeterPyBase):
     def on_name(self, msg):
         self.greet(msg.data)
 
+    # The client is not handed out while the node is inactive, so this sends nothing.
+    def handle_configure(self, state):
+        self.notify()
+        return TransitionCallbackReturn.SUCCESS
+
     def handle_activate(self, state):
         self.greet('everyone')
         self.timer = self.create_timer(0.5, self.on_timer)
@@ -29,6 +34,9 @@ class Greeter(GreeterPyBase):
 
     def on_timer(self):
         self.greet('again')
+        self.notify()
+
+    def notify(self):
         if (client := self.cli_notify.get()) is not None:
             client.call_async(Trigger.Request())
 

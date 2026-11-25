@@ -21,6 +21,13 @@ protected:
     greet(msg->data);
   }
 
+  // The client is not handed out while the node is inactive, so this sends nothing.
+  CallbackReturn handle_configure(const rclcpp_lifecycle::State & /*previous_state*/) override
+  {
+    notify();
+    return CallbackReturn::SUCCESS;
+  }
+
   CallbackReturn handle_activate(const rclcpp_lifecycle::State & /*previous_state*/) override
   {
     greet("everyone");
@@ -46,6 +53,11 @@ private:
   void on_timer()
   {
     greet("again");
+    notify();
+  }
+
+  void notify()
+  {
     if (auto client = cli_notify_.get()) {
       client->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>());
     }

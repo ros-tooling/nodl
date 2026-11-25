@@ -147,6 +147,24 @@ def test_greets_between_activation_and_deactivation(greeter):
     assert settled == len(harness.greetings)
 
 
+@pytest.mark.parametrize('greeter', [GREETERS[1], GREETERS[3]], indirect=True)
+def test_migrated_node_sends_no_request_while_inactive(greeter):
+    # The migrated nodes call the client from handle_configure, where get() is null, so a missing check would fail the transition.
+    harness, _ = greeter
+    harness.configure()
+    time.sleep(1.5)
+    assert not harness.notifications
+
+    harness.activate()
+    assert wait_until(lambda: harness.notifications)
+
+    harness.deactivate()
+    time.sleep(1.0)
+    count = len(harness.notifications)
+    time.sleep(1.5)
+    assert count == len(harness.notifications)
+
+
 @pytest.mark.parametrize('greeter', GREETERS, indirect=True)
 def test_subscription_exists_while_inactive_only_for_handwritten_node(greeter):
     harness, subscription_while_inactive = greeter
