@@ -26,12 +26,11 @@ jobs:
           # `every` makes a file count only if it matches all patterns, so the directories that
           # build_and_test builds (packages, their dependencies, and examples/) and the workflow
           # itself are one brace list. Add a package directory to it when adding a package.
-          # Markdown and Sphinx config changes do not affect the build.
+          # Markdown files and Sphinx config (doc/conf.py) do not affect the build.
           filters: |
             source:
               - '{{ament_nodl,examples,nodl,nodl_common_interfaces,nodl_docgen,nodl_generator_common,nodl_generator_cpp,nodl_generator_py,nodl_observe,nodl_runtime_cpp,nodl_runtime_py,nodl_schema,ros2nodl,test_ament_nodl,test_nodl_generators,test_nodl_generators_downstream}/**,.github/workflows/test.yml}'
-              - '!**.md'
-              - '!**/doc/**/*.md'
+              - '!**/*.md'
               - '!**/doc/conf.py'
 
   build_and_test:
