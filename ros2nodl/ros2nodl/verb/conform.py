@@ -28,7 +28,7 @@ class ConformVerb(VerbExtension):
             metavar='SEC',
             type=float,
             default=_DEFAULT_TIMEOUT,
-            help='Live discovery timeout in seconds (default: %(default)s).',
+            help='Maximum time in seconds, including the wait for expected endpoints to be discovered (default: %(default)s).',
         )
         parser.add_argument(
             '--ignore',

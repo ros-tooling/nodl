@@ -19,6 +19,11 @@ The node must be active for the check to see endpoints that it creates on activa
 The command does not change the state of a node, so bring a lifecycle node to active first, for example with `ros2 lifecycle set`.
 A node that creates its endpoints on activation and is checked while inactive is reported with those endpoints `missing`.
 
+Discovery of a node's endpoints can lag behind the node.
+While the only differences are declared endpoints that were not observed, the check observes the node again every half second, until they are discovered or the timeout has passed.
+Any other difference fails at once.
+A node that never conforms fails after the timeout with its last report.
+
 Description gaps become `unverifiable` differences with their original path and
 reason. Semantic differences are aggregated and sorted for stable diagnostics.
 
@@ -142,7 +147,7 @@ All arguments are keywords.
 :`nodl`: The expected NoDL document, as an absolute path or a `nodl://<package>/<name>` reference. Required.
 :`node_name`: Node name passed to the executable and used to construct its fully qualified name. Defaults to `executable`, which must then be a valid node name.
 :`node_namespace`: Namespace passed to the executable. Defaults to `/`.
-:`timeout`: Maximum time in seconds for the conformance check, a positive integer. Defaults to 15.
+:`timeout`: Maximum time in seconds for the conformance check, including the wait for expected endpoints to be discovered, a positive integer. Defaults to 15.
 :`parameters`: List of `name:=value` items passed to the node as `-p` arguments, applied after `parameters_files`.
 :`parameters_files`: List of absolute paths of YAML parameter files passed to the node.
 :`ignore`: List of ignore rules, as for `--ignore`.
