@@ -228,7 +228,7 @@ def _render_python(
     action_clients = _endpoints(doc.action_clients, imports, 'action', 'action_cli_')
     if subscriptions or service_servers or action_servers:
         imports.add('import abc')
-    if base.lifecycle and subscriptions:
+    if base.lifecycle and (subscriptions or service_servers):
         imports.add('from nodl_runtime_py.managed import Managed')
     if action_servers or action_clients:
         imports.add('import rclpy.action')

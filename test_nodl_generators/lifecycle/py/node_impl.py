@@ -22,3 +22,7 @@ class GeneratedLifecycleNode(LifecycleNodeBase):
 
     def on_latched(self, msg):
         self.latched_received.append(msg.data)
+
+    def on_lifecycle_add(self, request, response):
+        response.sum = request.a + request.b
+        return response

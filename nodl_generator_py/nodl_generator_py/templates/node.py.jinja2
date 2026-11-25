@@ -45,6 +45,20 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
     {% endif %}
     {% endfor %}
     {% for service in service_servers %}
+    {% if lifecycle %}
+        self.{{ service.member_name }} = Managed(
+            self,
+            lambda: self.create_service(
+                {{ service.py_type }},
+                '{{ service.name }}',
+                self.{{ service.callback_name }},
+{% if service.qos_py is defined %}
+                qos_profile={{ service.qos_py | indent(16) }},
+{% endif %}
+            ),
+            self.destroy_service,
+        )
+    {% else %}
         self.{{ service.member_name }} = self.create_service(
             {{ service.py_type }},
             '{{ service.name }}',
@@ -53,6 +67,7 @@ class {{ class_name }}({{ base_class }}{% if subscriptions or service_servers or
             qos_profile={{ service.qos_py | indent(12) }},
 {% endif %}
         )
+    {% endif %}
     {% endfor %}
     {% for client in service_clients %}
         self.{{ client.member_name }} = self.create_client(

@@ -273,7 +273,7 @@ and replacing other non-alphanumeric groups with `_`.
 |---|---|---|
 | Publisher | `pub_<name>` | Publish messages. |
 | Subscription | `sub_<name>` and abstract `on_<name>(msg)` | Implement the callback. On a lifecycle base `sub_<name>` is a `Managed` member and the subscription exists only while the node is active. |
-| Service server | `srv_<name>` and abstract `on_<name>(request, response)` | Implement the callback. |
+| Service server | `srv_<name>` and abstract `on_<name>(request, response)` | Implement the callback. On a lifecycle base `srv_<name>` is a `Managed` member and the service exists only while the node is active. |
 | Service client | `cli_<name>` | Send requests. |
 | Action server | `action_srv_<name>`, `on_<name>_goal()`, `on_<name>_cancel()`, and abstract `execute_<name>()` | Optionally override admission and cancellation policy; implement execution. |
 | Action client | `action_cli_<name>` | Send goals. |
@@ -323,7 +323,7 @@ This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which de
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
 The constructor creates all parameters, publishers, services, clients and actions.
 
-### Subscriptions of lifecycle nodes
+### Subscriptions and service servers of lifecycle nodes
 
 `BASE_CLASS` accepts an optional `lifecycle` boolean, false by default.
 `nodl://nodl_common_interfaces/lifecycle_node` sets it to true:
@@ -338,23 +338,26 @@ codegen:
     lifecycle: true
 ```
 
-A generated node with a `lifecycle: true` base creates its subscriptions when the node activates and destroys them when it deactivates.
-Each `sub_<name>` member is a `nodl_runtime_py.managed.Managed`, which `__init__` constructs with the same QoS and `on_<name>` callback as a node that is not a lifecycle node, and with `destroy_subscription` as its destroy function.
-The member only holds the subscription, so use `on_<name>` to handle messages.
-Subscriptions are created in the order they appear in the NoDL document, ahead of the members of an authored subclass.
+A generated node with a `lifecycle: true` base creates its subscriptions and service servers when the node activates and destroys them when it deactivates.
+Each `sub_<name>` and `srv_<name>` member is a `nodl_runtime_py.managed.Managed`, which `__init__` constructs with the same type, name, QoS and `on_<name>` callback as a node that is not a lifecycle node.
+Its destroy function is `destroy_subscription` for a subscription and `destroy_service` for a service server.
+The member only holds the endpoint, so use `on_<name>` to handle messages and requests.
+Subscriptions are created in the order they appear in the NoDL document, then service servers in theirs, ahead of the members of an authored subclass.
 
 The class named by `class` must be or derive from `nodl_runtime_py.lifecycle.LifecycleNode`, as the node in `nodl://nodl_common_interfaces/lifecycle_node` is.
 Otherwise constructing the generated node raises `AttributeError`.
-The `nodl_runtime_py` overview describes when the subscriptions are created and destroyed relative to the lifecycle hooks.
+The `nodl_runtime_py` overview describes when the endpoints are created and destroyed relative to the lifecycle hooks.
 
-For now subscriptions are the only endpoints created on activation.
-Publishers, service servers, service clients, action servers and action clients are created in the constructor as for any other node.
+Subscriptions and service servers are the only endpoints created on activation.
+Publishers, service clients, action servers and action clients are created in the constructor as for any other node.
 
 A `transient_local` subscription of a lifecycle node receives its latched messages after the node activates, and not while it is unconfigured or inactive.
-While the node is unconfigured or inactive its subscriptions are absent from the graph, so conformance of such a node needs it configured and activated first.
+A service server of a lifecycle node is not discoverable, and serves no request, while the node is unconfigured or inactive.
+While the node is unconfigured or inactive its subscriptions and service servers are absent from the graph, so conformance of such a node needs it configured and activated first.
 
-Migration: `BREAKING CHANGE:` a node derived from `nodl://nodl_common_interfaces/lifecycle_node` no longer has its subscriptions while it is unconfigured or inactive.
+Migration: `BREAKING CHANGE:` a node derived from `nodl://nodl_common_interfaces/lifecycle_node` no longer has its subscriptions or service servers while it is unconfigured or inactive.
 Messages published in those states, including latched messages, are not delivered to the `on_<name>` callbacks until the node activates.
+A service request sent in those states is not served, and a client does not find the service until the node activates.
 
 The generator does not emit transition callbacks.
 The base class seals the `on_*` callbacks, so an authored subclass that defines one raises `TypeError`.
@@ -405,7 +408,7 @@ python -m nodl_generator_py \
 
 This version supports parameters, publishers, subscriptions, services, actions,
 their available QoS settings, include composition, and one included Python base provider.
-Lifecycle management applies only to publishers and subscriptions created for a lifecycle base.
+Lifecycle management applies only to publishers, subscriptions and service servers created for a lifecycle base.
 
 ## Relationship to other packages
 
