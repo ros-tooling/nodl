@@ -6,13 +6,17 @@ import time
 
 import pytest
 import rclpy
+from action_msgs.msg import GoalStatus
+from example_interfaces.action import Fibonacci
 from example_interfaces.srv import AddTwoInts
 from node_impl import GeneratedLifecycleNode
+from rclpy.action import ActionServer
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, LifecyclePublisher, TransitionCallbackReturn
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import String
+from std_srvs.srv import Trigger
 
 from nodl_runtime_py.lifecycle import LifecycleNode as NodlLifecycleNode
 
@@ -181,3 +185,70 @@ def test_service_server_is_served_only_while_active(lifecycle_rig):
     assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
     assert _spin_until(executor, client.service_is_ready)
     assert served()
+
+
+@pytest.fixture
+def peer_servers(lifecycle_rig):
+    node, harness, executor = lifecycle_rig
+    pings = []
+
+    def answer_ping(request, response):
+        pings.append(request)
+        response.success = True
+        return response
+
+    def execute_count(goal_handle):
+        goal_handle.succeed()
+        return Fibonacci.Result()
+
+    harness.create_service(Trigger, '/lifecycle_ping', answer_ping)
+    ActionServer(harness, Fibonacci, '/lifecycle_count', execute_count)
+    return pings
+
+
+def test_service_client_is_handed_out_only_while_active(lifecycle_rig, peer_servers):
+    node, harness, executor = lifecycle_rig
+    pings = peer_servers
+
+    assert node.cli_lifecycle_ping.get() is None
+
+    assert node.trigger_configure() == TransitionCallbackReturn.SUCCESS
+    assert node.cli_lifecycle_ping.get() is None
+    assert not node.ping_in_activate
+
+    # The client is handed out in handle_activate, and its call reaches the server.
+    assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+    assert node.cli_lifecycle_ping.get() is not None
+    assert node.ping_in_activate
+    assert _spin_until(executor, lambda: len(pings) == 1 and node.ping_responses == 1)
+
+    assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS
+    assert node.cli_lifecycle_ping.get() is None
+
+    assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+    assert node.cli_lifecycle_ping.get() is not None
+    assert _spin_until(executor, lambda: len(pings) == 2 and node.ping_responses == 2)
+
+
+def test_action_client_sends_goals_only_while_active(lifecycle_rig, peer_servers):
+    node, harness, executor = lifecycle_rig
+
+    assert node.action_cli_lifecycle_count.get() is None
+
+    assert node.trigger_configure() == TransitionCallbackReturn.SUCCESS
+    assert node.action_cli_lifecycle_count.get() is None
+
+    assert node.trigger_activate() == TransitionCallbackReturn.SUCCESS
+    client = node.action_cli_lifecycle_count.get()
+    assert client is not None
+    assert client.wait_for_server(timeout_sec=2.0)
+    accepted = client.send_goal_async(Fibonacci.Goal())
+    assert _spin_until(executor, accepted.done)
+    goal_handle = accepted.result()
+    assert goal_handle.accepted
+    result = goal_handle.get_result_async()
+    assert _spin_until(executor, result.done)
+    assert result.result().status == GoalStatus.STATUS_SUCCEEDED
+
+    assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS
+    assert node.action_cli_lifecycle_count.get() is None

@@ -127,6 +127,7 @@ A slot cannot be unregistered, so construct `Gated` members for the lifetime of 
 
 Together with `Managed`, this gives the rule for a lifecycle node: while it is not active, it sends no outgoing traffic and serves no incoming traffic.
 Publishers are created in `__init__` as `rclpy` lifecycle publishers, which block publishing while the node is inactive.
+A generated lifecycle node declares its subscriptions and service servers as `Managed` members, its service clients and action clients as `Gated` members, and its publishers as lifecycle publishers, so the rule holds for every generated endpoint except action servers.
 
 An entity that exists while the node is inactive is discovered and matched from construction, but discovery takes time, so a call made from `handle_activate` right after startup can be sent before the service is matched and is lost.
 Call `wait_for_service` first, or call from a timer or a callback that runs later.

@@ -274,9 +274,9 @@ and replacing other non-alphanumeric groups with `_`.
 | Publisher | `pub_<name>` | Publish messages. |
 | Subscription | `sub_<name>` and abstract `on_<name>(msg)` | Implement the callback. On a lifecycle base `sub_<name>` is a `Managed` member and the subscription exists only while the node is active. |
 | Service server | `srv_<name>` and abstract `on_<name>(request, response)` | Implement the callback. On a lifecycle base `srv_<name>` is a `Managed` member and the service exists only while the node is active. |
-| Service client | `cli_<name>` | Send requests. |
+| Service client | `cli_<name>` | Send requests. On a lifecycle base `cli_<name>` is a `Gated` member, and `get()` returns the client only while the node is active. |
 | Action server | `action_srv_<name>`, `on_<name>_goal()`, `on_<name>_cancel()`, and abstract `execute_<name>()` | Optionally override admission and cancellation policy; implement execution. |
-| Action client | `action_cli_<name>` | Send goals. |
+| Action client | `action_cli_<name>` | Send goals. On a lifecycle base `action_cli_<name>` is a `Gated` member, and `get()` returns the client only while the node is active. |
 | Parameters | `param_listener_` and `params_` | Read typed parameter values. |
 
 The constructor accepts keyword arguments and forwards them to the selected `rclpy` base class.
@@ -321,9 +321,9 @@ publishers:
 
 This generates a subclass of `nodl_runtime_py.lifecycle.LifecycleNode`, which derives `rclpy.lifecycle.LifecycleNode`.
 Generated publishers use `create_lifecycle_publisher()`, so they publish only while the node is active.
-The constructor creates all parameters, publishers, clients and actions, and creates or registers the subscriptions and services as described below.
+The constructor creates all parameters, publishers and action servers, and creates or registers the subscriptions, services and clients as described below.
 
-### Subscriptions and service servers of lifecycle nodes
+### Endpoints of lifecycle nodes
 
 `BASE_CLASS` accepts an optional `lifecycle` boolean, false by default.
 `nodl://nodl_common_interfaces/lifecycle_node` sets it to true:
@@ -344,12 +344,25 @@ Its destroy function is `destroy_subscription` for a subscription and `destroy_s
 The member only holds the endpoint, so use `on_<name>` to handle messages and requests.
 Subscriptions are created in the order they appear in the NoDL document, then service servers in theirs, ahead of the members of an authored subclass.
 
+Each service client and action client exists for the lifetime of the node, and the node hands it out only while it is active.
+Each `cli_<name>` and `action_cli_<name>` member is a `nodl_runtime_py.gated.Gated`, which `__init__` constructs around a client created with the same type and name as a node that is not a lifecycle node, and with the same QoS for a service client.
+`get()` returns the client while the node is active and `None` otherwise, so the authored class checks the result before it calls:
+
+```python
+if (client := self.cli_trigger.get()) is not None:
+    client.call_async(std_srvs.srv.Trigger.Request())
+```
+
+Because the client exists from construction, it is discoverable and matches its server while the node is inactive.
+A call made from `handle_activate` right after startup can still precede that discovery, so wait for the server with `client.wait_for_service()` first, or call from a timer or a callback that runs later.
+Every `Gated` member registers an activation slot, so service clients are registered in document order, then action clients, after the subscriptions and service servers.
+
 The class named by `class` must be or derive from `nodl_runtime_py.lifecycle.LifecycleNode`, as the node in `nodl://nodl_common_interfaces/lifecycle_node` is.
 Otherwise constructing the generated node raises `AttributeError`.
 The `nodl_runtime_py` overview describes when the endpoints are created and destroyed relative to the lifecycle hooks.
 
 Subscriptions and service servers are the only endpoints created on activation.
-Publishers, service clients, action servers and action clients are created in the constructor as for any other node.
+Publishers and action servers are created in the constructor as for any other node.
 
 A `transient_local` subscription of a lifecycle node receives its latched messages after the node activates, and not while it is unconfigured or inactive.
 A service server of a lifecycle node is not discoverable, and serves no request, while the node is unconfigured or inactive.
@@ -358,6 +371,10 @@ While the node is unconfigured or inactive its subscriptions and service servers
 Migration: `BREAKING CHANGE:` a node derived from `nodl://nodl_common_interfaces/lifecycle_node` no longer has its subscriptions or service servers while it is unconfigured or inactive.
 Messages published in those states, including latched messages, are not delivered to the `on_<name>` callbacks until the node activates.
 A service request sent in those states is not served, and a client does not find the service until the node activates.
+
+Migration: `BREAKING CHANGE:` the service clients and action clients of such a node are `Gated` members and no longer `rclpy` clients.
+Replace `self.cli_x.call_async(req)` with `if (client := self.cli_x.get()) is not None: client.call_async(req)`, and the same for `self.action_cli_x`.
+`get()` is `None` while the node is unconfigured or inactive, so calls are not sent in those states.
 
 The generator does not emit transition callbacks.
 The base class seals the `on_*` callbacks, so an authored subclass that defines one raises `TypeError`.
@@ -408,7 +425,7 @@ python -m nodl_generator_py \
 
 This version supports parameters, publishers, subscriptions, services, actions,
 their available QoS settings, include composition, and one included Python base provider.
-Lifecycle management applies only to publishers, subscriptions and service servers created for a lifecycle base.
+Lifecycle management applies only to publishers, subscriptions, service servers, service clients and action clients created for a lifecycle base.
 
 ## Relationship to other packages
 
