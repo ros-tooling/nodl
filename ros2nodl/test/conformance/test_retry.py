@@ -7,9 +7,10 @@ from types import SimpleNamespace
 import pytest
 
 from nodl_schema import dump_nodl
-from nodl_schema.models import History, NodlDocument, QosProfile, Reliability, TopicEndpoint
+from nodl_schema.models import History, NodlDocument, ParameterDefinition, QosProfile, Reliability, TopicEndpoint
 from ros2nodl import conformance
 from ros2nodl.conformance import assert_conforms
+from ros2nodl.describe._source import SourceError
 
 _QOS = QosProfile(history=History.SYSTEM_DEFAULT, reliability=Reliability.SYSTEM_DEFAULT)
 
@@ -40,6 +41,8 @@ class _Graph:
         self.timeouts.append(timeout_sec)
         self.now += self.observation_sec
         document = self.documents[min(len(self.timeouts), len(self.documents)) - 1]
+        if isinstance(document, Exception):
+            raise document
         return SimpleNamespace(doc=document, gaps=[])
 
     def _sleep(self, seconds):
@@ -84,15 +87,52 @@ def test_a_node_that_never_conforms_fails_with_the_last_report_within_the_timeou
     graph = _Graph(monkeypatch, [NodlDocument()], observation_sec=0.1)
 
     with pytest.raises(AssertionError) as error:
-        _conforms(spec, timeout_sec=2.0)
+        _conforms(spec, timeout_sec=6.0)
 
     assert str(error.value) == (
         "NoDL conformance failed for '/fixture':\n"
         "  [missing] publishers '/state': expected type 'std_msgs/msg/String' was not observed"
     )
-    assert graph.attempts > 1
-    assert graph.now <= 2.0
-    assert all(timeout <= 2.0 for timeout in graph.timeouts)
+    assert graph.attempts > 2
+    assert graph.now <= 6.0
+    assert all(timeout <= 6.0 for timeout in graph.timeouts)
+    assert all(timeout >= conformance._MIN_ATTEMPT_SEC for timeout in graph.timeouts)
+
+
+def test_an_observation_that_uses_the_whole_timeout_is_not_followed_by_another(monkeypatch, spec):
+    graph = _Graph(monkeypatch, [NodlDocument()], observation_sec=5.0)
+
+    with pytest.raises(AssertionError):
+        _conforms(spec, timeout_sec=5.0)
+
+    assert graph.attempts == 1
+    assert graph.now == 5.0
+
+
+def test_no_observation_starts_with_less_than_the_minimum_time_left(monkeypatch, spec):
+    graph = _Graph(monkeypatch, [NodlDocument(), NodlDocument(publishers=[_topic('/state')])], observation_sec=3.0)
+
+    with pytest.raises(AssertionError) as error:
+        _conforms(spec, timeout_sec=5.0)
+
+    assert graph.attempts == 1
+    assert "[missing] publishers '/state'" in str(error.value)
+
+
+def test_a_failed_later_observation_returns_the_previous_report(monkeypatch, spec):
+    graph = _Graph(monkeypatch, [NodlDocument(), SourceError('did not appear in the graph')])
+
+    with pytest.raises(AssertionError, match=r"\[missing\] publishers '/state'"):
+        _conforms(spec, timeout_sec=5.0)
+
+    assert graph.attempts == 2
+
+
+def test_a_failed_first_observation_propagates(monkeypatch, spec):
+    _Graph(monkeypatch, [SourceError('did not appear in the graph')])
+
+    with pytest.raises(SourceError):
+        _conforms(spec)
 
 
 @pytest.mark.parametrize(
@@ -122,8 +162,6 @@ def test_a_missing_endpoint_with_another_difference_fails_without_a_retry(monkey
 
 
 def test_a_missing_parameter_fails_without_a_retry(monkeypatch, tmp_path):
-    from nodl_schema.models import ParameterDefinition
-
     path = tmp_path / 'node.nodl.yaml'
     path.write_text(dump_nodl(NodlDocument(parameters={'mode': ParameterDefinition(type='string')}), format='yaml'))
     graph = _Graph(monkeypatch, [NodlDocument()])
