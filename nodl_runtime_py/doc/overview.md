@@ -18,12 +18,11 @@ the way message packages pair `rosidl_default_generators` with `rosidl_default_r
 | Dependency | Why generated code needs it |
 |---|---|
 | `rclpy` | Generated base classes derive from `rclpy` node classes and create their entities. |
-| `lifecycle_msgs` | `LifecycleNode` identifies the active state. |
 | `generate_parameter_library_py` | Generated parameter modules import its parameter validators. |
 
 The list may change as generated code changes, so depend on this package rather than on its contents.
 
-## Lifecycle node
+## LifecycleNode base class
 
 `nodl_runtime_py.lifecycle.LifecycleNode` derives `rclpy.lifecycle.LifecycleNode` to provide a more opinionated and automated default behavior.
 It implements and seals the standard lifecycle callbacks (`on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`, `on_shutdown` and `on_error`),

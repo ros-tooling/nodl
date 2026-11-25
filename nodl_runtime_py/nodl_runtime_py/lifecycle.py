@@ -4,7 +4,6 @@
 
 from typing import Any, final
 
-from lifecycle_msgs.msg import State
 from rclpy.lifecycle import LifecycleNode as RclpyLifecycleNode
 from rclpy.lifecycle import LifecycleState, TransitionCallbackReturn
 
@@ -30,12 +29,12 @@ class LifecycleNode(RclpyLifecycleNode):
     See the ``nodl_runtime_py`` overview for the order on each transition.
     """
 
-    # True when ``handle_deactivate`` ran for the current active period.
-    _nodl_deactivate_hook_ran = False
+    # True from a successful activation until ``handle_deactivate`` runs, so shutdown and error know whether it is still owed.
+    _nodl_deactivate_pending = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        sealed = [name for name in _SEALED_CALLBACKS if name in cls.__dict__]
+        sealed = [name for name in _SEALED_CALLBACKS if getattr(cls, name) is not LifecycleNode.__dict__[name]]
         if sealed:
             hooks = ', '.join(f'handle_{name.removeprefix("on_")}' for name in sealed)
             raise TypeError(
@@ -55,7 +54,6 @@ class LifecycleNode(RclpyLifecycleNode):
         When ``handle_activate`` does not return SUCCESS or raises, the standard deactivation runs.
         A result other than SUCCESS is returned, and an exception propagates.
         """
-        self._nodl_deactivate_hook_ran = False
         base_result = super().on_activate(state)
         if TransitionCallbackReturn.SUCCESS != base_result:
             return base_result
@@ -66,15 +64,17 @@ class LifecycleNode(RclpyLifecycleNode):
             raise
         if TransitionCallbackReturn.SUCCESS != hook_result:
             super().on_deactivate(state)
+        else:
+            self._nodl_deactivate_pending = True
         return hook_result
 
     @final
     def on_deactivate(self, state: LifecycleState) -> TransitionCallbackReturn:
         """Move from active to inactive. Calls ``handle_deactivate``, then runs the standard deactivation if it succeeded."""
-        self._nodl_deactivate_hook_ran = True
+        self._nodl_deactivate_pending = False
         hook_result = self.handle_deactivate(state)
         if TransitionCallbackReturn.SUCCESS != hook_result:
-            self._nodl_deactivate_hook_ran = False
+            self._nodl_deactivate_pending = True
             return hook_result
         return super().on_deactivate(state)
 
@@ -140,8 +140,8 @@ class LifecycleNode(RclpyLifecycleNode):
 
     def _end_active_state(self, state: LifecycleState) -> None:
         """Run the deactivation that shutdown and error need: the authored hook if the node is active, then the standard one."""
-        if State.PRIMARY_STATE_ACTIVE == state.state_id and not self._nodl_deactivate_hook_ran:
-            self._nodl_deactivate_hook_ran = True
+        if self._nodl_deactivate_pending:
+            self._nodl_deactivate_pending = False
             try:
                 if TransitionCallbackReturn.SUCCESS != self.handle_deactivate(state):
                     self.get_logger().warning('handle_deactivate did not succeed, and the shutdown continues')

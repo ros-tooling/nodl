@@ -12,7 +12,6 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <exec_depend>generate_parameter_library_py</exec_depend>
-  <exec_depend>lifecycle_msgs</exec_depend>
   <exec_depend>rclpy</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>

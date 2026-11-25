@@ -244,3 +244,9 @@ def test_state_is_passed_to_the_hooks():
         node.destroy_node()
     finally:
         rclpy.shutdown()
+
+
+def test_a_mixin_before_the_base_cannot_define_a_transition_callback():
+    mixin = type('Mixin', (), {'on_activate': lambda self, state: SUCCESS})
+    with pytest.raises(TypeError, match=r'on_activate.*Define handle_activate instead'):
+        type('Sealed', (mixin, LifecycleNode), {})
