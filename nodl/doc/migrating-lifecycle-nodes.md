@@ -33,8 +33,6 @@ The package that generates C++ declares `nodl_runtime_cpp` as a dependency, beca
 The package that generates Python declares `nodl_runtime_py` as an `exec_depend`.
 See the {doc}`nodl_generator_cpp <_generated/packages/nodl_generator_cpp/overview>` and {doc}`nodl_generator_py <_generated/packages/nodl_generator_py/overview>` pages for the CMake macros.
 An `ament_python` package cannot call the CMake macro, and opts in from `setup.py` with `nodl_generate_py()` and `nodl_cmdclass()`, which the `nodl_generator_py` page describes under "ament_python integration".
-The Python example ends with `rclpy.spin`, so that a test can drive the transitions.
-`nodl_runtime_py.run_node(Greeter)` is the main loop that a generated node usually uses, and it configures and activates the node after construction.
 
 ## Derive the generated base class
 
@@ -98,7 +96,8 @@ The hook returns a result and the base class acts on it:
   The result of `handle_deactivate` on these paths is ignored, since a shutdown cannot be vetoed.
 - A hook that throws or raises moves the node to the error processing, which runs `handle_error`.
   When `handle_error` returns `SUCCESS` the node ends unconfigured, and any other result finalizes it.
-  A node that threw in a handwritten `on_activate` ended up in the same processing, so migrated code that did not define `on_error` now ends unconfigured by default.
+  With the default `handle_error`, which returns `SUCCESS`, a nodl lifecycle node ends unconfigured after an error, in C++ and in Python, because its `on_error` returns the result of `handle_error`.
+  Define `handle_error` to return another result when the node should be finalized instead.
 
 The `nodl_runtime_cpp` and `nodl_runtime_py` overviews give the order of every transition.
 
@@ -183,6 +182,8 @@ A `Managed` or `Gated` member cannot be constructed while the node is activating
 
 The handwritten node creates its subscription in `on_configure`, its timer in `on_activate`, and calls the superclass in each transition callback.
 The migrated node implements the callback of its subscription and the hooks, and the base class does the rest.
+Both examples end with `rclcpp::spin` or `rclpy.spin`, so that a test can drive the transitions.
+A Python node started with `nodl_runtime_py.run_node(Greeter)` is configured and activated after construction with no external transition.
 
 ::::{tabs}
 :::{group-tab} C++
