@@ -1,23 +1,29 @@
 # SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc.
 # SPDX-License-Identifier: Apache-2.0
-"""A lifecycle node that greets only while it is active, run as an executable."""
+"""A lifecycle node that greets and listens for names only while it is active, run as an executable."""
 
 import sys
 
 from rclpy.lifecycle import LifecycleState, TransitionCallbackReturn
 from std_msgs.msg import String
 
-from nodl_runtime_py import run_node
+from nodl_runtime_py import Managed, run_node
 from nodl_runtime_py.lifecycle import LifecycleNode
 
 
 class Greeter(LifecycleNode):
-    """Publish a greeting from a timer that runs between handle_activate and handle_deactivate."""
+    """Greet from a timer that runs between handle_activate and handle_deactivate, and greet each name received while active."""
 
     def __init__(self):
         super().__init__('greeter')
         # A lifecycle publisher drops messages while the node is not active.
         self.pub_greeting = self.create_lifecycle_publisher(String, 'greeting', 10)
+        # A subscription exists only while the node is active.
+        self._sub_name = Managed(
+            self,
+            lambda: self.create_subscription(String, 'name', self._on_name, 10),
+            self.destroy_subscription,
+        )
         self._timer = None
 
     def handle_activate(self, state: LifecycleState) -> TransitionCallbackReturn:
@@ -33,6 +39,9 @@ class Greeter(LifecycleNode):
             self._timer = None
         self.get_logger().info('goodbye')
         return TransitionCallbackReturn.SUCCESS
+
+    def _on_name(self, msg: String) -> None:
+        self._greet(msg.data)
 
     def _greet(self, name: str) -> None:
         self.pub_greeting.publish(String(data=f'hello {name}'))
