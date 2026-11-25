@@ -10,7 +10,15 @@ class GeneratedLifecycleNode(LifecycleNodeBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.activations = 0
+        self.cmd_received = []
+        self.latched_received = []
 
     def handle_activate(self, state):
         self.activations += 1
         return TransitionCallbackReturn.SUCCESS
+
+    def on_cmd(self, msg):
+        self.cmd_received.append(msg.data)
+
+    def on_latched(self, msg):
+        self.latched_received.append(msg.data)
