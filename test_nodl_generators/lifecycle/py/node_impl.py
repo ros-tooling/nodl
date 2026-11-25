@@ -19,6 +19,7 @@ class GeneratedLifecycleNode(LifecycleNodeBase):
     def handle_activate(self, state):
         self.activations += 1
         # The client exists from construction, but its server can still be undiscovered right after startup.
+        # The wait blocks the thread that runs the transition, so do not copy it into a service callback.
         if (client := self.cli_lifecycle_ping.get()) is not None:
             self.ping_in_activate = True
             if client.wait_for_service(timeout_sec=2.0):

@@ -130,7 +130,7 @@ Publishers are created in `__init__` as `rclpy` lifecycle publishers, which bloc
 A generated lifecycle node declares its subscriptions and service servers as `Managed` members, its service clients and action clients as `Gated` members, and its publishers as lifecycle publishers, so the rule holds for every generated endpoint except action servers.
 
 An entity that exists while the node is inactive is discovered and matched from construction, but discovery takes time, so a call made from `handle_activate` right after startup can be sent before the service is matched and is lost.
-Call `wait_for_service` first, or call from a timer or a callback that runs later.
+Call `wait_for_service` (`wait_for_server` for an action client) first, or call from a timer or a callback that runs later.
 
 ### State transitions
 

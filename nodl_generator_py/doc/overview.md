@@ -354,7 +354,7 @@ if (client := self.cli_trigger.get()) is not None:
 ```
 
 Because the client exists from construction, it is discoverable and matches its server while the node is inactive.
-A call made from `handle_activate` right after startup can still precede that discovery, so wait for the server with `client.wait_for_service()` first, or call from a timer or a callback that runs later.
+A call made from `handle_activate` right after startup can still precede that discovery, so wait for the server with `client.wait_for_service()` (`client.wait_for_server()` for an action client) first, or call from a timer or a callback that runs later.
 Every `Gated` member registers an activation slot, so service clients are registered in document order, then action clients, after the subscriptions and service servers.
 
 The class named by `class` must be or derive from `nodl_runtime_py.lifecycle.LifecycleNode`, as the node in `nodl://nodl_common_interfaces/lifecycle_node` is.

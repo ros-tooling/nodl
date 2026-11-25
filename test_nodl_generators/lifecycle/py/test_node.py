@@ -9,6 +9,8 @@ import rclpy
 from action_msgs.msg import GoalStatus
 from example_interfaces.action import Fibonacci
 from example_interfaces.srv import AddTwoInts
+from lifecycle_msgs.msg import Transition
+from lifecycle_msgs.srv import ChangeState
 from node_impl import GeneratedLifecycleNode
 from rclpy.action import ActionServer
 from rclpy.executors import SingleThreadedExecutor
@@ -252,3 +254,25 @@ def test_action_client_sends_goals_only_while_active(lifecycle_rig, peer_servers
 
     assert node.trigger_deactivate() == TransitionCallbackReturn.SUCCESS
     assert node.action_cli_lifecycle_count.get() is None
+
+
+def test_change_state_service_activates_and_reaches_the_peer(lifecycle_rig, peer_servers):
+    node, harness, executor = lifecycle_rig
+    pings = peer_servers
+    change_state = harness.create_client(ChangeState, f'/{node.get_name()}/change_state')
+    assert _spin_until(executor, change_state.service_is_ready)
+
+    def request(transition_id):
+        future = change_state.call_async(ChangeState.Request(transition=Transition(id=transition_id)))
+        assert _spin_until(executor, future.done, timeout=5.0)
+        return future.result().success
+
+    assert request(Transition.TRANSITION_CONFIGURE)
+    assert node.cli_lifecycle_ping.get() is None
+
+    assert request(Transition.TRANSITION_ACTIVATE)
+    assert node.cli_lifecycle_ping.get() is not None
+    assert _spin_until(executor, lambda: len(pings) == 1 and node.ping_responses == 1)
+
+    assert request(Transition.TRANSITION_DEACTIVATE)
+    assert node.cli_lifecycle_ping.get() is None
