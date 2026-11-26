@@ -59,6 +59,17 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_pytest REQUIRED)
 
+  foreach(variant defaults shared separate reentrant lifecycle)
+    nodl_generate_cpp(callback_${variant}_base STATIC NO_INDEX
+      callback_groups/cpp/${variant}.nodl.yaml)
+  endforeach()
+  ament_add_gtest(test_cpp_callback_groups callback_groups/cpp/test_node.cpp TIMEOUT 60)
+  if(TARGET test_cpp_callback_groups)
+    target_link_libraries(test_cpp_callback_groups
+      callback_defaults_base callback_shared_base callback_separate_base
+      callback_reentrant_base callback_lifecycle_base)
+  endif()
+
   # Runs the generated lifecycle node against its subscriptions and publishers.
   # The behavior comes from the nodl_runtime_cpp base class.
   ament_add_gtest(test_cpp_lifecycle lifecycle/cpp/test_node.cpp TIMEOUT 60)

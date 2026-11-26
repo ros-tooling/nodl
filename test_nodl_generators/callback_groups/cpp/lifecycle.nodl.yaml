@@ -1,0 +1,15 @@
+---
+nodl_version: 2
+include:
+  - ref: nodl://nodl_common_interfaces/lifecycle_node
+  - ref: local://interface.nodl.yaml
+codegen:
+  cpp:
+    role: NODE
+    callback_groups:
+      processing:
+        type: MUTUALLY_EXCLUSIVE
+        subscriptions: [work]
+      control:
+        type: MUTUALLY_EXCLUSIVE
+        service_servers: [status]

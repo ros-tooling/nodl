@@ -1,0 +1,15 @@
+---
+nodl_version: 2
+include:
+  - ref: test://rclcpp_node
+  - ref: local://../../../../test_nodl_generators/callback_groups/cpp/interface.nodl.yaml
+codegen:
+  cpp:
+    role: NODE
+    callback_groups:
+      processing:
+        type: REENTRANT
+        subscriptions: [work]
+      control:
+        type: MUTUALLY_EXCLUSIVE
+        service_servers: [status]

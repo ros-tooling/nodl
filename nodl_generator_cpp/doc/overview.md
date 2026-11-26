@@ -340,7 +340,7 @@ A NoDL document can carry a `codegen.cpp` field describing how it takes part in 
 |---|---|---|---|
 | `BASE_CLASS` | Included documents | `class`, `header` (both required), `publisher_type` and `lifecycle` (optional) | The document is implemented by a C++ base class that the generated class inherits from. |
 | `NO_GENERATE` | Included documents | none | The document has an existing implementation but does not provide the generated class's base. |
-| `NODE` | The root document | `namespace` (optional) | The document is the one being generated. |
+| `NODE` | The root document | `namespace`, `callback_groups` (optional) | The document is the one being generated. |
 
 The schema for this field is defined in {repo}`nodl_generator_cpp/nodl_generator_cpp/schemas/codegen_cpp.schema.yaml`
 and validated by `nodl_generator_cpp`, not `nodl_schema`.
@@ -478,6 +478,25 @@ so subclasses inherit from `my_pkg::nodes::MyNodeBase`.
 The parameter structs live under it too, as `my_pkg::nodes::my_node_base::Params`.
 ROS parameter names never include the namespace.
 Without a `namespace`, the class is generated in the global namespace.
+
+### Callback groups
+
+Set `codegen.cpp.callback_groups` in the root node document to assign generated C++ subscriptions and service servers to named groups.
+This example puts the `work` subscription and `status` service in separate groups:
+
+```{literalinclude} /../../test_nodl_generators/callback_groups/cpp/separate.nodl.yaml
+:language: yaml
+```
+
+Use exact endpoint names as declared in the {repo}`test_nodl_generators/callback_groups/cpp/interface.nodl.yaml`, before namespaces and remapping.
+Register that file alongside the root when using `ament_nodl_register()`.
+Each named group needs at least one endpoint, and each endpoint can belong to one group.
+Unassigned endpoints use the node's default group.
+ROS supports grouping action servers, and NoDL action group configuration is deferred.
+
+See the [ROS callback groups guide](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/nodes/Working-with-nodes/Using-callback-groups.rst) for group types and executor behavior.
+On the tested Lyrical and Rolling versions, repeated invocations of one subscription serialize even in a reentrant group.
+Generated lifecycle nodes reuse the configured groups when recreating managed subscriptions and services on activation.
 
 ### Walking the include tree
 

@@ -1,6 +1,10 @@
-{% set has_body = publishers or (subscriptions and not lifecycle) or (service_servers and not lifecycle) or (service_clients and not lifecycle) or action_servers or (action_clients and not lifecycle) or has_parameters %}
+{% set has_body = callback_groups or publishers or (subscriptions and not lifecycle) or (service_servers and not lifecycle) or (service_clients and not lifecycle) or action_servers or (action_clients and not lifecycle) or has_parameters %}
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
+{% if service_servers | selectattr("callback_group") | list %}
+{# Use the C++ service QoS overload on Jazzy and later. Humble requires the raw RMW profile. #}
+#include <rclcpp/version.h>
+{% endif %}
 
 {% if namespace %}
 namespace {{ namespace }}
@@ -21,12 +25,16 @@ namespace {{ namespace }}
 {% endfor %}
 {% for sub in subscriptions %}
 , {{ sub.member }}(*this, [this] {
+{% if sub.callback_group %}
+    rclcpp::SubscriptionOptions subscription_options;
+    subscription_options.callback_group = {{ sub.callback_group }};
+{% endif %}
     return this->create_subscription<{{ sub.cpp_type }}>(
       "{{ sub.name }}",
       {{ sub.qos }},
       [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
         this->{{ sub.callback }}(msg);
-      });
+      }{% if sub.callback_group %}, subscription_options{% endif %});
   })
 {% endfor %}
 {% for srv in service_servers %}
@@ -35,12 +43,25 @@ namespace {{ namespace }}
       "{{ srv.name }}",
       [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
         this->{{ srv.callback }}(req, res);
-      });
+      }{% if srv.callback_group %},
+#if RCLCPP_VERSION_GTE(28, 0, 0)
+      rclcpp::ServicesQoS(),
+#else
+      rmw_qos_profile_services_default,
+#endif
+      {{ srv.callback_group }}{% endif %});
   })
 {% endfor %}
 {% endif %}
 {% if has_body %}
 {
+{% if callback_groups %}
+
+  // Create callback groups before their endpoints.
+{% for group in callback_groups %}
+  {{ group.member }} = this->create_callback_group(rclcpp::CallbackGroupType::{{ group.type }});
+{% endfor %}
+{% endif %}
 {% if publishers %}
 
   // Create publishers
@@ -52,12 +73,16 @@ namespace {{ namespace }}
 
   // Create subscriptions
 {% for sub in subscriptions %}
+{% if sub.callback_group %}
+  rclcpp::SubscriptionOptions {{ sub.member }}options;
+  {{ sub.member }}options.callback_group = {{ sub.callback_group }};
+{% endif %}
   {{ sub.member }} = this->create_subscription<{{ sub.cpp_type }}>(
     "{{ sub.name }}",
     {{ sub.qos }},
     [this]({{ sub.cpp_type }}::ConstSharedPtr msg) {
       this->{{ sub.callback }}(msg);
-    });
+    }{% if sub.callback_group %}, {{ sub.member }}options{% endif %});
 {% endfor %}
 {% endif %}
 {% if service_servers and not lifecycle %}
@@ -68,7 +93,13 @@ namespace {{ namespace }}
     "{{ srv.name }}",
     [this]({{ srv.cpp_type }}::Request::SharedPtr req, {{ srv.cpp_type }}::Response::SharedPtr res) {
       this->{{ srv.callback }}(req, res);
-    });
+    }{% if srv.callback_group %},
+#if RCLCPP_VERSION_GTE(28, 0, 0)
+    rclcpp::ServicesQoS(),
+#else
+    rmw_qos_profile_services_default,
+#endif
+    {{ srv.callback_group }}{% endif %});
 {% endfor %}
 {% endif %}
 {% if service_clients and not lifecycle %}
