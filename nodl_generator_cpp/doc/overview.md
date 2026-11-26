@@ -481,48 +481,22 @@ Without a `namespace`, the class is generated in the global namespace.
 
 ### Callback groups
 
-Use root `codegen.cpp.callback_groups` metadata to assign generated subscriptions and service servers to named groups.
-For example, this tested fixture places a work subscription and a status service in different groups:
+Set `codegen.cpp.callback_groups` in the root node document to assign generated C++ subscriptions and service servers to named groups.
+This example puts the `work` subscription and `status` service in separate groups:
 
 ```{literalinclude} /../../test_nodl_generators/callback_groups/cpp/separate.nodl.yaml
 :language: yaml
 ```
 
-Its included interface declares the endpoints:
+Use exact endpoint names as declared in the {repo}`test_nodl_generators/callback_groups/cpp/interface.nodl.yaml`, before namespaces and remapping.
+Register that file alongside the root when using `ament_nodl_register()`.
+Each named group needs at least one endpoint, and each endpoint can belong to one group.
+Unassigned endpoints use the node's default group.
+ROS supports grouping action servers, and NoDL action group configuration is deferred.
 
-```{literalinclude} /../../test_nodl_generators/callback_groups/cpp/interface.nodl.yaml
-:language: yaml
-```
-
-When registering the generated contract, also register `interface.nodl.yaml` with `ament_nodl_register()`, as required for `local://` includes.
-
-Each group requires a `type`: `MUTUALLY_EXCLUSIVE` serializes callbacks within that group; `REENTRANT` permits overlap between distinct endpoints in the group.
-Overlap between repeated invocations of one subscription also depends on the ROS implementation.
-The tested Lyrical and Rolling versions hold an internal per-subscription lock during callback dispatch, so those invocations serialize even in a reentrant group.
-NoDL preserves the requested ROS group type and does not bypass this lock.
-The generator creates and retains groups before constructing the endpoints.
-Groups do not create threads: the application must choose a multithreaded executor to permit concurrent execution.
-Protect shared application state whenever handlers can overlap.
-
-Group identifiers contain lowercase letters, digits, and underscores and start with a lowercase letter.
-Each group must assign at least one subscription or service server.
-Endpoint lists match exact declared names before namespace resolution and remapping, so `work`, `/work`, and `~/work` are different selectors.
-The root may assign endpoints brought in through ordinary includes, but cannot assign endpoints already implemented by `BASE_CLASS` or `NO_GENERATE` providers.
-Duplicate assignments, unknown names, unsupported categories, and invalid metadata fail both dependency discovery and generation.
-
-Unassigned endpoints retain the node's default callback group.
-Omitting the metadata preserves the existing generated code.
-This first version does not assign clients, actions, lifecycle infrastructure, or parameter infrastructure, and does not expose the generated groups to subclasses.
-
-For lifecycle nodes, the generated base reuses the same callback groups each time it creates its managed subscriptions and service servers on activation.
-Callbacks in separate groups may overlap lifecycle hooks, so synchronize shared application state when required.
-
-The executable fixture covers defaults, shared groups, separate groups, distinct endpoints in a reentrant group, and lifecycle transitions:
-
-```bash
-colcon test --packages-select test_nodl_generators --ctest-args -R test_cpp_callback_groups
-colcon test-result --verbose
-```
+See the [ROS callback groups guide](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/nodes/Working-with-nodes/Using-callback-groups.rst) for group types and executor behavior.
+On the tested Lyrical and Rolling versions, repeated invocations of one subscription serialize even in a reentrant group.
+Generated lifecycle nodes reuse the configured groups when recreating managed subscriptions and services on activation.
 
 ### Walking the include tree
 

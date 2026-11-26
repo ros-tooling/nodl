@@ -101,9 +101,8 @@ definitions:
     additionalProperties: false
     required:
       - type
-    anyOf:
-      - required: [subscriptions]
-      - required: [service_servers]
+    # Require type plus at least one endpoint list.
+    minProperties: 2
     properties:
       type:
         type: string

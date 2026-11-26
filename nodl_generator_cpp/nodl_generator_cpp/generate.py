@@ -13,7 +13,7 @@ from nodl_generator_cpp.cmake_deps import (
     ros_deps,
 )
 from nodl_generator_cpp.include_prefix import validate_include_prefix
-from nodl_generator_cpp.models import CallbackGroup1, CallbackGroup2, CodegenBaseClass, CodegenNode, CodegenNoGenerate
+from nodl_generator_cpp.models import CallbackGroup, CodegenBaseClass, CodegenNode, CodegenNoGenerate
 from nodl_generator_cpp.params import generate_genparamlib_yaml
 from nodl_generator_cpp.template import render_templates
 from nodl_schema.loader import IncludedDocument
@@ -49,7 +49,7 @@ class CppPlanner(CodegenPlanner[CodegenCpp]):
     def __init__(self) -> None:
         self.base_classes: list[CodegenBaseClass] = []
         self.namespace: Optional[str] = None
-        self.callback_groups: dict[str, Union[CallbackGroup1, CallbackGroup2]] = {}
+        self.callback_groups: dict[str, CallbackGroup] = {}
         self._errors: list[str] = []
         self._base_class: Optional[CodegenBaseClass] = None
 

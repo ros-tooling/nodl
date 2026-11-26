@@ -5,7 +5,7 @@ import jinja2
 from nodl_generator_common.generated_file import GeneratedFile
 from nodl_generator_common.naming import to_member_name
 from nodl_generator_cpp.include_prefix import prefixed
-from nodl_generator_cpp.models import CallbackGroup1, CallbackGroup2
+from nodl_generator_cpp.models import CallbackGroup
 from nodl_generator_cpp.ros_to_cpp import (
     qos_to_cpp,
     ros_type_to_cpp,
@@ -56,7 +56,7 @@ def _build_template_context(
     namespace: str | None = None,
     publisher_class: str,
     lifecycle: bool = False,
-    callback_groups: dict[str, CallbackGroup1 | CallbackGroup2] | None = None,
+    callback_groups: dict[str, CallbackGroup] | None = None,
 ) -> dict:
     """Build the flat context dict consumed by the Jinja2 templates.
 
@@ -192,7 +192,7 @@ def render_templates(
     namespace: str | None = None,
     publisher_class: str,
     lifecycle: bool = False,
-    callback_groups: dict[str, CallbackGroup1 | CallbackGroup2] | None = None,
+    callback_groups: dict[str, CallbackGroup] | None = None,
 ) -> list[GeneratedFile]:
     """Render C++ header and source files from pre-filtered entities.
 

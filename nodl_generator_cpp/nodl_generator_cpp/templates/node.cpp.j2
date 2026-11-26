@@ -2,6 +2,7 @@
 // GENERATED FILE — do not edit. Regenerated from NoDL by nodl_generator_cpp.
 #include "{{ header_include }}"
 {% if service_servers | selectattr("callback_group") | list %}
+{# Use the C++ service QoS overload on Jazzy and later. Humble requires the raw RMW profile. #}
 #include <rclcpp/version.h>
 {% endif %}
 
