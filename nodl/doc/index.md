@@ -17,6 +17,7 @@ why-nodl
 concepts
 schema
 documenting
+migrating-lifecycle-nodes
 CMake API <_generated/cmake/index>
 roadmap
 tutorials/index

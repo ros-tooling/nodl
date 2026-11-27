@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>nodl_tutorial_lifecycle_migration</name>
+  <version>2.0.3</version>
+  <description>Handwritten lifecycle nodes and their NoDL generated counterparts, used by the lifecycle migration guide.</description>
+  <maintainer email="rosgraph-wg@googlegroups.com">ROSGraph Working Group</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_nodl</buildtool_depend>
+  <buildtool_depend>nodl_generator_cpp</buildtool_depend>
+  <buildtool_depend>nodl_generator_py</buildtool_depend>
+
+  <depend>nodl_runtime_cpp</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+
+  <exec_depend>nodl_runtime_py</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>lifecycle_msgs</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>rmw_cyclonedds_cpp</test_depend>
+  <test_depend>ros2nodl</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

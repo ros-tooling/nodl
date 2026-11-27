@@ -387,6 +387,7 @@ def handle_activate(self, state):
 ```
 
 The `nodl_runtime_py` overview describes the hooks and the order of the transitions.
+To move a handwritten lifecycle node to a generated one, see [Migrating a handwritten lifecycle node](https://nodl.readthedocs.io/en/latest/migrating-lifecycle-nodes.html).
 A package that generates a lifecycle node declares `nodl_runtime_py` as an `exec_depend`, as for any generated Python node.
 
 ## Parameters

@@ -34,6 +34,7 @@ A subclass that defines an `on_*` callback raises a `TypeError` when the class i
 The callbacks are also marked `@final`, so that `pyright` reports an override.
 The generated Python base of a document that includes `nodl://nodl_common_interfaces/lifecycle_node` derives this class.
 An authored implementation of the generated node defines the same hooks.
+To move a handwritten lifecycle node to this class, see [Migrating a handwritten lifecycle node](https://nodl.readthedocs.io/en/latest/migrating-lifecycle-nodes.html).
 
 ### Endpoints created on activation
 
