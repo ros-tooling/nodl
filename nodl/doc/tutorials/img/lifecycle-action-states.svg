@@ -1,0 +1,65 @@
+<!-- SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 210" role="img" aria-labelledby="title description">
+  <title id="title">Lifecycle transitions and Fibonacci goal admission</title>
+  <desc id="description">Configure moves from unconfigured to inactive. Activate moves from inactive to active. Deactivate returns to inactive, and cleanup returns to unconfigured. Only active accepts new goals. These are the transitions exercised in this tutorial.</desc>
+  <style>
+    :root {
+      --text: #0f172a;
+      --line: #475569;
+      --node: #f1f5f9;
+      --border: #64748b;
+      --active: #dcfce7;
+      --active-border: #15803d;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #e2e8f0;
+        --line: #cbd5e1;
+        --node: #263244;
+        --border: #94a3b8;
+        --active: #12372a;
+        --active-border: #4ade80;
+      }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="var(--line)"/>
+    </marker>
+  </defs>
+  <!-- Keep labels readable even when the embedded SVG and page use different themes. -->
+  <g fill="var(--node)">
+    <rect x="295" y="10" width="310" height="28" rx="5"/>
+    <rect x="252" y="55" width="82" height="26" rx="5"/>
+    <rect x="565" y="55" width="82" height="26" rx="5"/>
+    <rect x="252" y="147" width="82" height="26" rx="5"/>
+    <rect x="565" y="147" width="82" height="26" rx="5"/>
+  </g>
+  <g font-family="sans-serif" text-anchor="middle" fill="var(--text)">
+    <text x="450" y="30" font-size="16">Transitions exercised by this tutorial</text>
+    <rect x="25" y="65" width="225" height="100" rx="10" fill="var(--node)" stroke="var(--border)"/>
+    <rect x="337" y="65" width="225" height="100" rx="10" fill="var(--node)" stroke="var(--border)"/>
+    <rect x="650" y="65" width="225" height="100" rx="10" fill="var(--active)" stroke="var(--active-border)"/>
+    <g font-size="20" font-weight="bold">
+      <text x="137" y="105">Unconfigured</text>
+      <text x="450" y="105">Inactive</text>
+      <text x="762" y="105">Active</text>
+    </g>
+    <g font-size="16">
+      <text x="137" y="135">Reject new goals</text>
+      <text x="450" y="135">Reject new goals</text>
+      <text x="762" y="135">Accept new goals</text>
+      <text x="293" y="75">configure</text>
+      <text x="606" y="75">activate</text>
+      <text x="293" y="166">cleanup</text>
+      <text x="606" y="166">deactivate</text>
+    </g>
+  </g>
+  <g stroke="var(--line)" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M 250 90 H 337"/>
+    <path d="M 562 90 H 650"/>
+    <path d="M 337 140 H 250"/>
+    <path d="M 650 140 H 562"/>
+  </g>
+</svg>

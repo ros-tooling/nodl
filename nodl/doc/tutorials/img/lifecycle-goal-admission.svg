@@ -1,0 +1,36 @@
+<!-- SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 450" role="img" aria-labelledby="title description">
+  <title id="title">New goal admission</title>
+  <desc id="description">on_fibonacci_goal accepts a goal only when the gate is open and the order is between 0 and 46. A failed check rejects the goal. Separately, on_fibonacci_cancel accepts cancellation requests; execution handles the actual cancellation.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#64748b"/></marker></defs>
+  <rect x="210" y="5" width="685" height="260" rx="10" fill="#e2e8f0" stroke="#64748b"/>
+  <path d="M 210 47 H 895" stroke="#64748b"/>
+  <text x="552" y="33" font-family="monospace" font-size="18" font-weight="bold" text-anchor="middle" fill="#0f172a">on_fibonacci_goal</text>
+  <g transform="translate(0 45)">
+  <g fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M 175 60 H 235"/><path d="M 415 60 H 475"/><path d="M 655 60 H 715"/>
+    <path d="M 325 95 V 175 H 400"/><path d="M 565 95 V 175 H 510"/>
+  </g>
+  <g fill="#f1f5f9" stroke="#64748b">
+    <rect x="20" y="25" width="155" height="70" rx="10"/><rect x="235" y="25" width="180" height="70" rx="10"/>
+    <rect x="475" y="25" width="180" height="70" rx="10"/><rect x="715" y="25" width="165" height="70" rx="10" fill="#dcfce7"/>
+    <rect x="400" y="145" width="110" height="60" rx="10" fill="#fee2e2"/>
+    <rect x="427" y="43" width="36" height="25" rx="4"/><rect x="667" y="43" width="36" height="25" rx="4"/>
+    <rect x="306" y="109" width="38" height="25" rx="4"/><rect x="546" y="109" width="38" height="25" rx="4"/>
+  </g>
+  <g font-family="sans-serif" text-anchor="middle" fill="#0f172a">
+    <g font-size="19"><text x="97" y="67">New goal</text><text x="325" y="67">Gate open?</text><text x="565" y="67">Valid order?</text><text x="797" y="67">Accept</text><text x="455" y="182">Reject</text></g>
+    <g font-size="15"><text x="445" y="61">yes</text><text x="685" y="61">yes</text><text x="325" y="127">no</text><text x="565" y="127">no</text></g>
+  </g>
+  </g>
+  <rect x="210" y="285" width="685" height="115" rx="10" fill="#e2e8f0" stroke="#64748b"/>
+  <path d="M 210 330 H 895" stroke="#64748b"/>
+  <text x="552" y="315" font-family="monospace" font-size="18" font-weight="bold" text-anchor="middle" fill="#0f172a">on_fibonacci_cancel</text>
+  <path d="M 175 365 H 420" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="20" y="343" width="155" height="44" rx="8" fill="#f1f5f9" stroke="#64748b"/>
+  <rect x="420" y="343" width="265" height="44" rx="8" fill="#dcfce7" stroke="#64748b"/>
+  <g font-family="sans-serif" font-size="18" text-anchor="middle" fill="#0f172a"><text x="97" y="371">Cancel request</text><text x="552" y="371">Accept cancellation request</text></g>
+  <rect x="20" y="413" width="875" height="29" rx="5" fill="#f1f5f9"/>
+  <text x="457" y="433" font-family="sans-serif" font-size="17" text-anchor="middle" fill="#0f172a">A client may request cancellation while the accepted goal runs; execution checks it below.</text>
+</svg>

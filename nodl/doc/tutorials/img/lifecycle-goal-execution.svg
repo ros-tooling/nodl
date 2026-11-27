@@ -1,0 +1,51 @@
+<!-- SPDX-FileCopyrightText: 2026 Open Source Robotics Foundation, Inc. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 750" role="img" aria-labelledby="title description">
+  <title id="title">Accepted goal execution loop</title>
+  <desc id="description">After C++ accepts a goal, on_fibonacci_accepted starts execute on a worker thread and returns without waiting for execution to end. Python's executor calls execute_fibonacci for an accepted goal. A client can request cancellation while the goal runs. on_fibonacci_cancel accepts the request; the dashed arrow shows that execution observes it at its next cancellation check, not an immediate stop. Execution marks the goal succeeded or canceled, returns its final or partial result, and ends. Only that goal ends; the node remains running.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#64748b"/></marker></defs>
+  <rect x="200" y="5" width="500" height="110" rx="10" fill="#e2e8f0" stroke="#64748b"/>
+  <path d="M 200 44 H 700" stroke="#64748b"/>
+  <text x="450" y="31" font-family="monospace" font-size="18" font-weight="bold" text-anchor="middle" fill="#0f172a">C++: on_fibonacci_accepted</text>
+  <text x="450" y="69" font-family="sans-serif" font-size="17" text-anchor="middle" fill="#0f172a">Start execute on a worker thread</text>
+  <text x="450" y="96" font-family="sans-serif" font-size="17" text-anchor="middle" fill="#0f172a">Callback returns; worker continues below</text>
+  <path d="M 450 115 V 280" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="20" y="150" width="390" height="90" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+  <g font-family="sans-serif" font-size="18" text-anchor="middle" fill="#0f172a"><text x="215" y="187">Client requests cancellation</text><text x="215" y="214">while an accepted goal is running</text></g>
+  <path d="M 410 195 H 480" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="480" y="140" width="400" height="110" rx="10" fill="#e2e8f0" stroke="#64748b"/>
+  <path d="M 480 180 H 880" stroke="#64748b"/>
+  <text x="680" y="167" font-family="monospace" font-size="18" font-weight="bold" text-anchor="middle" fill="#0f172a">on_fibonacci_cancel</text>
+  <g font-family="sans-serif" font-size="17" text-anchor="middle" fill="#0f172a"><text x="680" y="208">Accept the request</text><text x="680" y="233">Execution has not stopped yet</text></g>
+  <rect x="5" y="280" width="890" height="405" rx="10" fill="#e2e8f0" stroke="#64748b"/>
+  <path d="M 5 325 H 895" stroke="#64748b"/>
+  <g font-family="monospace" font-size="18" font-weight="bold" text-anchor="middle" fill="#0f172a">
+    <text x="450" y="309">C++ worker: execute | Python: execute_fibonacci</text>
+  </g>
+  <path d="M 880 215 H 898 V 335 H 570 V 375" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+  <rect x="585" y="337" width="265" height="27" rx="4" fill="#f1f5f9"/>
+  <text x="717" y="356" font-family="sans-serif" font-size="16" text-anchor="middle" fill="#0f172a">Observed at the next loop check</text>
+  <g transform="translate(0 350)">
+  <g fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M 200 65 H 250"/><path d="M 430 65 H 480"/><path d="M 660 65 H 710"/>
+    <path d="M 795 25 V 8 H 340 V 25"/><path d="M 340 105 V 195"/><path d="M 570 105 V 195"/>
+  </g>
+  <g fill="#f1f5f9" stroke="#64748b">
+    <rect x="20" y="25" width="180" height="80" rx="10"/><rect x="250" y="25" width="180" height="80" rx="10"/>
+    <rect x="480" y="25" width="180" height="80" rx="10"/><rect x="710" y="25" width="170" height="80" rx="10"/>
+    <rect x="230" y="195" width="220" height="115" rx="10" fill="#dcfce7"/><rect x="460" y="195" width="220" height="115" rx="10" fill="#fee2e2"/>
+    <rect x="435" y="48" width="40" height="25" rx="4"/><rect x="665" y="48" width="40" height="25" rx="4"/>
+    <rect x="320" y="154" width="40" height="25" rx="4"/><rect x="550" y="154" width="40" height="25" rx="4"/>
+  </g>
+  <g font-family="sans-serif" text-anchor="middle" fill="#0f172a" font-size="17">
+    <text x="110" y="58">Accepted goal</text><text x="110" y="82">Start with [0, 1]</text>
+    <text x="340" y="70">More terms?</text><text x="570" y="58">Cancellation</text><text x="570" y="82">requested?</text>
+    <text x="795" y="58">Calculate term</text><text x="795" y="82">Publish feedback</text>
+    <text x="340" y="223" font-weight="bold">Mark goal succeeded</text><text x="340" y="252">Return final sequence</text><text x="340" y="283">Execution ends</text>
+    <text x="570" y="223" font-weight="bold">Mark goal canceled</text><text x="570" y="252">Return partial sequence</text><text x="570" y="283">Execution ends</text>
+    <g font-size="15"><text x="455" y="66">yes</text><text x="685" y="66">no</text><text x="340" y="172">no</text><text x="570" y="172">yes</text></g>
+  </g>
+  </g>
+  <rect x="100" y="704" width="700" height="34" rx="6" fill="#f1f5f9"/>
+  <text x="450" y="727" font-family="sans-serif" font-size="19" font-weight="bold" text-anchor="middle" fill="#0f172a">Only this goal ends. The node stays running.</text>
+</svg>
